@@ -403,14 +403,6 @@ describeIntegration('CRM-04 manager tenants (disposable PostgreSQL)', () => {
       errors: [{ field: 'issuer', rule: 'unconfigured_issuer' }],
     });
 
-    // Only local actors resolved by exact issuer+subject are enumerable.
-    const missingActor = await post(
-      `/api/v1/platform-admin/tenants/${tenantId}/initial-admin-membership`,
-      { issuer: configuredIssuer, subject: 'no-such-subject' },
-    );
-    expect(missingActor.status).toBe(404);
-    expect(bodyOf(missingActor)).toMatchObject({ code: 'actor_not_found' });
-
     // Provisioning through the CRM-02 service: database, least-priv role,
     // credential storage, tenant migrations, ready state.
     const provisioning = await post(
@@ -435,6 +427,14 @@ describeIntegration('CRM-04 manager tenants (disposable PostgreSQL)', () => {
     );
     expect(retry.status).toBe(200);
     expect((bodyOf(retry).provisioning as { attempt: number }).attempt).toBe(1);
+
+    // Only a ready tenant may reveal whether an exact local actor exists.
+    const missingActor = await post(
+      `/api/v1/platform-admin/tenants/${tenantId}/initial-admin-membership`,
+      { issuer: configuredIssuer, subject: 'no-such-subject' },
+    );
+    expect(missingActor.status).toBe(404);
+    expect(bodyOf(missingActor)).toMatchObject({ code: 'actor_not_found' });
 
     // Initial tenant_admin membership: exact configured issuer + subject.
     const assigned = await post(
