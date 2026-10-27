@@ -54,6 +54,22 @@ export const EXPECTED_TENANT_COLUMNS = [
   'updated_at',
 ];
 
+export const EXPECTED_TENANT_PROVISIONING_COLUMNS = [
+  'tenant_id',
+  'attempt',
+  'stage',
+  'failure_code',
+  'started_at',
+  'updated_at',
+  'finished_at',
+];
+
+/**
+ * Length of the reviewed Control Plane journal (CRM-01 registry slice plus
+ * the CRM-02 durable provisioning-attempt slice).
+ */
+export const EXPECTED_CONTROL_PLANE_MIGRATIONS = 2;
+
 export function normalizeOrderedSet(values) {
   return [...values]
     .map((value) => String(value).trim().toLowerCase())
@@ -64,6 +80,13 @@ export function columnsMatchExpected(actual) {
   return (
     JSON.stringify(normalizeOrderedSet(actual)) ===
     JSON.stringify(normalizeOrderedSet(EXPECTED_TENANT_COLUMNS))
+  );
+}
+
+export function provisioningColumnsMatchExpected(actual) {
+  return (
+    JSON.stringify(normalizeOrderedSet(actual)) ===
+    JSON.stringify(normalizeOrderedSet(EXPECTED_TENANT_PROVISIONING_COLUMNS))
   );
 }
 
@@ -95,39 +118,53 @@ async function snapshot(pool) {
      WHERE n.nspname = 'public' AND t.typtype = 'e'
      ORDER BY t.typname`,
   );
-  const { rows: tables } = await pool.query(
-    `SELECT table_name FROM information_schema.tables
-     WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-     ORDER BY table_name`,
-  );
-  const { rows: columns } = await pool.query(
-    `SELECT column_name FROM information_schema.columns
-     WHERE table_schema = 'public' AND table_name = 'tenants'
-     ORDER BY ordinal_position`,
-  );
-  const { rows: uniqueConstraints } = await pool.query(
-    `SELECT conname FROM pg_constraint
-     WHERE conrelid = '"tenants"'::regclass AND contype = 'u'
-     ORDER BY conname`,
-  );
-  let journalCount = 0;
-  try {
-    const { rows } = await pool.query(
-      'SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations',
+    const { rows: tables } = await pool.query(
+      `SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+      ORDER BY table_name`,
     );
-    journalCount = rows[0]?.count ?? 0;
-  } catch {
-    journalCount = null;
+    const { rows: columns } = await pool.query(
+      `SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'tenants'
+      ORDER BY ordinal_position`,
+    );
+    const { rows: provisioningColumns } = await pool.query(
+      `SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'tenant_provisioning'
+      ORDER BY ordinal_position`,
+    );
+    const { rows: provisioningForeignKeys } = await pool.query(
+      `SELECT conname FROM pg_constraint
+      WHERE conrelid = '"tenant_provisioning"'::regclass AND contype = 'f'
+      ORDER BY conname`,
+    );
+    const { rows: uniqueConstraints } = await pool.query(
+      `SELECT conname FROM pg_constraint
+      WHERE conrelid = '"tenants"'::regclass AND contype = 'u'
+      ORDER BY conname`,
+    );
+    let journalCount = 0;
+    try {
+      const { rows } = await pool.query(
+        'SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations',
+      );
+      journalCount = rows[0]?.count ?? 0;
+    } catch {
+      journalCount = null;
+    }
+    return {
+      enumValues: enums.map((row) => row.enumlabel),
+      enumTypes: enumTypes.map((row) => row.typname),
+      tables: tables.map((row) => row.table_name),
+      columns: columns.map((row) => row.column_name),
+      provisioningColumns: provisioningColumns.map((row) => row.column_name),
+      provisioningForeignKeys: provisioningForeignKeys.map(
+        (row) => row.conname,
+      ),
+      uniqueConstraints: uniqueConstraints.map((row) => row.conname),
+      journalCount,
+    };
   }
-  return {
-    enumValues: enums.map((row) => row.enumlabel),
-    enumTypes: enumTypes.map((row) => row.typname),
-    tables: tables.map((row) => row.table_name),
-    columns: columns.map((row) => row.column_name),
-    uniqueConstraints: uniqueConstraints.map((row) => row.conname),
-    journalCount,
-  };
-}
 
 export function isInvokedEntrypoint() {
   if (!process.argv[1]) {
@@ -181,9 +218,9 @@ if (isInvokedEntrypoint()) {
       before.enumTypes.join(','),
     );
     check(
-      'public table object set is exactly tenants',
+      'public table object set is exactly the reviewed Control Plane tables',
       JSON.stringify(normalizeOrderedSet(before.tables)) ===
-        JSON.stringify(['tenants']),
+        JSON.stringify(normalizeOrderedSet(['tenants', 'tenant_provisioning'])),
       before.tables.join(','),
     );
     check(
@@ -192,14 +229,25 @@ if (isInvokedEntrypoint()) {
       normalizeOrderedSet(before.columns).join(','),
     );
     check(
+      'tenant_provisioning columns match the CRM-02 handoff without credential columns',
+      provisioningColumnsMatchExpected(before.provisioningColumns),
+      normalizeOrderedSet(before.provisioningColumns).join(','),
+    );
+    check(
+      'tenant_provisioning keeps exactly its foreign key to tenants',
+      JSON.stringify(before.provisioningForeignKeys) ===
+        JSON.stringify(['tenant_provisioning_tenant_id_tenants_id_fk']),
+      before.provisioningForeignKeys.join(','),
+    );
+    check(
       'tenants unique-constraint set is exactly tenants_database_name_unique',
       JSON.stringify(before.uniqueConstraints) ===
         JSON.stringify(['tenants_database_name_unique']),
       before.uniqueConstraints.join(','),
     );
     check(
-      'drizzle journal records exactly one applied migration',
-      before.journalCount === 1,
+      'drizzle journal records every reviewed migration as applied',
+      before.journalCount === EXPECTED_CONTROL_PLANE_MIGRATIONS,
       `journalCount=${before.journalCount}`,
     );
 

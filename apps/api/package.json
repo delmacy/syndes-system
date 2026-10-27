@@ -15,12 +15,16 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "test": "jest",
+    "test:unit": "jest --testPathIgnorePatterns .postgres.integration",
+    "test:integration": "jest --runInBand --testPathPatterns .postgres.integration",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "cp:migrations:apply": "node scripts/apply-control-plane-migrations.mjs",
-    "cp:migrations:verify": "node scripts/verify-control-plane-migrations.mjs"
+    "cp:migrations:verify": "node scripts/verify-control-plane-migrations.mjs",
+    "tenant:migrations:apply": "node scripts/apply-tenant-migrations.mjs",
+    "tenant:verify:provisioning": "node scripts/verify-tenant-provisioning.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

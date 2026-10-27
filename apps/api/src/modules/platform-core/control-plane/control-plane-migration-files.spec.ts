@@ -35,9 +35,9 @@ describe('Control Plane migration deliverables (CRM-01)', () => {
     }
   });
 
-  it('keeps the checked-in SQL DDL-only and free of secrets', () => {
+  it('keeps every checked-in SQL DDL-only and free of secrets', () => {
     const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as {
-      entries: { tag: string }[];
+      entries: { tag: string; when: number }[];
     };
     const forbidden =
       /postgresql:\/\/|password|secret|api[_-]?key|token|credential/i;
@@ -46,12 +46,37 @@ describe('Control Plane migration deliverables (CRM-01)', () => {
         path.join(drizzleDir, `${entry.tag}.sql`),
         'utf8',
       );
-      expect(sql).toContain(`"provisioning_state"`);
-      expect(sql).toContain(`CREATE TABLE "tenants"`);
-      expect(sql).toContain(`UNIQUE("database_name")`);
       expect(/\bINSERT\b|\bUPDATE\b|\bDELETE\b/i.test(sql)).toBe(false);
       expect(forbidden.test(sql)).toBe(false);
     }
+  });
+
+  it('keeps the reviewed tenants registry DDL in the approved initial migration', () => {
+    const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as {
+      entries: { tag: string }[];
+    };
+    const sql = readFileSync(
+      path.join(drizzleDir, `${journal.entries[0].tag}.sql`),
+      'utf8',
+    );
+    expect(sql).toContain(`"provisioning_state"`);
+    expect(sql).toContain(`CREATE TABLE "tenants"`);
+    expect(sql).toContain(`UNIQUE("database_name")`);
+  });
+
+  it('keeps the reviewed provisioning attempt DDL in the CRM-02 migration', () => {
+    const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as {
+      entries: { tag: string }[];
+    };
+    expect(journal.entries.length).toBe(2);
+    const sql = readFileSync(
+      path.join(drizzleDir, `${journal.entries[1].tag}.sql`),
+      'utf8',
+    );
+    expect(sql).toContain(`CREATE TABLE "tenant_provisioning"`);
+    expect(sql).toContain(`REFERENCES "public"."tenants"("id")`);
+    expect(sql).not.toContain(`ON DELETE`);
+    expect(sql).not.toContain(`CREATE TABLE "tenants"`);
   });
 
   it('ensures the frozen snapshot descriptor exists for every entry', () => {

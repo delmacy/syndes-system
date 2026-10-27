@@ -41,6 +41,7 @@ jobs:
     env:
       # Test-only credential from the disposable service above — not a repo secret.
       CONTROL_PLANE_DATABASE_URL: postgresql://api_ci:api_ci_test_only@localhost:5432/control_plane
+      TENANT_ADMIN_DATABASE_URL: postgresql://api_ci:api_ci_test_only@localhost:5432/control_plane
 
     steps:
       - name: Checkout
@@ -63,7 +64,10 @@ jobs:
         run: npm run typecheck
 
       - name: Unit tests
-        run: npm test
+        run: npm run test:unit
+
+      - name: Provisioning integration tests (disposable PostgreSQL 16)
+        run: npm run test:integration
 
       - name: Build
         run: npm run build
@@ -76,3 +80,6 @@ jobs:
 
       - name: Verify Control Plane migration contract
         run: npm run cp:migrations:verify
+
+      - name: Verify tenant migrations and provisioning (disposable PostgreSQL 16)
+        run: npm run tenant:verify:provisioning

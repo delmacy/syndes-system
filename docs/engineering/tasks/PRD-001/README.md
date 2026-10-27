@@ -8,7 +8,7 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 |---|---|---|---|
 | CRM-00 | 0 | Codex | ACEITA; Gate 0 concluído no commit `075e329` |
 | CRM-01 | 0 | OpenCode Free (backend/review) | ACEITA; API e Repository Integrity CI verdes, incluindo PostgreSQL 16 |
-| CRM-02 | 1 | OpenCode Free | Bloqueada pela prova PostgreSQL 16 de CRM-01/Product Gate |
+| CRM-02 | 1 | OpenCode Free; Codex revisa | Implementação entregue; revisão técnica e prova CI PostgreSQL 16 em andamento |
 | CRM-03 | 1 | OpenCode Free | Depende CRM-00 e CRM-02 |
 | CRM-04 | 1 | OpenCode Free | Depende CRM-03 |
 | CRM-05 | 2 | OpenCode Free | Depende CRM-03 e CRM-04 |

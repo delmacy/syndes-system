@@ -2,7 +2,7 @@
 
 - **Módulo/gate:** Platform Core mínimo / Sprint 1.
 - **Classificação:** MVP.
-- **Prioridade/estado:** P0 / bloqueada por CRM-00 e CRM-01.
+- **Prioridade/estado:** P0 / CRM-00 e CRM-01 aceitas; revisão Codex em andamento.
 - **Responsável recomendado:** OpenCode Free, uma dispatch mutável; Codex revisa.
 - **Issue/branch/commit/PR:** ainda não criados; esta é uma ordem local, sem operação externa.
 
@@ -15,6 +15,7 @@ Criar database PostgreSQL exclusivo do tenant, aplicar baseline tenant migration
 - Serviço de provisioning com transições permitidas, idempotency/concurrency control e erros recuperáveis.
 - State machine CRM-00: `pending → in_progress → ready|failed`; retry `failed → in_progress`; repeated ready request is an idempotent no-op.
 - Generate database name from permanent tenant UUID; create a separate least-privilege database role and store credentials only in the approved deployment secret store.
+- Require a dedicated `TENANT_ADMIN_DATABASE_URL`; never fall back to `CONTROL_PLANE_DATABASE_URL`. The concrete secret-store adapter remains fail-closed until approved for a deployment environment.
 - Use a per-tenant concurrency lock; run migrations sequentially outside API startup and resume idempotently from durable step state.
 - Failed attempts keep sanitized stage/result and partial state safe for retry; never log credentials or connection strings.
 - Testes unitários de estados/retries e integration com PostgreSQL descartável (múltiplos retries e falha intermediária).
@@ -42,4 +43,4 @@ Criar database PostgreSQL exclusivo do tenant, aplicar baseline tenant migration
 ## Evidência e próximo responsável
 
 - Listar estado antes/depois e logs sanitizados; informar limitações de privilégios do ambiente.
-- Próximo owner: Codex revisão; depois CRM-03 integra resolução/auth sem sobrepor ownership.
+- Próximo owner: Codex conclui revisão e CI; depois CRM-03 integra resolução/auth sem sobrepor ownership.
