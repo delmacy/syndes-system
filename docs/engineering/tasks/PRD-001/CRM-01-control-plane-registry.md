@@ -2,13 +2,13 @@
 
 - **Módulo/gate:** Platform Core mínimo para Core CRM / Sprint 0.
 - **Classificação:** MVP.
-- **Prioridade/estado:** P0 / pronta para despacho; sem endpoints.
+- **Prioridade/estado:** P0 / ACEITA; prova PostgreSQL 16 e CI concluídos; sem endpoints.
 - **Responsável recomendado:** OpenCode Free, uma dispatch mutável; Codex revisa.
 - **Issue/branch/commit/PR:** não existentes; sem operações externas nesta ordem.
 
 ## Objetivo e contexto
 
-Revisar o slice de registry Control Plane já presente e fechar sua evidência PostgreSQL descartável. O schema e a migration foram criados, mas migration local não foi aplicada e o workflow ainda não foi executado em GitHub.
+Revisar o slice de registry Control Plane já presente e fechar sua evidência PostgreSQL descartável. Schema, migration runner, contrato e workflow foram revisados e aprovados.
 
 ## Incluído
 
@@ -42,4 +42,5 @@ Revisar o slice de registry Control Plane já presente e fechar sua evidência P
 
 - Reportar comandos, logs resumidos do migration CI, arquivos e limitações; não incluir URL/credential real.
 - Risco conhecido: CI hosted não prova isolamento completo de runtime tenant; não alegar esse gate.
-- Próximo owner: Codex revisão/aceite; depois CRM-02/03.
+- Evidência: commit `075e329`; API run `40507834957` passou lint, typecheck, unit, build, audit, apply e verify em PostgreSQL 16; Repository Integrity run `40507834659` passou.
+- Próximo owner: OpenCode Free em CRM-02; CRM-03 depende da conclusão de CRM-02.

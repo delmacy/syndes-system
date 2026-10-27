@@ -6,8 +6,8 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 
 | ID | Sprint | Responsável recomendado | Estado/dependência |
 |---|---|---|---|
-| CRM-00 | 0 | Codex | Contratos documentados e cross-reviewed; Product Gate aguarda prova PostgreSQL 16 de CRM-01 |
-| CRM-01 | 0 | OpenCode Free (backend/review) | Código revisado localmente; falta prova hosted PostgreSQL 16 do migration workflow |
+| CRM-00 | 0 | Codex | ACEITA; Gate 0 concluído no commit `075e329` |
+| CRM-01 | 0 | OpenCode Free (backend/review) | ACEITA; API e Repository Integrity CI verdes, incluindo PostgreSQL 16 |
 | CRM-02 | 1 | OpenCode Free | Bloqueada pela prova PostgreSQL 16 de CRM-01/Product Gate |
 | CRM-03 | 1 | OpenCode Free | Depende CRM-00 e CRM-02 |
 | CRM-04 | 1 | OpenCode Free | Depende CRM-03 |
@@ -30,9 +30,9 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 ## Execução Orca
 
 - Run: `run_e16dc258e959` (aberto em 2026-10-27; sem issues/PRs/GitHub Actions externas criadas).
-- CRM-01: task `task_465e1a68981a`; implementação e revisões corretivas concluídas no modelo OpenCode `glm-5.3-flash-free`. Testes locais passaram; a migration PostgreSQL 16 ainda aguarda execução do workflow CI.
+- CRM-01: task `task_465e1a68981a`; implementação e revisões corretivas concluídas no modelo OpenCode `glm-5.3-flash-free`. Evidência final no commit `075e329`: API run `40507834957` e Repository Integrity run `40507834659` passaram; workflow API aplicou e verificou migrations em PostgreSQL 16 descartável.
 - CRM-00: contratos de identidade/autorização, Employee/customer scope e runbook de membership foram registrados e cross-reviewados; nenhum endpoint/UI foi iniciado.
-- Nenhuma outra ordem de implementação foi despachada; CRM-02 está bloqueada até fechar CRM-00 e obter a evidência de CRM-01.
+- Sprint 0/Gate 0 ACEITO. CRM-02 está liberada para início; CRM-03 depende da conclusão de CRM-02. Nenhum endpoint ou UI foi iniciado antes da aprovação do gate.
 
 ## Regras de dispatch
 

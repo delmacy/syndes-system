@@ -14,9 +14,9 @@
 
 **Ordens:** `CRM-00` (Codex, antes de agentes implementadores) e `CRM-01` (backend: revisão/teste do Control Plane registry/migration/CI; pode ocorrer enquanto contratos são fechados, sem expor endpoints).
 
-**Saída:** spec aprovada; auth/sessão, actor/tenant context, autorização, API/error/CSV e provisioning/migration tenant definidos; migration atual validada em Postgres descartável pelo CI; dependências e arquivos compartilhados congelados.
+**Saída:** spec aprovada; auth/sessão, actor/tenant context, autorização, API/error/CSV e provisioning/migration tenant definidos; migration validada em PostgreSQL 16 descartável pelo CI; dependências e arquivos compartilhados congelados. **Concluído** no commit `075e329` (API e Repository Integrity verdes).
 
-**Gate:** nenhuma API manager/CRM ou UI autenticada começa antes desse gate. Se faltar escolha humana não inferível, Codex apresenta decisão com recomendação e aguarda.
+**Gate:** **ACEITO** no commit `075e329`. API manager/CRM e UI autenticada podem iniciar conforme as dependências da Sprint 1. Não havia escolha humana pendente.
 
 ## Sprint 1 — Platform Core mínimo
 
@@ -60,4 +60,4 @@
 
 ## Próxima ação
 
-CRM-00 está documentalmente concluída, incluindo a semântica de Employee e os escopos CPF/PJ. Registrar execução verde do workflow PostgreSQL 16 de CRM-01; só então fechar o Gate 0 e despachar CRM-02/03 conforme dependências. Não iniciar manager/CRM endpoints ou UI antes do Gate 0.
+Sprint 0/Gate 0 foi aceito no commit `075e329`: CRM-00 cross-reviewed e API/Repository Integrity CI verdes, incluindo prova de migration PostgreSQL 16. Próximo responsável: OpenCode Free para CRM-02; CRM-03 permanece dependente de CRM-02. Não iniciar funcionalidades fora da Sprint 1.

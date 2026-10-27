@@ -2,7 +2,7 @@
 
 - **Módulo/gate:** Core CRM PRD-001 / Sprint 0 Gate 0.
 - **Classificação:** MVP.
-- **Prioridade/estado:** P0 / concluída por Codex em revisão documental; Product Gate ainda espera prova PostgreSQL 16 do CRM-01.
+- **Prioridade/estado:** P0 / ACEITA; Product Gate concluído após prova PostgreSQL 16 do CRM-01.
 - **Responsável:** Codex coordenador; não delegar decisão de produto/segurança a agente implementador.
 - **Issue/branch/commit/PR:** ainda não existem; operação externa não incluída.
 
@@ -47,8 +47,9 @@ Transformar as decisões técnicas ainda abertas no handoff em contratos version
 - Registrar docs alterados e decisões pendentes, sem credentials ou dados de usuário.
 - Confirmado pelo usuário: Keycloak OIDC; MFA Platform Admin obrigatória; MFA de tenant sob política do realm; Keycloak realm SSO no MVP e federação externa por tenant pós-MVP; papéis tenant_admin/tenant_member com archive/export negados para member.
 - Codex registrou contratos propostos para OIDC/session/JWKS, actor/tenant context, API/Problem Details, CSV, timeline/tag/note e provisioning no handoff. Rever contra o Product Spec e os dois AGENTS de módulo.
-- Semântica Employee, account link, customer scopes e matriz de autorização estão confirmados e registrados no handoff. CRM-02 aguarda prova PostgreSQL 16 do CRM-01; não expor endpoints/UI até o Gate 0 passar.
+- Semântica Employee, account link, customer scopes e matriz de autorização estão confirmados e registrados no handoff. Gate 0 ACEITO após API e Repository Integrity CI verdes; Sprint 1 liberada conforme dependências das tarefas.
 - Escopo de cliente aprovado pelo usuário: atendimento PJ inclui a Organization e suas Persons de contato vinculadas; atendimento CPF inclui Persons sem vínculo PJ.
 - Risco: credenciais e database routing sem secret store/runtime ainda medidos. Escalar somente a escolha ambiental não inferível; sem valores de configuração, não inventar secrets ou limites.
 - Revisão cruzada concluída contra root `AGENTS.md`, `modules/core-crm/AGENTS.md` e `modules/platform-core/AGENTS.md`; whitespace e links locais verificados.
-- Próximo responsável: Codex reabre o Product Gate após CRM-01 CI verde; então habilita `CRM-02` e `CRM-03` conforme dependências.
+- Evidência final: commit `075e329`; API run `40507834957` passou (inclui PostgreSQL 16); Repository Integrity run `40507834659` passou.
+- Próximo responsável: OpenCode Free inicia CRM-02; CRM-03 segue após CRM-02.

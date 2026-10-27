@@ -4,7 +4,7 @@
 
 - Classificação: `MVP`.
 - Módulo corrente: Core CRM.
-- Estado: spec executável; contratos de identidade, sessão, tenant e autorização estão registrados em CRM-00; Gate 0 aguarda prova PostgreSQL 16 de CRM-01.
+- Estado: spec executável; CRM-00/CRM-01 e Gate 0 aceitos após CI verde com PostgreSQL 16 descartável (commit `075e329`).
 - Fonte de escopo: `modules/core-crm/AGENTS.md`, `docs/product/MVP-SCOPE.md` e `docs/engineering/PRD-001-CORE-CRM-TECH-HANDOFF.md`.
 - Stack escolhida: NestJS, Next.js App Router, Drizzle ORM e PostgreSQL.
 - Dados: banco Control Plane separado; cada tenant possui database PostgreSQL próprio.
