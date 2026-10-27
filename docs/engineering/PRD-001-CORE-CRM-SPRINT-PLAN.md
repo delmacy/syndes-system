@@ -28,6 +28,8 @@
 
 **Gate:** migrations em DB descartável, provisioning idempotente, Tenant B negado, auditoria e endpoints autenticados provados.
 
+**Estado:** **ACEITO** após CRM-02/03/04. API run `40546566664` (PostgreSQL 16 integration, migrations e tenant provisioning), Repository Integrity `40546566483` e job web associados passaram no commit `8b41a11`.
+
 ## Sprint 2 — Persistência e API do Core CRM
 
 **Objetivo:** completar o backend do CRM em fatias testadas.
@@ -60,4 +62,4 @@
 
 ## Próxima ação
 
-Sprint 0/Gate 0 foi aceito no commit `075e329`: CRM-00 cross-reviewed e API/Repository Integrity CI verdes, incluindo prova de migration PostgreSQL 16. Próximo responsável: OpenCode Free para CRM-02; CRM-03 permanece dependente de CRM-02. Não iniciar funcionalidades fora da Sprint 1.
+Sprint 0/Gate 0 foi aceito no commit `075e329`; Sprint 1/Platform Core mínimo também foi aceita após CRM-02, CRM-03 e CRM-04. Próxima ordem é CRM-05 (Sprint 2); nenhuma tarefa dessa sprint foi iniciada nesta entrega.

@@ -9,8 +9,8 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 | CRM-00 | 0 | Codex | ACEITA; Gate 0 concluído no commit `075e329` |
 | CRM-01 | 0 | OpenCode Free (backend/review) | ACEITA; API e Repository Integrity CI verdes, incluindo PostgreSQL 16 |
 | CRM-02 | 1 | OpenCode Free; Codex revisa | ACEITA em `8c57126`; API e Repository Integrity CI verdes, com integração PostgreSQL 16 |
-| CRM-03 | 1 | OpenCode Free | Depende CRM-00 e CRM-02 |
-| CRM-04 | 1 | OpenCode Free | Depende CRM-03 |
+| CRM-03 | 1 | OpenCode Free; Codex revisa | ACEITA em `300017f`; API, web e Repository Integrity CI verdes |
+| CRM-04 | 1 | OpenCode Free; Codex revisa | ACEITA em `8b41a11`; PostgreSQL 16 integration (15 tests), API/web CI e Repository Integrity verdes |
 | CRM-05 | 2 | OpenCode Free | Depende CRM-03 e CRM-04 |
 | CRM-06 | 2 | OpenCode Free | Depende CRM-05 |
 | CRM-07 | 2 | OpenCode Free | Depende CRM-05 e CRM-06 |
@@ -32,7 +32,7 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 - Run: `run_e16dc258e959` (aberto em 2026-10-27; sem issues/PRs criadas; CI executado no push do branch).
 - CRM-01: task `task_465e1a68981a`; implementação e revisões corretivas concluídas no modelo OpenCode `glm-5.3-flash-free`. Evidência final no commit `075e329`: API run `40507834957` e Repository Integrity run `40507834659` passaram; workflow API aplicou e verificou migrations em PostgreSQL 16 descartável.
 - CRM-00: contratos de identidade/autorização, Employee/customer scope e runbook de membership foram registrados e cross-reviewados; nenhum endpoint/UI foi iniciado.
-- Sprint 0/Gate 0 ACEITO. CRM-02 foi revisada, corrigida e ACEITA no commit `8c57126`. API CI `40524011187` e Repository Integrity `40524011177` passaram; API CI executou testes de provisioning e verificação de migrations em PostgreSQL 16 descartável. Próximo: CRM-03.
+- Sprint 0/Gate 0 ACEITO. CRM-02 foi revisada, corrigida e ACEITA no commit `8c57126`; CRM-03 e CRM-04 completam e ACEITAM a Sprint 1. Provas finais: API CI `40546566664` (inclui PostgreSQL 16, 122 unit tests, 15 integration tests, migrations/provisioning); Repository Integrity `40546566483`; web CI no mesmo workflow — todos passaram. Próxima ordem: CRM-05 na Sprint 2.
 
 ## Regras de dispatch
 

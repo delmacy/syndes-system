@@ -60,8 +60,8 @@ Aplicar a sessão/autenticação aprovada para derivar actor e tenant server-sid
 - A primeira rodada de integração revelou conflito UUID/text no `resource_id` de `audit_events`; corrigido em `20ecc5e` e provado pela integração verde subsequente. A rodada final está verde.
 - Limites de prova: sem realm/credenciais Keycloak de deployment, login e entrega real de `acr=mfa` não foram executados; sem provider de secrets configurado, o binding padrão continua fail-closed. São pré-requisitos explícitos de deployment, não configuração versionada nesta task.
 - Revisão independente do Cursor e respectivos resultados estão em [CRM-03-web-auth-review.md](CRM-03-web-auth-review.md).
-- **Decisão:** ACEITO para integração no branch, com os pré-requisitos de deployment acima registrados. Próximo responsável: owner de CRM-04 para Manager API; o gate geral do Core CRM permanece aberto.
+- **Decisão:** ACEITO para integração no branch, com os pré-requisitos de deployment acima registrados. A task dependente CRM-04 também foi ACEITA após validação no Actions; o gate geral do Core CRM permanece aberto para as próximas sprints e CRM-11.
 
 ## Encerramento
 
-- Evidência inclui matriz role/action/decision e testes; próximo owner: Codex review; em seguida CRM-04 manager API.
+- Evidência inclui matriz role/action/decision e testes; sequência de Sprint 1 concluída com CRM-04, próxima ordem é CRM-05 na Sprint 2.

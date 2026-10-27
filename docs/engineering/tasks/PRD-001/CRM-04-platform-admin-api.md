@@ -2,9 +2,9 @@
 
 - **Módulo/gate:** Platform Core mínimo / Sprint 1.
 - **Classificação:** MVP.
-- **Prioridade/estado:** P0 / implementação em revisão; aguarda prova CI da integração PostgreSQL.
+- **Prioridade/estado:** P0 / **ACEITO**, após revisão do diff e CI verde.
 - **Responsável recomendado:** OpenCode Free; Codex revisa.
-- **Issue/branch/commit/PR:** ainda não criados; esta é uma ordem local, sem operação externa.
+- **Issue/branch/commit/PR:** branch `work/prd-001-core-crm-sprint-0`; commits `0316b0c`, `0bfa342`, `8b41a11`; sem PR criado.
 
 ## Objetivo e escopo
 
@@ -68,8 +68,14 @@ Módulo: `apps/api/src/modules/platform-core/manager/` (ManagerModule registrado
 
 - Unit/contract: `manager-dtos.spec.ts`, `manager-problem-details.spec.ts`, `manager-tenants.service.spec.ts`, `manager-tenants.controller.spec.ts` (supertest incl. shapes de 400/401/403/404 e formas de sucesso).
 - Integração Postgres: `manager-tenants.controller.postgres.integration.spec.ts` — roda com Control Plane real + idempotência de provisioning + recovery pós-falha + auditoria + absence of CRM/secret leakage; roda no CI (`.github/workflows/api.yml`, Postgres descartável) e é `describe.skip` sem `CONTROL_PLANE_DATABASE_URL` no ambiente local. O override do `TENANT_SECRET_STORE` para store em memória é exclusivamente de teste/CI, não configuração de runtime.
-- Verificação executada: `npm run lint`, `npm run typecheck`, `npm run test:unit` (20 suites/122 testes), `npm run build` — todos verdes em 2026-10-27; integração depende do CI.
+- Verificações locais executadas: `npm run lint`, `npm run typecheck`, `npm run test:unit` (20 suites/122 testes) e `npm run build` — todos verdes em 2026-10-27. A prova de integração PostgreSQL foi executada no CI, conforme evidência abaixo.
+- GitHub Actions no commit `8b41a11`: [API run 40546566664](https://github.com/delmacy/syndes-system/actions/runs/40546566664) passou — 20 suites/122 unit tests, 2 suites/15 testes PostgreSQL de integração, build, audit, migrations Control Plane e verificação de migrations/provisioning tenant; [Repository Integrity run 40546566483](https://github.com/delmacy/syndes-system/actions/runs/40546566483) passou. O mesmo workflow inclui `apps/web CI`, também verde.
+- Revisão Codex corrigiu a exposição do token `CONTROL_PLANE_DATABASE` pelo `PlatformCoreModule`, ajustou a expectativa de `actor_not_found` para só consultar identidade depois de tenant `ready`, removeu uma asserção de segredo aplicada a uma leitura interna de teste e limpou DB/role descartáveis após integração.
 
 ### Limitações conhecidamente fora do escopo
 
 - A criação do row `identity_actors` do alvo não é endpoint do manager: por contrato, o manager só resolve atores já existentes. Criá-los em produção exige runbook/Onboarding (item excluído pela ordem) — registrar como pré-requisito operacional.
+
+### Decisão de revisão
+
+**ACEITO.** O CRM-04 atende sua ordem local e a integração real do API manager passou em PostgreSQL 16 descartável. O Platform Core Sprint 1 está aceito; o Product Gate geral do Core CRM continua aberto até as sprints seguintes e CRM-11.
