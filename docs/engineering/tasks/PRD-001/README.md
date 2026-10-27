@@ -11,13 +11,13 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 | CRM-02 | 1 | OpenCode Free; Codex revisa | ACEITA em `8c57126`; API e Repository Integrity CI verdes, com integração PostgreSQL 16 |
 | CRM-03 | 1 | OpenCode Free; Codex revisa | ACEITA em `300017f`; API, web e Repository Integrity CI verdes |
 | CRM-04 | 1 | OpenCode Free; Codex revisa | ACEITA em `8b41a11`; PostgreSQL 16 integration (15 tests), API/web CI e Repository Integrity verdes |
-| CRM-05 | 2 | OpenCode Free | Depende CRM-03 e CRM-04 |
-| CRM-06 | 2 | OpenCode Free | Depende CRM-05 |
-| CRM-07 | 2 | OpenCode Free | Depende CRM-05 e CRM-06 |
-| CRM-08 | 2 | OpenCode Free | Depende CRM-05 e CRM-03 |
-| CRM-09 | 3 | Cursor Auto | Depende CRM-04 e contratos/sessão; UI manager |
-| CRM-10 | 3 | Cursor Auto | Depende CRM-05 a CRM-08 e API/session contracts |
-| CRM-11 | 4 | Codex coordena; agentes corrigem por ordem nova | Depende das ordens anteriores |
+| CRM-05 | 2 | OpenCode Free; Codex revisa | ACEITA localmente após correção de review; CI do Sprint 2 ainda pendente |
+| CRM-06 | 2 | Codex (implementação direta, autorizada pelo usuário) | ACEITA localmente; lint, typecheck, build, 24 suites/141 unit tests, 4 suites/31 PostgreSQL integration tests e tenant provisioning verification passaram; CI Sprint 2 pendente |
+| CRM-07 | 2 | Codex (revisão e correção após worker free falhar) | ACEITA localmente; busca, normalização, duplicidade, escopo CPF/PJ/BOTH e isolamento A/B passaram em PostgreSQL; Sprint 2 CI pendente |
+| CRM-08 | 2 | Codex (execução direta após workers free falharem) | Validada localmente; integração PostgreSQL, CSV atômico, permissões e isolamento aprovados; CI remoto no gate final |
+| CRM-09 | 3 | Codex (após tentativas free sem worker confiável) | Validada localmente; Platform Admin UI e 3 testes de componente; CI remoto no gate final |
+| CRM-10 | 3 | Codex (execução direta; suporte API mínimo incluído) | Validada localmente; CRM UI e 3 testes de componente; CI remoto no gate final |
+| CRM-11 | 4 | Codex | Validação final: gates locais verdes; aguardando CI do commit e parecer integrado |
 
 ## Decisões confirmadas pelo usuário
 
@@ -33,6 +33,14 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 - CRM-01: task `task_465e1a68981a`; implementação e revisões corretivas concluídas no modelo OpenCode `glm-5.3-flash-free`. Evidência final no commit `075e329`: API run `40507834957` e Repository Integrity run `40507834659` passaram; workflow API aplicou e verificou migrations em PostgreSQL 16 descartável.
 - CRM-00: contratos de identidade/autorização, Employee/customer scope e runbook de membership foram registrados e cross-reviewados; nenhum endpoint/UI foi iniciado.
 - Sprint 0/Gate 0 ACEITO. CRM-02 foi revisada, corrigida e ACEITA no commit `8c57126`; CRM-03 e CRM-04 completam e ACEITAM a Sprint 1. Provas finais: API CI `40546566664` (inclui PostgreSQL 16, 122 unit tests, 15 integration tests, migrations/provisioning); Repository Integrity `40546566483`; web CI no mesmo workflow — todos passaram. Próxima ordem: CRM-05 na Sprint 2.
+- CRM-05 foi ACEITA por Codex após review e correção do PATCH em Person arquivada. O teste PostgreSQL confirmou HTTP 409 e preservação dos campos; correção com 29 integration tests/4 suites, 138 unit tests/23 suites, typecheck e lint verdes. CI de Sprint 2 ainda pendente.
+- CRM-06 foi retomada e ACEITA localmente por Codex após escolha do usuário. Tags, Notes, Timeline, ChannelIdentity, eventos transacionais append-only e escopos foram revisados; validações verdes: lint, typecheck, build, 24 suites/141 unit tests, 4 suites/31 PostgreSQL integration tests com `--detectOpenHandles`, aplicação da migration do zero e sobre o CRM-05 e `tenant:verify:provisioning`. Não houve commit nem CI Sprint 2. Quatro tentativas anteriores do worker free estão encerradas/liberadas; Orca marcou o task como `failed` após o limite de tentativas, então nenhuma nova dispatch será criada para contornar o circuit breaker.
+- CRM-07 foi revisada e corrigida diretamente após workers free falharem. Validação PostgreSQL confirmou busca por campos aprovados, normalização, paginação, duplicidade explicável, escopo CPF/PJ/BOTH e isolamento entre databases; suites combinadas de persistência passaram. Codex ainda deve registrar evidência final e CI do Sprint 2.
+- CRM-08 implementa import/export CSV para Person e Organization, UTF-8/BOM, parser RFC 4180, limites, cabeçalhos aprovados, validação integral, transação all-or-nothing, escopo, erros sem PII, exportação admin-only, neutralização de fórmulas e audit/timeline. A integração PostgreSQL da fatia passou com 21 testes; a suite API completa do gate local passou com 32 suites/193 testes.
+- CRM-09 implementou Platform Admin UI consumindo o BFF autenticado, sem segredos nem conteúdo tenant; list/create/detail/metadata update/provision retry/initial-admin assignment. Os 3 testes de componente passaram.
+- CRM-10 implementou busca, cadastros, edição/arquivo, relacionamentos, tags, notas, timeline, identidades de canal, CSV e configurações de equipe. Foi adicionada API mínima para contexto autenticado, consulta/atualização de memberships e lista de vínculos visíveis. Web: lint/typecheck/build e Vitest (8 arquivos/17 testes) passaram.
+- Gate local integrado (2026-10-27): API lint/typecheck/build e Jest com PostgreSQL (32 suites/193 testes) passaram; `tenant:verify:provisioning` passou, incluindo migrations do zero, idempotência e negação de conexão entre tenants. Web lint/typecheck, Vitest (8 arquivos/17 testes), Next build e `npm audit` das duas aplicações passaram; ambos reportaram zero vulnerabilidades. Playwright acceptance foi listado sem executar a jornada, conforme política opt-in.
+- CRM-11 permanece pendente até CI do commit e parecer integrado. A jornada autenticada também precisa ser demonstrável; este checkout não tem ambiente Keycloak/implantação configurado para executá-la.
 
 ## Regras de dispatch
 

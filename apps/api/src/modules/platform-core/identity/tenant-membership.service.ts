@@ -14,9 +14,32 @@ export interface TenantMemberRecord {
   status: 'active' | 'revoked';
 }
 
+export type TenantMemberListItem = TenantMemberRecord;
+
 @Injectable()
 export class TenantMembershipService {
   constructor(private readonly controlPlane: Pool) {}
+
+  async listMembers(context: TenantContext): Promise<TenantMemberListItem[]> {
+    this.assertTenantAdmin(context);
+    const result = await this.controlPlane.query<{
+      actor_id: string;
+      customer_scope: CustomerScope;
+      status: 'active' | 'revoked';
+    }>(
+      `SELECT actor_id, customer_scope, status
+         FROM tenant_memberships
+        WHERE tenant_id = $1 AND role = 'tenant_member'
+        ORDER BY actor_id`,
+      [context.tenantId],
+    );
+    return result.rows.map((row) => ({
+      actorId: row.actor_id,
+      role: 'tenant_member',
+      customerScope: row.customer_scope,
+      status: row.status,
+    }));
+  }
 
   async grantMember(
     context: TenantContext,

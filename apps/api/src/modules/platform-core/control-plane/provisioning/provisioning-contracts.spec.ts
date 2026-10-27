@@ -47,6 +47,7 @@ describe('CRM-02 provisioning contracts', () => {
         'credential',
         'role',
         'migrations',
+        'privileges',
         'ready',
       ]);
       expect(PROVISIONING_FAILURE_CODES).toEqual([
@@ -55,6 +56,7 @@ describe('CRM-02 provisioning contracts', () => {
         'credential_store_failed',
         'role_create_failed',
         'migration_failed',
+        'privilege_grant_failed',
         'ready_update_failed',
         'database_name_mismatch',
       ]);

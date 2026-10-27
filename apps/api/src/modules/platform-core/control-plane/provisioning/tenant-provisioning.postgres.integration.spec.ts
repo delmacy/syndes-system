@@ -216,6 +216,109 @@ describeIntegration(
       const credential = secretStore.records.get(tenant.id);
       expect(credential?.databaseName).toBe(tenant.databaseName);
       expect(credential?.username).toBe(tenant.roleName);
+
+      // CRM-05 blockage fix proof: the least-privilege tenant role can work
+      // with the tables its migrations create, inside its own database only.
+      const sourceUrl = new URL(process.env.CONTROL_PLANE_DATABASE_URL);
+      const tenantRolePool = new Pool({
+        host: sourceUrl.hostname,
+        port: Number(sourceUrl.port || '5432'),
+        user: credential?.username,
+        password: credential?.password,
+        database: credential?.databaseName,
+      });
+      try {
+        const visibleTables = await tenantRolePool.query<{
+          table_name: string;
+        }>(
+          `SELECT table_name FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+            ORDER BY table_name`,
+        );
+        expect(visibleTables.rows.map((row) => row.table_name)).toEqual([
+          'crm_channel_identities',
+          'crm_employees',
+          'crm_notes',
+          'crm_organizations',
+          'crm_people',
+          'crm_relationships',
+          'crm_tag_assignments',
+          'crm_tags',
+          'crm_timeline_events',
+          'tenant_baseline_info',
+        ]);
+
+        const rowId = randomUUID();
+        await tenantRolePool.query(
+          `INSERT INTO crm_organizations (id, name) VALUES ($1, $2)`,
+          [rowId, 'Tenant role row'],
+        );
+        const selected = await tenantRolePool.query<{ name: string }>(
+          `SELECT name FROM crm_organizations WHERE id = $1`,
+          [rowId],
+        );
+        expect(selected.rows[0]?.name).toBe('Tenant role row');
+        await tenantRolePool.query(
+          `UPDATE crm_organizations SET name = $2 WHERE id = $1`,
+          [rowId, 'Renamed by tenant role'],
+        );
+        const renamed = await tenantRolePool.query<{ name: string }>(
+          `SELECT name FROM crm_organizations WHERE id = $1`,
+          [rowId],
+        );
+        expect(renamed.rows[0]?.name).toBe('Renamed by tenant role');
+        await tenantRolePool.query(
+          `DELETE FROM crm_organizations WHERE id = $1`,
+          [rowId],
+        );
+        const afterDelete = await tenantRolePool.query(
+          `SELECT 1 AS found FROM crm_organizations WHERE id = $1`,
+          [rowId],
+        );
+        expect(afterDelete.rowCount).toBe(0);
+
+        // Default privileges: a table created later by a future migration
+        // is immediately usable by the tenant role, without extra grants.
+        const adminTenantPool = new Pool({
+          connectionString: tenantUrl(tenant.databaseName),
+        });
+        try {
+          await adminTenantPool.query(
+            `CREATE TABLE crm_default_privileges_probe (id uuid PRIMARY KEY, label text)`,
+          );
+          await tenantRolePool.query(
+            `INSERT INTO crm_default_privileges_probe (id, label) VALUES ($1, $2)`,
+            [randomUUID(), 'future migration table'],
+          );
+          const probeRows = await tenantRolePool.query<{ label: string }>(
+            `SELECT label FROM crm_default_privileges_probe`,
+          );
+          expect(probeRows.rows[0]?.label).toBe('future migration table');
+        } finally {
+          await adminTenantPool
+            .query(`DROP TABLE IF EXISTS crm_default_privileges_probe`)
+            .catch(() => undefined);
+          await adminTenantPool.end();
+        }
+
+        // Cross-tenant isolation: the tenant role cannot open a connection
+        // to another tenant's database, so no other tenant data is addressable.
+        const otherTenant = await insertDisposableTenant('Isolation tenant');
+        await buildService().provision(otherTenant.id);
+        const otherCredential = secretStore.records.get(otherTenant.id);
+        expect(otherCredential).toBeDefined();
+        const crossTenantPool = new Pool({
+          host: sourceUrl.hostname,
+          port: Number(sourceUrl.port || '5432'),
+          user: credential?.username,
+          password: credential?.password,
+          database: otherCredential?.databaseName,
+        });
+        await expect(crossTenantPool.query('SELECT 1')).rejects.toThrow();
+        await crossTenantPool.end().catch(() => undefined);
+      } finally {
+        await tenantRolePool.end();
+      }
     });
 
     it('repeated ready provision is an idempotent no-op and migrations stay durable', async () => {
@@ -329,7 +432,18 @@ describeIntegration(
       );
       expect(roles.rows[0]?.count).toBe(1);
       const tenantTables = await tenantTableSet(tenant.databaseName);
-      expect(tenantTables).toEqual(['tenant_baseline_info']);
+      expect(tenantTables).toEqual([
+        'crm_channel_identities',
+        'crm_employees',
+        'crm_notes',
+        'crm_organizations',
+        'crm_people',
+        'crm_relationships',
+        'crm_tag_assignments',
+        'crm_tags',
+        'crm_timeline_events',
+        'tenant_baseline_info',
+      ]);
     });
 
     it('keeps credentials and connection strings out of logs and thrown errors', async () => {

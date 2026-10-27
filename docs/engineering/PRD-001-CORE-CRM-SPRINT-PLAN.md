@@ -40,6 +40,8 @@
 
 **Gate:** unit/integration cobrindo requisitos obrigatórios e isolamento A/B; migrations testadas a partir de zero; CI verde.
 
+**Estado atual (2026-10-27):** CRM-05/06 aceitas localmente. CRM-07 revisada e validada em PostgreSQL. CRM-08 implementada com parser unitário e integração PostgreSQL para atomicidade, permissão, scope e isolamento. CRM-09/10 implementadas localmente com testes de componente. O CI Sprint 2 e os gates de aceitação integrados ainda estão pendentes.
+
 ## Sprint 3 — Frontend e integração
 
 **Objetivo:** entregar as duas áreas de UI previstas e integrar com as APIs.
@@ -62,4 +64,4 @@
 
 ## Próxima ação
 
-Sprint 0/Gate 0 foi aceito no commit `075e329`; Sprint 1/Platform Core mínimo também foi aceita após CRM-02, CRM-03 e CRM-04. Próxima ordem é CRM-05 (Sprint 2); nenhuma tarefa dessa sprint foi iniciada nesta entrega.
+Sprint 0/Gate 0 foi aceito no commit `075e329`; Sprint 1/Platform Core mínimo foi aceita após CRM-02, CRM-03 e CRM-04. Na Sprint 2, CRM-05 e CRM-06 estão ACEITAS localmente; o CI do sprint roda após CRM-07 e CRM-08. O task Orca original do CRM-06 foi circuit-broken após quatro dispatches free falhos; a implementação foi concluída diretamente por Codex conforme escolha do usuário.

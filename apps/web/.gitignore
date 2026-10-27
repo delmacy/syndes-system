@@ -5,3 +5,5 @@ coverage/
 .env*
 !.env.example
 tsconfig.tsbuildinfo
+playwright-results/
+test-results/

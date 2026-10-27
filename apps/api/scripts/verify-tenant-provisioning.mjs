@@ -202,8 +202,19 @@ async function awaitMain(adminDatabaseUrl) {
       );
       check(
         'tenant migrations apply from an empty database outside API startup',
-        firstApplyTables.length === 1 &&
-          firstApplyTables[0] === 'tenant_baseline_info',
+        JSON.stringify(firstApplyTables) ===
+          JSON.stringify([
+            'crm_channel_identities',
+            'crm_employees',
+            'crm_notes',
+            'crm_organizations',
+            'crm_people',
+            'crm_relationships',
+            'crm_tag_assignments',
+            'crm_tags',
+            'crm_timeline_events',
+            'tenant_baseline_info',
+          ]),
         firstApplyTables.join(','),
       );
 
@@ -229,7 +240,7 @@ async function awaitMain(adminDatabaseUrl) {
         );
         check(
           'tenant drizzle journal keeps the durable migration step state',
-          journal.rows[0]?.count === 1,
+          journal.rows[0]?.count === 3,
           `count=${journal.rows[0]?.count ?? 'missing'}`,
         );
       } finally {

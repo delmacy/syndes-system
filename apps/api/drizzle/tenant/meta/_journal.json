@@ -8,6 +8,20 @@
       "when": 1793266200000,
       "tag": "20261029093000_quiet_marsh",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793346000000,
+      "tag": "20261029120000_crm_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793365200000,
+      "tag": "20261029153000_crm_supporting",
+      "breakpoints": true
     }
   ]
 }

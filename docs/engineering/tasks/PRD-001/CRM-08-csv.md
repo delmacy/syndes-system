@@ -13,6 +13,7 @@ Importar/exportar pessoas e organizações segundo contrato aprovado, com limite
 ## Incluído
 
 - UTF-8 with optional BOM, required header, comma delimiter; maximum 10 MiB, 10,000 rows, and 30 columns.
+- Contract headers: Person `fullName,cpf,email,phone,organizationId` (`fullName` required); Organization `name,cnpj,email,phone` (`name` required). Import uses `POST /api/v1/crm/csv/import?entityType=person|organization` with `text/csv`; export uses `GET /api/v1/crm/csv/export?entityType=person|organization`.
 - Validate the whole file before write; import is atomic/all-or-nothing. If any row is invalid, write none and return up to 100 row errors plus total invalid count.
 - Apply `customer_scope` to validation, import, and returned row counts/errors; only `tenant_admin` may export, and export remains tenant-scoped.
 - CSV injection defense na exportação, validação sem logs de PII desnecessária e audit event.

@@ -311,6 +311,12 @@ export class TenantProvisioningService {
         failureCode: 'migration_failed',
         run: () => this.runTenantMigrationsTask(names.databaseName),
       },
+      {
+        stage: 'privileges',
+        failureCode: 'privilege_grant_failed',
+        run: () =>
+          this.grantTenantDataPrivileges(names.databaseName, names.roleName),
+      },
     ];
 
     for (const step of stageRuns) {
@@ -509,6 +515,53 @@ export class TenantProvisioningService {
         ((tenantPool: Pool, migrationsFolder?: string) =>
           runTenantMigrations(tenantPool, migrationsFolder));
       await runner(tenantPool, this.options.migrationsFolder);
+    } finally {
+      await tenantPool.end();
+    }
+  }
+
+  /**
+   * Grants the least-privilege tenant role full CRUD on the tenant's own
+   * tables after the migrations that create them. Tenant migrations run as
+   * the tenant admin user, so the tenant role would otherwise own nothing:
+   * every future migration's tables (and sequences) are covered through
+   * matching default privileges for that same admin user. Isolation is
+   * preserved: grants are scoped to this tenant database's public schema
+   * only, never to another tenant database.
+   */
+  private async grantTenantDataPrivileges(
+    databaseName: string,
+    roleName: string,
+  ): Promise<void> {
+    const tenantPool = this.createTenantAdminPool(databaseName);
+    try {
+      const grantsClient = await tenantPool.connect();
+      try {
+        // Default privileges must be declared for the role that will create
+        // the tables, so future migrations grant inbound access implicitly.
+        const adminRole = await grantsClient
+          .query<{ current_user: string }>(`SELECT current_user`)
+          .then((result) => result.rows[0]?.current_user ?? '');
+        if (!/^[a-z][a-z0-9_]{0,62}$/.test(adminRole)) {
+          throw new Error('Tenant admin user is not a safe role name.');
+        }
+        const role = quotePgIdentifier(roleName);
+        const adminIdentifier = quotePgIdentifier(adminRole);
+        await grantsClient.query(
+          `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${role}`,
+        );
+        await grantsClient.query(
+          `GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ${role}`,
+        );
+        await grantsClient.query(
+          `ALTER DEFAULT PRIVILEGES FOR ROLE ${adminIdentifier} IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${role}`,
+        );
+        await grantsClient.query(
+          `ALTER DEFAULT PRIVILEGES FOR ROLE ${adminIdentifier} IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ${role}`,
+        );
+      } finally {
+        grantsClient.release();
+      }
     } finally {
       await tenantPool.end();
     }

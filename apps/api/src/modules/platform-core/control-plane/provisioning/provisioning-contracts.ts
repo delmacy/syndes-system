@@ -53,6 +53,7 @@ export const PROVISIONING_STAGE_CODES = [
   'credential',
   'role',
   'migrations',
+  'privileges',
   'ready',
 ] as const;
 
@@ -69,6 +70,7 @@ export const PROVISIONING_FAILURE_CODES = [
   'credential_store_failed',
   'role_create_failed',
   'migration_failed',
+  'privilege_grant_failed',
   'ready_update_failed',
   'database_name_mismatch',
 ] as const;

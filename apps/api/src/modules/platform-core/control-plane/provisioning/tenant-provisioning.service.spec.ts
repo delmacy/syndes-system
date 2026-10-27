@@ -260,6 +260,12 @@ function makeTenantAdminPool(
       const client = {
         query(sql: string) {
           fake.tenantGrantSql.push(sql);
+          if (/SELECT current_user/.test(sql)) {
+            return Promise.resolve({
+              rows: [{ current_user: 'api_ci' }],
+              rowCount: 1,
+            });
+          }
           return Promise.resolve({ rows: [], rowCount: 1 });
         },
         release(): void {

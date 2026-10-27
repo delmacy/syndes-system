@@ -28,8 +28,8 @@ Criar telas Next.js App Router do módulo `core-crm` para a jornada aprovada, co
 ## Dependências/ownership
 
 - Depende de API/session contracts CRM-00, identidade/tenancy CRM-03 e APIs CRM-05–08.
-- Permitidos: `apps/web/src/modules/core-crm/**`, rotas de composição CRM e testes desse módulo.
-- Proibidos: `apps/api/**`, `platform-admin/**`, shared business rules, módulos futuros.
+- Permitidos: `apps/web/src/modules/core-crm/**`, rotas de composição CRM e testes desse módulo. Um bloqueio do MVP foi fechado com API mínima no Core CRM: contexto role/scope, consulta/atualização de memberships do tenant-admin e lista de relações visíveis por Person. Essas rotas não recebem tenant ID do cliente e mantêm autorização no servidor.
+- Proibidos: `platform-admin/**`, shared business rules, módulos futuros e qualquer outro endpoint fora das dependências diretas dessas telas.
 
 ## Aceite e evidência
 
