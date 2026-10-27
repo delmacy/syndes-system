@@ -534,8 +534,8 @@ export class TenantProvisioningService {
       );
       await client.query(
         `INSERT INTO audit_events (tenant_id, actor_id, action, resource_type, resource_id, result)
-         VALUES ($1, NULL, 'tenant.provisioning.ready', 'tenant', $1, 'success')`,
-        [tenantId],
+         VALUES ($1, NULL, 'tenant.provisioning.ready', 'tenant', $2, 'success')`,
+        [tenantId, tenantId],
       );
       await client.query('COMMIT');
     } catch (error) {
