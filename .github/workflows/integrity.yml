@@ -1,0 +1,43 @@
+name: Repository Integrity
+
+on:
+  push:
+    branches:
+      - main
+      - "work/**"
+      - "feature/**"
+      - "fix/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  structure:
+    name: Governance structure
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify required structure
+        shell: bash
+        run: bash tests/integrity/repository-structure.sh
+
+      - name: Verify module agent contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          for file in modules/*/AGENTS.md; do
+            test -s "$file"
+            count=$((count + 1))
+          done
+          if [ "$count" -lt 11 ]; then
+            echo "::error::Expected at least 11 module AGENTS.md files; found $count"
+            exit 1
+          fi
+          echo "Module AGENTS.md contracts: PASS ($count)"
