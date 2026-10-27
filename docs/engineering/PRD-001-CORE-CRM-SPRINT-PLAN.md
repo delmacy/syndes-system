@@ -40,7 +40,7 @@
 
 **Gate:** unit/integration cobrindo requisitos obrigatórios e isolamento A/B; migrations testadas a partir de zero; CI verde.
 
-**Estado atual (2026-10-27):** CRM-05/06 aceitas localmente. CRM-07 revisada e validada em PostgreSQL. CRM-08 implementada com parser unitário e integração PostgreSQL para atomicidade, permissão, scope e isolamento. CRM-09/10 implementadas localmente com testes de componente. O CI Sprint 2 e os gates de aceitação integrados ainda estão pendentes.
+**Estado (2026-10-27):** Sprint 2 e Sprint 3 implementadas e seus gates locais aceitos. CI commit `93eeda6` verde: API run `40586765411`, Repository Integrity `40586765265` e job Web associado.
 
 ## Sprint 3 — Frontend e integração
 
@@ -62,6 +62,8 @@
 
 **Gate final:** Core CRM só é aceito quando funcional, integrado, seguro, testado e demonstrável. Só então começa Inbox.
 
+**Estado:** implementação do Core CRM concluída e validada por CI. CRM-11 está `BLOQUEADO` apenas pela demonstração autenticada em ambiente Keycloak/tenant de teste, que não está configurado neste checkout. Inbox permanece fechado até esse último critério.
+
 ## Próxima ação
 
-Sprint 0/Gate 0 foi aceito no commit `075e329`; Sprint 1/Platform Core mínimo foi aceita após CRM-02, CRM-03 e CRM-04. Na Sprint 2, CRM-05 e CRM-06 estão ACEITAS localmente; o CI do sprint roda após CRM-07 e CRM-08. O task Orca original do CRM-06 foi circuit-broken após quatro dispatches free falhos; a implementação foi concluída diretamente por Codex conforme escolha do usuário.
+Sprint 0/Gate 0 e Sprint 1/Platform Core mínimo aceitas em commits anteriores. CRM-05 a CRM-10 implementadas; gates locais e CI para commit `93eeda6` verdes. CRM-11 documenta o único bloqueio restante: demonstração autenticada em ambiente de teste.

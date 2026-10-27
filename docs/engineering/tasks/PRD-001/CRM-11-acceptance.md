@@ -2,7 +2,7 @@
 
 - **Módulo/gate:** Core CRM integrated acceptance / Sprint 4.
 - **Classificação:** MVP.
-- **Prioridade/estado:** P0 final / em validação integrada; gates locais aprovados, CI remoto e demonstração autenticada ainda pendentes.
+- **Prioridade/estado:** P0 final / BLOQUEADO para aceite integral apenas pela ausência de ambiente Keycloak/tenant de teste para demonstração autenticada.
 - **Responsável:** Codex coordena e aceita; agentes implementadores só recebem correções novas, delimitadas e sequenciais.
 - **Issue/branch/commit/PR:** ainda não criados; esta é uma ordem local, sem operação externa.
 
@@ -26,7 +26,8 @@ Consolidar evidência de requisitos, integração, segurança, testes e prontid�
 - Web: lint, typecheck, build; Vitest: 8 arquivos/17 testes aprovados.
 - `npm audit --audit-level=high`: zero vulnerabilidades em API e web.
 - Playwright: a jornada existe e aparece em `--list`; execução opt-in não realizada.
-- Ainda pendente: CI do commit e execução/demonstração da jornada autenticada em ambiente com Keycloak e tenant provisionado.
+- GitHub Actions do commit `93eeda6`: API run [40586765411](https://github.com/delmacy/syndes-system/actions/runs/40586765411) e Repository Integrity run [40586765265](https://github.com/delmacy/syndes-system/actions/runs/40586765265) verdes; job Web também verde dentro do workflow API.
+- Ainda pendente: execução/demonstração da jornada autenticada em ambiente com Keycloak e tenant provisionado. Sem esse ambiente, a decisão formal deste gate é `BLOQUEADO`; não declarar `ACEITO`.
 
 ## Excluído
 
@@ -39,5 +40,5 @@ Consolidar evidência de requisitos, integração, segurança, testes e prontid�
 - CI do commit revisado verde; migrations testadas em PostgreSQL descartável.
 - Zero cross-tenant disclosure e unauthorized access em testes; manager sem acesso implícito a CRM.
 - Regras de DoD global cumpridas e jornada demonstrável.
-- Decisão formal `ACEITO`, `CORREÇÕES NECESSÁRIAS` ou `BLOQUEADO`, com evidência e próximo responsável. Estado atual: validação pendente; não declarar `ACEITO` antes de CI verde e demonstração do fluxo.
+- Decisão formal `ACEITO`, `CORREÇÕES NECESSÁRIAS` ou `BLOQUEADO`, com evidência e próximo responsável. Estado atual: `BLOQUEADO` pela demonstração autenticada; próximo responsável é o operador do ambiente, que deve fornecer um realm Keycloak e um tenant de teste acessíveis para rodar o script Playwright headless e revisar seus logs.
 - Próximo módulo (Inbox) só fica liberado após `ACEITO` no Core CRM.

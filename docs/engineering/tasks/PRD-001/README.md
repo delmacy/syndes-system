@@ -17,7 +17,7 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 | CRM-08 | 2 | Codex (execução direta após workers free falharem) | Validada localmente; integração PostgreSQL, CSV atômico, permissões e isolamento aprovados; CI remoto no gate final |
 | CRM-09 | 3 | Codex (após tentativas free sem worker confiável) | Validada localmente; Platform Admin UI e 3 testes de componente; CI remoto no gate final |
 | CRM-10 | 3 | Codex (execução direta; suporte API mínimo incluído) | Validada localmente; CRM UI e 3 testes de componente; CI remoto no gate final |
-| CRM-11 | 4 | Codex | Validação final: gates locais verdes; aguardando CI do commit e parecer integrado |
+| CRM-11 | 4 | Codex | Implementação e CI aceitas; gate final BLOQUEADO apenas pela demonstração autenticada em ambiente Keycloak/tenant de teste, indisponível neste checkout |
 
 ## Decisões confirmadas pelo usuário
 
@@ -40,7 +40,7 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 - CRM-09 implementou Platform Admin UI consumindo o BFF autenticado, sem segredos nem conteúdo tenant; list/create/detail/metadata update/provision retry/initial-admin assignment. Os 3 testes de componente passaram.
 - CRM-10 implementou busca, cadastros, edição/arquivo, relacionamentos, tags, notas, timeline, identidades de canal, CSV e configurações de equipe. Foi adicionada API mínima para contexto autenticado, consulta/atualização de memberships e lista de vínculos visíveis. Web: lint/typecheck/build e Vitest (8 arquivos/17 testes) passaram.
 - Gate local integrado (2026-10-27): API lint/typecheck/build e Jest com PostgreSQL (32 suites/193 testes) passaram; `tenant:verify:provisioning` passou, incluindo migrations do zero, idempotência e negação de conexão entre tenants. Web lint/typecheck, Vitest (8 arquivos/17 testes), Next build e `npm audit` das duas aplicações passaram; ambos reportaram zero vulnerabilidades. Playwright acceptance foi listado sem executar a jornada, conforme política opt-in.
-- CRM-11 permanece pendente até CI do commit e parecer integrado. A jornada autenticada também precisa ser demonstrável; este checkout não tem ambiente Keycloak/implantação configurado para executá-la.
+- CI remoto do commit `93eeda6`: API run `40586765411` e Repository Integrity run `40586765265` verdes; CI Web incluído no job da API também verde. CRM-11 registrou `BLOQUEADO` somente para a demonstração autenticada em ambiente Keycloak/tenant de teste, indisponível neste checkout. O script Playwright está pronto/listável e permanece opt-in.
 
 ## Regras de dispatch
 
