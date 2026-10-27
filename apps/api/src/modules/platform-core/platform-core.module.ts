@@ -102,6 +102,7 @@ export const TENANT_SECRET_STORE = 'TENANT_SECRET_STORE';
     },
   ],
   exports: [
+    CONTROL_PLANE_DATABASE,
     TenantProvisioningService,
     IdentityAuthGuard,
     TenantContextGuard,
