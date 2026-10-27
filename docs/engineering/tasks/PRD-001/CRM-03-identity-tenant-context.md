@@ -2,9 +2,9 @@
 
 - **Módulo/gate:** Platform Core mínimo / Sprint 1.
 - **Classificação:** MVP.
-- **Prioridade/estado:** P0 / em execução pelo coordenador após interrupção da dispatch sem sessão útil.
-- **Responsável:** Codex coordinator; revisão própria antes do gate CI.
-- **Issue/branch/commit/PR:** ainda não criados; esta é uma ordem local, sem operação externa.
+- **Prioridade/estado:** P0 / **ACEITO para integração**, após revisão do diff e CI verde.
+- **Responsável:** Codex coordinator; contribuições delegadas e revisadas de OpenCode (API) e Cursor (web).
+- **Issue/branch/commit/PR:** branch `work/prd-001-core-crm-sprint-0`; commits `6267840`, `ef2381c`, `20ecc5e`; sem PR criado.
 
 ## Objetivo
 
@@ -48,16 +48,19 @@ Aplicar a sessão/autenticação aprovada para derivar actor e tenant server-sid
 
 ## Execução desta tentativa
 
-- O worker OpenCode anterior foi interrompido a pedido do usuário porque o Orca não reportou uma sessão de modelo utilizável; nenhum arquivo de produto foi aceito daquele dispatch.
-- Codex assumiu o branch e implementou os contratos backend, migration Control Plane, shell Next/Auth.js e CI web descritos acima.
+- OpenCode concluiu a revisão/implementação backend em `apps/api/**`; Cursor concluiu a infraestrutura web em `apps/web/**`. Ambos tiveram ownership exclusivo, entregaram relatórios e foram liberados. Codex integrou seletores de tenant no BFF/API, CI web e o ajuste SQL após a primeira rodada do Actions.
+- A revisão do OpenCode corrigiu o uso dos nomes canônicos de database/role tenant no pool e tornou `exp` obrigatório no verificador JWT. A revisão do Cursor implementou o BFF Auth.js/Keycloak e testes dos helpers.
 - Nenhum tenant secret provider foi inventado: leitura/escrita de credenciais continua fail-closed até binding de deployment aprovado.
 - A resolução de host exige assinatura HMAC recente emitida pelo BFF e membership ativa no Control Plane. Deployment deve manter API privada ao BFF/ingress, sobrescrever headers `x-syndes-validated-*` recebidos do cliente, configurar o mesmo `INGRESS_SIGNING_SECRET` no BFF e API, e habilitar TLS.
 - Seletores de tenant/database no header, query ou body são rejeitados no BFF e no guard da API; o roteamento só aceita a asserção HMAC do BFF e confirma membership ativa.
 - Configuração obrigatória de API: `KEYCLOAK_ISSUER`, `KEYCLOAK_API_AUDIENCE`, `KEYCLOAK_ALLOWED_AZP`, `INGRESS_SIGNING_SECRET`, `TENANT_DATABASE_HOST`, `TENANT_DATABASE_PORT`, `TENANT_DATABASE_SSL_REQUIRED=true`, `TENANT_DB_POOL_SIZE` e `TENANT_DB_POOL_LIMIT`. Valores de pool devem vir de medição do ambiente; não há defaults numéricos.
 - Configuração obrigatória do web BFF: `AUTH_SECRET`, `AUTH_URL`, `KEYCLOAK_ISSUER`, `KEYCLOAK_WEB_CLIENT_ID`, `KEYCLOAK_WEB_CLIENT_SECRET`, `SYNDES_API_URL` e `INGRESS_SIGNING_SECRET`. Segredos devem ser provisionados pelo ambiente, nunca versionados.
-- Validação local registrada: API unit/lint/typecheck/build; web unit/lint/typecheck/build; npm audit nos dois apps. PostgreSQL 16 migrations/integration ficam para GitHub Actions; E2E não foi executado.
+- Validação local no commit final: API 83/83 unit tests, lint, typecheck e build; web 11/11 unit tests, lint, typecheck e build; `npm audit` sem vulnerabilidades nos dois apps; `git diff --check` limpo. PostgreSQL 16 migrations/integration foram executadas no GitHub Actions; E2E não foi executado conforme instrução.
+- GitHub Actions no commit `20ecc5e`: `API` run [40539707820](https://github.com/delmacy/syndes-system/actions/runs/40539707820) passou (inclui PostgreSQL 16, migrations Control Plane e tenant); `Repository Integrity` run [40539707853](https://github.com/delmacy/syndes-system/actions/runs/40539707853) passou. O job `apps/web CI` também passou no run `40539707820`.
+- A primeira rodada de integração revelou conflito UUID/text no `resource_id` de `audit_events`; corrigido em `20ecc5e` e provado pela integração verde subsequente. A rodada final está verde.
+- Limites de prova: sem realm/credenciais Keycloak de deployment, login e entrega real de `acr=mfa` não foram executados; sem provider de secrets configurado, o binding padrão continua fail-closed. São pré-requisitos explícitos de deployment, não configuração versionada nesta task.
 - Revisão independente do Cursor e respectivos resultados estão em [CRM-03-web-auth-review.md](CRM-03-web-auth-review.md).
-- **Decisão de entrega ainda pendente:** Codex revisará o diff e aguardará `API` + `apps/web CI` + `Repository Integrity` verdes no Actions antes de marcar o task ACEITO.
+- **Decisão:** ACEITO para integração no branch, com os pré-requisitos de deployment acima registrados. Próximo responsável: owner de CRM-04 para Manager API; o gate geral do Core CRM permanece aberto.
 
 ## Encerramento
 

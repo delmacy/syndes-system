@@ -56,3 +56,10 @@ Routes built: `/`, `/api/auth/[...nextauth]`, `/api/auth/keycloak-logout`, `/api
 4. `/platform-admin` redirect after MFA is intentional stub until CRM-09; route does not exist yet.
 5. Logout HTML form relies on browser `Origin` for CSRF; `AUTH_URL` must match the public site origin exactly.
 6. Shared `INGRESS_SIGNING_SECRET` + private API reachability remain deployment obligations (documented in CRM-03 task).
+
+## Coordinator follow-up
+
+- Added the missing CI `INGRESS_SIGNING_SECRET` fixture and request-side tenant-selector rejection in the BFF; API rejects selectors independently. Added focused tests for the selector checks.
+- The final local web run passed lint, typecheck, 11/11 tests, and production build. `npm audit` reported no vulnerabilities.
+- GitHub Actions run [40539707820](https://github.com/delmacy/syndes-system/actions/runs/40539707820) passed the web job on commit `20ecc5e`.
+- The earlier CI-secret omission noted above was resolved in the coordinator-owned workflow before the passing run. Keycloak realm configuration and live MFA behavior remain deployment verification items; no frontend E2E was run.
