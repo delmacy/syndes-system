@@ -29,12 +29,13 @@ Instagram, Google Calendar, Automation Platform, AI Advanced, ERP, estoque, fina
 
 ## Organização atual
 
-Este repositório começa pela governança de produto e engenharia. O breakdown técnico do monólito ainda não foi congelado; portanto, a estrutura de código será criada somente no handoff técnico do PRD-001.
+O repositório começou pela governança de produto e engenharia. O handoff técnico do PRD-001 registra NestJS no backend, Next.js App Router no frontend separado e Drizzle ORM + `pg` para PostgreSQL. O primeiro slice iniciou o registro de tenants do Control Plane e o caminho de migrations descartáveis no CI. Ainda não há endpoints autenticados, provisionamento de tenant, comportamento do CRM ou frontend. As decisões restantes e o progresso verificável estão em `docs/engineering/PRD-001-CORE-CRM-TECH-HANDOFF.md`.
 
 - `AGENTS.md`: regras globais para agentes e contribuidores
 - `modules/*/AGENTS.md`: contrato de trabalho de cada módulo
 - `docs/product/`: baseline de produto
-- `docs/engineering/`: práticas de engenharia e testes
+- `docs/engineering/`: handoff técnico, estratégia de testes, sprints e ordens de trabalho
+- `docs/engineering/tasks/PRD-001/`: tarefas detalhadas para execução/revisão do Core CRM
 - `tests/`: estratégia e harnesses de integridade, segurança e performance
 - `.github/workflows/`: gates automatizados de CI
 

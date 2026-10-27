@@ -1,0 +1,21 @@
+{
+  // Cadeia global dos modelos gratuitos ativos no catálogo OpenCode Zen.
+  // O modelo primário está definido em ../opencode.json; estes são os backups.
+  "enabled": true,
+  "retry_on_errors": [429, 500, 502, 503, 504],
+  "max_fallback_attempts": 8,
+  "cooldown_seconds": 20,
+  "timeout_seconds": 30,
+  "notify_on_fallback": true,
+  "foreground_task_fallback": true,
+  "fallback_models": [
+    "opencode/deepseek-v4.1-flash-free",
+    "opencode/mimo-v2.6-flash-free",
+    "opencode/nemotron-3.5-super-vl-free",
+    "opencode/big-pickle",
+    "opencode/nemotron-3-ultra-free",
+    "opencode/nemotron-3.5-lightning-free",
+    "opencode/beam-free",
+    "opencode/flint-40b-free"
+  ]
+}

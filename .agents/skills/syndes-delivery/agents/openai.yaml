@@ -1,0 +1,4 @@
+interface:
+  display_name: "Syndes Delivery"
+  short_description: "Planeja e controla entregas da Syndes por gates"
+  default_prompt: "Organize esta entrega da Syndes conforme o módulo corrente, o escopo do MVP e os gates do repositório."

@@ -21,7 +21,11 @@ Ser a fonte canônica de cadastro e relacionamento básico de pessoas e organiza
 - Timeline
 - ChannelIdentity
 
-`Person != UserAccount` e `Employee != Login`.
+`Person != UserAccount` e `Employee != UserAccount`: um Employee pode ser vinculado a uma conta do tenant, mas perfil e identidade/login são registros distintos.
+
+Funcionários/atendentes usam a mesma aplicação e jornada CRM. `tenant_admin` configura o escopo de atendimento do `tenant_member` com valores fixos `cpf`, `pj` ou `both`; não criar um permission engine genérico.
+
+O backend aplica o escopo em CRUD, relações, busca, timeline e import/export. `cpf` vê Persons clientes sem vínculo PJ; `pj` vê Organizations PJ e suas Persons de contato; `both` vê ambos. `tenant_member` não arquiva nem exporta; `tenant_admin` tem acesso completo.
 
 ## Escopo MVP
 
@@ -67,6 +71,10 @@ Manter separação entre nome CRM, push name, business name e demais metadados e
 
 ## Testes obrigatórios
 
+Criar e manter os testes junto com cada componente e fatia de implementação; não acumular a cobertura para uma etapa final. Cada mudança deve incluir testes no nível adequado ao comportamento alterado (unitário, integração ou UI), preservar os existentes e registrar os comandos/resultados de validação.
+
+E2E de frontend é opt-in: sinalizar quando for necessário para aceite, mas não executá-lo durante o desenvolvimento normal. Quando sua execução for solicitada ou necessária para um gate, usar script Playwright headless que gere logs/resultados e revisar esses outputs; não dirigir manualmente o frontend para validar a jornada.
+
 - CRUD;
 - relações;
 - busca;
@@ -75,6 +83,7 @@ Manter separação entre nome CRM, push name, business name e demais metadados e
 - import/export;
 - archive;
 - permissões;
+- filtro de customer scope (CPF/PJ/ambos) em todas as operações relacionadas;
 - tenant isolation;
 - audit;
 - migrations;

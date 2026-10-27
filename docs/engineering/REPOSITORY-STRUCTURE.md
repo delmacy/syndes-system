@@ -1,6 +1,6 @@
 # Repository Structure
 
-A estrutura atual é deliberadamente de governança e planejamento. O layout de código do monólito será criado somente após o technical handoff do Core CRM.
+A estrutura atual combina governança/documentação com o scaffold inicial da API e o slice de registry do Control Plane. O comportamento do CRM e o frontend ainda aguardam os contratos de sessão/tenant/autorização.
 
 ```text
 /
@@ -9,16 +9,22 @@ A estrutura atual é deliberadamente de governança e planejamento. O layout de 
 ├── docs/
 │   ├── product/
 │   └── engineering/
+│       └── tasks/PRD-001/
 ├── modules/
 │   └── <module>/AGENTS.md
 ├── tests/
-│   ├── AGENTS.md
 │   ├── integrity/
 │   ├── integration/
 │   ├── security/
 │   └── performance/
-└── .github/
-    └── workflows/
+├── apps/
+│   ├── api/                  # NestJS; Platform Core registry slice + CoreCrmModule shell
+│   │   ├── drizzle/          # reviewed Control Plane migrations
+│   │   └── src/modules/
+│   └── web/                  # Next.js; create after session/API contracts are frozen
+└── .github/workflows/        # repository integrity + API CI
 ```
+
+O diretório `apps/web/` acima é o destino planejado e ainda não foi criado.
 
 Regra: qualquer diretório de módulo em `modules/*` deve possuir `AGENTS.md`.
