@@ -2,7 +2,7 @@
 
 - **Módulo/gate:** Platform Core mínimo / Sprint 1.
 - **Classificação:** MVP.
-- **Prioridade/estado:** P0 / bloqueada por CRM-00 e CRM-02.
+- **Prioridade/estado:** P0 / liberada após CRM-00 e CRM-02; pendente de início.
 - **Responsável recomendado:** OpenCode Free, uma dispatch mutável; Codex revisa security.
 - **Issue/branch/commit/PR:** ainda não criados; esta é uma ordem local, sem operação externa.
 
@@ -13,7 +13,7 @@ Aplicar a sessão/autenticação aprovada para derivar actor e tenant server-sid
 ## Incluído
 
 - Implementar os contratos `AuthenticatedActor`, membership, role/permissions e `TenantContext` conforme decisão CRM-00.
-- Next.js server-side BFF uses the Auth.js Keycloak OIDC provider with Authorization Code + PKCE; keep tokens server-side, set a Secure/HttpOnly/SameSite=Lax host-only session cookie, and clear the app and Keycloak sessions on logout.
+- Bootstrap the minimal Next.js App Router auth shell and server-side BFF with the Auth.js Keycloak OIDC provider using Authorization Code + PKCE; keep tokens server-side, set a Secure/HttpOnly/SameSite=Lax host-only session cookie, and clear the app and Keycloak sessions on logout. This is auth infrastructure only: no product pages, visual design, or CRM/manager UI.
 - Validate Keycloak access tokens using JWKS and a maintained JWT library: exact `iss`, API `aud`, allowed `azp`, signature, `exp`, `nbf`, and `sub`; platform-manager requests also require `acr=mfa`. Do not implement cryptography/JWT parsing manually.
 - Map `(issuer, sub)` to permanent local `AuthenticatedActor.id`; email is not an identity key. Control Plane membership and permissions are authoritative; do not trust tenant or product-role claims from Keycloak.
 - Enforce MFA in Keycloak through the configured ACR `mfa` requested by the manager BFF and validated by the API. Tenant-member MFA follows the operator-configurable realm policy. Keycloak realm SSO is in scope; per-tenant external SAML/OIDC federation is post-MVP.
@@ -33,8 +33,8 @@ Aplicar a sessão/autenticação aprovada para derivar actor e tenant server-sid
 ## Dependências/ownership
 
 - Depende de CRM-00 e CRM-02.
-- Permitidos: contracts/providers/guards/interceptors/audit/connection resolution de `apps/api/src/modules/platform-core/**`, testes e documentação direta.
-- Proibidos: controllers CRM (CRM-05+), frontend, alteração de auth decision, tenant schema sem ordem de mudança.
+- Permitidos: contracts/providers/guards/interceptors/audit/connection resolution de `apps/api/src/modules/platform-core/**`; testes; documentação direta; e o shell `apps/web/**` estritamente necessário ao Auth.js BFF, incluindo configuração, rota de callback, sessão e logout.
+- Proibidos: páginas/UX de produto, controllers CRM (CRM-05+), telas de Platform Admin ou Core CRM, alteração de auth decision, tenant schema sem ordem de mudança.
 - Contratos produzidos devem exportar só a API Nest necessária a `core-crm`; registrar consumidores.
 
 ## Critérios de aceite e validação

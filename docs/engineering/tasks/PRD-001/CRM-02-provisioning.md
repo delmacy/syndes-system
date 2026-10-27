@@ -2,7 +2,7 @@
 
 - **Módulo/gate:** Platform Core mínimo / Sprint 1.
 - **Classificação:** MVP.
-- **Prioridade/estado:** P0 / CRM-00 e CRM-01 aceitas; revisão Codex em andamento.
+- **Prioridade/estado:** P0 / ACEITA no commit `8c57126`.
 - **Responsável recomendado:** OpenCode Free, uma dispatch mutável; Codex revisa.
 - **Issue/branch/commit/PR:** ainda não criados; esta é uma ordem local, sem operação externa.
 
@@ -43,4 +43,5 @@ Criar database PostgreSQL exclusivo do tenant, aplicar baseline tenant migration
 ## Evidência e próximo responsável
 
 - Listar estado antes/depois e logs sanitizados; informar limitações de privilégios do ambiente.
-- Próximo owner: Codex conclui revisão e CI; depois CRM-03 integra resolução/auth sem sobrepor ownership.
+- Evidências: `npm test` (48 passados; 7 integração skipped localmente), lint (0 erros; 1 warning preexistente), typecheck, build e `npm audit` passaram. API CI `40524011187` e Repository Integrity `40524011177` passaram; o API CI rodou provisioning integration + migrations em PostgreSQL 16 descartável.
+- Próximo owner: OpenCode Free inicia CRM-03; Codex revisa antes de CRM-04.
