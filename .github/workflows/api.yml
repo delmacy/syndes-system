@@ -15,6 +15,42 @@ permissions:
   contents: read
 
 jobs:
+  web:
+    name: apps/web CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    env:
+      AUTH_SECRET: test-only-auth-secret-for-build-and-unit-tests
+      AUTH_URL: http://localhost:3000
+      KEYCLOAK_ISSUER: https://identity.example.test/realms/syndes
+      KEYCLOAK_WEB_CLIENT_ID: syndes-web
+      KEYCLOAK_WEB_CLIENT_SECRET: ci-test-only
+      SYNDES_API_URL: http://localhost:3001
+      INGRESS_SIGNING_SECRET: ci-test-only-ingress-signing-secret
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: npm audit
+        run: npm audit
+
   api:
     name: apps/api CI
     runs-on: ubuntu-latest

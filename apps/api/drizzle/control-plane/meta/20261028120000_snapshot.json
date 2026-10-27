@@ -1,0 +1,371 @@
+{
+  "id": "b772c3b8-449e-48b3-aec2-0c93fd0d1ee0",
+  "prevId": "f3ce18af-6124-4188-b35a-729341591ef6",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.tenants": {
+      "name": "tenants",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "database_name": {
+          "name": "database_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provisioning_state": {
+          "name": "provisioning_state",
+          "type": "provisioning_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tenants_database_name_unique": {
+          "name": "tenants_database_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "database_name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tenant_provisioning": {
+      "name": "tenant_provisioning",
+      "schema": "",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "attempt": {
+          "name": "attempt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "stage": {
+          "name": "stage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "failure_code": {
+          "name": "failure_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "finished_at": {
+          "name": "finished_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tenant_provisioning_tenant_id_tenants_id_fk": {
+          "name": "tenant_provisioning_tenant_id_tenants_id_fk",
+          "tableFrom": "tenant_provisioning",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "tableTo": "tenants",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.identity_actors": {
+      "indexes": {},
+      "columns": {
+        "subject": {
+          "notNull": true,
+          "type": "text",
+          "name": "subject",
+          "primaryKey": false
+        },
+        "id": {
+          "notNull": true,
+          "type": "uuid",
+          "name": "id",
+          "primaryKey": true,
+          "default": "gen_random_uuid()"
+        },
+        "issuer": {
+          "notNull": true,
+          "type": "text",
+          "name": "issuer",
+          "primaryKey": false
+        },
+        "created_at": {
+          "notNull": true,
+          "type": "timestamp with time zone",
+          "name": "created_at",
+          "primaryKey": false,
+          "default": "now()"
+        },
+        "platform_admin": {
+          "notNull": true,
+          "type": "boolean",
+          "name": "platform_admin",
+          "primaryKey": false,
+          "default": "false"
+        }
+      },
+      "isRLSEnabled": false,
+      "schema": "",
+      "name": "identity_actors",
+      "compositePrimaryKeys": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {}
+    },
+    "public.tenant_domains": {
+      "indexes": {},
+      "columns": {
+        "tenant_id": {
+          "notNull": true,
+          "type": "uuid",
+          "name": "tenant_id",
+          "primaryKey": false
+        },
+        "created_at": {
+          "notNull": true,
+          "type": "timestamp with time zone",
+          "name": "created_at",
+          "primaryKey": false,
+          "default": "now()"
+        },
+        "status": {
+          "notNull": true,
+          "type": "text",
+          "name": "status",
+          "primaryKey": false,
+          "default": "'active'"
+        },
+        "hostname": {
+          "notNull": true,
+          "type": "text",
+          "name": "hostname",
+          "primaryKey": true
+        }
+      },
+      "isRLSEnabled": false,
+      "schema": "",
+      "name": "tenant_domains",
+      "compositePrimaryKeys": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {}
+    },
+    "public.tenant_memberships": {
+      "indexes": {},
+      "columns": {
+        "actor_id": {
+          "notNull": true,
+          "type": "uuid",
+          "name": "actor_id",
+          "primaryKey": false
+        },
+        "role": {
+          "notNull": true,
+          "type": "text",
+          "name": "role",
+          "primaryKey": false
+        },
+        "tenant_id": {
+          "notNull": true,
+          "type": "uuid",
+          "name": "tenant_id",
+          "primaryKey": false
+        },
+        "created_at": {
+          "notNull": true,
+          "type": "timestamp with time zone",
+          "name": "created_at",
+          "primaryKey": false,
+          "default": "now()"
+        },
+        "status": {
+          "notNull": true,
+          "type": "text",
+          "name": "status",
+          "primaryKey": false,
+          "default": "'active'"
+        },
+        "updated_at": {
+          "notNull": true,
+          "type": "timestamp with time zone",
+          "name": "updated_at",
+          "primaryKey": false,
+          "default": "now()"
+        },
+        "customer_scope": {
+          "notNull": true,
+          "type": "text",
+          "name": "customer_scope",
+          "primaryKey": false,
+          "default": "'both'"
+        }
+      },
+      "isRLSEnabled": false,
+      "schema": "",
+      "name": "tenant_memberships",
+      "compositePrimaryKeys": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {}
+    },
+    "public.audit_events": {
+      "indexes": {},
+      "columns": {
+        "resource_id": {
+          "notNull": false,
+          "type": "text",
+          "name": "resource_id",
+          "primaryKey": false
+        },
+        "result": {
+          "notNull": true,
+          "type": "text",
+          "name": "result",
+          "primaryKey": false
+        },
+        "tenant_id": {
+          "notNull": false,
+          "type": "uuid",
+          "name": "tenant_id",
+          "primaryKey": false
+        },
+        "action": {
+          "notNull": true,
+          "type": "text",
+          "name": "action",
+          "primaryKey": false
+        },
+        "id": {
+          "notNull": true,
+          "type": "uuid",
+          "name": "id",
+          "primaryKey": true,
+          "default": "gen_random_uuid()"
+        },
+        "actor_id": {
+          "notNull": false,
+          "type": "uuid",
+          "name": "actor_id",
+          "primaryKey": false
+        },
+        "resource_type": {
+          "notNull": true,
+          "type": "text",
+          "name": "resource_type",
+          "primaryKey": false
+        },
+        "occurred_at": {
+          "notNull": true,
+          "type": "timestamp with time zone",
+          "name": "occurred_at",
+          "primaryKey": false,
+          "default": "now()"
+        }
+      },
+      "isRLSEnabled": false,
+      "schema": "",
+      "name": "audit_events",
+      "compositePrimaryKeys": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {}
+    }
+  },
+  "enums": {
+    "public.provisioning_state": {
+      "name": "provisioning_state",
+      "schema": "public",
+      "values": [
+        "pending",
+        "in_progress",
+        "ready",
+        "failed"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

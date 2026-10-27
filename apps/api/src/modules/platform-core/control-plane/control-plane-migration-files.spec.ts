@@ -68,7 +68,7 @@ describe('Control Plane migration deliverables (CRM-01)', () => {
     const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as {
       entries: { tag: string }[];
     };
-    expect(journal.entries.length).toBe(2);
+    expect(journal.entries.length).toBe(3);
     const sql = readFileSync(
       path.join(drizzleDir, `${journal.entries[1].tag}.sql`),
       'utf8',
@@ -77,6 +77,56 @@ describe('Control Plane migration deliverables (CRM-01)', () => {
     expect(sql).toContain(`REFERENCES "public"."tenants"("id")`);
     expect(sql).not.toContain(`ON DELETE`);
     expect(sql).not.toContain(`CREATE TABLE "tenants"`);
+  });
+
+  it('keeps identity, membership, host mapping, and minimal audit DDL in CRM-03', () => {
+    const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as {
+      entries: { tag: string }[];
+    };
+    const sql = readFileSync(
+      path.join(drizzleDir, `${journal.entries[2].tag}.sql`),
+      'utf8',
+    );
+    for (const table of [
+      'identity_actors',
+      'tenant_domains',
+      'tenant_memberships',
+      'audit_events',
+    ]) {
+      expect(sql).toContain(`CREATE TABLE "${table}"`);
+    }
+    expect(sql).toContain('UNIQUE("issuer", "subject")');
+    expect(sql).toContain("IN ('tenant_admin', 'tenant_member')");
+    expect(sql).toContain("IN ('cpf', 'pj', 'both')");
+    expect(sql).toContain('tenant_memberships_admin_scope_check');
+    expect(sql).not.toContain('request_body');
+    const snapshot = JSON.parse(
+      readFileSync(
+        path.join(
+          metaDir,
+          `${journal.entries[2].tag.split('_')[0]}_snapshot.json`,
+        ),
+        'utf8',
+      ),
+    ) as { prevId: string; tables: Record<string, unknown> };
+    const previousSnapshot = JSON.parse(
+      readFileSync(
+        path.join(
+          metaDir,
+          `${journal.entries[1].tag.split('_')[0]}_snapshot.json`,
+        ),
+        'utf8',
+      ),
+    ) as { id: string };
+    expect(snapshot.prevId).toBe(previousSnapshot.id);
+    for (const table of [
+      'public.identity_actors',
+      'public.tenant_domains',
+      'public.tenant_memberships',
+      'public.audit_events',
+    ]) {
+      expect(Object.hasOwn(snapshot.tables, table)).toBe(true);
+    }
   });
 
   it('ensures the frozen snapshot descriptor exists for every entry', () => {

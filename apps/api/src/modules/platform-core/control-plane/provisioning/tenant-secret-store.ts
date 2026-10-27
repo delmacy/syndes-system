@@ -34,6 +34,10 @@ export interface TenantSecretStore {
     tenantId: string,
     credential: TenantDatabaseCredential,
   ): Promise<void>;
+  /** Reads only from the deployment-approved secret store; never CP storage. */
+  getTenantDatabaseCredential?(
+    tenantId: string,
+  ): Promise<TenantDatabaseCredential>;
 }
 
 export class TenantSecretStoreConfigurationError extends Error {
@@ -52,6 +56,10 @@ export class TenantSecretStoreConfigurationError extends Error {
 @Injectable()
 export class UnresolvedTenantSecretStore implements TenantSecretStore {
   saveTenantDatabaseCredential(): Promise<void> {
+    return Promise.reject(new TenantSecretStoreConfigurationError());
+  }
+
+  getTenantDatabaseCredential(): Promise<TenantDatabaseCredential> {
     return Promise.reject(new TenantSecretStoreConfigurationError());
   }
 }

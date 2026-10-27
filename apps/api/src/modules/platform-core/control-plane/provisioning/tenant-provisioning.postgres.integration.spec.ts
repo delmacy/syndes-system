@@ -164,6 +164,21 @@ describeIntegration(
         [tenant.id],
       );
       expect(registry.rows[0]?.provisioning_state).toBe('ready');
+      const audit = await adminPool.query<{
+        action: string;
+        tenant_id: string;
+        result: string;
+      }>(
+        `SELECT action, tenant_id, result FROM audit_events WHERE tenant_id = $1`,
+        [tenant.id],
+      );
+      expect(audit.rows).toEqual([
+        {
+          action: 'tenant.provisioning.ready',
+          tenant_id: tenant.id,
+          result: 'success',
+        },
+      ]);
       const attempt = await adminPool.query<{
         stage: string;
         failure_code: string | null;

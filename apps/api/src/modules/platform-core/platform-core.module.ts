@@ -10,6 +10,14 @@ import {
   UnresolvedTenantSecretStore,
 } from './control-plane/provisioning/tenant-secret-store';
 import type { Pool } from 'pg';
+import { IdentityContextService } from './identity/identity-context.service';
+import { IdentityTokenVerifier } from './identity/identity-token-verifier';
+import { IdentityAuthGuard } from './identity/identity-auth.guard';
+import { TenantContextGuard } from './identity/tenant-context.guard';
+import { PlatformAdminGuard } from './identity/platform-admin.guard';
+import { AuditService } from './identity/audit.service';
+import { TenantDatabasePoolRegistry } from './identity/tenant-database-pool.registry';
+import { TenantMembershipService } from './identity/tenant-membership.service';
 
 export const CONTROL_PLANE_DATABASE = 'CONTROL_PLANE_DATABASE';
 export const TENANT_ADMIN_DATABASE = 'TENANT_ADMIN_DATABASE';
@@ -51,6 +59,31 @@ export const TENANT_SECRET_STORE = 'TENANT_SECRET_STORE';
       useClass: UnresolvedTenantSecretStore,
     },
     {
+      provide: IdentityContextService,
+      useFactory: (pool: Pool) => new IdentityContextService(pool),
+      inject: [CONTROL_PLANE_DATABASE],
+    },
+    {
+      provide: AuditService,
+      useFactory: (pool: Pool) => new AuditService(pool),
+      inject: [CONTROL_PLANE_DATABASE],
+    },
+    {
+      provide: TenantDatabasePoolRegistry,
+      useFactory: (pool: Pool, secretStore: TenantSecretStore) =>
+        new TenantDatabasePoolRegistry(pool, secretStore),
+      inject: [CONTROL_PLANE_DATABASE, TENANT_SECRET_STORE],
+    },
+    {
+      provide: TenantMembershipService,
+      useFactory: (pool: Pool) => new TenantMembershipService(pool),
+      inject: [CONTROL_PLANE_DATABASE],
+    },
+    IdentityTokenVerifier,
+    IdentityAuthGuard,
+    TenantContextGuard,
+    PlatformAdminGuard,
+    {
       provide: TenantProvisioningService,
       useFactory: (
         pool: Pool,
@@ -68,6 +101,16 @@ export const TENANT_SECRET_STORE = 'TENANT_SECRET_STORE';
       ],
     },
   ],
-  exports: [TenantProvisioningService],
+  exports: [
+    TenantProvisioningService,
+    IdentityAuthGuard,
+    TenantContextGuard,
+    PlatformAdminGuard,
+    IdentityContextService,
+    IdentityTokenVerifier,
+    AuditService,
+    TenantDatabasePoolRegistry,
+    TenantMembershipService,
+  ],
 })
 export class PlatformCoreModule {}

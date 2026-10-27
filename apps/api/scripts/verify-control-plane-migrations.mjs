@@ -68,7 +68,8 @@ export const EXPECTED_TENANT_PROVISIONING_COLUMNS = [
  * Length of the reviewed Control Plane journal (CRM-01 registry slice plus
  * the CRM-02 durable provisioning-attempt slice).
  */
-export const EXPECTED_CONTROL_PLANE_MIGRATIONS = 2;
+export const EXPECTED_CRM03_TABLES = ['audit_events', 'identity_actors', 'tenant_domains', 'tenant_memberships'];
+export const EXPECTED_CONTROL_PLANE_MIGRATIONS = 3;
 
 export function normalizeOrderedSet(values) {
   return [...values]
@@ -152,6 +153,11 @@ async function snapshot(pool) {
     } catch {
       journalCount = null;
     }
+    const { rows: identityColumns } = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'identity_actors' ORDER BY ordinal_position`);
+    const { rows: membershipColumns } = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tenant_memberships' ORDER BY ordinal_position`);
+    const { rows: domainColumns } = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tenant_domains' ORDER BY ordinal_position`);
+    const { rows: auditColumns } = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'audit_events' ORDER BY ordinal_position`);
+    const { rows: crm03Constraints } = await pool.query(`SELECT conname FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND conname IN ('identity_actors_issuer_subject_unique', 'tenant_domains_status_check', 'tenant_domains_hostname_normalized_check', 'tenant_memberships_role_check', 'tenant_memberships_scope_check', 'tenant_memberships_status_check', 'tenant_memberships_admin_scope_check', 'audit_events_result_check') ORDER BY conname`);
     return {
       enumValues: enums.map((row) => row.enumlabel),
       enumTypes: enumTypes.map((row) => row.typname),
@@ -162,6 +168,11 @@ async function snapshot(pool) {
         (row) => row.conname,
       ),
       uniqueConstraints: uniqueConstraints.map((row) => row.conname),
+      identityColumns: identityColumns.map((row) => row.column_name),
+      membershipColumns: membershipColumns.map((row) => row.column_name),
+      domainColumns: domainColumns.map((row) => row.column_name),
+      auditColumns: auditColumns.map((row) => row.column_name),
+      crm03Constraints: crm03Constraints.map((row) => row.conname),
       journalCount,
     };
   }
@@ -220,7 +231,7 @@ if (isInvokedEntrypoint()) {
     check(
       'public table object set is exactly the reviewed Control Plane tables',
       JSON.stringify(normalizeOrderedSet(before.tables)) ===
-        JSON.stringify(normalizeOrderedSet(['tenants', 'tenant_provisioning'])),
+        JSON.stringify(normalizeOrderedSet(['tenants', 'tenant_provisioning', ...EXPECTED_CRM03_TABLES])),
       before.tables.join(','),
     );
     check(
@@ -239,6 +250,11 @@ if (isInvokedEntrypoint()) {
         JSON.stringify(['tenant_provisioning_tenant_id_tenants_id_fk']),
       before.provisioningForeignKeys.join(','),
     );
+    check('identity actor columns match the approved mapping contract', JSON.stringify(normalizeOrderedSet(before.identityColumns)) === JSON.stringify(normalizeOrderedSet(['id', 'issuer', 'subject', 'platform_admin', 'created_at'])), normalizeOrderedSet(before.identityColumns).join(','));
+    check('tenant membership columns match the fixed role and scope contract', JSON.stringify(normalizeOrderedSet(before.membershipColumns)) === JSON.stringify(normalizeOrderedSet(['tenant_id', 'actor_id', 'role', 'customer_scope', 'status', 'created_at', 'updated_at'])), normalizeOrderedSet(before.membershipColumns).join(','));
+    check('tenant hostname mapping columns match the approved contract', JSON.stringify(normalizeOrderedSet(before.domainColumns)) === JSON.stringify(normalizeOrderedSet(['hostname', 'tenant_id', 'status', 'created_at'])), normalizeOrderedSet(before.domainColumns).join(','));
+    check('audit event columns exclude request payloads and credentials', JSON.stringify(normalizeOrderedSet(before.auditColumns)) === JSON.stringify(normalizeOrderedSet(['id', 'tenant_id', 'actor_id', 'action', 'resource_type', 'resource_id', 'result', 'occurred_at'])), normalizeOrderedSet(before.auditColumns).join(','));
+    check('CRM-03 identity and authorization constraints are installed', before.crm03Constraints.length === 8, before.crm03Constraints.join(','));
     check(
       'tenants unique-constraint set is exactly tenants_database_name_unique',
       JSON.stringify(before.uniqueConstraints) ===

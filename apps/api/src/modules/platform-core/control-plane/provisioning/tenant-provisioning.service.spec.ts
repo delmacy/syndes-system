@@ -179,6 +179,9 @@ class FakePg {
       });
       return { rows: [], rowCount: 1 };
     }
+    if (/INSERT INTO audit_events/.test(sql)) {
+      return { rows: [], rowCount: 1 };
+    }
     if (/SELECT pg_advisory_(un)?lock\(\$1\)/.test(sql)) {
       return { rows: [{ key: values[0] }], rowCount: 1 };
     }
