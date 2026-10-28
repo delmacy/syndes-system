@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  PayloadTooLargeException,
 } from '@nestjs/common';
 import { and, isNull, inArray } from 'drizzle-orm';
 import type { TenantContext } from '../../platform-core/identity/identity.contracts';
@@ -16,8 +17,13 @@ import {
 import type { TenantCrmTx } from '../timeline/timeline-recorder';
 import { TimelineEventRecorder } from '../timeline/timeline-recorder';
 import { CsvInputError, encodeCsv, parseCsv } from './csv-parser';
+import {
+  csvScopeRowCode,
+  validateCsvRow,
+  type CsvEntity,
+} from './csv-row-validation';
 
-export type CsvEntity = 'person' | 'organization';
+export type { CsvEntity };
 
 export interface CsvRowError {
   row: number;
@@ -57,7 +63,7 @@ export class CrmCsvService {
     entity: CsvEntity,
     source: unknown,
   ): Promise<CsvImportResult> {
-    if (typeof source !== 'string') {
+    if (typeof source !== 'string' && !Buffer.isBuffer(source)) {
       throw new BadRequestException({ code: 'csv_body_required' });
     }
     let parsed;
@@ -65,6 +71,12 @@ export class CrmCsvService {
       parsed = parseCsv(source);
     } catch (error) {
       if (error instanceof CsvInputError) {
+        if (error.code === 'csv_too_large') {
+          throw new PayloadTooLargeException({
+            code: error.code,
+            message: error.message,
+          });
+        }
         throw new BadRequestException({
           code: error.code,
           message: error.message,
@@ -81,16 +93,18 @@ export class CrmCsvService {
       throw new BadRequestException({ code: 'invalid_header' });
     }
     if (entity === 'organization' && !organizationsInScope(context)) {
+      await this.audit.denied(context, `crm.${entity}.csv_import`, entity);
       throw new ForbiddenException({ code: 'customer_scope_denied' });
     }
 
     const records: CsvRecord[] = parsed.rows.map((values, index) => ({
       row: index + 2,
       values: Object.fromEntries(
-        parsed.headers.map((header, i) => [header, values[i].trim()]),
+        parsed.headers.map((header, i) => [header, values[i]]),
       ),
     }));
     const errors: CsvRowError[] = [];
+    const normalized: CsvRecord[] = [];
     let invalid = 0;
     const fail = (row: number, code: string) => {
       invalid += 1;
@@ -101,7 +115,7 @@ export class CrmCsvService {
       const validOrgIds = new Set<string>();
       const uniqueColumn = entity === 'person' ? 'cpf' : 'cnpj';
       const submittedUnique = records
-        .map((record) => record.values[uniqueColumn])
+        .map((record) => (record.values[uniqueColumn] ?? '').trim())
         .filter(Boolean);
       const existingUnique = new Set<string>();
       if (submittedUnique.length) {
@@ -124,7 +138,9 @@ export class CrmCsvService {
         const organizationIds = [
           ...new Set(
             records
-              .map((record) => record.values.organizationId)
+              .map((record) =>
+                (record.values.organizationId ?? '').trim().toLowerCase(),
+              )
               .filter(Boolean),
           ),
         ];
@@ -142,53 +158,39 @@ export class CrmCsvService {
         }
       }
       for (const record of records) {
-        const value = record.values;
-        let code: string | undefined;
-        const uniqueValue = value[uniqueColumn];
-        const name = value[required] ?? '';
-        if (!name || name.length > 200) code = 'invalid_name';
-        else if (
-          value.email &&
-          (!/^\S+@\S+\.\S+$/.test(value.email) || value.email.length > 320)
-        )
-          code = 'invalid_email';
-        else if (value.phone && value.phone.length > 32) code = 'invalid_phone';
-        else if (
+        const scopeCode = csvScopeRowCode(
+          entity,
+          context.customerScope,
+          record.values,
+        );
+        if (scopeCode) {
+          fail(record.row, scopeCode);
+          continue;
+        }
+        const validation = validateCsvRow(entity, record.values);
+        if (validation.code || !validation.values) {
+          fail(record.row, validation.code ?? 'invalid_row');
+          continue;
+        }
+        const values = validation.values;
+        if (
           entity === 'person' &&
-          value.cpf &&
-          (value.cpf.length > 20 || !/^([\d.\-/ ]+)$/.test(value.cpf))
-        )
-          code = 'invalid_cpf';
-        else if (
-          entity === 'organization' &&
-          value.cnpj &&
-          (value.cnpj.length > 20 || !/^([\d.\-/ ]+)$/.test(value.cnpj))
-        )
-          code = 'invalid_cnpj';
-        else if (
-          entity === 'person' &&
-          context.customerScope === 'pj' &&
-          !value.organizationId
-        )
-          code = 'organization_required_for_scope';
-        else if (
-          entity === 'person' &&
-          context.customerScope === 'cpf' &&
-          value.organizationId
-        )
-          code = 'organization_outside_scope';
-        else if (
-          entity === 'person' &&
-          value.organizationId &&
-          !validOrgIds.has(value.organizationId)
-        )
-          code = 'organization_not_found';
-        else if (uniqueValue && existingUnique.has(uniqueValue))
-          code = `duplicate_${uniqueColumn}`;
-        else if (uniqueValue && seenUnique.has(uniqueValue))
-          code = `duplicate_${uniqueColumn}`;
+          values.organizationId &&
+          !validOrgIds.has(values.organizationId)
+        ) {
+          fail(record.row, 'organization_not_found');
+          continue;
+        }
+        const uniqueValue = values[uniqueColumn];
+        if (
+          uniqueValue &&
+          (existingUnique.has(uniqueValue) || seenUnique.has(uniqueValue))
+        ) {
+          fail(record.row, `duplicate_${uniqueColumn}`);
+          continue;
+        }
         if (uniqueValue) seenUnique.add(uniqueValue);
-        if (code) fail(record.row, code);
+        normalized.push({ row: record.row, values });
       }
     });
 
@@ -199,7 +201,7 @@ export class CrmCsvService {
           if (entity === 'person') {
             const organizationIds = [
               ...new Set(
-                records
+                normalized
                   .map((record) => record.values.organizationId)
                   .filter(Boolean),
               ),
@@ -217,7 +219,7 @@ export class CrmCsvService {
               const activeIds = new Set(
                 activeOrganizations.map((organization) => organization.id),
               );
-              const staleLink = records.find(
+              const staleLink = normalized.find(
                 (record) =>
                   record.values.organizationId &&
                   !activeIds.has(record.values.organizationId),
@@ -225,7 +227,7 @@ export class CrmCsvService {
               if (staleLink) throw new CsvAtomicImportError(staleLink.row);
             }
           }
-          for (const [index, { values }] of records.entries()) {
+          for (const [index, { values }] of normalized.entries()) {
             try {
               if (entity === 'person') {
                 const [person] = await tx
@@ -298,7 +300,7 @@ export class CrmCsvService {
       entity,
       null,
     );
-    return { imported: records.length, invalid: 0, errors: [] };
+    return { imported: normalized.length, invalid: 0, errors: [] };
   }
 
   async exportCsv(context: TenantContext, entity: CsvEntity): Promise<string> {

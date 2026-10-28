@@ -3,7 +3,6 @@ import path from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { text } from 'express';
 import { Pool, type PoolClient } from 'pg';
 
 jest.mock('jose', () => ({
@@ -30,6 +29,7 @@ import {
 } from '../platform-core/platform-core.module';
 import { ManagerModule } from '../platform-core/manager/manager.module';
 import { CoreCrmModule } from './core-crm.module';
+import { registerCsvBodyParser } from './csv/csv-body-parser';
 
 const TENANT_INTEGRATION_TIMEOUT_MS = 180000;
 const CONFIGURED_ISSUER = 'https://id.test/realms/syndes';
@@ -202,7 +202,7 @@ describeIntegration('CRM-05 core CRM API (disposable PostgreSQL)', () => {
       .compile();
 
     app = moduleRef.createNestApplication();
-    app.use(text({ type: 'text/csv', limit: '10mb' }));
+    registerCsvBodyParser(app);
     await app.init();
 
     tenantAId = await createAndProvisionTenant('CRM Tenant A');
@@ -2105,6 +2105,321 @@ describeIntegration('CRM-05 core CRM API (disposable PostgreSQL)', () => {
     expect(exportA.status).toBe(200);
     expect(exportA.text).toContain("'=Tenant A Formula");
     expect(exportA.text).not.toContain('Tenant B Only');
+  });
+
+  it('imports organizations with canonical validation, timeline events and duplicate protection', async () => {
+    const imported = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=organization')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('member')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send(
+        '\uFEFFname,cnpj,email,phone\r\n"Organização, Importada",12.345.678/0001-00,importada@alfa.test,1130000000',
+      );
+    expect(imported.status).toBe(200);
+    expect(imported.body).toMatchObject({
+      imported: 1,
+      invalid: 0,
+      errors: [],
+    });
+
+    const organizations = await get(
+      '/api/v1/crm/organizations',
+      tokenFor('member'),
+    );
+    expect(
+      (bodyOf(organizations).items as { name: string }[]).map(
+        (item) => item.name,
+      ),
+    ).toContain('Organização, Importada');
+
+    const events = await tenantAPool.query<{ event_kind: string }>(
+      `SELECT event_kind FROM crm_timeline_events
+       WHERE event_kind = 'organization.created'`,
+    );
+    expect(events.rows.length).toBe(1);
+
+    const duplicate = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=organization')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('member')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send('name,cnpj\nOutra Empresa,12.345.678/0001-00');
+    expect(duplicate.status).toBe(200);
+    expect(duplicate.body).toMatchObject({
+      imported: 0,
+      invalid: 1,
+      errors: [{ row: 2, code: 'duplicate_cnpj' }],
+    });
+
+    const afterDuplicate = await get(
+      '/api/v1/crm/organizations',
+      tokenFor('member'),
+    );
+    expect((bodyOf(afterDuplicate).items as unknown[]).length).toBe(1);
+  });
+
+  it('applies the canonical CRM validation to CSV rows and caps the reported row errors', async () => {
+    const controlCharacter = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=person')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('member')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send('fullName\nMaria\u001bSilva');
+    expect(controlCharacter.status).toBe(200);
+    expect(controlCharacter.body).toMatchObject({
+      imported: 0,
+      invalid: 1,
+      errors: [{ row: 2, code: 'invalid_name' }],
+    });
+
+    const rejectedEmail = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=person')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('member')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send('fullName,email\nMaria,a@b@c.d');
+    expect(rejectedEmail.body).toMatchObject({
+      imported: 0,
+      invalid: 1,
+      errors: [{ row: 2, code: 'invalid_email' }],
+    });
+
+    const people = await get('/api/v1/crm/people', tokenFor('member'));
+    expect(bodyOf(people).total).toBe(0);
+
+    const invalidRows = [
+      'fullName,email',
+      ...Array.from({ length: 150 }, (_, index) => `Pessoa ${index},invalido`),
+    ].join('\r\n');
+    const capped = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=person')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('member')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send(invalidRows);
+    expect(capped.status).toBe(200);
+    expect(capped.body).toMatchObject({ imported: 0, invalid: 150 });
+    const cappedErrors = bodyOf(capped).errors as {
+      row: number;
+      code: string;
+    }[];
+    expect(cappedErrors.length).toBe(100);
+    expect(cappedErrors[0]).toMatchObject({
+      row: 2,
+      code: 'invalid_email',
+    });
+    const afterCap = await get('/api/v1/crm/people', tokenFor('member'));
+    expect(bodyOf(afterCap).total).toBe(0);
+  });
+
+  it('applies customer scope and tenant isolation to CSV imports and keeps exports filtered', async () => {
+    const organization = await post('/api/v1/crm/organizations', {
+      name: 'Org Base CSV',
+    });
+    expect(organization.status).toBe(201);
+    const organizationId = bodyOf(organization).id as string;
+
+    const deniedOrganizationImport = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=organization')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('cpf')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send('name\nEmpresa Negada');
+    expect(deniedOrganizationImport.status).toBe(403);
+    expect(bodyOf(deniedOrganizationImport)).toMatchObject({
+      code: 'customer_scope_denied',
+    });
+    const deniedAudits = await adminPool.query<{ action: string }>(
+      `SELECT action FROM audit_events
+       WHERE tenant_id = $1 AND action = 'crm.organization.csv_import.denied'`,
+      [tenantAId],
+    );
+    expect(deniedAudits.rows.length).toBe(1);
+
+    const pjWithoutOrganization = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=person')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('pj')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send('fullName\nContato PJ sem vinculo');
+    expect(pjWithoutOrganization.status).toBe(200);
+    expect(pjWithoutOrganization.body).toMatchObject({
+      imported: 0,
+      invalid: 1,
+      errors: [{ row: 2, code: 'organization_required_for_scope' }],
+    });
+
+    const pjWithOrganization = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=person')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('pj')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send(
+        `fullName,organizationId\r\nContato PJ,${organizationId.toUpperCase()}`,
+      );
+    expect(pjWithOrganization.status).toBe(200);
+    expect(pjWithOrganization.body).toMatchObject({
+      imported: 1,
+      invalid: 0,
+      errors: [],
+    });
+
+    const relationshipEvents = await tenantAPool.query<{ event_kind: string }>(
+      `SELECT event_kind FROM crm_timeline_events
+       WHERE event_kind = 'relationship.created'`,
+    );
+    expect(relationshipEvents.rows.length).toBe(1);
+
+    const crossTenant = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=person')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('badmin')}`)
+      .set(ingressHeaders(TENANT_B))
+      .send(`fullName,organizationId\r\nInvasor,${organizationId}`);
+    expect(crossTenant.status).toBe(200);
+    expect(crossTenant.body).toMatchObject({
+      imported: 0,
+      invalid: 1,
+      errors: [{ row: 2, code: 'organization_not_found' }],
+    });
+
+    const tenantAPeople = await tenantAPool.query<{ count: number }>(
+      `SELECT count(*)::int AS count FROM crm_people`,
+    );
+    expect(tenantAPeople.rows[0]?.count).toBe(1);
+    const tenantBPeople = await tenantBPool.query<{ count: number }>(
+      `SELECT count(*)::int AS count FROM crm_people`,
+    );
+    expect(tenantBPeople.rows[0]?.count).toBe(0);
+
+    const formula = await post('/api/v1/crm/people', { fullName: '=Injetado' });
+    expect(formula.status).toBe(201);
+    const archived = await post('/api/v1/crm/people', {
+      fullName: 'Arquivado CSV',
+    });
+    expect(archived.status).toBe(201);
+    await del(`/api/v1/crm/people/${bodyOf(archived).id as string}`);
+
+    const exported = await get('/api/v1/crm/csv/export?entityType=person');
+    expect(exported.status).toBe(200);
+    expect(exported.text).toContain("'=Injetado");
+    expect(exported.text).not.toContain('Arquivado CSV');
+  });
+
+  it('rejects malformed CSV requests with stable codes', async () => {
+    const invalidEntity = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=lead')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('member')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send('fullName\nMaria');
+    expect(invalidEntity.status).toBe(400);
+    expect(bodyOf(invalidEntity)).toMatchObject({
+      code: 'invalid_entity_type',
+    });
+
+    const notCsv = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=person')
+      .set('content-type', 'application/json')
+      .set('authorization', `Bearer ${tokenFor('member')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send({ fullName: 'Maria' });
+    expect(notCsv.status).toBe(400);
+    expect(bodyOf(notCsv)).toMatchObject({ code: 'csv_body_required' });
+
+    const oversized = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=person')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('member')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send(`fullName\n${'x'.repeat(10 * 1024 * 1024)}`);
+    expect(oversized.status).toBe(413);
+    expect(bodyOf(oversized)).toMatchObject({ code: 'csv_too_large' });
+    const people = await get('/api/v1/crm/people', tokenFor('member'));
+    expect(bodyOf(people).total).toBe(0);
+  });
+
+  it('imports a legitimate U+FFFD character through raw UTF-8 bytes', async () => {
+    const importResult = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=person')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('member')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send('fullName\r\nMaria\uFFFD Silva');
+    expect(importResult.status).toBe(200);
+    expect(importResult.body).toMatchObject({
+      imported: 1,
+      invalid: 0,
+      errors: [],
+    });
+    const stored = await tenantAPool.query<{ full_name: string }>(
+      `SELECT full_name FROM crm_people WHERE full_name = $1`,
+      ['Maria\uFFFD Silva'],
+    );
+    expect(stored.rows.length).toBe(1);
+    expect(stored.rows[0].full_name).toBe('Maria\uFFFD Silva');
+  });
+
+  it('rejects malformed UTF-8 bytes without writing anything', async () => {
+    const importResult = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=person')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('member')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send(
+        Buffer.concat([
+          Buffer.from('fullName\r\nMaria', 'utf8'),
+          Buffer.from([0xff, 0xfe, 0x41]),
+        ]),
+      );
+    expect(importResult.status).toBe(400);
+    expect(bodyOf(importResult)).toMatchObject({ code: 'invalid_encoding' });
+    const people = await get('/api/v1/crm/people', tokenFor('member'));
+    expect(bodyOf(people).total).toBe(0);
+  });
+
+  it('imports rows with blank optional cells as absent', async () => {
+    const importResult = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=person')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('member')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send('fullName,cpf,email,phone\r\nMaria Silva,,,');
+    expect(importResult.status).toBe(200);
+    expect(importResult.body).toMatchObject({
+      imported: 1,
+      invalid: 0,
+      errors: [],
+    });
+    const stored = await tenantAPool.query<{
+      cpf: string | null;
+      email: string | null;
+      phone: string | null;
+    }>(`SELECT cpf, email, phone FROM crm_people WHERE full_name = $1`, [
+      'Maria Silva',
+    ]);
+    expect(stored.rows.length).toBe(1);
+    expect(stored.rows[0].cpf).toBeNull();
+    expect(stored.rows[0].email).toBeNull();
+    expect(stored.rows[0].phone).toBeNull();
+  });
+
+  it('rejects a row with a blank required name', async () => {
+    const importResult = await request(server())
+      .post('/api/v1/crm/csv/import?entityType=person')
+      .set('content-type', 'text/csv')
+      .set('authorization', `Bearer ${tokenFor('member')}`)
+      .set(ingressHeaders(TENANT_A))
+      .send('fullName,cpf\r\n,123.456.789-00');
+    expect(importResult.status).toBe(200);
+    expect(importResult.body).toMatchObject({
+      imported: 0,
+      invalid: 1,
+      errors: [{ row: 2, code: 'invalid_name' }],
+    });
+    const people = await get('/api/v1/crm/people', tokenFor('member'));
+    expect(bodyOf(people).total).toBe(0);
   });
 
   it('lists and updates tenant member scope only for the same tenant admin', async () => {

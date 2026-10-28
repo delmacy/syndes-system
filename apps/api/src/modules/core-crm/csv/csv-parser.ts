@@ -17,16 +17,22 @@ export class CsvInputError extends Error {
   }
 }
 
-/** Parse bounded RFC 4180 comma-delimited UTF-8 input. */
-export function parseCsv(input: string): ParsedCsv {
-  if (Buffer.byteLength(input, 'utf8') > MAX_CSV_BYTES) {
+/**
+ * Parse bounded RFC 4180 comma-delimited UTF-8 input.
+ *
+ * Encoding check: the HTTP boundary keeps the request bytes intact (see
+ * `csv-body-parser.ts`), so the parser decodes them itself with a fatal UTF-8
+ * decoder. A malformed byte sequence is rejected as `invalid_encoding` and
+ * never reaches the CRM, while a legitimate U+FFFD character inside a valid
+ * UTF-8 file is accepted and stored as the character it is.
+ */
+export function parseCsv(input: Buffer | string): ParsedCsv {
+  const bytes = Buffer.isBuffer(input) ? input : Buffer.from(input, 'utf8');
+  if (bytes.byteLength > MAX_CSV_BYTES) {
     throw new CsvInputError('csv_too_large', 'CSV exceeds the 10 MiB limit.');
   }
-  if (input.includes('\uFFFD')) {
-    throw new CsvInputError('invalid_encoding', 'CSV must be valid UTF-8.');
-  }
 
-  const source = input.charCodeAt(0) === 0xfeff ? input.slice(1) : input;
+  const source = decodeUtf8(bytes);
   const records: string[][] = [];
   let row: string[] = [];
   let field = '';
@@ -121,4 +127,28 @@ function escapeCsvCell(value: string): string {
   let safe = value;
   if (/^\s*[=+\-@]/.test(safe)) safe = `'${safe}`;
   return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
+
+/**
+ * Decodes the request bytes as strict UTF-8. Malformed byte sequences are a
+ * client error, never a silently repaired record.
+ */
+function decodeUtf8(bytes: Buffer): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(stripBom(bytes));
+  } catch {
+    throw new CsvInputError('invalid_encoding', 'CSV must be valid UTF-8.');
+  }
+}
+
+function stripBom(bytes: Buffer): Buffer {
+  if (
+    bytes.length >= 3 &&
+    bytes[0] === 0xef &&
+    bytes[1] === 0xbb &&
+    bytes[2] === 0xbf
+  ) {
+    return bytes.subarray(3);
+  }
+  return bytes;
 }
