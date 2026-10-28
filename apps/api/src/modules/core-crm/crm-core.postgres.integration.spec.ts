@@ -32,12 +32,42 @@ import { CoreCrmModule } from './core-crm.module';
 import { registerCsvBodyParser } from './csv/csv-body-parser';
 
 const TENANT_INTEGRATION_TIMEOUT_MS = 180000;
+const TENANT_DATABASE_DISCONNECT_TIMEOUT_MS = 5000;
+const TENANT_DATABASE_DISCONNECT_POLL_MS = 25;
 const CONFIGURED_ISSUER = 'https://id.test/realms/syndes';
 const PLATFORM_ADMIN_TOKEN = 'platform-token';
 const TENANT_A = 'tenant-a.crm.test';
 const TENANT_B = 'tenant-b.crm.test';
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+async function waitForTenantDatabaseConnectionsToClose(
+  adminPool: Pool,
+  databaseName: string,
+): Promise<void> {
+  const deadline = Date.now() + TENANT_DATABASE_DISCONNECT_TIMEOUT_MS;
+
+  while (true) {
+    const result = await adminPool.query<{ pid: number }>(
+      `SELECT pid
+         FROM pg_stat_activity
+        WHERE datname = $1
+          AND pid <> pg_backend_pid()
+          AND backend_type = 'client backend'`,
+      [databaseName],
+    );
+    if (result.rowCount === 0) return;
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Timed out waiting for ${result.rowCount} client connection(s) to close for tenant database ${databaseName}.`,
+      );
+    }
+
+    await new Promise<void>((resolve) =>
+      setTimeout(resolve, TENANT_DATABASE_DISCONNECT_POLL_MS),
+    );
+  }
+}
 
 const describeIntegration = process.env.CONTROL_PLANE_DATABASE_URL
   ? describe
@@ -266,22 +296,19 @@ describeIntegration('CRM-05 core CRM API (disposable PostgreSQL)', () => {
   afterAll(async () => {
     await app?.close();
     if (tenantPools) {
-      for (const pool of tenantPools.values()) {
-        await pool.end().catch(() => undefined);
-      }
+      await Promise.all([...tenantPools.values()].map((pool) => pool.end()));
     }
     await Promise.all(tenantAdminPools.map((pool) => pool.end()));
     for (const databaseName of disposableNames[0]?.databases ?? []) {
-      await adminPool
-        .query(
-          `DROP DATABASE IF EXISTS ${quotePgIdentifier(databaseName)} WITH (FORCE)`,
-        )
-        .catch(() => undefined);
+      await waitForTenantDatabaseConnectionsToClose(adminPool, databaseName);
+      await adminPool.query(
+        `DROP DATABASE IF EXISTS ${quotePgIdentifier(databaseName)}`,
+      );
     }
     for (const roleName of disposableNames[0]?.roles ?? []) {
-      await adminPool
-        .query(`DROP ROLE IF EXISTS ${quotePgIdentifier(roleName)}`)
-        .catch(() => undefined);
+      await adminPool.query(
+        `DROP ROLE IF EXISTS ${quotePgIdentifier(roleName)}`,
+      );
     }
     await adminPool?.end();
   }, TENANT_INTEGRATION_TIMEOUT_MS);
