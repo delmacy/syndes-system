@@ -33,6 +33,20 @@ Trabalhar funcionalmente em apenas um módulo de produto por vez:
 
 A fase corrente é **Core CRM**.
 
+### Exceção paralela explicitamente autorizada
+
+O **Commercial Website** pode avançar em paralelo enquanto o Core CRM permanece no gate corrente, limitado à superfície pública de marketing no frontend.
+
+Essa exceção **não** autoriza:
+
+- implementar Billing, Onboarding ou contratação antes dos respectivos módulos;
+- criar APIs ou persistência próprias do site sem necessidade já aprovada;
+- alterar regras do Core CRM, Platform Admin ou autenticação para acomodar marketing;
+- apresentar como disponível uma capacidade ainda não entregue;
+- iniciar qualquer outro módulo funcional em paralelo.
+
+O site deve permanecer desacoplado das áreas autenticadas e reutilizar apenas contratos já existentes.
+
 ## Princípios de engenharia
 
 - Preferir monólito modular enquanto não houver evidência concreta para separação.
