@@ -235,6 +235,7 @@
   padding: 0 20px;
   font-size: 14px;
   font-weight: 800;
+  animation: onlineCycle 12s ease-in-out infinite;
 }
 
 .primaryAction,
@@ -381,6 +382,7 @@
 }
 
 .online {
+  position: relative;
   padding: 5px 9px;
   border-radius: 999px;
   background: linear-gradient(90deg, #dff8ee, #cbf3e4);
@@ -426,8 +428,23 @@
 }
 
 .activeConversation {
+  position: relative;
   background: linear-gradient(100deg, #def6ed 0%, #eafaf4 100%);
   box-shadow: inset 3px 0 0 #22c993;
+  animation: conversationFocus 12s ease-in-out infinite;
+}
+
+.activeConversation::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  top: 9px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--marketing-bright);
+  box-shadow: 0 0 0 4px rgba(34, 201, 147, 0.1), 0 0 12px rgba(34, 201, 147, 0.55);
+  animation: unreadPulse 12s ease-in-out infinite;
 }
 
 .conversation {
@@ -545,6 +562,7 @@
   align-self: flex-start;
   background: white;
   border: 1px solid #e0e9e6;
+  animation: customerMessageCycle 12s ease-in-out infinite;
 }
 
 .assistantMessage {
@@ -552,6 +570,42 @@
   background: linear-gradient(135deg, #d8f6e9 0%, #c9f0e0 100%);
   color: #184d42;
   box-shadow: 0 7px 20px rgba(8, 127, 104, 0.09);
+  transform-origin: 88% 100%;
+  animation: assistantMessageCycle 12s ease-in-out infinite;
+}
+
+.typingIndicator {
+  align-self: flex-end;
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  width: fit-content;
+  min-width: 42px;
+  height: 25px;
+  padding: 0 9px;
+  border: 1px solid rgba(34, 201, 147, 0.18);
+  border-radius: 10px 10px 4px 10px;
+  background: linear-gradient(135deg, #e4f8f0, #d7f3e8);
+  box-shadow: 0 6px 16px rgba(8, 127, 104, 0.07);
+  opacity: 0;
+  transform: translateY(5px) scale(0.96);
+  animation: typingCycle 12s ease-in-out infinite;
+}
+
+.typingIndicator span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #0b8f70;
+  animation: typingDot 0.9s ease-in-out infinite;
+}
+
+.typingIndicator span:nth-child(2) {
+  animation-delay: 0.14s;
+}
+
+.typingIndicator span:nth-child(3) {
+  animation-delay: 0.28s;
 }
 
 .assistantMessage small {
@@ -567,6 +621,8 @@
   align-self: flex-end;
   width: min(84%, 220px);
   display: grid;
+  transform-origin: 90% 0%;
+  animation: contextCardCycle 12s ease-in-out infinite;
   gap: 4px;
   margin-top: 3px;
   padding: 10px;
@@ -586,6 +642,7 @@
 }
 
 .composer {
+  position: relative;
   height: 42px;
   display: flex;
   align-items: center;
@@ -598,8 +655,18 @@
   font-size: 9px;
 }
 
+.composer::after {
+  content: "";
+  width: 1px;
+  height: 13px;
+  margin-left: 3px;
+  background: rgba(8, 127, 104, 0.55);
+  animation: composerCaret 1.1s steps(1, end) infinite;
+}
+
 .floatingCard {
   position: absolute;
+  animation: floatingCardCycle 12s ease-in-out infinite;
   right: -28px;
   bottom: -27px;
   display: flex;
@@ -1247,6 +1314,119 @@
 }
 
 
+
+@keyframes conversationFocus {
+  0%, 5%, 100% {
+    box-shadow: inset 3px 0 0 rgba(34, 201, 147, 0.55);
+  }
+  10%, 34% {
+    box-shadow:
+      inset 3px 0 0 #22c993,
+      0 0 0 1px rgba(34, 201, 147, 0.12),
+      0 8px 22px rgba(34, 201, 147, 0.08);
+  }
+  55%, 88% {
+    box-shadow: inset 3px 0 0 #0b8f70;
+  }
+}
+
+@keyframes unreadPulse {
+  0%, 6%, 86%, 100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  10%, 27% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  34%, 82% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+
+@keyframes customerMessageCycle {
+  0%, 4%, 96%, 100% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  10%, 86% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes typingCycle {
+  0%, 16%, 38%, 100% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.96);
+  }
+  21%, 33% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes typingDot {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@keyframes assistantMessageCycle {
+  0%, 31%, 96%, 100% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  39%, 86% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes contextCardCycle {
+  0%, 47%, 96%, 100% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  55%, 86% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes floatingCardCycle {
+  0%, 55%, 96%, 100% {
+    opacity: 0.34;
+    transform: translateY(6px) scale(0.98);
+  }
+  64%, 87% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes onlineCycle {
+  0%, 20%, 100% {
+    box-shadow: 0 0 18px rgba(34, 201, 147, 0.16);
+  }
+  27%, 44% {
+    box-shadow:
+      0 0 18px rgba(34, 201, 147, 0.22),
+      0 0 0 4px rgba(34, 201, 147, 0.07);
+  }
+}
+
+@keyframes composerCaret {
+  0%, 48% { opacity: 0; }
+  49%, 100% { opacity: 1; }
+}
+
 @keyframes brandShine {
   0%, 68% {
     transform: translateX(0) rotate(-24deg);
@@ -1308,8 +1488,20 @@
   .primaryActionWide::after,
   .appWindow::after,
   .heroVisual::before,
-  .priceCard::before {
+  .priceCard::before,
+  .activeConversation,
+  .activeConversation::after,
+  .customerMessage,
+  .assistantMessage,
+  .contextCard,
+  .floatingCard,
+  .online,
+  .composer::after {
     animation: none;
+  }
+
+  .typingIndicator {
+    display: none;
   }
 
   .stepCard,
