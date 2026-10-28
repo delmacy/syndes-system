@@ -11,13 +11,13 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 | CRM-02 | 1 | OpenCode Free; Codex revisa | ACEITA em `8c57126`; API e Repository Integrity CI verdes, com integração PostgreSQL 16 |
 | CRM-03 | 1 | OpenCode Free; Codex revisa | ACEITA em `300017f`; API, web e Repository Integrity CI verdes |
 | CRM-04 | 1 | OpenCode Free; Codex revisa | ACEITA em `8b41a11`; PostgreSQL 16 integration (15 tests), API/web CI e Repository Integrity verdes |
-| CRM-05 | 2 | OpenCode Free; Codex revisa | ACEITA localmente após correção de review; CI do Sprint 2 ainda pendente |
-| CRM-06 | 2 | Codex (review/correções) + OpenCode Free (auditoria supervisionada) | ACEITA localmente após revisão Codex; 29 suites/162 unit tests, 2 suites/29 PostgreSQL integration tests em PostgreSQL 17 descartável (migration do zero, CRM-05 baseline e isolamento), lint, typecheck e build passaram; CI Sprint 2 pendente |
-| CRM-07 | 2 | Codex (revisão e correção após worker free falhar) | ACEITA localmente; busca, normalização, duplicidade, escopo CPF/PJ/BOTH e isolamento A/B passaram em PostgreSQL; Sprint 2 CI pendente |
-| CRM-08 | 2 | OpenCode Free corretivo; Codex revisa | ACEITA localmente após review corretivo; unitários 32 suites/180 testes, integração PostgreSQL 17 descartável 4 suites/52 testes, lint, typecheck, build, npm ci e audit com zero vulnerabilidades; CI do Sprint 2 pendente |
+| CRM-05 | 2 | OpenCode Free; Codex revisa | ACEITA; API CI verde em PostgreSQL 16 no commit `5a935f0` |
+| CRM-06 | 2 | Codex (review/correções) + OpenCode Free (auditoria supervisionada) | ACEITA; testes unitários e integração PostgreSQL 17 locais passaram; API CI verde em PostgreSQL 16 no commit `5a935f0` |
+| CRM-07 | 2 | Codex (revisão e correção após worker free falhar) | ACEITA; busca, normalização, duplicidade, escopo CPF/PJ/BOTH e isolamento A/B passaram localmente; API CI verde em PostgreSQL 16 no commit `5a935f0` |
+| CRM-08 | 2 | OpenCode Free corretivo; Codex revisa | ACEITA; testes unitários e integração PostgreSQL 17, lint, typecheck, build e audit local passaram; API CI verde em PostgreSQL 16 no commit `5a935f0` |
 | CRM-09 | 3 | Codex (após tentativas free sem worker confiável) | Validada localmente; Platform Admin UI e 3 testes de componente; CI remoto no gate final |
 | CRM-10 | 3 | Codex (execução direta; suporte API mínimo incluído) | Validada localmente; CRM UI e 3 testes de componente; CI remoto no gate final |
-| CRM-11 | 4 | Codex | Implementação e CI aceitas; gate final BLOQUEADO apenas pela demonstração autenticada em ambiente Keycloak/tenant de teste, indisponível neste checkout |
+| CRM-11 | 4 | Codex | Implementação e CI aceitas; gate final BLOQUEADO até demonstrar a jornada autenticada com Keycloak e tenant descartável |
 
 ## Decisões confirmadas pelo usuário
 
@@ -43,6 +43,8 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 - CRM-10 implementou busca, cadastros, edição/arquivo, relacionamentos, tags, notas, timeline, identidades de canal, CSV e configurações de equipe. Foi adicionada API mínima para contexto autenticado, consulta/atualização de memberships e lista de vínculos visíveis. Web: lint/typecheck/build e Vitest (8 arquivos/17 testes) passaram.
 - Gate local integrado (2026-10-27): API lint/typecheck/build e Jest com PostgreSQL (32 suites/193 testes) passaram; `tenant:verify:provisioning` passou, incluindo migrations do zero, idempotência e negação de conexão entre tenants. Web lint/typecheck, Vitest (8 arquivos/17 testes), Next build e `npm audit` das duas aplicações passaram; ambos reportaram zero vulnerabilidades. Playwright acceptance foi listado sem executar a jornada, conforme política opt-in.
 - CI remoto do commit `93eeda6`: API run `40586765411` e Repository Integrity run `40586765265` verdes; CI Web incluído no job da API também verde. CRM-11 registrou `BLOQUEADO` somente para a demonstração autenticada em ambiente Keycloak/tenant de teste, indisponível neste checkout. O script Playwright está pronto/listável e permanece opt-in.
+- Correção do teardown PostgreSQL (2026-10-28): commit `5a935f0` aguarda o encerramento das conexões dos pools antes de remover databases de teste, sem `DROP DATABASE ... WITH (FORCE)`. A API run `40630437451` passou incluindo integração em PostgreSQL 16 e verificação de migrations/provisioning; Repository Integrity run `40630437336` passou. Com isso, o gate de CI da Sprint 2 está ACEITO. CRM-11 permanece bloqueado apenas pela jornada autenticada com Keycloak e tenant de teste.
+- CRM-11 assessment read-only via OpenCode/NVIDIA (2026-10-28): script Playwright já está headless e produz JSON/logs; não existe semeadura de realm/usuário Keycloak. O worker usou efetivamente `nvidia/nemotron-3.5-lightning-30b-a3b`, não alterou arquivos nem iniciou serviços. A trava restante é preparar um realm e usuário de teste junto de um tenant provisionado e executar/analisar a jornada.
 
 ## Regras de dispatch
 

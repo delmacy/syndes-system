@@ -19,15 +19,15 @@ Consolidar evidência de requisitos, integração, segurança, testes e prontid�
 - Prove `cpf`, `pj`, and `both` scopes across CRUD, linked contacts, search, timeline, and import; prove `tenant_admin` can change a member's scope and the change is audited.
 - Preparar jornada demonstrável. E2E frontend fica registrado como necessário/pendente ou executa-se somente sob instrução/gate explícito via Playwright headless, lendo logs/resultados.
 
-## Evidência local (2026-10-27)
+## Evidência local (atualizada em 2026-10-28)
 
 - API: lint, typecheck, build; Jest com PostgreSQL: 32 suites/193 testes aprovados.
 - Provisioning: migrations aplicadas do zero e reaplicadas como no-op; role tenant sem privilégios de criação e sem conexão cruzada entre databases.
 - Web: lint, typecheck, build; Vitest: 8 arquivos/17 testes aprovados.
 - `npm audit --audit-level=high`: zero vulnerabilidades em API e web.
 - Playwright: a jornada existe e aparece em `--list`; execução opt-in não realizada.
-- GitHub Actions do commit `93eeda6`: API run [40586765411](https://github.com/delmacy/syndes-system/actions/runs/40586765411) e Repository Integrity run [40586765265](https://github.com/delmacy/syndes-system/actions/runs/40586765265) verdes; job Web também verde dentro do workflow API.
-- Ainda pendente: execução/demonstração da jornada autenticada em ambiente com Keycloak e tenant provisionado. Sem esse ambiente, a decisão formal deste gate é `BLOQUEADO`; não declarar `ACEITO`.
+- GitHub Actions do commit `5a935f0`: API run [40630437451](https://github.com/delmacy/syndes-system/actions/runs/40630437451) passou, incluindo PostgreSQL 16, migrations, provisioning e o job Web; Repository Integrity run [40630437336](https://github.com/delmacy/syndes-system/actions/runs/40630437336) passou. O teardown dos bancos de integração agora espera o encerramento das conexões e não usa `DROP DATABASE ... WITH (FORCE)`.
+- Ainda pendente: execução/demonstração da jornada autenticada em ambiente com Keycloak e tenant provisionado. O assessment read-only confirmou que o repositório não semeia realm nem usuário Keycloak de teste; até haver output Playwright aprovado, a decisão formal deste gate permanece `BLOQUEADO` e não se declara `ACEITO`.
 
 ## Excluído
 
