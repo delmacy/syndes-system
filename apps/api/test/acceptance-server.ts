@@ -13,6 +13,8 @@ import type {
   TenantSecretStore,
 } from '../src/modules/platform-core/control-plane/provisioning/tenant-secret-store';
 import { TenantProvisioningService } from '../src/modules/platform-core/control-plane/provisioning/tenant-provisioning.service';
+import { IdentityContextService } from '../src/modules/platform-core/identity/identity-context.service';
+import type { VerifiedIdentity } from '../src/modules/platform-core/identity/identity-token-verifier';
 import {
   tenantDatabaseName,
   tenantDatabaseRoleName,
@@ -30,6 +32,30 @@ const issuer = process.env.KEYCLOAK_ISSUER;
 const subject = 'f28625de-00fd-4a6a-a57c-fc06b0498664';
 const credentials = new Map<string, TenantDatabaseCredential>();
 const pools = new Map<string, Pool>();
+class AcceptanceIdentityContextService extends IdentityContextService {
+  async resolveActor(identity: VerifiedIdentity) {
+    const actor = await super.resolveActor(identity);
+    console.log(
+      `CRM acceptance identity resolved: platformAdmin=${actor.platformAdmin}`,
+    );
+    return actor;
+  }
+
+  async resolveTenantContext(actorId: string, host: string) {
+    try {
+      const context = await super.resolveTenantContext(actorId, host);
+      console.log(
+        `CRM acceptance tenant resolved: host=${host} role=${context.role} scope=${context.customerScope}`,
+      );
+      return context;
+    } catch (error) {
+      console.log(
+        `CRM acceptance tenant resolution denied: host=${host} error=${error instanceof Error ? error.name : 'unknown'}`,
+      );
+      throw error;
+    }
+  }
+}
 const secretStore: TenantSecretStore = {
   async saveTenantDatabaseCredential(id, credential) {
     credentials.set(id, credential);
@@ -99,6 +125,11 @@ async function bootstrap() {
     .useValue(secretStore)
     .overrideProvider(TenantDatabasePoolRegistry)
     .useValue(testRegistry)
+    .overrideProvider(IdentityContextService)
+    .useFactory({
+      factory: (pool: Pool) => new AcceptanceIdentityContextService(pool),
+      inject: [CONTROL_PLANE_DATABASE],
+    })
     .compile();
 
   const controlPlane = testingModule.get<Pool>(CONTROL_PLANE_DATABASE);
