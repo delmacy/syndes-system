@@ -2,36 +2,129 @@ import Link from "next/link";
 import styles from "./commercial.module.css";
 import { commercialSite } from "@/modules/commercial-site/site-config";
 
-const features = [
+type IconName =
+  | "users"
+  | "message"
+  | "inbox"
+  | "calendar"
+  | "sparkles"
+  | "file"
+  | "clock"
+  | "check"
+  | "headset";
+
+function Icon({ name, className }: { name: IconName; className?: string }) {
+  const common = {
+    className,
+    width: 20,
+    height: 20,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  switch (name) {
+    case "users":
+      return (
+        <svg {...common}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+    case "message":
+      return (
+        <svg {...common}>
+          <path d="M21 15a4 4 0 0 1-4 4H8l-5 3 1.7-5.1A8 8 0 1 1 21 15Z" />
+          <path d="M8 10h8M8 14h5" />
+        </svg>
+      );
+    case "inbox":
+      return (
+        <svg {...common}>
+          <path d="M4 4h16v13H4z" />
+          <path d="M4 13h4l2 3h4l2-3h4" />
+        </svg>
+      );
+    case "calendar":
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M16 3v4M8 3v4M3 10h18" />
+        </svg>
+      );
+    case "sparkles":
+      return (
+        <svg {...common}>
+          <path d="m12 3 1.2 3.2L16 7.5l-2.8 1.3L12 12l-1.2-3.2L8 7.5l2.8-1.3L12 3Z" />
+          <path d="m18.5 13 1 2.3L22 16.5l-2.5 1.2-1 2.3-1-2.3-2.5-1.2 2.5-1.2 1-2.3ZM5 13l.8 2 2.2 1-2.2 1L5 19l-.8-2L2 16l2.2-1L5 13Z" />
+        </svg>
+      );
+    case "file":
+      return (
+        <svg {...common}>
+          <path d="M6 3h8l4 4v14H6z" />
+          <path d="M14 3v5h5M9 13h6M9 17h6" />
+        </svg>
+      );
+    case "clock":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      );
+    case "check":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="m8 12 2.5 2.5L16 9" />
+        </svg>
+      );
+    case "headset":
+      return (
+        <svg {...common}>
+          <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+          <path d="M4 14a2 2 0 0 1 2-2h1v6H6a2 2 0 0 1-2-2v-2ZM20 14a2 2 0 0 0-2-2h-1v6h1a2 2 0 0 0 2-2v-2ZM17 18c0 2-2 3-5 3" />
+        </svg>
+      );
+  }
+}
+
+const features: Array<{ title: string; text: string; icon: IconName }> = [
   {
     title: "Clientes organizados",
     text: "Pessoas, empresas, contatos, histórico e contexto reunidos para a equipe encontrar o que precisa.",
-    icon: "01",
+    icon: "users",
   },
   {
     title: "WhatsApp no atendimento",
     text: "Um número no Basic, conectado ao fluxo de atendimento da empresa em vez de ficar isolado em aparelhos.",
-    icon: "02",
+    icon: "message",
   },
   {
     title: "Inbox compartilhada",
     text: "Conversas em um só lugar para acompanhar, assumir e continuar atendimentos com contexto.",
-    icon: "03",
+    icon: "inbox",
   },
   {
     title: "Agenda operacional",
     text: "Organize disponibilidade, compromissos, reagendamentos, cancelamentos e lembretes.",
-    icon: "04",
+    icon: "calendar",
   },
   {
     title: "Assistente digital N1",
     text: "Tira dúvidas, faz triagem, entende áudio, organiza contexto, agenda e chama uma pessoa quando necessário.",
-    icon: "05",
+    icon: "sparkles",
   },
   {
     title: "Documentos e e-mail",
     text: "Mantenha documentos relacionados ao cliente e uma caixa de e-mail integrada ao atendimento.",
-    icon: "06",
+    icon: "file",
   },
 ];
 
@@ -247,11 +340,155 @@ export default function CommercialHomePage() {
         <div className={styles.featureGrid}>
           {features.map((feature) => (
             <article className={styles.featureCard} key={feature.title}>
-              <span className={styles.featureIcon}>{feature.icon}</span>
+              <span className={styles.featureIcon}>
+                <Icon name={feature.icon} className={styles.featureIconSvg} />
+              </span>
               <h3>{feature.title}</h3>
               <p>{feature.text}</p>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className={styles.scheduleShowcase} id="agenda">
+        <div className={styles.scheduleCopy}>
+          <p className={styles.kicker}>Agenda operacional</p>
+          <h2>Verifique seus compromissos e atendimentos marcados.</h2>
+          <p>
+            Abra a agenda da equipe e veja rapidamente o que está marcado,
+            quem vai atender e em qual horário. O mesmo contexto usado no
+            atendimento acompanha o compromisso.
+          </p>
+
+          <div className={styles.scheduleBenefits}>
+            <span>
+              <Icon name="calendar" className={styles.benefitIcon} />
+              Visão mensal
+            </span>
+            <span>
+              <Icon name="clock" className={styles.benefitIcon} />
+              Horários organizados
+            </span>
+            <span>
+              <Icon name="users" className={styles.benefitIcon} />
+              Responsável visível
+            </span>
+          </div>
+        </div>
+
+        <div className={styles.scheduleDemo} aria-label="Demonstração animada da agenda">
+          <div className={styles.scheduleWindow}>
+            <div className={styles.scheduleTopbar}>
+              <div className={styles.scheduleBrand}>
+                <span className={styles.miniMark}>{commercialSite.brandMark}</span>
+                <div>
+                  <strong>Central de trabalho</strong>
+                  <small>Hoje · 27 de outubro</small>
+                </div>
+              </div>
+              <span className={styles.scheduleStatus}>
+                <Icon name="check" className={styles.scheduleStatusIcon} />
+                Sincronizado
+              </span>
+            </div>
+
+            <div className={styles.scheduleTabs}>
+              <button className={styles.scheduleTabInbox} type="button">
+                <Icon name="headset" className={styles.tabIcon} />
+                Atendimentos
+              </button>
+              <button className={styles.scheduleTabCalendar} type="button">
+                <Icon name="calendar" className={styles.tabIcon} />
+                Agendamentos
+              </button>
+            </div>
+
+            <div className={styles.scheduleStage}>
+              <div className={styles.scheduleInboxView}>
+                <div className={styles.scheduleInboxHeader}>
+                  <span>Atendimentos em andamento</span>
+                  <small>3 ativos</small>
+                </div>
+                <div className={styles.scheduleInboxRow}>
+                  <span className={styles.scheduleAvatar}>MC</span>
+                  <div>
+                    <strong>Mariana Costa</strong>
+                    <small>Remarcação confirmada</small>
+                  </div>
+                  <time>14:30</time>
+                </div>
+                <div className={styles.scheduleInboxRow}>
+                  <span className={styles.scheduleAvatarAlt}>RL</span>
+                  <div>
+                    <strong>Rafael Lima</strong>
+                    <small>Aguardando atendimento</small>
+                  </div>
+                  <time>15:00</time>
+                </div>
+              </div>
+
+              <div className={styles.calendarView}>
+                <div className={styles.calendarToolbar}>
+                  <div>
+                    <strong>Outubro 2026</strong>
+                    <small>Agenda da equipe</small>
+                  </div>
+                  <div className={styles.calendarLegend}>
+                    <span><i className={styles.legendGreen} /> Confirmado</span>
+                    <span><i className={styles.legendGold} /> Aguardando</span>
+                  </div>
+                </div>
+
+                <div className={styles.calendarGrid}>
+                  {["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"].map((day) => (
+                    <span className={styles.calendarWeekday} key={day}>{day}</span>
+                  ))}
+
+                  {[26, 27, 28, 29, 30, 31, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((day, index) => (
+                    <div
+                      className={
+                        day === 27
+                          ? styles.calendarDayActive
+                          : index < 6
+                            ? styles.calendarDayMuted
+                            : styles.calendarDay
+                      }
+                      key={`${day}-${index}`}
+                    >
+                      <span>{day}</span>
+                      {day === 27 && (
+                        <>
+                          <div className={styles.appointmentGreen}>
+                            <strong>14:30</strong>
+                            <small>Mariana Costa</small>
+                          </div>
+                          <div className={styles.appointmentGold}>
+                            <strong>16:00</strong>
+                            <small>Rafael Lima</small>
+                          </div>
+                        </>
+                      )}
+                      {day === 28 && (
+                        <div className={styles.appointmentGreenMini}>09:00 · Ana</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <span className={styles.demoCursor} aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="28" height="28">
+                  <path
+                    d="M5 3.5 18.5 13l-6.2 1.2 3.1 5.1-2.5 1.5-3.1-5.1L6 20.5 5 3.5Z"
+                    fill="currentColor"
+                    stroke="#0a0f0a"
+                    strokeWidth="1.2"
+                  />
+                </svg>
+                <i />
+              </span>
+            </div>
+          </div>
         </div>
       </section>
 
