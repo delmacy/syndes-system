@@ -120,7 +120,7 @@ jobs:
       - name: Start web app
         working-directory: apps/web
         run: |
-          npm run start -- --hostname 0.0.0.0 > "$RUNNER_TEMP/syndes-acceptance/web.log" 2>&1 &
+          npm run start -- --hostname localhost > "$RUNNER_TEMP/syndes-acceptance/web.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/syndes-acceptance/web.pid"
           for attempt in $(seq 1 60); do
             if curl --silent --fail --output /dev/null "$E2E_BASE_URL/crm"; then
