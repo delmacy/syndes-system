@@ -7,7 +7,11 @@ on:
     paths:
       - .github/workflows/crm-acceptance.yml
       - apps/api/test/acceptance-server.ts
-      - apps/web/tests/acceptance/core-crm.acceptance.spec.ts
+      - apps/web/src/**
+      - apps/web/package.json
+      - apps/web/package-lock.json
+      - apps/web/playwright.acceptance.config.ts
+      - apps/web/tests/**
       - tests/keycloak/test-syndes-realm.json
   workflow_dispatch:
 
@@ -38,6 +42,7 @@ jobs:
       E2E_BASE_URL: http://localhost:3000
       E2E_KEYCLOAK_USERNAME: test-admin
       E2E_KEYCLOAK_PASSWORD: test-only-password-3817
+      KEYCLOAK_TOKEN_REFRESH_SKEW_MS: 1000
     services:
       postgres:
         image: postgres:16
@@ -71,6 +76,13 @@ jobs:
       - name: Install web dependencies
         working-directory: apps/web
         run: npm ci
+
+      - name: Check web lint, types, and unit tests
+        working-directory: apps/web
+        run: |
+          npm run lint
+          npm run typecheck
+          npm test
 
       - name: Start isolated Keycloak realm
         run: |

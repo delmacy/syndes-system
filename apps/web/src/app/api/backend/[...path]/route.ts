@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import type { NextAuthRequest } from "next-auth";
 import { signTenantHost } from "@/lib/ingress-signature";
 import { isSameApplicationOrigin } from "@/lib/request-origin";
-import { sessionCookieName } from "@/lib/session-cookie";
 import { normalizeTenantHost } from "@/lib/tenant-host";
 import {
   containsTenantSelector,
@@ -10,7 +10,7 @@ import {
 } from "@/lib/tenant-selector";
 
 async function forward(
-  request: NextRequest,
+  request: NextAuthRequest,
   context: { params: Promise<{ path: string[] }> },
 ) {
   if (!["GET", "HEAD"].includes(request.method)) {
@@ -27,12 +27,8 @@ async function forward(
     }
   }
 
-  const token = await getToken({
-    req: request,
-    secret: process.env.AUTH_SECRET,
-    cookieName: sessionCookieName(),
-  });
-  if (typeof token?.accessToken !== "string") {
+  const accessToken = request.auth?.accessToken;
+  if (typeof accessToken !== "string") {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
@@ -97,7 +93,7 @@ async function forward(
   }
 
   const headers = new Headers({
-    authorization: `Bearer ${token.accessToken}`,
+    authorization: `Bearer ${accessToken}`,
   });
   const timestamp = Date.now().toString();
   Object.entries(signTenantHost(host, timestamp, ingressSecret)).forEach(
@@ -132,8 +128,8 @@ async function forward(
   }
 }
 
-export const GET = forward;
-export const POST = forward;
-export const PUT = forward;
-export const PATCH = forward;
-export const DELETE = forward;
+export const GET = auth(forward);
+export const POST = auth(forward);
+export const PUT = auth(forward);
+export const PATCH = auth(forward);
+export const DELETE = auth(forward);

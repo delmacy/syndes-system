@@ -69,6 +69,33 @@ test("Core CRM acceptance journey", async ({ page }, testInfo) => {
       await expect(page.getByText("Sessão segura · BOTH")).toBeVisible();
     });
 
+    await step("refresh_expired_access_token", async () => {
+      await page.waitForTimeout(6_000);
+      const result = await page.evaluate(async () => {
+        const apiResponse = await fetch("/api/backend/crm/context", {
+          cache: "no-store",
+        });
+        const apiBody = await apiResponse.json();
+        const sessionResponse = await fetch("/api/auth/session", {
+          cache: "no-store",
+        });
+        const sessionBody = await sessionResponse.json();
+        return {
+          apiStatus: apiResponse.status,
+          customerScope: apiBody.customerScope,
+          sessionStatus: sessionResponse.status,
+          publicSessionHasAccessToken: "accessToken" in sessionBody,
+          publicSessionHasRefreshToken: "refreshToken" in sessionBody,
+        };
+      });
+
+      expect(result.apiStatus).toBe(200);
+      expect(result.customerScope).toBe("both");
+      expect(result.sessionStatus).toBe(200);
+      expect(result.publicSessionHasAccessToken).toBe(false);
+      expect(result.publicSessionHasRefreshToken).toBe(false);
+    });
+
     await step("create_organization", async () => {
       await page.getByRole("button", { name: "Organizações" }).click();
       await page.getByLabel("Razão / nome").fill(organizationName);
