@@ -2,7 +2,7 @@
 
 - **Módulo/gate:** Core CRM integrated acceptance / Sprint 4.
 - **Classificação:** MVP.
-- **Prioridade/estado:** P0 final / BLOQUEADO até a execução e revisão da jornada autenticada no workflow manual `CRM Acceptance`.
+- **Prioridade/estado:** P0 final / **ACEITO** em 2026-10-28 após revisão da jornada autenticada e dos checks do commit `9c0707c`.
 - **Responsável:** Codex coordena e aceita; agentes implementadores só recebem correções novas, delimitadas e sequenciais.
 - **Issue/branch/commit/PR:** ainda não criados; esta é uma ordem local, sem operação externa.
 
@@ -19,15 +19,16 @@ Consolidar evidência de requisitos, integração, segurança, testes e prontid�
 - Prove `cpf`, `pj`, and `both` scopes across CRUD, linked contacts, search, timeline, and import; prove `tenant_admin` can change a member's scope and the change is audited.
 - Preparar jornada demonstrável. E2E frontend fica registrado como necessário/pendente ou executa-se somente sob instrução/gate explícito via Playwright headless, lendo logs/resultados.
 
-## Evidência local (atualizada em 2026-10-28)
+## Evidência revisada (2026-10-28)
 
 - API: lint, typecheck, build; Jest com PostgreSQL: 32 suites/193 testes aprovados.
 - Provisioning: migrations aplicadas do zero e reaplicadas como no-op; role tenant sem privilégios de criação e sem conexão cruzada entre databases.
 - Web: lint, typecheck, build; Vitest: 8 arquivos/17 testes aprovados.
 - `npm audit --audit-level=high`: zero vulnerabilidades em API e web.
-- Playwright: jornada headless existente; workflow manual `CRM Acceptance` preparado para importar realm Keycloak descartável, provisionar tenant real em PostgreSQL e guardar JSON/logs. Execução ainda pendente.
-- GitHub Actions do commit `5a935f0`: API run [40630437451](https://github.com/delmacy/syndes-system/actions/runs/40630437451) passou, incluindo PostgreSQL 16, migrations, provisioning e o job Web; Repository Integrity run [40630437336](https://github.com/delmacy/syndes-system/actions/runs/40630437336) passou. O teardown dos bancos de integração agora espera o encerramento das conexões e não usa `DROP DATABASE ... WITH (FORCE)`.
-- Ainda pendente: executar o workflow manual e revisar o JSON Playwright e logs dos serviços. O harness é exclusivo do workflow opt-in, usa credenciais sintéticas e overrides de teste em memória; até haver output Playwright aprovado, a decisão formal deste gate permanece `BLOQUEADO` e não se declara `ACEITO`.
+- Playwright headless: workflow [CRM Acceptance run 40636689299](https://github.com/delmacy/syndes-system/actions/runs/40636689299) passou em 1m39s, no commit `9c0707c6063d3840c5ede303818fb26227880686`. Resultado: `expected=1`, `skipped=0`, `unexpected=0`, `flaky=0`; seis etapas aprovadas: login/contexto do tenant, criação de Organization, Person/Relationship, Tag/Note, busca/Timeline, Archive/CSV export. JSON e logs dos serviços foram baixados e revisados.
+- Logs revisados: API registrou apenas resolução de identidade e contexto (`tenant_admin`, `both`, host local), sem tokens/segredos ou dados CRM; Next iniciou normalmente. Keycloak importou o realm descartável e emitiu aviso de configuração depreciada `Full scope allowed` no client de teste; sem falha na autenticação/jornada e sem impacto no código de produção.
+- GitHub Actions no mesmo commit: API run [40636689297](https://github.com/delmacy/syndes-system/actions/runs/40636689297) passou com lint, typecheck, unit, integration em PostgreSQL 16, build, audit e verificação das migrations/provisioning; Web CI passou com lint, typecheck, Vitest, build e audit; Repository Integrity run [40636689309](https://github.com/delmacy/syndes-system/actions/runs/40636689309) passou.
+- Testes de integração existentes cobrem isolamento entre databases e tentativas cross-tenant em CRUD/CSV; esses testes passaram no job API acima.
 
 ## Excluído
 
@@ -40,5 +41,4 @@ Consolidar evidência de requisitos, integração, segurança, testes e prontid�
 - CI do commit revisado verde; migrations testadas em PostgreSQL descartável.
 - Zero cross-tenant disclosure e unauthorized access em testes; manager sem acesso implícito a CRM.
 - Regras de DoD global cumpridas e jornada demonstrável.
-- Decisão formal `ACEITO`, `CORREÇÕES NECESSÁRIAS` ou `BLOQUEADO`, com evidência e próximo responsável. Estado atual: `BLOQUEADO` até a execução e revisão do workflow manual; próximo responsável é Codex, que deve iniciar a execução, analisar os artefatos e corrigir falhas do harness ou da jornada.
-- Próximo módulo (Inbox) só fica liberado após `ACEITO` no Core CRM.
+- **Decisão formal: ACEITO.** Evidências acima atendem os critérios de integração, testes, isolamento e jornada demonstrável. O Product Gate do Core CRM está concluído; Inbox fica elegível para a próxima fase conforme a ordem global, sem implementação iniciada por esta aceitação.

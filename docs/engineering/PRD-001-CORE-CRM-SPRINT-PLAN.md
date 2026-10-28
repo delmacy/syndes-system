@@ -62,8 +62,8 @@
 
 **Gate final:** Core CRM só é aceito quando funcional, integrado, seguro, testado e demonstrável. Só então começa Inbox.
 
-**Estado (2026-10-28):** implementação do Core CRM concluída e validada por CI. CRM-11 continua `BLOQUEADO` até executar e revisar a jornada autenticada. O workflow manual `CRM Acceptance` agora prepara um realm Keycloak descartável, provisiona tenant PostgreSQL e coleta JSON/logs Playwright; essa execução ainda falta. Inbox permanece fechado até a jornada autenticada ser demonstrada e o gate ACEITO.
+**Estado (2026-10-28):** Sprint 4 e Product Gate do Core CRM **ACEITOS** após a jornada autenticada headless passar no [CRM Acceptance run 40636689299](https://github.com/delmacy/syndes-system/actions/runs/40636689299), no commit `9c0707c`. As seis etapas da jornada passaram; JSON/logs foram revisados. API/Web CI e Repository Integrity também passaram no mesmo commit: [API 40636689297](https://github.com/delmacy/syndes-system/actions/runs/40636689297) e [Repository Integrity 40636689309](https://github.com/delmacy/syndes-system/actions/runs/40636689309). Inbox está liberado como próximo módulo pela ordem global; não foi iniciado.
 
 ## Próxima ação
 
-Sprint 0/Gate 0 e Sprint 1/Platform Core mínimo aceitas em commits anteriores. CRM-05 a CRM-10 implementadas; CI atual no commit `5a935f0` verde, incluindo PostgreSQL 16. CRM-11 documenta o único bloqueio restante: demonstração autenticada em ambiente de teste.
+Sprint 0/Gate 0, Sprints 1–4 e CRM-00–CRM-11 aceitos. O Core CRM está concluído no escopo MVP aprovado, com CI verde e jornada autenticada demonstrada no commit `9c0707c`. Próximo módulo autorizado pela ordem do produto: Inbox.

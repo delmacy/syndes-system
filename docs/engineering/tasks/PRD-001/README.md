@@ -1,6 +1,6 @@
 # PRD-001 Task Orders
 
-Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC.md` e `docs/engineering/PRD-001-CORE-CRM-SPRINT-PLAN.md`. Não são GitHub Issues. O CRM-01 foi despachado via Orca; as demais implementações aguardam os gates/dependências abaixo.
+Estas ordens locais derivam de `docs/product/PRD-001-CORE-CRM-SPEC.md` e `docs/engineering/PRD-001-CORE-CRM-SPRINT-PLAN.md`; não são GitHub Issues. Todas as ordens CRM-00–CRM-11 e o Product Gate foram aceitos em 2026-10-28. Consulte a evidência final abaixo antes de iniciar o próximo módulo.
 
 ## Ordem e estado
 
@@ -15,9 +15,9 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 | CRM-06 | 2 | Codex (review/correções) + OpenCode Free (auditoria supervisionada) | ACEITA; testes unitários e integração PostgreSQL 17 locais passaram; API CI verde em PostgreSQL 16 no commit `5a935f0` |
 | CRM-07 | 2 | Codex (revisão e correção após worker free falhar) | ACEITA; busca, normalização, duplicidade, escopo CPF/PJ/BOTH e isolamento A/B passaram localmente; API CI verde em PostgreSQL 16 no commit `5a935f0` |
 | CRM-08 | 2 | OpenCode Free corretivo; Codex revisa | ACEITA; testes unitários e integração PostgreSQL 17, lint, typecheck, build e audit local passaram; API CI verde em PostgreSQL 16 no commit `5a935f0` |
-| CRM-09 | 3 | Codex (após tentativas free sem worker confiável) | Validada localmente; Platform Admin UI e 3 testes de componente; CI remoto no gate final |
-| CRM-10 | 3 | Codex (execução direta; suporte API mínimo incluído) | Validada localmente; CRM UI e 3 testes de componente; CI remoto no gate final |
-| CRM-11 | 4 | Codex | Implementação e CI aceitas; gate final BLOQUEADO até executar e revisar a jornada autenticada pelo workflow manual com Keycloak e tenant descartáveis |
+| CRM-09 | 3 | Codex (após tentativas free sem worker confiável) | **ACEITO**; Platform Admin UI e testes de componente; Web CI verde no gate final |
+| CRM-10 | 3 | Codex (execução direta; suporte API mínimo incluído) | **ACEITO**; CRM UI e testes de componente; Web CI e jornada integrada verdes |
+| CRM-11 | 4 | Codex | **ACEITO**; jornada Playwright autenticada e logs revisados; API, Web e Repository Integrity CI verdes em `9c0707c` |
 
 ## Decisões confirmadas pelo usuário
 
@@ -29,6 +29,7 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 
 ## Execução Orca
 
+- Os registros abaixo são um diário cronológico; frases como “pendente” descrevem o estado naquela data e foram superadas pela decisão final e pelas evidências de CRM-11 registradas ao fim desta seção.
 - Run: `run_e16dc258e959` (aberto em 2026-10-27; sem issues/PRs criadas; CI executado no push do branch).
 - CRM-01: task `task_465e1a68981a`; implementação e revisões corretivas concluídas no modelo OpenCode `glm-5.3-flash-free`. Evidência final no commit `075e329`: API run `40507834957` e Repository Integrity run `40507834659` passaram; workflow API aplicou e verificou migrations em PostgreSQL 16 descartável.
 - CRM-00: contratos de identidade/autorização, Employee/customer scope e runbook de membership foram registrados e cross-reviewados; nenhum endpoint/UI foi iniciado.
@@ -42,10 +43,8 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 - CRM-09 implementou Platform Admin UI consumindo o BFF autenticado, sem segredos nem conteúdo tenant; list/create/detail/metadata update/provision retry/initial-admin assignment. Os 3 testes de componente passaram.
 - CRM-10 implementou busca, cadastros, edição/arquivo, relacionamentos, tags, notas, timeline, identidades de canal, CSV e configurações de equipe. Foi adicionada API mínima para contexto autenticado, consulta/atualização de memberships e lista de vínculos visíveis. Web: lint/typecheck/build e Vitest (8 arquivos/17 testes) passaram.
 - Gate local integrado (2026-10-27): API lint/typecheck/build e Jest com PostgreSQL (32 suites/193 testes) passaram; `tenant:verify:provisioning` passou, incluindo migrations do zero, idempotência e negação de conexão entre tenants. Web lint/typecheck, Vitest (8 arquivos/17 testes), Next build e `npm audit` das duas aplicações passaram; ambos reportaram zero vulnerabilidades. Playwright acceptance foi listado sem executar a jornada, conforme política opt-in.
-- CI remoto do commit `93eeda6`: API run `40586765411` e Repository Integrity run `40586765265` verdes; CI Web incluído no job da API também verde. CRM-11 registrou `BLOQUEADO` somente para a demonstração autenticada em ambiente Keycloak/tenant de teste, indisponível neste checkout. O script Playwright está pronto/listável e permanece opt-in.
-- Correção do teardown PostgreSQL (2026-10-28): commit `5a935f0` aguarda o encerramento das conexões dos pools antes de remover databases de teste, sem `DROP DATABASE ... WITH (FORCE)`. A API run `40630437451` passou incluindo integração em PostgreSQL 16 e verificação de migrations/provisioning; Repository Integrity run `40630437336` passou. Com isso, o gate de CI da Sprint 2 está ACEITO. CRM-11 permanece bloqueado apenas pela jornada autenticada com Keycloak e tenant de teste.
-- CRM-11 assessment read-only via OpenCode/NVIDIA (2026-10-28): script Playwright já está headless e produz JSON/logs; não existe semeadura de realm/usuário Keycloak. O worker usou efetivamente `nvidia/nemotron-3.5-lightning-30b-a3b`, não alterou arquivos nem iniciou serviços. A trava restante é preparar um realm e usuário de teste junto de um tenant provisionado e executar/analisar a jornada.
-- CRM-11 harness (2026-10-28): workflow manual exclusivo importa realm Keycloak de teste, aplica migrations, provisiona tenant com o serviço real e inicia API + Next antes de rodar Playwright headless. Credenciais sintéticas e overrides em memória ficam limitados ao processo de aceite; o JSON e os logs serão anexados ao workflow. O gate continua bloqueado até executar e revisar esses artefatos.
+- Histórico até o commit `5a935f0`: CRM-11 ainda aguardava a execução autenticada; esse bloqueio foi removido pela prova abaixo.
+- CRM-11 aceite final (2026-10-28): Playwright acceptance run [40636689299](https://github.com/delmacy/syndes-system/actions/runs/40636689299) passou com seis etapas, `expected=1`, sem skips, falhas ou flakiness; JSON e logs de API/Next/Keycloak foram revisados. API run [40636689297](https://github.com/delmacy/syndes-system/actions/runs/40636689297) passou com PostgreSQL 16, migrations/provisioning, testes, lint, typecheck, build e audit; Repository Integrity [40636689309](https://github.com/delmacy/syndes-system/actions/runs/40636689309) passou. Product Gate do Core CRM ACEITO no commit `9c0707c`; Inbox está liberado pela ordem global, ainda sem implementação.
 
 ## Regras de dispatch
 

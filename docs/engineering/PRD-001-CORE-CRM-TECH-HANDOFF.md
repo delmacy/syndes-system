@@ -221,11 +221,11 @@ Core CRM is complete only when the approved CRUD, relationships, search, duplica
 
 Tests are developed alongside the module: every implementation slice adds or updates the relevant tests for the component it delivers. Use unit tests for isolated rules, integration tests for persistence/API/security contracts, and component tests for UI behavior. Do not defer these tests to the end of the CRM phase. Frontend E2E is an opt-in, high-cost acceptance check: identify it when required, but do not run it during normal development. When requested or needed for a gate, run it only through a headless Playwright script that emits logs/results, then review those outputs; do not drive the frontend manually.
 
-## Decisions still required before authenticated API and frontend integration
+## Operação posterior à aceitação do Core CRM
 
-- Control Plane registry and disposable PostgreSQL CI workflow are implemented but the PostgreSQL 16 workflow has not yet run; tenant migration ownership/rollout remains defined in this handoff for CRM-02.
-- Tenant database connection lifecycle and numeric pool limits require measured load; deployment secret-store provider is environment-dependent.
-- Initial Keycloak user creation is manual until Onboarding; CRM-04/09 assign the initial tenant_admin by exact issuer/subject, and tenant admins configure member scopes through CRM-03.
+- API/Web autenticados, registry, migrations e provisioning foram validados no CI PostgreSQL 16 e na jornada de aceite descrita abaixo.
+- Ciclo de vida de conexões e limites numéricos de pool dependem de carga medida; provider de secret store depende do ambiente de deployment. Não bloqueiam o Product Gate do CRM.
+- Criação inicial de usuários Keycloak permanece manual até Onboarding; Platform Admin atribui o primeiro `tenant_admin` pelo par issuer/subject, e tenant admins configuram customer scopes.
 
 ### Initial tenant membership runbook (MVP)
 
@@ -236,11 +236,7 @@ Tests are developed alongside the module: every implementation slice adds or upd
 5. The tenant admin grants/revokes later `tenant_member` memberships and sets the fixed customer scope (`cpf`, `pj`, `both`) in CRM settings; changes are audited.
 6. Revocation disables access without deleting identity or tenant business data.
 
-## Execution status and evidence
+## Execução histórica e estado final
 
-- Gate 0 and Sprint 1 remain accepted. Historical evidence: API CI run `40507834957` and Repository Integrity run `40507834659` for commit `075e329`; Sprint 1 CI runs `40546566664` and `40546566483`. CRM-02, CRM-03 and CRM-04 were completed and accepted before Sprint 2.
-- CRM-05 is accepted locally after a review correction for updates to archived Persons. Its PostgreSQL regression verifies HTTP 409 and unchanged stored fields. Sprint 2 CI has not run yet.
-- CRM-06 is accepted locally by Codex review. Tags, assignments, Notes, scoped Timeline, ChannelIdentity metadata, transactional event recording and database-enforced append-only events are integrated into `CoreCrmModule`.
-- CRM-06 evidence on disposable PostgreSQL 17 (local port 54327): lint, typecheck, build; unit tests (24 suites / 141 tests); integration tests (4 suites / 31 tests, `--detectOpenHandles`); tenant migrations from empty and CRM-05 baseline; and `npm run tenant:verify:provisioning` all passed. No frontend E2E was run.
-- The CRM-06 Orca task `task_9a66fec961a4` is failed after four free-worker dispatches stopped on provider quota. All four terminals were released. The Orca recovery policy circuit-breaks that task after repeated failures, so no replacement task/run was created to bypass it; Codex completed the already-authorized implementation directly.
-- Current gate: Sprint 2, with CRM-07 and CRM-08 still pending. Run API CI and Repository Integrity after CRM-05 through CRM-08 are ready; no sprint commit/push has been made. Next owner: Codex for CRM-07 unless an eligible free worker becomes available within the existing Orca policy.
+- Evidências de Gate 0, Sprint 1 e execução por fatia acima permanecem como histórico de implementação e revisão.
+- **Estado final (2026-10-28):** Core CRM Product Gate ACEITO em `9c0707c`. Sprint 0–4 e CRM-00–CRM-11 concluídos. No commit final passaram API CI [40636689297](https://github.com/delmacy/syndes-system/actions/runs/40636689297), Web CI (job nesse workflow), Repository Integrity [40636689309](https://github.com/delmacy/syndes-system/actions/runs/40636689309) e a jornada autenticada Playwright [40636689299](https://github.com/delmacy/syndes-system/actions/runs/40636689299). O JSON e os logs foram revisados; todas as seis etapas passaram. Inbox é o próximo módulo da ordem global e ainda não foi iniciado.
