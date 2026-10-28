@@ -71,3 +71,12 @@ O CRM-10 já foi implementado e aceito no gate original. Esta revisão fecha lac
 ### Fora deste complemento
 
 Dashboard analítico, pipeline/deals, custom fields, automações, IA, integrações de canais além dos metadados já aprovados, novos papéis, troca de tenant pelo usuário e mudanças de identidade/autorização.
+
+### Evidência e decisão
+
+- Implementado no commit `4619466` (`feat(core-crm): complete CRM frontend flows`). O frontend diferencia catálogo de tags de tags vinculadas, permite reutilizar/remover tags, atualiza notas/timeline após mudanças, limpa estados ao trocar cadastro, descarta respostas fora de ordem, distingue busca vazia/erro e exige confirmação para arquivar.
+- Web local: lint, typecheck, Vitest (8 arquivos/20 testes) e build passaram; o build usou apenas valores fictícios de configuração OIDC exigidos no build-time.
+- API local: lint, typecheck, Jest unitário (32 suites/180 testes) e build passaram. A integração PostgreSQL foi executada no CI por ausência de Docker no ambiente local.
+- CI no commit `4619466`: [API 40682270856](https://github.com/delmacy/syndes-system/actions/runs/40682270856), [Repository Integrity 40682270809](https://github.com/delmacy/syndes-system/actions/runs/40682270809) e [CRM Acceptance 40682270644](https://github.com/delmacy/syndes-system/actions/runs/40682270644) passaram. API incluiu PostgreSQL 16 descartável; Web incluiu lint, typecheck, 20 testes, build e audit.
+- Playwright artifact revisado: `expected=1`, `skipped=0`, `unexpected=0`, `flaky=0`; as seis etapas (`login_and_tenant_context`, `create_organization`, `create_person_and_relationship`, `tag_and_note`, `search_and_timeline`, `archive_and_csv_export`) passaram. A fixture da tag agora usa nome exclusivo por execução e a jornada confirma sucesso antes de continuar.
+- **Decisão: ACEITO para esta complementação de CRM-10.** O módulo Core CRM não reabre o Product Gate nem autoriza avanço de outro módulo.
