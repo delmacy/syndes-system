@@ -390,6 +390,7 @@
   box-shadow: 0 0 18px rgba(34, 201, 147, 0.16);
   font-size: 10px;
   font-weight: 800;
+  animation: onlineCycle 12s ease-in-out infinite;
 }
 
 .appBody {
@@ -444,6 +445,7 @@
   border-radius: 50%;
   background: var(--marketing-bright);
   box-shadow: 0 0 0 4px rgba(34, 201, 147, 0.1), 0 0 12px rgba(34, 201, 147, 0.55);
+  opacity: 0;
   animation: unreadPulse 12s ease-in-out infinite;
 }
 
