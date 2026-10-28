@@ -1,5 +1,5 @@
 export const commercialSite = {
-  brandName: "Syndes",
+  brandName: "Syndes",\n  brandMark: "S",
   stage: "MVP em desenvolvimento",
   paymentPeriodDays: 30,
   pricing: {
