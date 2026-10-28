@@ -42,7 +42,8 @@ test("Core CRM acceptance journey", async ({ page }, testInfo) => {
 
   try {
     await step("login_and_tenant_context", async () => {
-      await page.goto("/crm");
+      await page.goto("/");
+      await expect(page).toHaveURL(/\/crm$/);
       const login = page.getByRole("button", { name: "Entrar com SSO" });
       if (await login.isVisible().catch(() => false)) {
         await login.click();
