@@ -1,14 +1,14 @@
 .site {
-  --marketing-ink: #102e33;
-  --marketing-muted: #5e7278;
+  --marketing-ink: #e7f3ef;
+  --marketing-muted: #9fb4ae;
   --marketing-green: #05614f;
   --marketing-bright: #19a879;
   --marketing-lime: #71cfae;
   --marketing-deep: #022f29;
   --marketing-mint: #d4eee4;
-  --marketing-paper: #eef6f2;
-  --marketing-line: #c3ddd3;
-  --marketing-white: #ffffff;
+  --marketing-paper: #0f1715;
+  --marketing-line: #29433b;
+  --marketing-white: #111917;
   position: relative;
   min-height: 100vh;
   overflow: hidden;
@@ -16,7 +16,7 @@
     radial-gradient(circle at 12% 8%, rgba(25, 168, 121, 0.12), transparent 24rem),
     radial-gradient(circle at 86% 4%, rgba(70, 185, 141, 0.20), transparent 30rem),
     radial-gradient(circle at 72% 38%, rgba(5, 97, 79, 0.10), transparent 32rem),
-    linear-gradient(180deg, #f8fcfa 0%, #edf6f2 38%, #fbfdfc 68%, #edf5f1 100%);
+    linear-gradient(180deg, #0b100f 0%, #101715 38%, #0d1311 68%, #0f1715 100%);
   color: var(--marketing-ink);
 }
 
@@ -60,8 +60,8 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 28px;
-  border-bottom: 1px solid rgba(175, 221, 205, 0.72);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.22));
+  border-bottom: 1px solid rgba(70, 113, 99, 0.42);
+  background: linear-gradient(180deg, rgba(11, 16, 15, 0.92), rgba(11, 16, 15, 0.72));
   backdrop-filter: blur(18px);
 }
 
@@ -112,7 +112,7 @@
 }
 
 .nav a {
-  color: #52686f;
+  color: #9bb1aa;
   font-size: 14px;
   font-weight: 650;
 }
@@ -130,7 +130,7 @@
   padding: 0 17px;
   border: 1px solid rgba(5, 97, 79, 0.24);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(232, 249, 242, 0.78));
+  background: linear-gradient(180deg, rgba(20, 29, 26, 0.96), rgba(15, 23, 21, 0.9));
   color: var(--marketing-ink);
   font-size: 14px;
   font-weight: 750;
@@ -138,7 +138,7 @@
 
 .loginLink:hover {
   border-color: #a9cfc3;
-  background: white;
+  background: #111917;
 }
 
 .hero {
@@ -272,7 +272,7 @@
 
 .secondaryAction {
   border: 1px solid var(--marketing-line);
-  background: white;
+  background: #111917;
   color: var(--marketing-ink);
 }
 
@@ -285,7 +285,7 @@
   flex-wrap: wrap;
   gap: 16px 22px;
   margin-top: 26px;
-  color: #6b7e83;
+  color: #92aaa3;
   font-size: 12px;
   font-weight: 650;
 }
@@ -319,7 +319,7 @@
   overflow: hidden;
   border: 1px solid rgba(25, 168, 121, 0.32);
   border-radius: 20px;
-  background: white;
+  background: #111917;
   box-shadow:
     0 38px 100px rgba(3, 67, 54, 0.22),
     0 0 0 7px rgba(25, 168, 121, 0.04),
@@ -347,12 +347,12 @@
 
 .windowTop {
   min-height: 67px;
-  background: linear-gradient(90deg, #ffffff 0%, #edf6f2 100%);
+  background: linear-gradient(90deg, #121a18 0%, #10201b 100%);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  border-bottom: 1px solid #e3ece9;
+  border-bottom: 1px solid #223832;
 }
 
 .windowBrand {
@@ -371,7 +371,7 @@
 }
 
 .windowBrand small {
-  color: #73858a;
+  color: #8fa49e;
   font-size: 10px;
 }
 
@@ -401,8 +401,8 @@
 
 .conversationList {
   padding: 14px;
-  border-right: 1px solid #e3ece9;
-  background: #fafcfb;
+  border-right: 1px solid #223832;
+  background: #0d1412;
 }
 
 .fakeSearch {
@@ -411,10 +411,10 @@
   align-items: center;
   margin-bottom: 10px;
   padding: 0 11px;
-  border: 1px solid #e0e9e6;
+  border: 1px solid #263b35;
   border-radius: 8px;
-  background: white;
-  color: #98a6a8;
+  background: #111917;
+  color: #71857f;
   font-size: 10px;
 }
 
@@ -430,7 +430,7 @@
 
 .activeConversation {
   position: relative;
-  background: linear-gradient(100deg, #d7eee5 0%, #e6f3ee 100%);
+  background: linear-gradient(100deg, #173329 0%, #14271f 100%);
   box-shadow: inset 3px 0 0 #19a879;
   animation: conversationFocus 12s ease-in-out infinite;
 }
@@ -472,7 +472,7 @@
 .conversation small,
 .activeConversation time {
   overflow: hidden;
-  color: #748489;
+  color: #7f958e;
   font-size: 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -509,7 +509,7 @@
   min-width: 0;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  background: #f4f7f6;
+  background: #0d1412;
 }
 
 .chatHeader {
@@ -519,8 +519,8 @@
   justify-content: space-between;
   gap: 10px;
   padding: 0 15px;
-  border-bottom: 1px solid #e1eae7;
-  background: white;
+  border-bottom: 1px solid #263b35;
+  background: #111917;
 }
 
 .chatHeader div {
@@ -534,14 +534,14 @@
 
 .chatHeader small,
 .chatHeader span {
-  color: #75878b;
+  color: #81968f;
   font-size: 8px;
 }
 
 .chatHeader span {
   padding: 5px 7px;
   border-radius: 999px;
-  background: #eef5f2;
+  background: #172520;
 }
 
 .messages {
@@ -562,15 +562,15 @@
 
 .customerMessage {
   align-self: flex-start;
-  background: white;
-  border: 1px solid #e0e9e6;
+  background: #111917;
+  border: 1px solid #263b35;
   animation: customerMessageCycle 12s ease-in-out infinite;
 }
 
 .assistantMessage {
   align-self: flex-end;
-  background: linear-gradient(135deg, #d5eee4 0%, #c5e7db 100%);
-  color: #103e35;
+  background: linear-gradient(135deg, #18332a 0%, #1c4034 100%);
+  color: #d6eee5;
   box-shadow: 0 7px 20px rgba(8, 127, 104, 0.09);
   transform-origin: 88% 100%;
   animation: assistantMessageCycle 12s ease-in-out infinite;
@@ -587,7 +587,7 @@
   padding: 0 9px;
   border: 1px solid rgba(34, 201, 147, 0.18);
   border-radius: 10px 10px 4px 10px;
-  background: linear-gradient(135deg, #e4f8f0, #d7f3e8);
+  background: linear-gradient(135deg, #18352b, #163027);
   box-shadow: 0 6px 16px rgba(8, 127, 104, 0.07);
   opacity: 0;
   transform: translateY(5px) scale(0.96);
@@ -628,14 +628,14 @@
   gap: 4px;
   margin-top: 3px;
   padding: 10px;
-  border: 1px solid #d8e5e1;
+  border: 1px solid #29423a;
   border-radius: 10px;
-  background: white;
+  background: #111917;
 }
 
 .contextCard span,
 .contextCard small {
-  color: #77888c;
+  color: #82968f;
   font-size: 7px;
 }
 
@@ -650,10 +650,10 @@
   align-items: center;
   margin: 0 14px 14px;
   padding: 0 11px;
-  border: 1px solid #dbe6e2;
+  border: 1px solid #29423a;
   border-radius: 9px;
-  background: white;
-  color: #9aa7aa;
+  background: #111917;
+  color: #6f827c;
   font-size: 9px;
 }
 
@@ -678,7 +678,7 @@
   padding: 13px 15px;
   border: 1px solid rgba(34, 201, 147, 0.34);
   border-radius: 13px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(218, 239, 231, 0.94));
+  background: linear-gradient(135deg, rgba(19, 28, 25, 0.97), rgba(17, 34, 28, 0.96));
   box-shadow:
     0 18px 46px rgba(20, 63, 54, 0.14),
     0 0 30px rgba(34, 201, 147, 0.1);
@@ -707,7 +707,7 @@
 }
 
 .floatingCard small {
-  color: #78898d;
+  color: #849890;
   font-size: 8px;
 }
 
@@ -720,7 +720,7 @@
   border: 1px solid rgba(25, 168, 121, 0.24);
   border-radius: 16px;
   background:
-    linear-gradient(110deg, rgba(226, 241, 235, 0.94), rgba(255, 255, 255, 0.98) 48%, rgba(219, 237, 230, 0.94));
+    linear-gradient(110deg, rgba(18, 32, 27, 0.96), rgba(13, 20, 18, 0.98) 48%, rgba(16, 31, 26, 0.96));
   box-shadow:
     0 18px 55px rgba(7, 100, 77, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
@@ -810,7 +810,7 @@
   overflow: hidden;
   border: 1px solid rgba(5, 97, 79, 0.18);
   border-radius: 15px;
-  background: linear-gradient(160deg, #ffffff 0%, #f9fcfa 66%, #e8f2ed 100%);
+  background: linear-gradient(160deg, #131c19 0%, #101815 66%, #15241f 100%);
   box-shadow: 0 12px 34px rgba(7, 95, 73, 0.055);
   transition:
     transform 0.2s ease,
@@ -911,7 +911,7 @@
 }
 
 .aiCopy li {
-  color: #405b60;
+  color: #b2c5bf;
   font-size: 14px;
 }
 
@@ -967,7 +967,7 @@
 }
 
 .aiQuote small {
-  color: #9eb4b3;
+  color: #adc1bb;
 }
 
 .pricingSection {
@@ -986,7 +986,7 @@
   border-radius: 21px;
   background:
     radial-gradient(circle at 96% 0%, rgba(34, 201, 147, 0.16), transparent 15rem),
-    linear-gradient(160deg, #ffffff 0%, #f0f6f3 100%);
+    linear-gradient(160deg, #141e1b 0%, #101815 100%);
   box-shadow:
     0 28px 78px rgba(7, 95, 73, 0.13),
     0 0 0 7px rgba(25, 168, 121, 0.04);
@@ -1011,7 +1011,7 @@
 .priceIntro > span {
   grid-column: 1 / -1;
   margin-bottom: 9px;
-  color: #657b7f;
+  color: #91a8a1;
   font-size: 12px;
   font-weight: 750;
 }
@@ -1025,14 +1025,14 @@
 
 .priceIntro small {
   margin-bottom: 9px;
-  color: #718589;
+  color: #879c96;
 }
 
 .priceAfter {
   margin: 13px 0 23px;
   padding-bottom: 21px;
   border-bottom: 1px solid var(--marketing-line);
-  color: #697c80;
+  color: #8fa39d;
   font-size: 13px;
 }
 
@@ -1049,7 +1049,7 @@
 }
 
 .priceCard li {
-  color: #415b60;
+  color: #b1c4be;
   font-size: 13px;
 }
 
@@ -1066,7 +1066,7 @@
 
 .priceFinePrint {
   margin: 17px 0 0;
-  color: #7a8b8e;
+  color: #81958f;
   font-size: 10px;
   line-height: 1.55;
   text-align: center;
@@ -1081,7 +1081,7 @@
 .faqList details {
   border: 1px solid var(--marketing-line);
   border-radius: 12px;
-  background: linear-gradient(145deg, #ffffff, #fbfefc);
+  background: linear-gradient(145deg, #141d1a, #101815);
   padding: 0 18px;
   transition:
     border-color 0.2s ease,
@@ -1092,7 +1092,7 @@
 .faqList details[open],
 .faqList details:hover {
   border-color: rgba(34, 201, 147, 0.38);
-  background: linear-gradient(145deg, #ffffff, #eaf2ee);
+  background: linear-gradient(145deg, #17211e, #13201b);
   box-shadow: 0 10px 30px rgba(7, 95, 73, 0.07);
 }
 
@@ -1132,7 +1132,7 @@
 
 .finalCta > div > p:last-child {
   max-width: 650px;
-  color: #b8c9c6;
+  color: #b8cac4;
 }
 
 .secondaryActionLight {
@@ -1153,7 +1153,7 @@
   align-items: center;
   gap: 30px;
   border-top: 1px solid var(--marketing-line);
-  color: #72868a;
+  color: #82968f;
   font-size: 11px;
 }
 
@@ -1510,4 +1510,87 @@
   .featureCard {
     transition: none;
   }
+}
+
+.site {
+  color-scheme: dark;
+}
+
+.stepCard,
+.featureCard,
+.priceCard,
+.faqList details,
+.problemStrip,
+.appWindow,
+.contextCard,
+.customerMessage,
+.composer,
+.loginLink {
+  color: var(--marketing-ink);
+}
+
+.stepCard p,
+.featureCard p,
+.faqList p,
+.heroText,
+.sectionHeading > p:last-child,
+.pricingCopy > p {
+  color: var(--marketing-muted);
+}
+
+.problemStrip p {
+  color: #dcebe6;
+}
+
+.chatHeader,
+.windowTop {
+  color: #dfeee9;
+}
+
+.chatHeader span {
+  background: #172820;
+  color: #91aaa1;
+}
+
+.fakeSearch,
+.composer {
+  background: #0f1715;
+}
+
+.customerMessage {
+  background: #151e1b;
+  color: #dbeae5;
+}
+
+.contextCard {
+  background: #121b18;
+  color: #dcebe6;
+}
+
+.priceAfter strong,
+.priceIntro strong,
+.stepCard h3,
+.featureCard h3,
+.sectionHeading h2,
+.pricingCopy h2,
+.aiCopy h2 {
+  color: #e8f4f0;
+}
+
+.secondaryAction {
+  background: #121b18;
+  color: #dcebe6;
+  border-color: #2a433b;
+}
+
+.secondaryAction:hover {
+  background: #17231f;
+}
+
+.loginLink {
+  color: #dcebe6;
+}
+
+.loginLink:hover {
+  background: #17231f;
 }
