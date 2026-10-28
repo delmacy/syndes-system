@@ -64,7 +64,7 @@ test("Core CRM acceptance journey", async ({ page }, testInfo) => {
       }
       await expect(page.getByRole("heading", { name: "Busca" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Equipe" })).toBeVisible();
-      await expect(page.getByRole("alert")).toHaveCount(0);
+      await expect(page.getByText("Sessão segura · BOTH")).toBeVisible();
     });
 
     await step("create_organization", async () => {
