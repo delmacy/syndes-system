@@ -95,6 +95,58 @@ function Icon({ name, className }: { name: IconName; className?: string }) {
   }
 }
 
+function BrandSymbol() {
+  return (
+    <svg
+      className={styles.brandGlyph}
+      viewBox="0 0 48 48"
+      role="img"
+      aria-label="Símbolo Syndes"
+    >
+      <defs>
+        <linearGradient id="syndes-green" x1="8" y1="8" x2="40" y2="40">
+          <stop offset="0" stopColor="#9dde22" />
+          <stop offset="0.5" stopColor="#76b900" />
+          <stop offset="1" stopColor="#4d7d00" />
+        </linearGradient>
+      </defs>
+      <rect
+        x="1.25"
+        y="1.25"
+        width="45.5"
+        height="45.5"
+        rx="14"
+        fill="#0d140c"
+        stroke="rgba(118,185,0,.34)"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M34.5 14.5H22c-5.2 0-8.5 2.4-8.5 6.1 0 3.5 3 5.4 8.3 5.4h4.6c5.2 0 8.1 1.9 8.1 5.2 0 3.8-3.3 6.3-8.5 6.3H13.5"
+        fill="none"
+        stroke="url(#syndes-green)"
+        strokeWidth="4.2"
+        strokeLinecap="round"
+      />
+      <circle cx="34.5" cy="14.5" r="2.7" fill="#8bd000" />
+      <circle cx="13.5" cy="37.5" r="2.7" fill="#76b900" />
+      <circle
+        cx="26.4"
+        cy="26"
+        r="2.25"
+        fill="#c8a33a"
+        stroke="#0d140c"
+        strokeWidth="1.2"
+      />
+      <path
+        d="M10 11.5h7M31 36.5h7"
+        stroke="rgba(118,185,0,.26)"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 const features: Array<{ title: string; text: string; icon: IconName }> = [
   {
     title: "Clientes organizados",
@@ -163,8 +215,16 @@ export default function CommercialHomePage() {
     <main className={styles.site}>
       <header className={styles.header}>
         <Link className={styles.brand} href="/" aria-label={commercialSite.brandName}>
-          <span className={styles.brandMark}>{commercialSite.brandMark}</span>
-          <span>{commercialSite.brandName}</span>
+          <span className={styles.brandLogoShell}>
+            <BrandSymbol />
+          </span>
+          <span className={styles.brandWordmark}>
+            <strong>
+              {commercialSite.brandName}
+              <i aria-hidden="true" />
+            </strong>
+            <small>Atendimento inteligente</small>
+          </span>
         </Link>
 
         <nav className={styles.nav} aria-label="Navegação principal">
