@@ -173,6 +173,11 @@ export default function CommercialHomePage() {
                   <div className={styles.customerMessage}>
                     Oi! Preciso remarcar meu horário de amanhã.
                   </div>
+                  <div className={styles.typingIndicator} aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
                   <div className={styles.assistantMessage}>
                     <small>Assistente digital</small>
                     Claro. Posso verificar os horários disponíveis e fazer a
