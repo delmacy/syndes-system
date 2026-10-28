@@ -2854,3 +2854,99 @@
     animation: none;
   }
 }
+
+
+/* Refined top brand */
+.brand {
+  gap: 11px;
+}
+
+.brandLogoShell {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.brandLogoShell::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 18px;
+  background: radial-gradient(circle, rgba(118, 185, 0, 0.14), transparent 68%);
+  filter: blur(5px);
+  opacity: 0.8;
+}
+
+.brandGlyph {
+  position: relative;
+  z-index: 1;
+  width: 42px;
+  height: 42px;
+  overflow: visible;
+  filter:
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.26))
+    drop-shadow(0 0 10px rgba(118, 185, 0, 0.07));
+}
+
+.brandWordmark {
+  display: grid;
+  gap: 2px;
+  line-height: 1;
+}
+
+.brandWordmark strong {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 5px;
+  color: #f4f8f2;
+  font-size: 18px;
+  font-weight: 860;
+  letter-spacing: -0.045em;
+}
+
+.brandWordmark strong i {
+  width: 4px;
+  height: 4px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: var(--marketing-gold);
+  box-shadow: 0 0 9px rgba(200, 163, 58, 0.22);
+}
+
+.brandWordmark small {
+  color: #7d8b78;
+  font-size: 7.5px;
+  font-weight: 850;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.brand:hover .brandGlyph {
+  filter:
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.26))
+    drop-shadow(0 0 14px rgba(118, 185, 0, 0.16));
+}
+
+.brand:hover .brandWordmark strong {
+  color: #ffffff;
+}
+
+@media (max-width: 440px) {
+  .brandLogoShell,
+  .brandGlyph {
+    width: 38px;
+    height: 38px;
+  }
+
+  .brandWordmark strong {
+    font-size: 17px;
+  }
+
+  .brandWordmark small {
+    font-size: 6.8px;
+    letter-spacing: 0.13em;
+  }
+}
