@@ -1,6 +1,14 @@
 name: CRM Acceptance
 
 on:
+  push:
+    branches:
+      - work/prd-001-core-crm-sprint-0
+    paths:
+      - .github/workflows/crm-acceptance.yml
+      - apps/api/test/acceptance-server.ts
+      - apps/web/tests/acceptance/core-crm.acceptance.spec.ts
+      - tests/keycloak/test-syndes-realm.json
   workflow_dispatch:
 
 permissions:
@@ -151,5 +159,5 @@ jobs:
         with:
           name: crm-acceptance-${{ github.run_id }}
           path: ${{ runner.temp }}/syndes-acceptance/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
