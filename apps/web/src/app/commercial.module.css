@@ -1594,3 +1594,350 @@
 .loginLink:hover {
   background: #17231f;
 }
+
+
+/* Dark electric-green palette experiment
+   Deep neutral surfaces + NVIDIA-like green + restrained Brazilian gold accents. */
+.site {
+  --marketing-ink: #f0f5ef;
+  --marketing-muted: #a7b4a7;
+  --marketing-green: #76b900;
+  --marketing-bright: #8bd000;
+  --marketing-lime: #a6df3a;
+  --marketing-deep: #0b1408;
+  --marketing-mint: #1b2a12;
+  --marketing-paper: #0b0f0b;
+  --marketing-line: #263323;
+  --marketing-white: #101510;
+  --marketing-gold: #c8a33a;
+  --marketing-gold-soft: rgba(200, 163, 58, 0.14);
+  background:
+    radial-gradient(circle at 84% 6%, rgba(118, 185, 0, 0.15), transparent 30rem),
+    radial-gradient(circle at 11% 17%, rgba(118, 185, 0, 0.07), transparent 27rem),
+    radial-gradient(circle at 70% 48%, rgba(200, 163, 58, 0.025), transparent 22rem),
+    linear-gradient(180deg, #080b08 0%, #0b100b 40%, #090d09 70%, #0d120d 100%);
+}
+
+.site::before {
+  background: radial-gradient(circle, rgba(118, 185, 0, 0.10), rgba(118, 185, 0, 0));
+}
+
+.site::after {
+  background: radial-gradient(circle, rgba(118, 185, 0, 0.08), rgba(118, 185, 0, 0));
+}
+
+.header {
+  border-bottom-color: rgba(118, 185, 0, 0.18);
+  background: linear-gradient(180deg, rgba(8, 11, 8, 0.95), rgba(8, 11, 8, 0.78));
+}
+
+.brandMark,
+.miniMark {
+  background: linear-gradient(145deg, #17250d 0%, #4e7e00 58%, #76b900 135%);
+  color: #f3f9ea;
+  box-shadow:
+    0 8px 24px rgba(118, 185, 0, 0.18),
+    0 0 0 1px rgba(118, 185, 0, 0.16);
+}
+
+.loginLink {
+  border-color: #2d3a29;
+  background: linear-gradient(180deg, rgba(18, 24, 18, 0.96), rgba(12, 17, 12, 0.92));
+}
+
+.loginLink:hover {
+  border-color: rgba(118, 185, 0, 0.42);
+  background: #141c12;
+}
+
+.status {
+  border-color: rgba(118, 185, 0, 0.3);
+  background: linear-gradient(90deg, rgba(26, 39, 17, 0.95), rgba(15, 21, 14, 0.9));
+  color: #c4d2bc;
+}
+
+.status span {
+  background: var(--marketing-green);
+  box-shadow:
+    0 0 0 4px rgba(118, 185, 0, 0.1),
+    0 0 18px rgba(118, 185, 0, 0.42);
+}
+
+.kicker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--marketing-green);
+}
+
+.kicker::after {
+  content: "";
+  width: 14px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--marketing-gold);
+  box-shadow: 0 0 10px rgba(200, 163, 58, 0.16);
+  opacity: 0.78;
+}
+
+.hero h1 span {
+  background: linear-gradient(
+    100deg,
+    #5e9700 0%,
+    #76b900 42%,
+    #98d524 68%,
+    #76b900 100%
+  );
+  background-size: 180% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.primaryAction,
+.primaryActionWide {
+  background: linear-gradient(120deg, #4f8000 0%, #69a900 52%, #76b900 100%);
+  box-shadow:
+    0 14px 34px rgba(118, 185, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.primaryAction:hover,
+.primaryActionWide:hover {
+  background: linear-gradient(120deg, #5b9000, #76b900 58%, #88c919);
+  box-shadow:
+    0 17px 38px rgba(118, 185, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+/* Undo accidental status animation inheritance from the previous palette pass. */
+.primaryAction,
+.secondaryAction,
+.secondaryActionLight,
+.primaryActionWide {
+  animation: none;
+}
+
+.secondaryAction {
+  background: #111711;
+  border-color: #293527;
+}
+
+.secondaryAction:hover {
+  background: #171f15;
+  border-color: rgba(118, 185, 0, 0.34);
+}
+
+.heroNotes span::before,
+.aiCopy li::before,
+.priceCard li::before {
+  color: var(--marketing-green);
+}
+
+.heroVisual::before {
+  background:
+    radial-gradient(circle at 45% 48%, rgba(118, 185, 0, 0.15), transparent 44%),
+    radial-gradient(circle at 70% 20%, rgba(153, 213, 36, 0.12), transparent 26%);
+}
+
+.appWindow {
+  border-color: rgba(118, 185, 0, 0.26);
+  background: #101510;
+  box-shadow:
+    0 38px 100px rgba(0, 0, 0, 0.38),
+    0 0 0 7px rgba(118, 185, 0, 0.025),
+    0 0 42px rgba(118, 185, 0, 0.055);
+}
+
+.windowTop {
+  background: linear-gradient(90deg, #121812 0%, #152013 100%);
+  border-bottom-color: #273326;
+}
+
+.online {
+  background: linear-gradient(90deg, #1c2a14, #233516);
+  color: #9fd546;
+  box-shadow: 0 0 18px rgba(118, 185, 0, 0.12);
+}
+
+.activeConversation {
+  background: linear-gradient(100deg, #1a2913 0%, #151f13 100%);
+  box-shadow: inset 3px 0 0 var(--marketing-green);
+}
+
+.activeConversation::after {
+  background: var(--marketing-green);
+  box-shadow:
+    0 0 0 4px rgba(118, 185, 0, 0.08),
+    0 0 12px rgba(118, 185, 0, 0.36);
+}
+
+.assistantMessage {
+  background: linear-gradient(135deg, #1c3015 0%, #243d18 100%);
+  color: #e6f0df;
+  box-shadow: 0 7px 20px rgba(118, 185, 0, 0.055);
+}
+
+.assistantMessage small {
+  color: #91cc34;
+}
+
+.typingIndicator {
+  border-color: rgba(118, 185, 0, 0.16);
+  background: linear-gradient(135deg, #1a2a14, #203418);
+}
+
+.typingIndicator span {
+  background: #8bcf18;
+}
+
+.contextCard,
+.customerMessage,
+.composer {
+  background: #111711;
+  border-color: #283427;
+}
+
+.floatingCard {
+  border-color: rgba(118, 185, 0, 0.26);
+  background: linear-gradient(135deg, rgba(18, 25, 17, 0.97), rgba(24, 35, 19, 0.96));
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.28),
+    0 0 30px rgba(118, 185, 0, 0.055);
+}
+
+.floatingIcon {
+  background: linear-gradient(145deg, #203418, #2d491c);
+  color: #a2db4a;
+  box-shadow: 0 7px 20px rgba(118, 185, 0, 0.1);
+}
+
+.problemStrip {
+  border-color: rgba(118, 185, 0, 0.18);
+  background:
+    linear-gradient(110deg, #111711 0%, #0c110c 48%, #121a10 100%);
+  box-shadow:
+    0 18px 55px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.problemStrip p::before {
+  color: var(--marketing-green);
+  text-shadow: 0 0 14px rgba(118, 185, 0, 0.3);
+}
+
+.problemStrip p:nth-child(2)::before {
+  color: var(--marketing-gold);
+  text-shadow: 0 0 12px rgba(200, 163, 58, 0.18);
+}
+
+/* Fix the broken light Basic section: keep the entire band in dark mode. */
+.sectionAlt {
+  color: var(--marketing-ink);
+  background:
+    radial-gradient(circle at 16% 24%, rgba(118, 185, 0, 0.10), transparent 24rem),
+    radial-gradient(circle at 88% 70%, rgba(118, 185, 0, 0.055), transparent 27rem),
+    radial-gradient(circle at 64% 12%, rgba(200, 163, 58, 0.018), transparent 20rem),
+    linear-gradient(180deg, #0c120b 0%, #0a0f0a 100%);
+  border-top-color: rgba(118, 185, 0, 0.13);
+  border-bottom-color: rgba(118, 185, 0, 0.10);
+}
+
+.sectionAlt .sectionHeading h2,
+.sectionAlt .featureCard h3 {
+  color: #f0f5ef;
+}
+
+.sectionAlt .sectionHeading > p:last-child,
+.sectionAlt .featureCard p {
+  color: #9eada0;
+}
+
+.stepCard,
+.featureCard {
+  border-color: rgba(118, 185, 0, 0.16);
+  background: linear-gradient(160deg, #121812 0%, #0d120d 66%, #131c10 100%);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
+}
+
+.stepCard::after,
+.featureCard::after {
+  background: radial-gradient(circle, rgba(118, 185, 0, 0.11), transparent 67%);
+}
+
+.stepCard:hover,
+.featureCard:hover {
+  border-color: rgba(118, 185, 0, 0.42);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.26),
+    0 0 28px rgba(118, 185, 0, 0.04);
+}
+
+.featureIcon {
+  background: linear-gradient(145deg, #203516, #294819);
+  color: #a4da51;
+  border-color: rgba(118, 185, 0, 0.25);
+  box-shadow: 0 8px 22px rgba(118, 185, 0, 0.08);
+}
+
+.aiQuote {
+  border-color: rgba(118, 185, 0, 0.16);
+  background:
+    radial-gradient(circle at 88% 14%, rgba(118, 185, 0, 0.14), transparent 16rem),
+    linear-gradient(145deg, #101a0e 0%, #172713 58%, #203816 120%);
+  box-shadow:
+    0 30px 74px rgba(0, 0, 0, 0.28),
+    0 0 46px rgba(118, 185, 0, 0.04);
+}
+
+.aiQuote > span {
+  color: #9bd044;
+}
+
+.priceCard {
+  border-color: rgba(118, 185, 0, 0.3);
+  background:
+    radial-gradient(circle at 96% 0%, rgba(118, 185, 0, 0.10), transparent 15rem),
+    linear-gradient(160deg, #121812 0%, #0d120d 100%);
+  box-shadow:
+    0 28px 78px rgba(0, 0, 0, 0.28),
+    0 0 0 7px rgba(118, 185, 0, 0.02);
+}
+
+.priceCard::before {
+  background: linear-gradient(
+    90deg,
+    #4f8000,
+    #76b900,
+    #a4d64f,
+    var(--marketing-gold),
+    #76b900,
+    #4f8000
+  );
+}
+
+.priceIntro strong {
+  color: #8ccc1f;
+  text-shadow: 0 8px 28px rgba(118, 185, 0, 0.10);
+}
+
+.faqList details {
+  background: linear-gradient(145deg, #121812, #0d120d);
+}
+
+.faqList details[open],
+.faqList details:hover {
+  border-color: rgba(118, 185, 0, 0.34);
+  background: linear-gradient(145deg, #151d13, #111710);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.finalCta {
+  border-color: rgba(118, 185, 0, 0.14);
+  background:
+    radial-gradient(circle at 88% 12%, rgba(118, 185, 0, 0.17), transparent 18rem),
+    radial-gradient(circle at 12% 90%, rgba(200, 163, 58, 0.025), transparent 18rem),
+    linear-gradient(125deg, #0c120b 0%, #172811 58%, #253d18 120%);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+}
