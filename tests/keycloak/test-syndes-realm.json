@@ -5,6 +5,17 @@
   "registrationAllowed": false,
   "clients": [
     {
+      "clientId": "syndes-api",
+      "name": "Syndes CRM acceptance API",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false
+    },
+    {
       "clientId": "syndes-web",
       "name": "Syndes CRM acceptance web",
       "enabled": true,
