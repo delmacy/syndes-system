@@ -97,7 +97,7 @@ test("Core CRM acceptance journey", async ({ page }, testInfo) => {
       await page.getByLabel("Nova tag").fill("e2e-acceptance");
       await page.getByRole("button", { name: "Adicionar" }).click();
       await page.getByLabel("Nova nota").fill("Acceptance interaction note");
-      await page.getByRole("button", { name: "Salvar" }).click();
+      await page.getByRole("button", { name: "Salvar", exact: true }).click();
       await expect(page.getByText("Nota adicionada.")).toBeVisible();
     });
 
