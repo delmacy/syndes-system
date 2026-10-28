@@ -86,7 +86,11 @@ test("Core CRM acceptance journey", async ({ page }, testInfo) => {
       await expect(
         page.getByRole("heading", { name: recordName }),
       ).toBeVisible();
-      await expect(page.getByText(organizationName)).toBeVisible();
+      await expect(
+        page
+          .locator(".relationship-panel")
+          .getByText(organizationName, { exact: true }),
+      ).toBeVisible();
     });
 
     await step("tag_and_note", async () => {
