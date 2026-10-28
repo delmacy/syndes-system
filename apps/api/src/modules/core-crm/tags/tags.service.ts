@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import type { TenantContext } from '../../platform-core/identity/identity.contracts';
 import {
   conflictProblem,
@@ -12,6 +13,7 @@ import { organizationsInScope, personScopeCondition } from '../crm-scope';
 import type { ListQuery } from '../crm-dtos';
 import type { TagInput } from './tags-dtos';
 import { TenantCrmDatabase } from '../tenant-crm.database';
+import type { TenantCrmDb } from '../tenant-crm.database';
 import { crmOrganizations } from '../tenant-crm.schema';
 import { crmPeople } from '../tenant-crm.schema';
 import { crmTags, crmTagAssignments } from './tags.schema';
@@ -129,6 +131,71 @@ export class TagsService {
         total: counted[0]?.total ?? 0,
       };
     });
+  }
+
+  async listForPerson(
+    context: TenantContext,
+    personId: string,
+    query: ListQuery,
+  ): Promise<TagListResult> {
+    return this.tenantDb.withTenant(context, async (db) => {
+      const people = await db
+        .select({ id: crmPeople.id })
+        .from(crmPeople)
+        .where(and(eq(crmPeople.id, personId), personScopeCondition(context)));
+      if (!people.length) throw notFoundProblem('person_not_found');
+      return this.listAssigned(
+        db,
+        eq(crmTagAssignments.personId, personId),
+        query,
+      );
+    });
+  }
+
+  async listForOrganization(
+    context: TenantContext,
+    organizationId: string,
+    query: ListQuery,
+  ): Promise<TagListResult> {
+    await this.requireOrganizationScope(context, 'read');
+    return this.tenantDb.withTenant(context, async (db) => {
+      const organizations = await db
+        .select({ id: crmOrganizations.id })
+        .from(crmOrganizations)
+        .where(eq(crmOrganizations.id, organizationId));
+      if (!organizations.length)
+        throw notFoundProblem('organization_not_found');
+      return this.listAssigned(
+        db,
+        eq(crmTagAssignments.organizationId, organizationId),
+        query,
+      );
+    });
+  }
+
+  private async listAssigned(
+    db: TenantCrmDb,
+    where: SQL | undefined,
+    query: ListQuery,
+  ): Promise<TagListResult> {
+    const rows = await db
+      .select({ tag: crmTags })
+      .from(crmTags)
+      .innerJoin(crmTagAssignments, eq(crmTagAssignments.tagId, crmTags.id))
+      .where(where)
+      .orderBy(asc(crmTags.name), asc(crmTags.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    const counted = await db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(crmTagAssignments)
+      .where(where);
+    return {
+      items: rows.map(({ tag }) => toResource(tag)),
+      page: query.page,
+      pageSize: query.pageSize,
+      total: counted[0]?.total ?? 0,
+    };
   }
 
   async get(context: TenantContext, tagId: string): Promise<TagResource> {

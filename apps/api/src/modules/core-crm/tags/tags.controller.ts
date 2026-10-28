@@ -41,6 +41,32 @@ export class TagsController {
     return this.tags.list(tenantOf(request), parseListQueryParams(query));
   }
 
+  @Get('people/:personId')
+  listForPerson(
+    @Request() request: IdentityRequest,
+    @Param('personId') personId: string,
+    @Query() query: Record<string, unknown>,
+  ): Promise<TagListResult> {
+    return this.tags.listForPerson(
+      tenantOf(request),
+      parseUuidParam(personId, 'personId'),
+      parseListQueryParams(query),
+    );
+  }
+
+  @Get('organizations/:organizationId')
+  listForOrganization(
+    @Request() request: IdentityRequest,
+    @Param('organizationId') organizationId: string,
+    @Query() query: Record<string, unknown>,
+  ): Promise<TagListResult> {
+    return this.tags.listForOrganization(
+      tenantOf(request),
+      parseUuidParam(organizationId, 'organizationId'),
+      parseListQueryParams(query),
+    );
+  }
+
   @Post()
   create(
     @Request() request: IdentityRequest,

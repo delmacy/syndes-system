@@ -14,6 +14,7 @@ test("Core CRM acceptance journey", async ({ page }, testInfo) => {
   const steps: AcceptanceStep[] = [];
   const recordName = `Syndes E2E Person ${Date.now()}`;
   const organizationName = `Syndes E2E Org ${Date.now()}`;
+  const tagName = `e2e-acceptance-${Date.now()}`;
   let lastStepStarted = Date.now();
 
   async function step(name: string, action: () => Promise<void>) {
@@ -94,8 +95,9 @@ test("Core CRM acceptance journey", async ({ page }, testInfo) => {
     });
 
     await step("tag_and_note", async () => {
-      await page.getByLabel("Nova tag").fill("e2e-acceptance");
-      await page.getByRole("button", { name: "Adicionar" }).click();
+      await page.getByLabel("Nova tag").fill(tagName);
+      await page.getByRole("button", { name: "Criar e vincular" }).click();
+      await expect(page.getByText("Tag vinculada.")).toBeVisible();
       await page.getByLabel("Nova nota").fill("Acceptance interaction note");
       await page.getByRole("button", { name: "Salvar", exact: true }).click();
       await expect(page.getByText("Nota adicionada.")).toBeVisible();
@@ -115,6 +117,9 @@ test("Core CRM acceptance journey", async ({ page }, testInfo) => {
       await page.getByRole("button", { name: "Pessoas" }).click();
       await page.getByRole("button", { name: new RegExp(recordName) }).click();
       await page.getByRole("button", { name: "Arquivar" }).click();
+      await page
+        .getByRole("button", { name: "Confirmar arquivamento" })
+        .click();
       await page.getByRole("button", { name: "CSV" }).click();
       const download = page.waitForEvent("download");
       await page.getByRole("button", { name: "Baixar CSV" }).click();

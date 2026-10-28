@@ -45,6 +45,12 @@ export function crmErrorMessage(code: string): string {
     return "Sua conta não tem permissão para esta operação.";
   if (code === "http_404")
     return "O registro não está disponível no seu escopo.";
+  if (code === "tag_name_conflict")
+    return "Essa tag já existe. Vincule-a pela lista de tags existentes.";
+  if (code === "tag_assignment_exists_conflict")
+    return "Essa tag já está vinculada a este cadastro.";
+  if (code === "resource_archived")
+    return "Cadastros arquivados não podem receber novas alterações desse tipo.";
   if (code.startsWith("http_5")) return "Serviço temporariamente indisponível.";
   return "Não foi possível concluir. Revise os dados e tente novamente.";
 }

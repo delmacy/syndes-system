@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ChangeEvent,
+} from "react";
 import { crmErrorMessage, crmRequest } from "./api";
 import type { CrmRecord } from "./api";
 
@@ -65,6 +71,8 @@ export function CoreCrmWorkspace() {
     entity: Entity;
     record: CrmRecord;
   } | null>(null);
+  const selectedRecordRef = useRef<{ entity: Entity; id: string } | null>(null);
+  const [recordTags, setRecordTags] = useState<CrmRecord[]>([]);
   const [notes, setNotes] = useState<CrmRecord[]>([]);
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [relationships, setRelationships] = useState<RelationshipLink[]>([]);
@@ -80,6 +88,7 @@ export function CoreCrmWorkspace() {
   const [relatedOrganization, setRelatedOrganization] = useState("");
   const [noteContent, setNoteContent] = useState("");
   const [tagName, setTagName] = useState("");
+  const [existingTagId, setExistingTagId] = useState("");
   const [employeeName, setEmployeeName] = useState("");
   const [employeeActorId, setEmployeeActorId] = useState("");
   const [scopeActorId, setScopeActorId] = useState("");
@@ -92,6 +101,11 @@ export function CoreCrmWorkspace() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [duplicateWarning, setDuplicateWarning] = useState<CrmRecord[]>([]);
+  const [archiveConfirmation, setArchiveConfirmation] = useState(false);
+  const [searchSubmitted, setSearchSubmitted] = useState(false);
+  const [searchBusy, setSearchBusy] = useState(false);
+  const searchRequestId = useRef(0);
+  const detailRequestId = useRef(0);
 
   async function loadWorkspace() {
     setLoading(true);
@@ -147,15 +161,26 @@ export function CoreCrmWorkspace() {
   }
 
   async function openRecord(entity: Entity, record: CrmRecord) {
+    const requestId = ++detailRequestId.current;
+    selectedRecordRef.current = { entity, id: record.id };
     setError("");
     setSelected({ entity, record });
+    setEditName(record.fullName ?? record.name ?? "");
+    setEditEmail(record.email ?? "");
+    setEditPhone(record.phone ?? "");
+    setRecordTags([]);
+    setNotes([]);
+    setTimeline([]);
+    setRelationships([]);
+    setExistingTagId("");
+    setArchiveConfirmation(false);
     const path =
       entity === "people"
         ? `/people/${record.id}`
         : `/organizations/${record.id}`;
     try {
-      const [detail, eventPage, notePage, relationshipPage] = await Promise.all(
-        [
+      const [detail, eventPage, notePage, relationshipPage, tagPage] =
+        await Promise.all([
           crmRequest<CrmRecord>(path),
           crmRequest<{ items: TimelineItem[] }>(
             entity === "people"
@@ -170,8 +195,13 @@ export function CoreCrmWorkspace() {
                 `/people/${record.id}/relationships`,
               )
             : Promise.resolve({ items: [] as RelationshipLink[] }),
-        ],
-      );
+          crmRequest<PageResult>(
+            entity === "people"
+              ? `/tags/people/${record.id}?page=1&pageSize=100`
+              : `/tags/organizations/${record.id}?page=1&pageSize=100`,
+          ),
+        ]);
+      if (requestId !== detailRequestId.current) return;
       setSelected({ entity, record: detail });
       setEditName(detail.fullName ?? detail.name ?? "");
       setEditEmail(detail.email ?? "");
@@ -179,21 +209,71 @@ export function CoreCrmWorkspace() {
       setTimeline(eventPage.items);
       setNotes(notePage.items);
       setRelationships(relationshipPage.items);
+      setRecordTags(tagPage.items);
     } catch (cause) {
+      if (requestId !== detailRequestId.current) return;
       setError(crmErrorMessage(cause instanceof Error ? cause.message : ""));
     }
   }
 
+  async function refreshRecordActivity(
+    entity: Entity,
+    recordId: string,
+  ): Promise<void> {
+    const selectedAtStart = selectedRecordRef.current;
+    if (
+      !selectedAtStart ||
+      selectedAtStart.entity !== entity ||
+      selectedAtStart.id !== recordId
+    )
+      return;
+    const requestId = ++detailRequestId.current;
+    const target =
+      entity === "people"
+        ? `/people/${recordId}`
+        : `/organizations/${recordId}`;
+    const [eventPage, notePage, tagPage] = await Promise.all([
+      crmRequest<{ items: TimelineItem[] }>(`${target}/timeline`),
+      crmRequest<PageResult>(
+        `/notes?${entity === "people" ? "personId" : "organizationId"}=${recordId}&page=1&pageSize=50`,
+      ),
+      crmRequest<PageResult>(
+        entity === "people"
+          ? `/tags/people/${recordId}?page=1&pageSize=100`
+          : `/tags/organizations/${recordId}?page=1&pageSize=100`,
+      ),
+    ]);
+    const selectedAfterLoad = selectedRecordRef.current;
+    if (
+      requestId !== detailRequestId.current ||
+      !selectedAfterLoad ||
+      selectedAfterLoad.entity !== entity ||
+      selectedAfterLoad.id !== recordId
+    )
+      return;
+    setTimeline(eventPage.items);
+    setNotes(notePage.items);
+    setRecordTags(tagPage.items);
+  }
+
   async function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const requestId = ++searchRequestId.current;
+    setSearchSubmitted(true);
+    setSearchBusy(true);
     setError("");
+    setResults([]);
     try {
       const response = await crmRequest<{ items: CrmRecord[] }>(
         `/search?q=${encodeURIComponent(query.trim())}&page=1&pageSize=50`,
       );
+      if (requestId !== searchRequestId.current) return;
       setResults(response.items);
     } catch (cause) {
+      if (requestId !== searchRequestId.current) return;
       setError(crmErrorMessage(cause instanceof Error ? cause.message : ""));
+    } finally {
+      if (requestId === searchRequestId.current) setSearchBusy(false);
     }
   }
 
@@ -269,6 +349,7 @@ export function CoreCrmWorkspace() {
         json("POST", { ...target, body: noteContent }),
       );
       setNoteContent("");
+      await refreshRecordActivity(selected.entity, selected.record.id);
     }, "Nota adicionada.");
   }
 
@@ -293,6 +374,7 @@ export function CoreCrmWorkspace() {
         json("PATCH", patch),
       );
       setSelected({ entity: selected.entity, record: detail });
+      await refreshRecordActivity(selected.entity, selected.record.id);
     }, "Cadastro atualizado.");
   }
 
@@ -313,6 +395,7 @@ export function CoreCrmWorkspace() {
       );
       setRelationships(page.items);
       setRelatedOrganization("");
+      await refreshRecordActivity(selected.entity, selected.record.id);
     }, "Vínculo PJ criado.");
   }
 
@@ -326,6 +409,7 @@ export function CoreCrmWorkspace() {
       setRelationships((current) =>
         current.filter((item) => item.organizationId !== organizationId),
       );
+      await refreshRecordActivity(selected.entity, selected.record.id);
     }, "Vínculo removido.");
   }
 
@@ -335,7 +419,7 @@ export function CoreCrmWorkspace() {
     await run(async () => {
       const tag = await crmRequest<CrmRecord>(
         "/tags",
-        json("POST", { name: tagName }),
+        json("POST", { name: tagName.trim() }),
       );
       const target =
         selected.entity === "people"
@@ -343,7 +427,34 @@ export function CoreCrmWorkspace() {
           : `organizations/${selected.record.id}`;
       await crmRequest(`/tags/${tag.id}/${target}`, { method: "PUT" });
       setTagName("");
+      await refreshRecordActivity(selected.entity, selected.record.id);
     }, "Tag vinculada.");
+  }
+
+  async function assignExistingTag(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected || !existingTagId) return;
+    const target =
+      selected.entity === "people"
+        ? `people/${selected.record.id}`
+        : `organizations/${selected.record.id}`;
+    await run(async () => {
+      await crmRequest(`/tags/${existingTagId}/${target}`, { method: "PUT" });
+      setExistingTagId("");
+      await refreshRecordActivity(selected.entity, selected.record.id);
+    }, "Tag vinculada.");
+  }
+
+  async function detachTag(tagId: string) {
+    if (!selected) return;
+    const target =
+      selected.entity === "people"
+        ? `people/${selected.record.id}`
+        : `organizations/${selected.record.id}`;
+    await run(async () => {
+      await crmRequest(`/tags/${tagId}/${target}`, { method: "DELETE" });
+      await refreshRecordActivity(selected.entity, selected.record.id);
+    }, "Tag removida.");
   }
 
   async function handleCsvImport(event: FormEvent<HTMLFormElement>) {
@@ -417,6 +528,14 @@ export function CoreCrmWorkspace() {
     setCsvResult(null);
   }
 
+  function closeRecord() {
+    detailRequestId.current += 1;
+    selectedRecordRef.current = null;
+    setSelected(null);
+    setRecordTags([]);
+    setArchiveConfirmation(false);
+  }
+
   return (
     <main className="crm-shell">
       <aside className="crm-sidebar">
@@ -440,7 +559,7 @@ export function CoreCrmWorkspace() {
                 className={section === item ? "nav-item active" : "nav-item"}
                 onClick={() => {
                   setSection(item);
-                  setSelected(null);
+                  closeRecord();
                 }}
                 type="button"
               >
@@ -491,11 +610,15 @@ export function CoreCrmWorkspace() {
                   <div>
                     <input
                       id="crm-search"
+                      type="search"
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
                       placeholder="Nome, telefone, e-mail, CNPJ ou tag"
+                      required
                     />
-                    <button type="submit">Buscar</button>
+                    <button disabled={searchBusy} type="submit">
+                      {searchBusy ? "Buscando…" : "Buscar"}
+                    </button>
                   </div>
                 </form>
                 {results.length ? (
@@ -510,9 +633,18 @@ export function CoreCrmWorkspace() {
                       )
                     }
                   />
-                ) : (
+                ) : searchSubmitted && !searchBusy && !error ? (
+                  <p className="muted">
+                    Nenhum cadastro encontrado para esta busca.
+                  </p>
+                ) : !searchSubmitted ? (
                   <p className="muted">
                     Pesquise no seu escopo de atendimento.
+                  </p>
+                ) : null}
+                {searchBusy && (
+                  <p className="muted" role="status">
+                    Buscando cadastros…
                   </p>
                 )}
               </section>
@@ -828,7 +960,7 @@ export function CoreCrmWorkspace() {
               <section className="crm-card record-detail">
                 <button
                   className="text-button close-detail"
-                  onClick={() => setSelected(null)}
+                  onClick={closeRecord}
                   type="button"
                 >
                   Fechar detalhes ×
@@ -880,22 +1012,55 @@ export function CoreCrmWorkspace() {
                   </button>
                 </form>
                 {context?.role === "tenant_admin" && (
-                  <button
-                    className="danger-button"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        await crmRequest(
-                          `/${selected.entity}/${selected.record.id}`,
-                          { method: "DELETE" },
-                        );
-                        setSelected(null);
-                      }, "Registro arquivado.")
-                    }
-                    type="button"
-                  >
-                    Arquivar
-                  </button>
+                  <div className="archive-action">
+                    <button
+                      className="danger-button"
+                      disabled={busy}
+                      onClick={() => setArchiveConfirmation(true)}
+                      type="button"
+                    >
+                      Arquivar
+                    </button>
+                    {archiveConfirmation && (
+                      <div
+                        className="archive-confirmation"
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-labelledby="archive-confirmation-title"
+                      >
+                        <strong id="archive-confirmation-title">
+                          Arquivar este cadastro?
+                        </strong>
+                        <p>
+                          Ele deixará de aparecer nas listas ativas, mas seu
+                          histórico será preservado.
+                        </p>
+                        <button
+                          disabled={busy}
+                          onClick={() => setArchiveConfirmation(false)}
+                          type="button"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          className="danger-button"
+                          disabled={busy}
+                          onClick={() =>
+                            void run(async () => {
+                              await crmRequest(
+                                `/${selected.entity}/${selected.record.id}`,
+                                { method: "DELETE" },
+                              );
+                              closeRecord();
+                            }, "Registro arquivado.")
+                          }
+                          type="button"
+                        >
+                          Confirmar arquivamento
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
                 {selected.entity === "people" && (
                   <ChannelIdentityPanel personId={selected.record.id} />
@@ -959,23 +1124,75 @@ export function CoreCrmWorkspace() {
                 <div className="crm-grid detail-grid">
                   <section>
                     <h3>Tags</h3>
-                    <ul className="tag-list">
-                      {tags.map((tag) => (
-                        <li key={tag.id}>{String(tag.name)}</li>
-                      ))}
-                    </ul>
+                    {recordTags.length ? (
+                      <ul className="tag-list">
+                        {recordTags.map((tag) => (
+                          <li key={tag.id}>
+                            {String(tag.name)}
+                            <button
+                              aria-label={`Remover tag ${String(tag.name)}`}
+                              disabled={busy}
+                              onClick={() => void detachTag(tag.id)}
+                              type="button"
+                            >
+                              ×
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="muted">Nenhuma tag vinculada.</p>
+                    )}
+                    <form
+                      className="inline-form"
+                      onSubmit={(event) => void assignExistingTag(event)}
+                    >
+                      <label>
+                        Vincular tag existente
+                        <select
+                          aria-label="Tag existente"
+                          value={existingTagId}
+                          onChange={(event) =>
+                            setExistingTagId(event.target.value)
+                          }
+                        >
+                          <option value="">Selecione</option>
+                          {tags
+                            .filter(
+                              (tag) =>
+                                !recordTags.some(
+                                  (assigned) => assigned.id === tag.id,
+                                ),
+                            )
+                            .map((tag) => (
+                              <option key={tag.id} value={tag.id}>
+                                {String(tag.name)}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <button disabled={busy || !existingTagId} type="submit">
+                        Vincular tag
+                      </button>
+                    </form>
                     <form
                       className="inline-form"
                       onSubmit={(event) => void createTag(event)}
                     >
-                      <input
-                        aria-label="Nova tag"
-                        value={tagName}
-                        onChange={(event) => setTagName(event.target.value)}
-                        placeholder="Criar e vincular tag"
-                        required
-                      />
-                      <button disabled={busy}>Adicionar</button>
+                      <label>
+                        Criar nova tag
+                        <input
+                          aria-label="Nova tag"
+                          value={tagName}
+                          onChange={(event) => setTagName(event.target.value)}
+                          placeholder="Nome da tag"
+                          maxLength={100}
+                          required
+                        />
+                      </label>
+                      <button disabled={busy || !tagName.trim()} type="submit">
+                        Criar e vincular
+                      </button>
                     </form>
                   </section>
                   <section>
@@ -1012,6 +1229,9 @@ export function CoreCrmWorkspace() {
                         </li>
                       ))}
                     </ol>
+                    {!timeline.length && (
+                      <p className="muted">Nenhuma atividade registrada.</p>
+                    )}
                   </section>
                 </div>
               </section>

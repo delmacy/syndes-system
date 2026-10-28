@@ -1240,6 +1240,23 @@ describeIntegration('CRM-05 core CRM API (disposable PostgreSQL)', () => {
           .set('Authorization', `Bearer ${tokenFor('admin')}`)
       ).status,
     ).toBe(200);
+    const assignedPersonTags = await get(`/api/v1/crm/tags/people/${personId}`);
+    expect(assignedPersonTags.status).toBe(200);
+    expect(
+      bodyOf(assignedPersonTags).items as { id: string; name: string }[],
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: tagId, name: 'VIP' }),
+      ]),
+    );
+    const outOfScopePersonTags = await get(
+      `/api/v1/crm/tags/people/${personId}`,
+      tokenFor('cpf'),
+    );
+    expect(outOfScopePersonTags.status).toBe(404);
+    expect(bodyOf(outOfScopePersonTags)).toMatchObject({
+      code: 'person_not_found',
+    });
     const note = await post('/api/v1/crm/notes', {
       personId,
       body: 'Retornar na sexta',
@@ -1390,6 +1407,21 @@ describeIntegration('CRM-05 core CRM API (disposable PostgreSQL)', () => {
       .set(ingressHeaders(TENANT_A))
       .set('Authorization', `Bearer ${tokenFor('admin')}`);
     expect(attached.status).toBe(200);
+    const assignedOrganizationTags = await get(
+      `/api/v1/crm/tags/organizations/${organizationId}`,
+      tokenFor('pj'),
+    );
+    expect(assignedOrganizationTags.status).toBe(200);
+    expect(
+      (bodyOf(assignedOrganizationTags).items as { id: string }[]).map(
+        (item) => item.id,
+      ),
+    ).toContain(tagId);
+    const deniedOrganizationTags = await get(
+      `/api/v1/crm/tags/organizations/${organizationId}`,
+      tokenFor('cpf'),
+    );
+    expect(deniedOrganizationTags.status).toBe(403);
 
     const note = await post('/api/v1/crm/notes', {
       organizationId,
