@@ -29,6 +29,9 @@ import {
 
 const tenantId = 'ae2e174a-ef1c-496f-bf34-80727a87e799';
 const issuer = process.env.KEYCLOAK_ISSUER;
+const acceptanceTenantHost =
+  process.env.ACCEPTANCE_TENANT_HOST?.trim().toLowerCase() || 'localhost';
+const apiHost = process.env.API_HOST?.trim() || '0.0.0.0';
 const subject = 'f28625de-00fd-4a6a-a57c-fc06b0498664';
 const credentials = new Map<string, TenantDatabaseCredential>();
 const pools = new Map<string, Pool>();
@@ -151,9 +154,9 @@ async function bootstrap() {
   );
   await controlPlane.query(
     `INSERT INTO tenant_domains (hostname, tenant_id, status)
-     VALUES ('localhost', $1, 'active')
+     VALUES ($1, $2, 'active')
      ON CONFLICT (hostname) DO UPDATE SET tenant_id = EXCLUDED.tenant_id, status = 'active'`,
-    [tenantId],
+    [acceptanceTenantHost, tenantId],
   );
   await controlPlane.query(
     `INSERT INTO tenant_memberships (tenant_id, actor_id, role, customer_scope, status)
@@ -169,10 +172,10 @@ async function bootstrap() {
        JOIN tenant_memberships m ON m.tenant_id = t.id AND m.actor_id = $2
        JOIN identity_actors a ON a.id = m.actor_id
       WHERE t.id = $1 AND t.provisioning_state = 'ready'
-        AND d.hostname = 'localhost' AND d.status = 'active'
+        AND d.hostname = $5 AND d.status = 'active'
         AND m.role = 'tenant_admin' AND m.status = 'active'
         AND a.issuer = $3 AND a.subject = $4 AND a.platform_admin = false`,
-    [tenantId, actor.rows[0].id, issuer, subject],
+    [tenantId, actor.rows[0].id, issuer, subject, acceptanceTenantHost],
   );
   if (seededContext.rowCount !== 1) {
     throw new Error('Acceptance tenant identity seed did not resolve.');
@@ -213,8 +216,10 @@ async function bootstrap() {
   registerCsvBodyParser(app);
   app.enableShutdownHooks();
   const port = Number(process.env.API_PORT ?? 3001);
-  await app.listen(port, '0.0.0.0');
-  console.log(`CRM acceptance API listening on ${port}; tenant provisioned.`);
+  await app.listen(port, apiHost);
+  console.log(
+    `CRM acceptance API listening on ${apiHost}:${port}; tenant provisioned.`,
+  );
 }
 
 void bootstrap().catch((error: unknown) => {
