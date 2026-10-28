@@ -213,7 +213,7 @@ export class PeopleService {
     input: Partial<PersonInput>,
   ): Promise<PersonResource> {
     try {
-      return await this.tenantDb.withTenant(context, async (db) =>
+      const resource = await this.tenantDb.withTenant(context, async (db) =>
         db.transaction(async (tx: TenantCrmTx) => {
           const rows = await tx
             .update(crmPeople)
@@ -232,12 +232,6 @@ export class PeopleService {
               actorId: context.actorId,
               personId: id,
             });
-            await this.audit.success(
-              context,
-              'crm.person.updated',
-              RESOURCE_TYPE,
-              id,
-            );
             return personResourceOf(rows[0]);
           }
           const existing = await tx
@@ -251,6 +245,13 @@ export class PeopleService {
           );
         }),
       );
+      await this.audit.success(
+        context,
+        'crm.person.updated',
+        RESOURCE_TYPE,
+        id,
+      );
+      return resource;
     } catch (error) {
       throw toProblem(error);
     }
@@ -259,7 +260,8 @@ export class PeopleService {
   /** Soft archive (idempotent), admin-only. */
   async archive(context: TenantContext, id: string): Promise<PersonResource> {
     await this.requireArchivePermission(context);
-    return this.tenantDb.withTenant(context, async (db) =>
+    let archived = false;
+    const resource = await this.tenantDb.withTenant(context, async (db) =>
       db.transaction(async (tx: TenantCrmTx) => {
         const rows = await tx
           .update(crmPeople)
@@ -267,17 +269,12 @@ export class PeopleService {
           .where(and(eq(crmPeople.id, id), isNull(crmPeople.archivedAt)))
           .returning();
         if (rows.length) {
+          archived = true;
           await this.timeline.record(tx, {
             kind: 'person.archived',
             actorId: context.actorId,
             personId: id,
           });
-          await this.audit.success(
-            context,
-            'crm.person.archived',
-            RESOURCE_TYPE,
-            id,
-          );
           return personResourceOf(rows[0]);
         }
         const existing = await tx
@@ -288,6 +285,15 @@ export class PeopleService {
         return personResourceOf(existing[0]);
       }),
     );
+    if (archived) {
+      await this.audit.success(
+        context,
+        'crm.person.archived',
+        RESOURCE_TYPE,
+        id,
+      );
+    }
+    return resource;
   }
 
   private async assertCreateScope(

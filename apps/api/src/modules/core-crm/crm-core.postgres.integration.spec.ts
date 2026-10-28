@@ -1337,6 +1337,314 @@ describeIntegration('CRM-05 core CRM API (disposable PostgreSQL)', () => {
     ).toContain('person.archived');
   });
 
+  it('captures every CRM-06 supporting mutation in its tenant transaction', async () => {
+    const organization = await post('/api/v1/crm/organizations', {
+      name: 'Org Todos os Eventos',
+    });
+    expect(organization.status).toBe(201);
+    const organizationId = bodyOf(organization).id as string;
+
+    const person = await post('/api/v1/crm/people', {
+      fullName: 'Pessoa Eventos',
+      organizationId,
+    });
+    expect(person.status).toBe(201);
+    const personId = bodyOf(person).id as string;
+
+    const tag = await post('/api/v1/crm/tags', {
+      name: 'Evento',
+      color: '#abc123',
+    });
+    expect(tag.status).toBe(201);
+    const tagId = bodyOf(tag).id as string;
+
+    const attached = await request(server())
+      .put(`/api/v1/crm/tags/${tagId}/organizations/${organizationId}`)
+      .set(ingressHeaders(TENANT_A))
+      .set('Authorization', `Bearer ${tokenFor('admin')}`);
+    expect(attached.status).toBe(200);
+
+    const note = await post('/api/v1/crm/notes', {
+      organizationId,
+      body: 'Nota sobre a organização',
+    });
+    expect(note.status).toBe(201);
+
+    const updated = await patch(`/api/v1/crm/organizations/${organizationId}`, {
+      email: 'todos@eventos.test',
+    });
+    expect(updated.status).toBe(200);
+
+    const archived = await del(`/api/v1/crm/organizations/${organizationId}`);
+    expect(archived.status).toBe(200);
+
+    const orgEvents = await tenantAPool.query<{
+      event_kind: string;
+      actor_id: string;
+    }>(
+      `SELECT event_kind, actor_id::text FROM crm_timeline_events
+       WHERE organization_id = $1
+       ORDER BY occurred_at ASC, id ASC`,
+      [organizationId],
+    );
+    const orgKinds = orgEvents.rows.map((row) => row.event_kind);
+    expect(orgKinds).toEqual(
+      expect.arrayContaining([
+        'organization.created',
+        'relationship.created',
+        'tag.attached',
+        'note.created',
+        'organization.updated',
+        'organization.archived',
+      ]),
+    );
+    const createdEvent = orgEvents.rows.find(
+      (row) => row.event_kind === 'organization.created',
+    );
+    expect(createdEvent?.actor_id).toBe(actorIds.get('admin'));
+
+    const personEvents = await tenantAPool.query<{ event_kind: string }>(
+      `SELECT event_kind FROM crm_timeline_events WHERE person_id = $1`,
+      [personId],
+    );
+    expect(personEvents.rows.map((row) => row.event_kind)).toEqual(
+      expect.arrayContaining(['person.created', 'relationship.created']),
+    );
+  });
+
+  it('leaves no timeline event or row when a supporting mutation fails', async () => {
+    const archivedOrg = await post('/api/v1/crm/organizations', {
+      name: 'Org Arquivada',
+    });
+    expect(archivedOrg.status).toBe(201);
+    const archivedOrgId = bodyOf(archivedOrg).id as string;
+    await del(`/api/v1/crm/organizations/${archivedOrgId}`);
+
+    const failedPerson = await post('/api/v1/crm/people', {
+      fullName: 'Não Deve Existir',
+      organizationId: archivedOrgId,
+    });
+    expect(failedPerson.status).toBe(409);
+    expect(bodyOf(failedPerson)).toMatchObject({ code: 'resource_archived' });
+
+    const personRows = await tenantAPool.query<{ count: number }>(
+      `SELECT count(*)::int AS count FROM crm_people WHERE full_name = $1`,
+      ['Não Deve Existir'],
+    );
+    expect(personRows.rows[0]?.count).toBe(0);
+    const personEvents = await tenantAPool.query<{ event_kind: string }>(
+      `SELECT event_kind FROM crm_timeline_events
+       WHERE person_id IN (SELECT id FROM crm_people WHERE full_name = $1)`,
+      ['Não Deve Existir'],
+    );
+    expect(personEvents.rows).toEqual([]);
+
+    const person = await post('/api/v1/crm/people', { fullName: 'Viva' });
+    expect(person.status).toBe(201);
+    const personId = bodyOf(person).id as string;
+    const tag = await post('/api/v1/crm/tags', { name: 'Não Deve Anexar' });
+    expect(tag.status).toBe(201);
+    const tagId = bodyOf(tag).id as string;
+    await del(`/api/v1/crm/people/${personId}`);
+
+    const failedAttach = await request(server())
+      .put(`/api/v1/crm/tags/${tagId}/people/${personId}`)
+      .set(ingressHeaders(TENANT_A))
+      .set('Authorization', `Bearer ${tokenFor('admin')}`);
+    expect(failedAttach.status).toBe(409);
+    expect(bodyOf(failedAttach)).toMatchObject({ code: 'resource_archived' });
+
+    const assignmentEvents = await tenantAPool.query<{ event_kind: string }>(
+      `SELECT event_kind FROM crm_timeline_events WHERE tag_id = $1`,
+      [tagId],
+    );
+    expect(assignmentEvents.rows).toEqual([]);
+    const assignments = await tenantAPool.query<{ count: number }>(
+      `SELECT count(*)::int AS count FROM crm_tag_assignments WHERE tag_id = $1`,
+      [tagId],
+    );
+    expect(assignments.rows[0]?.count).toBe(0);
+  });
+
+  it('keeps tenant B unable to read or alter tenant A tags, notes, channel identities and timeline', async () => {
+    const organization = await post('/api/v1/crm/organizations', {
+      name: 'Org Secreta A',
+    });
+    expect(organization.status).toBe(201);
+    const organizationId = bodyOf(organization).id as string;
+    const person = await post('/api/v1/crm/people', {
+      fullName: 'Pessoa Secreta A',
+      organizationId,
+    });
+    expect(person.status).toBe(201);
+    const personId = bodyOf(person).id as string;
+
+    const tag = await post('/api/v1/crm/tags', { name: 'Secreto' });
+    expect(tag.status).toBe(201);
+    const tagId = bodyOf(tag).id as string;
+    await request(server())
+      .put(`/api/v1/crm/tags/${tagId}/people/${personId}`)
+      .set(ingressHeaders(TENANT_A))
+      .set('Authorization', `Bearer ${tokenFor('admin')}`);
+
+    const note = await post('/api/v1/crm/notes', {
+      personId,
+      body: 'Nota secreta',
+    });
+    expect(note.status).toBe(201);
+    const noteId = bodyOf(note).id as string;
+
+    await request(server())
+      .put(`/api/v1/crm/people/${personId}/channel-identities`)
+      .set(ingressHeaders(TENANT_A))
+      .set('Authorization', `Bearer ${tokenFor('admin')}`)
+      .send({
+        channel: 'whatsapp',
+        externalId: 'wa-secreto-1',
+        pushName: 'Push Secreto',
+      });
+
+    const getTagB = await get(
+      `/api/v1/crm/tags/${tagId}`,
+      tokenFor('badmin'),
+      TENANT_B,
+    );
+    expect(getTagB.status).toBe(404);
+    expect(bodyOf(getTagB)).toMatchObject({ code: 'tag_not_found' });
+
+    const attachB = await request(server())
+      .put(`/api/v1/crm/tags/${tagId}/people/${personId}`)
+      .set(ingressHeaders(TENANT_B))
+      .set('Authorization', `Bearer ${tokenFor('badmin')}`);
+    expect(attachB.status).toBe(404);
+
+    const getNoteB = await get(
+      `/api/v1/crm/notes/${noteId}`,
+      tokenFor('badmin'),
+      TENANT_B,
+    );
+    expect(getNoteB.status).toBe(404);
+
+    const createNoteB = await post(
+      '/api/v1/crm/notes',
+      { personId, body: 'Nota vazadora' },
+      tokenFor('badmin'),
+      TENANT_B,
+    );
+    expect(createNoteB.status).toBe(404);
+
+    const getIdentityB = await get(
+      `/api/v1/crm/people/${personId}/channel-identities`,
+      tokenFor('badmin'),
+      TENANT_B,
+    );
+    expect(getIdentityB.status).toBe(404);
+
+    const upsertIdentityB = await request(server())
+      .put(`/api/v1/crm/people/${personId}/channel-identities`)
+      .set(ingressHeaders(TENANT_B))
+      .set('Authorization', `Bearer ${tokenFor('badmin')}`)
+      .send({
+        channel: 'whatsapp',
+        externalId: 'wa-secreto-1',
+        pushName: 'Vazador',
+      });
+    expect(upsertIdentityB.status).toBe(404);
+
+    const getTimelineB = await get(
+      `/api/v1/crm/people/${personId}/timeline`,
+      tokenFor('badmin'),
+      TENANT_B,
+    );
+    expect(getTimelineB.status).toBe(404);
+
+    const getOrgTimelineB = await get(
+      `/api/v1/crm/organizations/${organizationId}/timeline`,
+      tokenFor('badmin'),
+      TENANT_B,
+    );
+    expect(getOrgTimelineB.status).toBe(404);
+
+    const stillThere = await get(`/api/v1/crm/people/${personId}`);
+    expect(stillThere.status).toBe(200);
+    expect(bodyOf(stillThere).fullName).toBe('Pessoa Secreta A');
+  });
+
+  it('channel metadata upsert update path never overwrites the confirmed CRM name', async () => {
+    const person = await post('/api/v1/crm/people', {
+      fullName: 'Nome confirmado no CRM',
+    });
+    expect(person.status).toBe(201);
+    const personId = bodyOf(person).id as string;
+
+    const first = await request(server())
+      .put(`/api/v1/crm/people/${personId}/channel-identities`)
+      .set(ingressHeaders(TENANT_A))
+      .set('Authorization', `Bearer ${tokenFor('admin')}`)
+      .send({
+        channel: 'whatsapp',
+        externalId: 'wa-nome-1',
+        pushName: 'Nome do WhatsApp',
+      });
+    expect(first.status).toBe(200);
+    expect(bodyOf(first).pushName).toBe('Nome do WhatsApp');
+
+    const second = await request(server())
+      .put(`/api/v1/crm/people/${personId}/channel-identities`)
+      .set(ingressHeaders(TENANT_A))
+      .set('Authorization', `Bearer ${tokenFor('admin')}`)
+      .send({
+        channel: 'whatsapp',
+        externalId: 'wa-nome-1',
+        pushName: 'Outro Nome',
+      });
+    expect(second.status).toBe(200);
+    expect(bodyOf(second).pushName).toBe('Outro Nome');
+
+    const metadata = await tenantAPool.query<{ push_name: string }>(
+      `SELECT push_name FROM crm_channel_identities WHERE person_id = $1`,
+      [personId],
+    );
+    expect(metadata.rows[0]?.push_name).toBe('Outro Nome');
+
+    const unchanged = await get(`/api/v1/crm/people/${personId}`);
+    expect(bodyOf(unchanged).fullName).toBe('Nome confirmado no CRM');
+  });
+
+  it('returns timeline events in chronological ascending order', async () => {
+    const organization = await post('/api/v1/crm/organizations', {
+      name: 'Org Cronologia',
+    });
+    expect(organization.status).toBe(201);
+    const organizationId = bodyOf(organization).id as string;
+
+    const tag = await post('/api/v1/crm/tags', { name: 'Cronologia' });
+    expect(tag.status).toBe(201);
+    const tagId = bodyOf(tag).id as string;
+
+    await request(server())
+      .put(`/api/v1/crm/tags/${tagId}/organizations/${organizationId}`)
+      .set(ingressHeaders(TENANT_A))
+      .set('Authorization', `Bearer ${tokenFor('admin')}`);
+
+    await post('/api/v1/crm/notes', { organizationId, body: 'Nota um' });
+    await patch(`/api/v1/crm/organizations/${organizationId}`, {
+      email: 'cron@org.test',
+    });
+
+    const timeline = await get(
+      `/api/v1/crm/organizations/${organizationId}/timeline`,
+      tokenFor('admin'),
+    );
+    expect(timeline.status).toBe(200);
+    const items = bodyOf(timeline).items as { occurredAt: string }[];
+    const occurred = items.map((item) => new Date(item.occurredAt).getTime());
+    expect(occurred.length).toBeGreaterThanOrEqual(2);
+    for (let i = 1; i < occurred.length; i++) {
+      expect(occurred[i]).toBeGreaterThanOrEqual(occurred[i - 1]);
+    }
+  });
+
   /* CRM-07 integration tests */
 
   it('searches approved fields, normalizes comparisons, and paginates', async () => {
