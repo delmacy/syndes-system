@@ -18,6 +18,12 @@ import {
   tenantDatabaseRoleName,
 } from '../src/modules/platform-core/control-plane/provisioning/provisioning-contracts';
 import { registerCsvBodyParser } from '../src/modules/core-crm/csv/csv-body-parser';
+import {
+  VALIDATED_TENANT_HOST_HEADER,
+  VALIDATED_TENANT_SIGNATURE_HEADER,
+  VALIDATED_TENANT_TIME_HEADER,
+  verifyValidatedHost,
+} from '../src/modules/platform-core/identity/trusted-ingress';
 
 const tenantId = 'ae2e174a-ef1c-496f-bf34-80727a87e799';
 const issuer = process.env.KEYCLOAK_ISSUER;
@@ -125,8 +131,54 @@ async function bootstrap() {
        SET role = 'tenant_admin', customer_scope = 'both', status = 'active'`,
     [tenantId, actor.rows[0].id],
   );
+  const seededContext = await controlPlane.query(
+    `SELECT 1
+       FROM tenants t
+       JOIN tenant_domains d ON d.tenant_id = t.id
+       JOIN tenant_memberships m ON m.tenant_id = t.id AND m.actor_id = $2
+       JOIN identity_actors a ON a.id = m.actor_id
+      WHERE t.id = $1 AND t.provisioning_state = 'ready'
+        AND d.hostname = 'localhost' AND d.status = 'active'
+        AND m.role = 'tenant_admin' AND m.status = 'active'
+        AND a.issuer = $3 AND a.subject = $4 AND a.platform_admin = false`,
+    [tenantId, actor.rows[0].id, issuer, subject],
+  );
+  if (seededContext.rowCount !== 1) {
+    throw new Error('Acceptance tenant identity seed did not resolve.');
+  }
+  console.log('CRM acceptance tenant identity and membership are ready.');
 
   const app = testingModule.createNestApplication();
+  app.use(
+    (
+      request: import('express').Request,
+      response: import('express').Response,
+      next: import('express').NextFunction,
+    ) => {
+      if (request.path === '/api/v1/crm/context') {
+        const host = request.headers[VALIDATED_TENANT_HOST_HEADER];
+        const timestamp = request.headers[VALIDATED_TENANT_TIME_HEADER];
+        const signature = request.headers[VALIDATED_TENANT_SIGNATURE_HEADER];
+        const valid =
+          typeof host === 'string' &&
+          typeof timestamp === 'string' &&
+          typeof signature === 'string' &&
+          Boolean(process.env.INGRESS_SIGNING_SECRET) &&
+          verifyValidatedHost(
+            host,
+            timestamp,
+            signature,
+            process.env.INGRESS_SIGNING_SECRET ?? '',
+          );
+        response.on('finish', () =>
+          console.log(
+            `CRM acceptance context check: status=${response.statusCode} trustedHost=${valid}`,
+          ),
+        );
+      }
+      next();
+    },
+  );
   registerCsvBodyParser(app);
   app.enableShutdownHooks();
   const port = Number(process.env.API_PORT ?? 3001);
