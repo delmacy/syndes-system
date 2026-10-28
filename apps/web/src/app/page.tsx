@@ -400,6 +400,17 @@ export default function CommercialHomePage() {
               <button className={styles.scheduleTabCalendar} type="button">
                 <Icon name="calendar" className={styles.tabIcon} />
                 Agendamentos
+                <span className={styles.demoCursor} aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="28" height="28">
+                    <path
+                      d="M5 3.5 18.5 13l-6.2 1.2 3.1 5.1-2.5 1.5-3.1-5.1L6 20.5 5 3.5Z"
+                      fill="currentColor"
+                      stroke="#0a0f0a"
+                      strokeWidth="1.2"
+                    />
+                  </svg>
+                  <i />
+                </span>
               </button>
             </div>
 
@@ -476,17 +487,6 @@ export default function CommercialHomePage() {
                 </div>
               </div>
 
-              <span className={styles.demoCursor} aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="28" height="28">
-                  <path
-                    d="M5 3.5 18.5 13l-6.2 1.2 3.1 5.1-2.5 1.5-3.1-5.1L6 20.5 5 3.5Z"
-                    fill="currentColor"
-                    stroke="#0a0f0a"
-                    strokeWidth="1.2"
-                  />
-                </svg>
-                <i />
-              </span>
             </div>
           </div>
         </div>
