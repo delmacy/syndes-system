@@ -70,7 +70,7 @@ export default function CommercialHomePage() {
     <main className={styles.site}>
       <header className={styles.header}>
         <Link className={styles.brand} href="/" aria-label={commercialSite.brandName}>
-          <span className={styles.brandMark}>S</span>
+          <span className={styles.brandMark}>{commercialSite.brandMark}</span>
           <span>{commercialSite.brandName}</span>
         </Link>
 
@@ -124,7 +124,7 @@ export default function CommercialHomePage() {
           <div className={styles.appWindow}>
             <div className={styles.windowTop}>
               <div className={styles.windowBrand}>
-                <span className={styles.miniMark}>S</span>
+                <span className={styles.miniMark}>{commercialSite.brandMark}</span>
                 <div>
                   <strong>Atendimento</strong>
                   <small>Visão da equipe</small>
@@ -386,7 +386,7 @@ export default function CommercialHomePage() {
 
       <footer className={styles.footer}>
         <div className={styles.brand}>
-          <span className={styles.brandMark}>S</span>
+          <span className={styles.brandMark}>{commercialSite.brandMark}</span>
           <span>{commercialSite.brandName}</span>
         </div>
         <p>
