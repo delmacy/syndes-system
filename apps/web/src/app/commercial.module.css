@@ -2746,3 +2746,111 @@
     transform: none;
   }
 }
+
+
+/* Cursor is anchored to the actual Agendamentos tab so the click target remains correct
+   regardless of viewport or demo width. */
+.scheduleTabCalendar {
+  position: relative;
+}
+
+.scheduleTabCalendar .demoCursor {
+  position: absolute;
+  z-index: 20;
+  left: 64%;
+  top: 9px;
+  display: block;
+  color: #f0f5ef;
+  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.66));
+  transform-origin: 4px 4px;
+  animation: scheduleCursorAnchored 14s ease-in-out infinite;
+}
+
+.scheduleTabCalendar .demoCursor i {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  left: 2px;
+  top: 1px;
+  border: 2px solid rgba(118, 185, 0, 0.8);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.35);
+  animation: scheduleClickPulse 14s ease-in-out infinite;
+}
+
+@keyframes scheduleCursorAnchored {
+  0%, 8% {
+    opacity: 0;
+    transform: translate3d(170px, 105px, 0) scale(1);
+  }
+  13% {
+    opacity: 1;
+    transform: translate3d(145px, 88px, 0) scale(1);
+  }
+  23%, 27% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  28% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(0.86);
+  }
+  31% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  39%, 79% {
+    opacity: 0.48;
+    transform: translate3d(72px, 112px, 0) scale(1);
+  }
+  87%, 100% {
+    opacity: 0;
+    transform: translate3d(105px, 142px, 0) scale(1);
+  }
+}
+
+@media (max-width: 760px) {
+  .scheduleTabCalendar .demoCursor {
+    left: 58%;
+    top: 9px;
+  }
+
+  @keyframes scheduleCursorAnchored {
+    0%, 8% {
+      opacity: 0;
+      transform: translate3d(105px, 92px, 0) scale(1);
+    }
+    13% {
+      opacity: 1;
+      transform: translate3d(82px, 70px, 0) scale(1);
+    }
+    23%, 27% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    28% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(0.86);
+    }
+    31% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    39%, 79% {
+      opacity: 0.42;
+      transform: translate3d(46px, 92px, 0) scale(1);
+    }
+    87%, 100% {
+      opacity: 0;
+      transform: translate3d(70px, 115px, 0) scale(1);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scheduleTabCalendar .demoCursor {
+    display: none;
+    animation: none;
+  }
+}
