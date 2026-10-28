@@ -1,0 +1,155 @@
+name: CRM Acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: true
+      CONTROL_PLANE_DATABASE_URL: postgresql://api_ci:api_ci_test_only@127.0.0.1:5432/control_plane
+      TENANT_ADMIN_DATABASE_URL: postgresql://api_ci:api_ci_test_only@127.0.0.1:5432/control_plane
+      TEST_DATABASE_HOST: 127.0.0.1
+      TEST_DATABASE_PORT: 5432
+      KEYCLOAK_ISSUER: http://localhost:8180/realms/test-syndes
+      KEYCLOAK_API_AUDIENCE: syndes-api
+      KEYCLOAK_ALLOWED_AZP: syndes-web
+      KEYCLOAK_WEB_CLIENT_ID: syndes-web
+      KEYCLOAK_WEB_CLIENT_SECRET: crm-acceptance-client-secret-only
+      KEYCLOAK_TEST_USERNAME: test-admin
+      KEYCLOAK_TEST_PASSWORD: test-only-password-3817
+      AUTH_SECRET: crm-acceptance-auth-secret-only-9d2f7c
+      AUTH_URL: http://localhost:3000
+      SYNDES_API_URL: http://127.0.0.1:3001
+      INGRESS_SIGNING_SECRET: crm-acceptance-ingress-secret-only-720a
+      E2E_BASE_URL: http://localhost:3000
+      E2E_KEYCLOAK_USERNAME: test-admin
+      E2E_KEYCLOAK_PASSWORD: test-only-password-3817
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: api_ci
+          POSTGRES_PASSWORD: api_ci_test_only
+          POSTGRES_DB: control_plane
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U api_ci -d control_plane"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare evidence directory
+        run: mkdir -p "$RUNNER_TEMP/syndes-acceptance"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Start isolated Keycloak realm
+        run: |
+          docker run --detach --name syndes-crm-acceptance-keycloak \
+            --publish 8180:8080 \
+            --volume "$GITHUB_WORKSPACE/tests/keycloak:/opt/keycloak/data/import:ro" \
+            quay.io/keycloak/keycloak:26.8.1 \
+            start-dev --hostname=http://localhost:8180 --import-realm
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail "$KEYCLOAK_ISSUER/.well-known/openid-configuration" >/dev/null; then
+              echo "Keycloak realm is ready"
+              exit 0
+            fi
+            sleep 5
+          done
+          docker logs syndes-crm-acceptance-keycloak
+          exit 1
+
+      - name: Apply Control Plane migrations
+        working-directory: apps/api
+        run: npm run cp:migrations:apply
+
+      - name: Start API with isolated acceptance bindings
+        working-directory: apps/api
+        run: |
+          mkdir -p "$RUNNER_TEMP/syndes-acceptance"
+          npm run acceptance:server > "$RUNNER_TEMP/syndes-acceptance/api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/syndes-acceptance/api.pid"
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail --output /dev/null http://127.0.0.1:3001/; then
+              echo "API is ready"
+              exit 0
+            fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/syndes-acceptance/api.pid")" 2>/dev/null; then
+              cat "$RUNNER_TEMP/syndes-acceptance/api.log"
+              exit 1
+            fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/syndes-acceptance/api.log"
+          exit 1
+
+      - name: Build Next.js web app
+        working-directory: apps/web
+        run: npm run build
+
+      - name: Start web app
+        working-directory: apps/web
+        run: |
+          npm run start -- --hostname 0.0.0.0 > "$RUNNER_TEMP/syndes-acceptance/web.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/syndes-acceptance/web.pid"
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail --output /dev/null "$E2E_BASE_URL/crm"; then
+              echo "Web app is ready"
+              exit 0
+            fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/syndes-acceptance/web.pid")" 2>/dev/null; then
+              cat "$RUNNER_TEMP/syndes-acceptance/web.log"
+              exit 1
+            fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/syndes-acceptance/web.log"
+          exit 1
+
+      - name: Install Chromium for Playwright
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Run authenticated CRM acceptance journey
+        working-directory: apps/web
+        env:
+          PLAYWRIGHT_JSON_OUTPUT: ${{ runner.temp }}/syndes-acceptance/playwright-results.json
+          PLAYWRIGHT_OUTPUT_DIR: ${{ runner.temp }}/syndes-acceptance/playwright-artifacts
+        run: npm run test:e2e:acceptance
+
+      - name: Collect service logs
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/syndes-acceptance"
+          docker logs syndes-crm-acceptance-keycloak > "$RUNNER_TEMP/syndes-acceptance/keycloak.log" 2>&1 || true
+
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crm-acceptance-${{ github.run_id }}
+          path: ${{ runner.temp }}/syndes-acceptance/
+          if-no-files-found: error
+          retention-days: 30

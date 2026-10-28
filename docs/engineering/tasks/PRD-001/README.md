@@ -17,7 +17,7 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 | CRM-08 | 2 | OpenCode Free corretivo; Codex revisa | ACEITA; testes unitários e integração PostgreSQL 17, lint, typecheck, build e audit local passaram; API CI verde em PostgreSQL 16 no commit `5a935f0` |
 | CRM-09 | 3 | Codex (após tentativas free sem worker confiável) | Validada localmente; Platform Admin UI e 3 testes de componente; CI remoto no gate final |
 | CRM-10 | 3 | Codex (execução direta; suporte API mínimo incluído) | Validada localmente; CRM UI e 3 testes de componente; CI remoto no gate final |
-| CRM-11 | 4 | Codex | Implementação e CI aceitas; gate final BLOQUEADO até demonstrar a jornada autenticada com Keycloak e tenant descartável |
+| CRM-11 | 4 | Codex | Implementação e CI aceitas; gate final BLOQUEADO até executar e revisar a jornada autenticada pelo workflow manual com Keycloak e tenant descartáveis |
 
 ## Decisões confirmadas pelo usuário
 
@@ -45,6 +45,7 @@ Estas ordens são ordens locais derivadas de `docs/product/PRD-001-CORE-CRM-SPEC
 - CI remoto do commit `93eeda6`: API run `40586765411` e Repository Integrity run `40586765265` verdes; CI Web incluído no job da API também verde. CRM-11 registrou `BLOQUEADO` somente para a demonstração autenticada em ambiente Keycloak/tenant de teste, indisponível neste checkout. O script Playwright está pronto/listável e permanece opt-in.
 - Correção do teardown PostgreSQL (2026-10-28): commit `5a935f0` aguarda o encerramento das conexões dos pools antes de remover databases de teste, sem `DROP DATABASE ... WITH (FORCE)`. A API run `40630437451` passou incluindo integração em PostgreSQL 16 e verificação de migrations/provisioning; Repository Integrity run `40630437336` passou. Com isso, o gate de CI da Sprint 2 está ACEITO. CRM-11 permanece bloqueado apenas pela jornada autenticada com Keycloak e tenant de teste.
 - CRM-11 assessment read-only via OpenCode/NVIDIA (2026-10-28): script Playwright já está headless e produz JSON/logs; não existe semeadura de realm/usuário Keycloak. O worker usou efetivamente `nvidia/nemotron-3.5-lightning-30b-a3b`, não alterou arquivos nem iniciou serviços. A trava restante é preparar um realm e usuário de teste junto de um tenant provisionado e executar/analisar a jornada.
+- CRM-11 harness (2026-10-28): workflow manual exclusivo importa realm Keycloak de teste, aplica migrations, provisiona tenant com o serviço real e inicia API + Next antes de rodar Playwright headless. Credenciais sintéticas e overrides em memória ficam limitados ao processo de aceite; o JSON e os logs serão anexados ao workflow. O gate continua bloqueado até executar e revisar esses artefatos.
 
 ## Regras de dispatch
 

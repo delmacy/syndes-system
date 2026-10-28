@@ -62,7 +62,7 @@
 
 **Gate final:** Core CRM só é aceito quando funcional, integrado, seguro, testado e demonstrável. Só então começa Inbox.
 
-**Estado (2026-10-28):** implementação do Core CRM concluída e validada por CI. CRM-11 continua `BLOQUEADO` somente pela demonstração autenticada em ambiente Keycloak/tenant de teste. A avaliação read-only do OpenCode confirmou que não há realm/usuário de teste semeado no repositório; o setup local e a execução Playwright ainda faltam. Inbox permanece fechado até a jornada autenticada ser demonstrada e o gate ACEITO.
+**Estado (2026-10-28):** implementação do Core CRM concluída e validada por CI. CRM-11 continua `BLOQUEADO` até executar e revisar a jornada autenticada. O workflow manual `CRM Acceptance` agora prepara um realm Keycloak descartável, provisiona tenant PostgreSQL e coleta JSON/logs Playwright; essa execução ainda falta. Inbox permanece fechado até a jornada autenticada ser demonstrada e o gate ACEITO.
 
 ## Próxima ação
 

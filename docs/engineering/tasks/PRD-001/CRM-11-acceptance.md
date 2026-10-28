@@ -2,7 +2,7 @@
 
 - **Módulo/gate:** Core CRM integrated acceptance / Sprint 4.
 - **Classificação:** MVP.
-- **Prioridade/estado:** P0 final / BLOQUEADO para aceite integral apenas pela ausência de ambiente Keycloak/tenant de teste para demonstração autenticada.
+- **Prioridade/estado:** P0 final / BLOQUEADO até a execução e revisão da jornada autenticada no workflow manual `CRM Acceptance`.
 - **Responsável:** Codex coordena e aceita; agentes implementadores só recebem correções novas, delimitadas e sequenciais.
 - **Issue/branch/commit/PR:** ainda não criados; esta é uma ordem local, sem operação externa.
 
@@ -25,9 +25,9 @@ Consolidar evidência de requisitos, integração, segurança, testes e prontid�
 - Provisioning: migrations aplicadas do zero e reaplicadas como no-op; role tenant sem privilégios de criação e sem conexão cruzada entre databases.
 - Web: lint, typecheck, build; Vitest: 8 arquivos/17 testes aprovados.
 - `npm audit --audit-level=high`: zero vulnerabilidades em API e web.
-- Playwright: a jornada existe e aparece em `--list`; execução opt-in não realizada.
+- Playwright: jornada headless existente; workflow manual `CRM Acceptance` preparado para importar realm Keycloak descartável, provisionar tenant real em PostgreSQL e guardar JSON/logs. Execução ainda pendente.
 - GitHub Actions do commit `5a935f0`: API run [40630437451](https://github.com/delmacy/syndes-system/actions/runs/40630437451) passou, incluindo PostgreSQL 16, migrations, provisioning e o job Web; Repository Integrity run [40630437336](https://github.com/delmacy/syndes-system/actions/runs/40630437336) passou. O teardown dos bancos de integração agora espera o encerramento das conexões e não usa `DROP DATABASE ... WITH (FORCE)`.
-- Ainda pendente: execução/demonstração da jornada autenticada em ambiente com Keycloak e tenant provisionado. O assessment read-only confirmou que o repositório não semeia realm nem usuário Keycloak de teste; até haver output Playwright aprovado, a decisão formal deste gate permanece `BLOQUEADO` e não se declara `ACEITO`.
+- Ainda pendente: executar o workflow manual e revisar o JSON Playwright e logs dos serviços. O harness é exclusivo do workflow opt-in, usa credenciais sintéticas e overrides de teste em memória; até haver output Playwright aprovado, a decisão formal deste gate permanece `BLOQUEADO` e não se declara `ACEITO`.
 
 ## Excluído
 
@@ -40,5 +40,5 @@ Consolidar evidência de requisitos, integração, segurança, testes e prontid�
 - CI do commit revisado verde; migrations testadas em PostgreSQL descartável.
 - Zero cross-tenant disclosure e unauthorized access em testes; manager sem acesso implícito a CRM.
 - Regras de DoD global cumpridas e jornada demonstrável.
-- Decisão formal `ACEITO`, `CORREÇÕES NECESSÁRIAS` ou `BLOQUEADO`, com evidência e próximo responsável. Estado atual: `BLOQUEADO` pela demonstração autenticada; próximo responsável é o operador do ambiente, que deve fornecer um realm Keycloak e um tenant de teste acessíveis para rodar o script Playwright headless e revisar seus logs.
+- Decisão formal `ACEITO`, `CORREÇÕES NECESSÁRIAS` ou `BLOQUEADO`, com evidência e próximo responsável. Estado atual: `BLOQUEADO` até a execução e revisão do workflow manual; próximo responsável é Codex, que deve iniciar a execução, analisar os artefatos e corrigir falhas do harness ou da jornada.
 - Próximo módulo (Inbox) só fica liberado após `ACEITO` no Core CRM.

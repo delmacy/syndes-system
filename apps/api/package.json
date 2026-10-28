@@ -24,7 +24,8 @@
     "cp:migrations:apply": "node scripts/apply-control-plane-migrations.mjs",
     "cp:migrations:verify": "node scripts/verify-control-plane-migrations.mjs",
     "tenant:migrations:apply": "node scripts/apply-tenant-migrations.mjs",
-    "tenant:verify:provisioning": "node scripts/verify-tenant-provisioning.mjs"
+    "tenant:verify:provisioning": "node scripts/verify-tenant-provisioning.mjs",
+    "acceptance:server": "ts-node -r tsconfig-paths/register test/acceptance-server.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
