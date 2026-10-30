@@ -213,7 +213,12 @@ async function awaitMain(adminDatabaseUrl) {
             'crm_tag_assignments',
             'crm_tags',
             'crm_timeline_events',
+            'inbox_attachments',
+            'inbox_conversations',
+            'inbox_messages',
+            'inbox_private_notes',
             'tenant_baseline_info',
+            'whatsapp_connections',
           ]),
         firstApplyTables.join(','),
       );
@@ -240,7 +245,7 @@ async function awaitMain(adminDatabaseUrl) {
         );
         check(
           'tenant drizzle journal keeps the durable migration step state',
-          journal.rows[0]?.count === 3,
+          journal.rows[0]?.count === 8,
           `count=${journal.rows[0]?.count ?? 'missing'}`,
         );
       } finally {
