@@ -94,12 +94,20 @@ for (const [field, key] of REQUIRED_TRAILERS) {
 const hasBaseTrailer = Boolean(headTrailers['Base-SHA']);
 if (hasBaseTrailer) values.base_sha_declared = headTrailers['Base-SHA'];
 
+// Em eventos de pull_request, GITHUB_REF_NAME é a ref sintética (ex.: "1/merge"),
+// não a branch do autor; preferimos a head-ref do payload.
+const branch =
+  event.pull_request?.head?.ref ||
+  process.env.GITHUB_HEAD_REF ||
+  (eventName.startsWith('pull_request') ? '' : process.env.GITHUB_REF_NAME) ||
+  tryGit('rev-parse', '--abbrev-ref', 'HEAD');
+
 const provenance = {
   schema: 'syndes.provenance/1',
   head_sha: headSha,
   base_sha: baseSha,
   base_source: baseSource,
-  branch: process.env.GITHUB_REF_NAME || tryGit('rev-parse', '--abbrev-ref', 'HEAD'),
+  branch,
   event: eventName,
   actor: process.env.GITHUB_ACTOR || '',
   commit: {
