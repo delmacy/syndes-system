@@ -5,7 +5,7 @@ Codinome interno do produto SaaS atualmente em desenvolvimento.
 ## Estado
 
 - MVP scope: **FROZEN**
-- Fase atual: **PRD-001 Core CRM**
+- Fase atual: **PRD-003 WhatsApp** (CRM aceito; Inbox operacional no escopo Tailscale)
 - Estratégia: **um módulo funcional por vez**
 - Arquitetura de negócio: **monólito modular**, salvo separação comprovadamente necessária
 - Regra de escopo: toda nova ideia é classificada como `BLOCKER`, `BUG`, `MVP` ou `POST-MVP`
@@ -29,7 +29,7 @@ Instagram, Google Calendar, Automation Platform, AI Advanced, ERP, estoque, fina
 
 ## Organização atual
 
-O repositório começou pela governança de produto e engenharia. O handoff técnico do PRD-001 registra NestJS no backend, Next.js App Router no frontend separado e Drizzle ORM + `pg` para PostgreSQL. O primeiro slice iniciou o registro de tenants do Control Plane e o caminho de migrations descartáveis no CI. Ainda não há endpoints autenticados, provisionamento de tenant, comportamento do CRM ou frontend. As decisões restantes e o progresso verificável estão em `docs/engineering/PRD-001-CORE-CRM-TECH-HANDOFF.md`.
+O Core CRM (PRD-001) foi aceito no Product Gate CRM-11; a entrega verificável está registrada em `docs/engineering/PRD-001-CORE-CRM-SPRINT-PLAN.md` e `docs/engineering/tasks/PRD-001/CRM-11-acceptance.md`. Inbox (PRD-002) está operacional no escopo Tailscale. WhatsApp (PRD-003) é o módulo corrente; sua spec e plano estão em `docs/product/PRD-003-WHATSAPP-SPEC.md` e `docs/engineering/PRD-003-WHATSAPP-SPRINT-PLAN.md`.
 
 - `AGENTS.md`: regras globais para agentes e contribuidores
 - `modules/*/AGENTS.md`: contrato de trabalho de cada módulo

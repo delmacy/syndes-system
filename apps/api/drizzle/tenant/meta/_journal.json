@@ -22,6 +22,41 @@
       "when": 1793365200000,
       "tag": "20261029153000_crm_supporting",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793377200000,
+      "tag": "20261029180000_inbox_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793388000000,
+      "tag": "20261029200000_inbox_channel_ingress",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793396400000,
+      "tag": "20261029220000_inbox_attachments",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793440800000,
+      "tag": "20261030090000_whatsapp_connections",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793444400000,
+      "tag": "20261030100000_whatsapp_entitlement",
+      "breakpoints": true
     }
   ]
 }

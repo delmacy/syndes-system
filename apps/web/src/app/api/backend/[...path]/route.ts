@@ -102,6 +102,8 @@ async function forward(
 
   const contentType = request.headers.get("content-type");
   if (contentType) headers.set("content-type", contentType);
+  const idempotencyKey = request.headers.get("idempotency-key");
+  if (idempotencyKey) headers.set("idempotency-key", idempotencyKey);
 
   // Never forward client-supplied x-syndes-validated-* or tenant/database selectors.
   const body = ["GET", "HEAD"].includes(request.method)

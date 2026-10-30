@@ -1,0 +1,1123 @@
+{
+  "id": "0970caea-04c5-4bda-ae1d-9bdad96d4ad1",
+  "prevId": "9e2a4c7f-6b31-4d58-9a2f-1e8d4b7c05a2",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.tenant_baseline_info": {
+      "name": "tenant_baseline_info",
+      "schema": "",
+      "columns": {
+        "baseline_version": {
+          "name": "baseline_version",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "applied_at": {
+          "name": "applied_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tenant_baseline_info_row_pk": {
+          "name": "tenant_baseline_info_row_pk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "baseline_version"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.crm_organizations": {
+      "name": "crm_organizations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cnpj": {
+          "name": "cnpj",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.crm_people": {
+      "name": "crm_people",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cpf": {
+          "name": "cpf",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.crm_relationships": {
+      "name": "crm_relationships",
+      "schema": "",
+      "columns": {
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'contact'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "crm_relationships_person_fk": {
+          "name": "crm_relationships_person_fk",
+          "tableFrom": "crm_relationships",
+          "columnsFrom": [
+            "person_id"
+          ],
+          "tableTo": "crm_people",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        },
+        "crm_relationships_organization_fk": {
+          "name": "crm_relationships_organization_fk",
+          "tableFrom": "crm_relationships",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "tableTo": "crm_organizations",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        }
+      },
+      "compositePrimaryKeys": {
+        "crm_relationships_person_org_pk": {
+          "name": "crm_relationships_person_org_pk",
+          "columns": [
+            "person_id",
+            "organization_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.crm_employees": {
+      "name": "crm_employees",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "true"
+        },
+        "control_plane_actor_id": {
+          "name": "control_plane_actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.crm_tags": {
+      "name": "crm_tags",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "color": {
+          "name": "color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.crm_tag_assignments": {
+      "name": "crm_tag_assignments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tag_id": {
+          "name": "tag_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "crm_tag_assignments_tag_fk": {
+          "name": "crm_tag_assignments_tag_fk",
+          "tableFrom": "crm_tag_assignments",
+          "columnsFrom": [
+            "tag_id"
+          ],
+          "tableTo": "crm_tags",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        },
+        "crm_tag_assignments_person_fk": {
+          "name": "crm_tag_assignments_person_fk",
+          "tableFrom": "crm_tag_assignments",
+          "columnsFrom": [
+            "person_id"
+          ],
+          "tableTo": "crm_people",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        },
+        "crm_tag_assignments_organization_fk": {
+          "name": "crm_tag_assignments_organization_fk",
+          "tableFrom": "crm_tag_assignments",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "tableTo": "crm_organizations",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.crm_notes": {
+      "name": "crm_notes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "crm_notes_person_fk": {
+          "name": "crm_notes_person_fk",
+          "tableFrom": "crm_notes",
+          "columnsFrom": [
+            "person_id"
+          ],
+          "tableTo": "crm_people",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        },
+        "crm_notes_organization_fk": {
+          "name": "crm_notes_organization_fk",
+          "tableFrom": "crm_notes",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "tableTo": "crm_organizations",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.crm_timeline_events": {
+      "name": "crm_timeline_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "event_kind": {
+          "name": "event_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tag_id": {
+          "name": "tag_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note_id": {
+          "name": "note_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "clock_timestamp()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "crm_timeline_events_person_fk": {
+          "name": "crm_timeline_events_person_fk",
+          "tableFrom": "crm_timeline_events",
+          "columnsFrom": [
+            "person_id"
+          ],
+          "tableTo": "crm_people",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        },
+        "crm_timeline_events_organization_fk": {
+          "name": "crm_timeline_events_organization_fk",
+          "tableFrom": "crm_timeline_events",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "tableTo": "crm_organizations",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        },
+        "crm_timeline_events_tag_fk": {
+          "name": "crm_timeline_events_tag_fk",
+          "tableFrom": "crm_timeline_events",
+          "columnsFrom": [
+            "tag_id"
+          ],
+          "tableTo": "crm_tags",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        },
+        "crm_timeline_events_note_fk": {
+          "name": "crm_timeline_events_note_fk",
+          "tableFrom": "crm_timeline_events",
+          "columnsFrom": [
+            "note_id"
+          ],
+          "tableTo": "crm_notes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.crm_channel_identities": {
+      "name": "crm_channel_identities",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channel": {
+          "name": "channel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_username": {
+          "name": "external_username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "push_name": {
+          "name": "push_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "business_name": {
+          "name": "business_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "crm_channel_identities_person_fk": {
+          "name": "crm_channel_identities_person_fk",
+          "tableFrom": "crm_channel_identities",
+          "columnsFrom": [
+            "person_id"
+          ],
+          "tableTo": "crm_people",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "NO ACTION"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.inbox_conversations": {
+      "name": "inbox_conversations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "assignee_actor_id": {
+          "name": "assignee_actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "channel": {
+          "name": "channel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'unknown'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "inbox_conversations_person_idx": {
+          "name": "inbox_conversations_person_idx",
+          "columns": [
+            "person_id"
+          ]
+        },
+        "inbox_conversations_organization_idx": {
+          "name": "inbox_conversations_organization_idx",
+          "columns": [
+            "organization_id"
+          ]
+        },
+        "inbox_conversations_assignee_actor_idx": {
+          "name": "inbox_conversations_assignee_actor_idx",
+          "columns": [
+            "assignee_actor_id"
+          ]
+        },
+        "inbox_conversations_status_idx": {
+          "name": "inbox_conversations_status_idx",
+          "columns": [
+            "status",
+            "created_at",
+            "id"
+          ]
+        }
+      },
+      "foreignKeys": {
+        "inbox_conversations_person_fk": {
+          "name": "inbox_conversations_person_fk",
+          "tableFrom": "inbox_conversations",
+          "columnsFrom": [
+            "person_id"
+          ],
+          "tableTo": "crm_people",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "SET NULL"
+        },
+        "inbox_conversations_organization_fk": {
+          "name": "inbox_conversations_organization_fk",
+          "tableFrom": "inbox_conversations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "tableTo": "crm_organizations",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "SET NULL"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "inbox_conversations_status_check": {
+          "name": "inbox_conversations_status_check",
+          "columns": [
+            "status"
+          ],
+          "definition": "\"status\" IN ('open', 'pending', 'resolved')"
+        },
+        "inbox_conversations_channel_check": {
+          "name": "inbox_conversations_channel_check",
+          "columns": [
+            "channel"
+          ],
+          "definition": "\"channel\" IN ('whatsapp', 'email', 'unknown')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.inbox_messages": {
+      "name": "inbox_messages",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "direction": {
+          "name": "direction",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author_actor_id": {
+          "name": "author_actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author_external_id": {
+          "name": "author_external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delivery_status": {
+          "name": "delivery_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_channel": {
+          "name": "source_channel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "inbox_messages_conversation_order_idx": {
+          "name": "inbox_messages_conversation_order_idx",
+          "columns": [
+            "conversation_id",
+            "created_at",
+            "id"
+          ]
+        },
+        "inbox_messages_conversation_external_unique": {
+          "name": "inbox_messages_conversation_external_unique",
+          "columns": [
+            "conversation_id",
+            "external_id"
+          ],
+          "isUnique": true,
+          "where": "\"external_id\" IS NOT NULL"
+        },
+        "inbox_messages_channel_external_unique": {
+          "name": "inbox_messages_channel_external_unique",
+          "columns": [
+            "source_channel",
+            "external_id"
+          ],
+          "isUnique": true,
+          "where": "\"external_id\" IS NOT NULL AND \"source_channel\" IS NOT NULL"
+        },
+        "inbox_messages_conversation_idempotency_unique": {
+          "name": "inbox_messages_conversation_idempotency_unique",
+          "columns": [
+            "conversation_id",
+            "idempotency_key"
+          ],
+          "isUnique": true,
+          "where": "\"idempotency_key\" IS NOT NULL"
+        }
+      },
+      "foreignKeys": {
+        "inbox_messages_conversation_fk": {
+          "name": "inbox_messages_conversation_fk",
+          "tableFrom": "inbox_messages",
+          "columnsFrom": [
+            "conversation_id"
+          ],
+          "tableTo": "inbox_conversations",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "CASCADE"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "inbox_messages_direction_check": {
+          "name": "inbox_messages_direction_check",
+          "columns": [
+            "direction"
+          ],
+          "definition": "\"direction\" IN ('inbound', 'outbound')"
+        },
+        "inbox_messages_body_check": {
+          "name": "inbox_messages_body_check",
+          "columns": [
+            "body"
+          ],
+          "definition": "\"body\" <> '' AND char_length(\"body\") <= 10000"
+        },
+        "inbox_messages_delivery_status_check": {
+          "name": "inbox_messages_delivery_status_check",
+          "columns": [
+            "delivery_status"
+          ],
+          "definition": "\"delivery_status\" IN ('pending', 'dispatched', 'failed')"
+        },
+        "inbox_messages_author_actor_id_check": {
+          "name": "inbox_messages_author_actor_id_check",
+          "columns": [],
+          "definition": "(\"direction\" = 'outbound' AND \"author_actor_id\" IS NOT NULL AND \"author_external_id\" IS NULL) OR (\"direction\" = 'inbound' AND \"author_actor_id\" IS NULL AND \"author_external_id\" IS NOT NULL)"
+        },
+        "inbox_messages_author_external_id_check": {
+          "name": "inbox_messages_author_external_id_check",
+          "columns": [
+            "author_external_id"
+          ],
+          "definition": "\"author_external_id\" IS NULL OR (\"author_external_id\" <> '' AND char_length(\"author_external_id\") <= 200)"
+        },
+        "inbox_messages_external_id_check": {
+          "name": "inbox_messages_external_id_check",
+          "columns": [
+            "external_id"
+          ],
+          "definition": "\"external_id\" IS NULL OR (\"external_id\" <> '' AND char_length(\"external_id\") <= 200)"
+        },
+        "inbox_messages_idempotency_key_check": {
+          "name": "inbox_messages_idempotency_key_check",
+          "columns": [
+            "idempotency_key"
+          ],
+          "definition": "\"idempotency_key\" IS NULL OR (\"idempotency_key\" <> '' AND char_length(\"idempotency_key\") <= 200)"
+        },
+        "inbox_messages_source_channel_check": {
+          "name": "inbox_messages_source_channel_check",
+          "columns": [
+            "source_channel"
+          ],
+          "definition": "\"source_channel\" IS NULL OR \"source_channel\" IN ('whatsapp', 'email')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.inbox_private_notes": {
+      "name": "inbox_private_notes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author_actor_id": {
+          "name": "author_actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "inbox_private_notes_conversation_order_idx": {
+          "name": "inbox_private_notes_conversation_order_idx",
+          "columns": [
+            "conversation_id",
+            "created_at",
+            "id"
+          ]
+        }
+      },
+      "foreignKeys": {
+        "inbox_private_notes_conversation_fk": {
+          "name": "inbox_private_notes_conversation_fk",
+          "tableFrom": "inbox_private_notes",
+          "columnsFrom": [
+            "conversation_id"
+          ],
+          "tableTo": "inbox_conversations",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "NO ACTION",
+          "onDelete": "CASCADE"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "inbox_private_notes_body_check": {
+          "name": "inbox_private_notes_body_check",
+          "columns": [
+            "body"
+          ],
+          "definition": "\"body\" <> '' AND char_length(\"body\") <= 10000"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

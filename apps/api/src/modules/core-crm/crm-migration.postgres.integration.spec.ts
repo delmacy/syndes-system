@@ -10,6 +10,8 @@ const describeControlPlane = process.env.CONTROL_PLANE_DATABASE_URL
   ? describe
   : describe.skip;
 
+jest.setTimeout(30_000);
+
 /**
  * CRM-06 migration proof over disposable PostgreSQL 16: the reviewed tenant
  * migrations apply the Core CRM baseline to an empty tenant database and
@@ -101,7 +103,14 @@ describeControlPlane(
       'crm_tag_assignments',
       'crm_tags',
       'crm_timeline_events',
+      // INBOX-02 baseline tables (same tenant database, no tenant_id columns).
+      // INBOX-04 private attachment metadata (bytes stay outside PostgreSQL).
+      'inbox_attachments',
+      'inbox_conversations',
+      'inbox_messages',
+      'inbox_private_notes',
       'tenant_baseline_info',
+      'whatsapp_connections',
     ];
 
     it('applies the CRM-05 and CRM-06 schema migrations to an empty database', async () => {

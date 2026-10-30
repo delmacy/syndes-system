@@ -36,7 +36,11 @@ import { CrmContextController } from './crm-context.controller';
  * requires IdentityAuthGuard + TenantContextGuard: the TenantContext is
  * resolved server-side only and determines the single tenant database the
  * request may touch. Supporting CRM features share this boundary and the
- * same server-derived TenantContext as the core entity APIs.
+ * same server-derived TenantContext as the core entity APIs. Inbox
+ * (PRD-002) reuses the SAME tenant-database boundary: CoreCrmModule
+ * re-exports `TenantCrmDatabase` so the Inbox routes its persistence
+ * through the identical TenantContext-resolved registry, with no duplicate
+ * database/security provider introduced.
  */
 @Module({
   imports: [PlatformCoreModule],
@@ -71,5 +75,6 @@ import { CrmContextController } from './crm-context.controller';
     DuplicatesService,
     CrmCsvService,
   ],
+  exports: [TenantCrmDatabase],
 })
 export class CoreCrmModule {}

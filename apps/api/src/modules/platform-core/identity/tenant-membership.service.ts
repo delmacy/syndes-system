@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  HttpStatus,
 } from '@nestjs/common';
 import type { Pool, PoolClient } from 'pg';
 import type { CustomerScope, TenantContext } from './identity.contracts';
@@ -53,18 +54,28 @@ export class TenantMembershipService {
       actorId,
       'tenant.membership.grant',
       async (client) => {
+        // Use ON CONFLICT DO UPDATE to support revoke-then-regrant lifecycle.
+        // When a membership already exists (active or revoked), we reactivate it
+        // instead of throwing a conflict error.
         const result = await client.query<{
           actor_id: string;
           customer_scope: CustomerScope;
           status: 'active';
         }>(
           `INSERT INTO tenant_memberships (tenant_id, actor_id, role, customer_scope, status)
-         SELECT $1, a.id, 'tenant_member', $3, 'active' FROM identity_actors a WHERE a.id = $2
-         RETURNING actor_id, customer_scope, status`,
+          VALUES ($1, $2, 'tenant_member', $3, 'active')
+          ON CONFLICT (tenant_id, actor_id)
+          DO UPDATE SET status = 'active', customer_scope = EXCLUDED.customer_scope, updated_at = now()
+          RETURNING actor_id, customer_scope, status`,
           [context.tenantId, actorId, scope],
         );
         if (!result.rowCount)
-          throw new NotFoundException('Member identity not found');
+          throw new NotFoundException({
+            code: 'actor_not_found',
+            statusCode: HttpStatus.NOT_FOUND,
+            detail:
+              'No local identity actor exists for the requested membership actor.',
+          });
         return {
           actorId: result.rows[0].actor_id,
           role: 'tenant_member',
@@ -150,13 +161,21 @@ export class TenantMembershipService {
       await client.query('COMMIT');
       return member;
     } catch (error) {
-      await client.query('ROLLBACK');
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // The connection is already unusable; surface the original error.
+      }
       if (
         typeof error === 'object' &&
         error !== null &&
         (error as NodeJS.ErrnoException).code === '23505'
       ) {
-        throw new ConflictException('Tenant membership already exists');
+        throw new ConflictException({
+          code: 'membership_exists',
+          statusCode: HttpStatus.CONFLICT,
+          detail: 'A membership already exists for this identity and tenant.',
+        });
       }
       throw error;
     } finally {

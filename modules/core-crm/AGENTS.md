@@ -2,9 +2,9 @@
 
 ## Status
 
-**CURRENT MODULE — PRD-001**
+**DONE — PRD-001 Product Gate aceito em CRM-11 (2026-10-28).**
 
-Nenhum outro módulo funcional deve avançar para implementação antes do Product Gate do Core CRM.
+O próximo módulo funcional é Inbox (PRD-002), conforme a ordem global. Mudanças futuras no Core CRM só entram para corrigir BUG/BLOCKER ou suportar diretamente um contrato aprovado de módulo consumidor.
 
 ## Missão
 

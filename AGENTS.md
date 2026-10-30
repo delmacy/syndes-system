@@ -1,11 +1,9 @@
-# AGENTS.md — Syndes Global
+# AGENTS.md — Syndes Global (unchanged)
 
 ## Missão
-
 Entregar o MVP da Syndes até produção e primeiro cliente externo pagante, sem reabrir continuamente o escopo.
 
 ## Regra principal
-
 Antes de implementar qualquer ideia nova, classifique-a:
 
 - `BLOCKER`: impede entrega, operação, segurança ou compliance.
@@ -16,7 +14,6 @@ Antes de implementar qualquer ideia nova, classifique-a:
 Itens `POST-MVP` podem ser registrados em uma linha, mas **não recebem pesquisa, arquitetura, spike, WP ou implementação antes do lançamento**.
 
 ## Ordem de execução
-
 Trabalhar funcionalmente em apenas um módulo de produto por vez:
 
 1. Core CRM
@@ -31,25 +28,21 @@ Trabalhar funcionalmente em apenas um módulo de produto por vez:
 10. Commercial Website
 11. Release Candidate
 
-A fase corrente é **Core CRM**.
+A fase corrente é **WhatsApp (PRD-003)**; o Product Gate do Core CRM foi aceito em CRM-11 e o Inbox permanece operacional no escopo Tailscale.
 
 ## Princípios de engenharia
-
 - Preferir monólito modular enquanto não houver evidência concreta para separação.
 - Não criar abstrações para problemas hipotéticos.
 - Infraestrutura acompanha a necessidade do produto, não o contrário.
-- `IMPLEMENTED != INTEGRATED != TESTED != PROVEN != DONE`.
-- Um módulo só está DONE se estiver integrado, seguro, testado, observável, utilizável e demonstrável.
+- `IMPLEMENTED != INTEGRATED != TESTED != PROVEN != DONE`. Um módulo só está DONE se estiver integrado, seguro, testado, observável, utilizável e demonstrável.
 - Não duplicar source of truth.
 - Não introduzir provider externo diretamente no domínio; usar contratos/adapters quando houver risco de substituição real já conhecido.
 - Não criar framework genérico de plugins, workflow engine ou marketplace no MVP.
 
 ## Segurança global
-
 Segurança é requisito funcional transversal.
 
 Obrigatório:
-
 - tenant isolation;
 - server-side authorization;
 - least privilege;
@@ -67,7 +60,6 @@ Obrigatório:
 Uma única exposição cross-tenant é falha crítica.
 
 ## Dados
-
 - Control Plane possui banco próprio.
 - Cada tenant possui PostgreSQL database próprio.
 - IDs permanentes não dependem de nome comercial.
@@ -75,7 +67,6 @@ Uma única exposição cross-tenant é falha crítica.
 - CRM é fonte canônica de pessoas/organizações; canais mantêm identidades externas vinculadas.
 
 ## Billing
-
 Cada pagamento confirmado concede 30 dias de uso a partir da confirmação.
 
 - D+0 a D+10: operação completa.
@@ -85,7 +76,6 @@ Cada pagamento confirmado concede 30 dias de uso a partir da confirmação.
 - Regularização reativa automaticamente e define novo `paid_until = payment_confirmed_at + 30 dias`.
 
 ## Git e CI
-
 - Não considerar um commit saudável sem CI verde.
 - Toda alteração deve preservar testes existentes.
 - Não enfraquecer testes para fazer CI passar.
@@ -94,8 +84,17 @@ Cada pagamento confirmado concede 30 dias de uso a partir da confirmação.
 - Stress tests pesados não rodam em cada commit; integridade rápida roda em commits/PRs.
 - Release Candidate exige stress, spike, soak, backup/restore e isolamento aprovados.
 
-## Performance
+## Orquestração e continuidade
 
+- O coordenador deve manter a sessão de orquestração ativa enquanto houver workers trabalhando no módulo corrente.
+- Observar periodicamente os workers e a Run, executar `orca orchestration check`, ler e tratar cada entrega, reconhecer deliveries pendentes e despachar o próximo follow-up quando houver trabalho autorizado.
+- A entrega do Orca é pull-based: quando não houver nova mensagem, manter um ciclo de `check --wait`/checagem periódica; não presumir que o Orca abrirá uma nova interação automaticamente ao terminar um worker.
+- Para planejamento, decomposição, checkpoints e fechamento de tasks, usar `.agents/skills/task-manager/SKILL.md` junto com a skill de domínio aplicável.
+- Não encerrar o trabalho apenas porque um worker ficou idle, entregou um relatório, atingiu cota, perdeu liveness ou teve um dispatch encerrado; recuperar, substituir ou registrar o bloqueio e continuar pelo caminho seguro disponível.
+- Workers não concedem aceite. O coordenador deve revisar evidências, atualizar o estado das tasks e continuar até o Product Gate do módulo ser `ACEITO`, ou até existir bloqueio externo explícito, documentado e sem alternativa segura.
+- Não fazer commit, push, deploy ou avanço de módulo para mascarar uma lacuna de evidência; cada parada deve ter motivo, responsável e próximo passo registrados.
+
+## Performance
 Perfis de stress planejados:
 
 - 50 tenants
@@ -113,12 +112,7 @@ Invariantes que não podem degradar:
 - corrupted records = 0
 - mensagens não podem desaparecer silenciosamente
 
-## Antes de editar um módulo
-
-Leia o `AGENTS.md` mais próximo do arquivo. Regras locais complementam este documento e não podem reduzir segurança ou ampliar escopo.
-
-## Definition of Done global
-
+## Definição de Done global
 Uma entrega só é DONE quando:
 
 - requisitos aceitos;
