@@ -114,13 +114,17 @@ export class ChannelIngressService {
     duplicate: boolean;
     deliveryStatus: 'dispatched';
   }> {
-    // 1) per-binding idempotency: the external message id is the dedup key.
+    // 1) per-binding idempotency: the external message id is deduplicated
+    // per channel binding (== per tenant channel). sourceChannel is part of
+    // the dedup key so a replayed external id can never collide across
+    // channels/conversations inside the same tenant database.
     const existing = await db
       .select()
       .from(inboxMessages)
       .where(
         and(
           eq(inboxMessages.direction, 'inbound'),
+          eq(inboxMessages.sourceChannel, binding.productChannel),
           eq(inboxMessages.externalId, event.externalMessageId),
         ),
       )
@@ -184,6 +188,7 @@ export class ChannelIngressService {
         body: event.body,
         authorExternalId: event.senderExternalId,
         externalId: event.externalMessageId,
+        sourceChannel: binding.productChannel,
         deliveryStatus: 'dispatched',
         ...(event.occurredAt ? { createdAt: new Date(event.occurredAt) } : {}),
       })

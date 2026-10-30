@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import type { TenantContext } from '../../../platform-core/identity/identity.contracts';
 import type { TenantCrmDatabase } from '../../../core-crm/tenant-crm.database';
 import type { TenantCrmDb } from '../../../core-crm/tenant-crm.database';
@@ -119,5 +119,69 @@ describe('INBOX-03 channel ingress (binding/dedupe)', () => {
       'success',
       'msg-1',
     );
+  });
+
+  it('dedupes per channel: same external id in another channel is not a duplicate', async () => {
+    const otherChannelBinding: ChannelBindingRecord = {
+      ...binding,
+      productChannel: 'email',
+    };
+    // dedup select for the email channel finds nothing; identity/conversation
+    // lookups return nothing; conversation and message inserts succeed.
+    const dbRows: unknown[][] = [
+      [], // no existing email-channel message with this external id
+      [], // no channel identity person
+      [], // no existing conversation
+      [{ id: 'conv-2' }],
+      [{ id: 'msg-2' }],
+    ];
+    const channelAudit = jest.fn().mockResolvedValue(undefined);
+    const service = serviceWith(otherChannelBinding, dbRows, channelAudit);
+    const ingest = service.ingest.bind(service);
+
+    const result = await ingest(BINDING_TOKEN, {
+      ...event,
+      externalMessageId: 'ext-1',
+    });
+
+    expect(result.duplicate).toBe(false);
+    expect(result.messageId).toBe('msg-2');
+  });
+
+  it('persists sourceChannel on the inserted message', async () => {
+    let capturedInsert: unknown = null;
+    const chain = {
+      where: () => chain,
+      orderBy: () => chain,
+      limit: jest.fn().mockResolvedValue([]),
+    };
+    const captureDb = {
+      select: () => ({ from: () => chain }),
+      insert: () => ({
+        values: (v: unknown) => {
+          capturedInsert = v;
+          return {
+            returning: jest.fn().mockResolvedValue([{ id: 'msg-1' }]),
+          };
+        },
+      }),
+    } as unknown;
+    const service = new ChannelIngressService(
+      {
+        withTenant: (_ctx: unknown, work: (db: unknown) => unknown) =>
+          work(captureDb),
+      } as unknown,
+      registryWith(binding),
+      { channel: jest.fn().mockResolvedValue(undefined) } as unknown,
+    );
+    const ingest = service.ingest.bind(service);
+
+    await ingest(BINDING_TOKEN, event);
+
+    expect(capturedInsert).toMatchObject({
+      sourceChannel: 'whatsapp',
+      externalId: 'ext-1',
+      direction: 'inbound',
+    });
   });
 });

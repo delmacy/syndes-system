@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { desc } from 'drizzle-orm';
 import type { TenantContext } from '../platform-core/identity/identity.contracts';
 import { TenantCrmDatabase } from '../core-crm/tenant-crm.database';
@@ -10,14 +10,19 @@ export type WhatsAppConnectionStatus =
 export interface WhatsAppConnectionPatch {
   status: WhatsAppConnectionStatus;
   phoneExternalId?: string | null;
+  sessionSecretRef?: string | null;
   configured?: boolean;
   authorized?: boolean;
   serviceEnabled?: boolean;
   suspensionReason?: 'delinquency' | null;
 }
 
+const REDACTED = '[redacted]';
+
 @Injectable()
 export class WhatsAppConnectionService {
+  private readonly logger = new Logger(WhatsAppConnectionService.name);
+
   constructor(private readonly tenantDb: TenantCrmDatabase) {}
 
   async get(context: TenantContext) {
@@ -50,6 +55,10 @@ export class WhatsAppConnectionService {
         patch.phoneExternalId === undefined
           ? (current[0]?.phoneExternalId ?? null)
           : patch.phoneExternalId;
+      const resolvedSecret =
+        patch.sessionSecretRef === undefined
+          ? (current[0]?.sessionSecretRef ?? null)
+          : patch.sessionSecretRef;
       const configured = patch.configured ?? current[0]?.configured ?? false;
       const authorized = patch.authorized ?? current[0]?.authorized ?? false;
       const serviceEnabled =
@@ -64,6 +73,7 @@ export class WhatsAppConnectionService {
           singletonKey: 'default',
           status: patch.status,
           phoneExternalId: resolvedPhone,
+          sessionSecretRef: resolvedSecret,
           configured,
           authorized,
           serviceEnabled,
@@ -74,6 +84,7 @@ export class WhatsAppConnectionService {
           set: {
             status: patch.status,
             phoneExternalId: resolvedPhone,
+            sessionSecretRef: resolvedSecret,
             configured,
             authorized,
             serviceEnabled,
@@ -82,6 +93,9 @@ export class WhatsAppConnectionService {
           },
         })
         .returning();
+      this.logger.log(
+        `whatsapp connection state updated (tenant=${context.tenantId}, status=${patch.status}, secret=${REDACTED})`,
+      );
       return rows[0];
     });
   }

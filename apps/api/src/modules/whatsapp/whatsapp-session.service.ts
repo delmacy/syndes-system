@@ -1,12 +1,16 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { TenantContext } from '../platform-core/identity/identity.contracts';
 import { WHATSAPP_CONFIG, type WhatsAppConfig } from './whatsapp.config';
 import { FakeWhatsAppProvider } from './fake-whatsapp.provider';
 import { WhatsmeowProvider } from './whatsmeow.provider';
 import { WhatsAppConnectionService } from './whatsapp-connection.service';
 
+const REDACTED = '[redacted]';
+
 @Injectable()
 export class WhatsAppSessionService {
+  private readonly logger = new Logger(WhatsAppSessionService.name);
+
   constructor(
     @Inject(WHATSAPP_CONFIG) private readonly config: WhatsAppConfig,
     private readonly connections: WhatsAppConnectionService,
@@ -16,6 +20,12 @@ export class WhatsAppSessionService {
 
   private provider() {
     return this.config.provider === 'fake' ? this.fake : this.whatsmeow;
+  }
+
+  private logPairing(tenantId: string) {
+    this.logger.log(
+      `whatsapp pairing started (tenant=${tenantId}, code=${REDACTED})`,
+    );
   }
 
   async startPairing(context: TenantContext) {
@@ -33,6 +43,7 @@ export class WhatsAppSessionService {
       serviceEnabled: true,
       suspensionReason: null,
     });
+    this.logPairing(context.tenantId);
     return result;
   }
 
@@ -87,6 +98,9 @@ export class WhatsAppSessionService {
       throw new Error('whatsapp_suspended');
     if (current?.status !== 'connected')
       throw new Error('whatsapp_not_connected');
+    this.logger.log(
+      `whatsapp outbound send attempted (tenant=${context.tenantId}, recipient=${REDACTED})`,
+    );
     return this.provider().sendText(
       context.tenantId,
       recipientExternalId,
@@ -103,6 +117,9 @@ export class WhatsAppSessionService {
     await this.provider()
       .disconnect(context.tenantId)
       .catch(() => undefined);
+    this.logger.log(
+      `whatsapp gateway suspended for delinquency (tenant=${context.tenantId}, sessionPreserved=true)`,
+    );
     return suspended;
   }
 
@@ -115,8 +132,15 @@ export class WhatsAppSessionService {
         suspensionReason: null,
       });
     }
-    if (current.authorized && current.phoneExternalId)
-      return this.connectProvider(context);
+    if (current.authorized && current.phoneExternalId) {
+      const alreadyConnected = current.status === 'connected';
+      if (!alreadyConnected) return this.connectProvider(context);
+      return this.connections.setState(context, {
+        status: 'connected',
+        serviceEnabled: true,
+        suspensionReason: null,
+      });
+    }
     return this.connections.setState(context, {
       status: 'disconnected',
       serviceEnabled: true,
