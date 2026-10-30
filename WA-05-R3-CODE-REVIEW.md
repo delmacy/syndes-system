@@ -62,7 +62,7 @@ Revisão estática de fonte e testes. Não houve execução de banco de dados, r
 
 | # | Descrição | Evidência / Fonte |
 |---|-----------|-------------------|
-| G1 | Suíte PostgreSQL descartável não executada localmente | `whatsapp.postgres.integration.spec.ts:5-7` — `describe.skip` sem `CONTROL_PLANE_DATABASE_URL` válido; WA-05-R2 confirma porta 5432 recusada e 54331/5433 sem senha/verificação |
+| G1 | Suíte PostgreSQL descartável não executável no ambiente local | `whatsapp.postgres.integration.spec.ts:5-7`; WA-05-R2 confirma falha de autenticação local. **Atualização do coordenador:** GitHub Actions run `41002116051` passou a integração contra PostgreSQL 16 descartável e as verificações de migração |
 | G2 | Deploy server02/Tailscale não executado | `compose.whatsapp.yaml` (definição de deploy, não executado); WA-05-R2 confirma pendência de secrets `:?required` |
 | G3 | Nenhum teste destrutivo contra banco compartilhado executado (conforme restrição) | — |
 
@@ -76,7 +76,7 @@ O relatório `WA-05-RELATORIO-EVIDENCIAS.md` é **preciso em relação ao códig
 
 - Todas as 9 asserções de segurança listadas (isolamento, autorização, webhook auth, idempotência, suspensão, preservação de sessão, logs sanitizados, outbound via Inbox, adapter de produção) são corroboradas pelas referências de arquivo:linha na seção 3.1 acima.
 - A afirmação de que os 414 testes unitários e os 9 testes WA-05 passam é compatível com a execução registrada; a revisão não re-executou os testes, mas o código revisado é o mesmo coberto por eles.
-- A recomendação de "NÃO ACEITO (pendente)" está correta: G1 e G2 são gap de infraestrutura, não de código.
+- A recomendação de "NÃO ACEITO (pendente)" estava correta na data da revisão: G2 permanecia pendente; G1 foi resolvido posteriormente pela CI run `41002116051`.
 
 ### WA-05-R2 (preflight infraestrutura)
 
@@ -106,14 +106,14 @@ O preflight `WA-05-R2-PREFLIGHT.md` é **coerente com a revisão de código**:
 | Observabilidade | ✅ | Logs sanitizados + auditoria |
 | Testes automatizados verdes | ✅ | 414/414 unitários + 9/9 WA-05 |
 | Deploy privado server02/Tailscale | ⏳ | Não executado (WA-05-R2) |
-| Gate de integração PostgreSQL | ⏳ | Não executado localmente (WA-05-R2) |
+| Gate de integração PostgreSQL | ✅ | GitHub Actions `41002116051`: integração PostgreSQL 16 descartável e migrações passaram |
 
-**Recomendação da revisão:** o código está apto para o gate do ponto de vista de implementação e segurança. O gate formal permanece bloqueado exclusivamente por itens de infraestrutura (PostgreSQL descartável local e deploy server02/Tailscale), que já estão documentados como pendentes nos relatórios WA-05 e WA-05-R2. Nenhum código precisa ser alterado para prosseguir após resolução da infraestrutura.
+**Recomendação da revisão:** o código está apto para o gate do ponto de vista de implementação e segurança. Após a revisão, CI comprovou PostgreSQL descartável e migrações (run `41002116051`). O gate formal permanece bloqueado somente pelo deploy/verificação privada em server02/Tailscale, atualmente offline. Nenhum código precisa ser alterado para prosseguir após a recuperação do host.
 
 ---
 
 ## 7. Conclusão
 
-Não há blockers de código nem bugs de impacto na revisão WA-05-R3. Os bugs identificados (B1-B4) são de baixo impacto e não afetam os critípios de aceite do PRD-003. Os gaps G1-G3 são de infraestrutura, já documentados nos relatórios anteriores.
+Não há blockers de código nem bugs de impacto na revisão WA-05-R3. Os bugs identificados (B1-B4) são de baixo impacto e não afetam os critérios de aceite do PRD-003. O gap G1 foi resolvido pela CI; G2 (deploy privado) continua pendente e G3 segue coberto pela regra de não testar contra banco compartilhado.
 
 **Este relatório não concede aceite final.** É um artefato de revisão de código apenas leitura. O coordenador deve revisar as evidências e decidir sobre o Product Gate após resolução dos itens de infraestrutura pendentes.

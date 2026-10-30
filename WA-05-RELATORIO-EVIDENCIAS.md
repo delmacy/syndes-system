@@ -2,7 +2,7 @@
 
 ## Resumo Executivo
 
-Foram executados os testes de integração E2E do módulo WhatsApp (PRD-003) com fake provider em ambiente de desenvolvimento local (Jest/CJS), cobrindo a jornada completa configuração → pareamento/sessão → inbound → Inbox → outbound → reconnect, regressões de duplicate/reconnect/billing suspension/unauthorized/cross-tenant, e observabilidade mínima. Todos os testes automatizados do WA-05 passaram, lint/typecheck/build estão verdes. Não há evidência de vazamento cross-tenant nem de acessos não autorizados. A execução foi feita localmente com fake provider, NÃO em server02/Tailscale. O deploy privado e o gate de integração PostgreSQL permanecem pendentes.
+Foram executados os testes de integração E2E do módulo WhatsApp (PRD-003) com fake provider em ambiente de desenvolvimento local (Jest/CJS), cobrindo a jornada completa configuração → pareamento/sessão → inbound → Inbox → outbound → reconnect, regressões de duplicate/reconnect/billing suspension/unauthorized/cross-tenant, e observabilidade mínima. Os testes automatizados, lint/typecheck/build estão verdes. A integração PostgreSQL descartável também passou na CI; o deploy privado continua pendente. Não há evidência de vazamento cross-tenant nem de acessos não autorizados. A suíte fake foi executada localmente, NÃO em server02/Tailscale.
 
 ## Escopo Executado
 
@@ -33,8 +33,8 @@ Foram executados os testes de integração E2E do módulo WhatsApp (PRD-003) com
 - Nenhum teste enfraquecido ou removido
 
 ### Testes de integração PostgreSQL (test:integration)
-- Não executados: `CONTROL_PLANE_DATABASE_URL` está presente localmente, mas a integração de banco descartável falha porque `node-postgres` não recebe senha (`SASL ... client password must be a string`).
-- Cobertura parcial por teste de unidade existente `whatsapp.postgres.integration.spec.ts` que valida constraints de banco (singleton key, check constraints).
+- Localmente bloqueados: `CONTROL_PLANE_DATABASE_URL` está presente, mas `node-postgres` não recebe senha (`SASL ... client password must be a string`).
+- **CI:** GitHub Actions run [41002116051](https://github.com/delmacy/syndes-system/actions/runs/41002116051), commit `e012784bfbc3895f8b4737f7eabe796f8ee87c5a`, passou o job API incluindo integração contra PostgreSQL 16 descartável, build e verificações de migrações/provisioning.
 
 ### Testes E2E do app (test:e2e)
 - `app.e2e-spec.ts` — rota raiz `/` passando
@@ -102,8 +102,8 @@ Foram executados os testes de integração E2E do módulo WhatsApp (PRD-003) com
 | Item | Status | Detalhe |
 |------|--------|---------|
 | Deploy privado em server02/Tailscale | ⏳ Pendente | Não executado; deployment permanece gated pelo aceite do coordenador. Push para branch de revisão pode ser usado para executar CI. |
-| Gate de integração PostgreSQL | ⏳ Pendente | `CONTROL_PLANE_DATABASE_URL` presente localmente, mas `node-postgres` falha sem senha (`SASL ... client password must be a string`); requer investigação de infraestrutura |
-| Product Gate (PRD-003) | ⏳ Pendente | Não recomendado ACEITO enquanto os itens acima não forem resolvidos |
+| Gate de integração PostgreSQL | ✅ CI | Run `41002116051` passou as suítes de integração com PostgreSQL 16 descartável e verificações de migração |
+| Product Gate (PRD-003) | ⏳ Pendente | Falta deploy e verificação privada em server02/Tailscale |
 
 ## Recomendação de Product Gate
 
@@ -117,9 +117,9 @@ Critérios do Product Gate (PRD-003, seção "Product Gate"):
 - ✅ Observabilidade (auditoria, logs sanitizados)
 - ✅ Testes automatizados verdes (414/414 unitários, 9/9 WA-05)
 - ⏳ Deploy privado em server02/Tailscale não executado
-- ⏳ Gate de integração PostgreSQL não executado (falha de senha no node-postgres)
+- ✅ Integração PostgreSQL e migrações passaram na CI contra PostgreSQL 16 descartável (run `41002116051`)
 
 **Observações:**
 - A execução dos testes foi feita com fake provider em ambiente local, não em server02/Tailscale conforme o escopo original de deployment.
-- Deploy somente após aceite do coordenador e resolução dos bloqueios de infraestrutura listados acima; o push para branch de revisão serve apenas para validação CI.
+- Deploy somente após o servidor server02 retornar ao Tailscale e a aceitação operacional do coordenador; o push para branch de revisão foi usado para validar CI.
 - Worker não concede aceite final. O coordenador deve revisar as evidências e decidir sobre o gate.
