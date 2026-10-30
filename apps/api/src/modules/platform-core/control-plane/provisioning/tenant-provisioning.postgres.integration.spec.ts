@@ -245,7 +245,13 @@ describeIntegration(
           'crm_tag_assignments',
           'crm_tags',
           'crm_timeline_events',
+          // INBOX-02 baseline tables share the tenant database baseline.
+          'inbox_attachments',
+          'inbox_conversations',
+          'inbox_messages',
+          'inbox_private_notes',
           'tenant_baseline_info',
+          'whatsapp_connections',
         ]);
 
         const rowId = randomUUID();
@@ -442,7 +448,13 @@ describeIntegration(
         'crm_tag_assignments',
         'crm_tags',
         'crm_timeline_events',
+        // INBOX-02 baseline tables share the tenant database baseline.
+        'inbox_attachments',
+        'inbox_conversations',
+        'inbox_messages',
+        'inbox_private_notes',
         'tenant_baseline_info',
+        'whatsapp_connections',
       ]);
     });
 
