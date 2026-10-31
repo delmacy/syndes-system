@@ -38,6 +38,14 @@ func (q Outbox) Init(ctx context.Context)error {
  created_at INTEGER NOT NULL
  );
  CREATE INDEX IF NOT EXISTS idx_outbox_poll ON outbox(state,available_at,priority,created_at);
+ CREATE TABLE IF NOT EXISTS conversation_routes(
+ session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+ chat_id TEXT NOT NULL,
+ tenant_id TEXT NOT NULL,
+ PRIMARY KEY(session_id,chat_id),
+ FOREIGN KEY(session_id,tenant_id) REFERENCES links(session_id,tenant_id) ON DELETE CASCADE
+ );
+ CREATE INDEX IF NOT EXISTS idx_routes_tenant ON conversation_routes(tenant_id);
  CREATE TABLE IF NOT EXISTS send_limits(session_id TEXT PRIMARY KEY,window_start INTEGER NOT NULL,used INTEGER NOT NULL);`)
  return err
 }
@@ -47,7 +55,7 @@ func(q Outbox) Enqueue(ctx context.Context,j Job)error{
  if j.ID==""||j.SessionID==""||j.TenantID==""||j.Recipient==""||j.Body==""||len(j.Body)>65536||j.Priority<0||j.Priority>3{return ErrInvalid}
  tx,e:=q.DB.BeginTx(ctx,nil);if e!=nil{return e};defer tx.Rollback()
  var authorized int
- e=tx.QueryRowContext(ctx,"SELECT count(*) FROM links WHERE session_id=? AND tenant_id=? AND can_send=1",j.SessionID,j.TenantID).Scan(&authorized)
+ e=tx.QueryRowContext(ctx,"SELECT count(*) FROM links l JOIN conversation_routes cr ON cr.session_id=l.session_id AND cr.tenant_id=l.tenant_id WHERE l.session_id=? AND l.tenant_id=? AND l.can_send=1 AND cr.chat_id=?",j.SessionID,j.TenantID,j.Recipient).Scan(&authorized)
  if e!=nil{return e};if authorized==0{return ErrUnauthorized}
  now:=time.Now().Unix()
  _,e=tx.ExecContext(ctx,`INSERT INTO outbox(id,session_id,tenant_id,recipient,body,priority,available_at,created_at)
@@ -66,7 +74,7 @@ func(q Outbox) Claim(ctx context.Context,session string,now time.Time)(*Job,erro
  if used>=40{return nil,nil}
  // Recheck authorization at dispatch: a revoked link must not allow queued sends.
  row:=tx.QueryRowContext(ctx,`SELECT o.id,o.session_id,o.tenant_id,o.recipient,o.body,o.priority,o.state,o.attempts
- FROM outbox o JOIN links l ON l.session_id=o.session_id AND l.tenant_id=o.tenant_id AND l.can_send=1
+ FROM outbox o JOIN links l ON l.session_id=o.session_id AND l.tenant_id=o.tenant_id AND l.can_send=1 JOIN conversation_routes cr ON cr.session_id=o.session_id AND cr.tenant_id=o.tenant_id AND cr.chat_id=o.recipient
  WHERE o.session_id=? AND o.available_at<=? AND (o.state='queued' OR (o.state='processing' AND o.claimed_until<=?))
  ORDER BY o.priority ASC,o.created_at ASC,o.id ASC LIMIT 1`,session,ts,ts)
  var j Job;e=row.Scan(&j.ID,&j.SessionID,&j.TenantID,&j.Recipient,&j.Body,&j.Priority,&j.State,&j.Attempts)
@@ -79,4 +87,20 @@ func(q Outbox) Complete(ctx context.Context,id string,sent bool)error{
  state:="sent";if !sent{state="queued"}
  _,e:=q.DB.ExecContext(ctx,"UPDATE outbox SET state=?,claimed_until=0,available_at=? WHERE id=? AND state='processing'",state,time.Now().Add(time.Minute).Unix(),id)
  return e
+}
+
+type Route struct { SessionID string `json:"session_id"`; ChatID string `json:"chat_id"`; TenantID string `json:"tenant_id"` }
+func(q Outbox) Assign(ctx context.Context,r Route)error{
+ if r.SessionID==""||r.ChatID==""||r.TenantID==""{return ErrInvalid}
+ tx,err:=q.DB.BeginTx(ctx,nil);if err!=nil{return err};defer tx.Rollback()
+ var ok int
+ if err=tx.QueryRowContext(ctx,"SELECT count(*) FROM links WHERE session_id=? AND tenant_id=?",r.SessionID,r.TenantID).Scan(&ok);err!=nil{return err}
+ if ok==0{return ErrUnauthorized}
+ _,err=tx.ExecContext(ctx,`INSERT INTO conversation_routes(session_id,chat_id,tenant_id) VALUES(?,?,?)
+ ON CONFLICT(session_id,chat_id) DO UPDATE SET tenant_id=excluded.tenant_id`,r.SessionID,r.ChatID,r.TenantID)
+ if err!=nil{return err};return tx.Commit()
+}
+func(q Outbox) Routes(ctx context.Context)([]Route,error){
+ rows,err:=q.DB.QueryContext(ctx,"SELECT session_id,chat_id,tenant_id FROM conversation_routes ORDER BY session_id,chat_id");if err!=nil{return nil,err};defer rows.Close()
+ out:=[]Route{};for rows.Next(){var r Route;if err=rows.Scan(&r.SessionID,&r.ChatID,&r.TenantID);err!=nil{return nil,err};out=append(out,r)};return out,rows.Err()
 }
