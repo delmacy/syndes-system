@@ -1,25 +1,21 @@
 services:
-  api:
-    environment:
-      WHATSAPP_ENABLED: "true"
-      WHATSAPP_PROVIDER: whatsmeow
-      WHATSAPP_WHATSMEOW_URL: http://127.0.0.1:19083
-      WHATSAPP_WHATSMEOW_TOKEN: ${WHATSAPP_WHATSMEOW_TOKEN:?required}
-      WHATSAPP_WEBHOOK_TOKEN: ${WHATSAPP_WEBHOOK_TOKEN:?required}
-      WHATSAPP_REQUEST_TIMEOUT_MS: "10000"
-    depends_on:
-      - whatsmeow
-
   whatsmeow:
     build:
       context: ./services/whatsmeow
       dockerfile: Dockerfile
-    container_name: syndes-crm-test-whatsmeow
+    container_name: syndes-whatsmeow-sidecar
     network_mode: host
     restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
     environment:
-      WHATSAPP_SIDECAR_BIND: 127.0.0.1:19083
-      WHATSAPP_STORE_DSN: ${WHATSAPP_STORE_DSN:?required}
-      SYNDES_API_URL: http://127.0.0.1:18081
-      WHATSAPP_WHATSMEOW_TOKEN: ${WHATSAPP_WHATSMEOW_TOKEN:?required}
-      WHATSAPP_WEBHOOK_TOKEN: ${WHATSAPP_WEBHOOK_TOKEN:?required}
+      WHATSAPP_SIDECAR_BIND: ${WHATSAPP_SIDECAR_BIND:-127.0.0.1:19083}
+      WHATSAPP_STORE_DSN: ${WHATSAPP_STORE_DSN:?set a dedicated PostgreSQL session-store DSN}
+      SYNDES_API_URL: ${SYNDES_API_URL:?set the private Syndes API base URL}
+      WHATSAPP_WHATSMEOW_TOKEN: ${WHATSAPP_WHATSMEOW_TOKEN:?set the API-to-sidecar token}
+      WHATSAPP_WEBHOOK_TOKEN: ${WHATSAPP_WEBHOOK_TOKEN:?set the sidecar-to-API token}

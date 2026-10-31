@@ -21,16 +21,72 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type whatsmeowGateway struct {
-	mu        sync.RWMutex
-	container *sqlstore.Container
-	db        *sql.DB
-	callback  *callbackClient
-	clients   map[string]*whatsmeow.Client
+// whatsAppClient is the subset of the Whatsmeow client used by the gateway.
+// It is an interface so pairing can be exercised with deterministic fakes
+// instead of a real WhatsApp connection.
+type whatsAppClient interface {
+	AddEventHandler(handler whatsmeow.EventHandler) uint32
+	GetQRChannel(context.Context) (<-chan whatsmeow.QRChannelItem, error)
+	Connect() error
+	Disconnect()
+	IsConnected() bool
+	IsLoggedIn() bool
+	SendMessage(context.Context, types.JID, *waE2E.Message, ...whatsmeow.SendRequestExtra) (whatsmeow.SendResponse, error)
+	PairedID() *types.JID
 }
 
-func newWhatsmeowGateway(container *sqlstore.Container, db *sql.DB, callback *callbackClient) *whatsmeowGateway {
-	return &whatsmeowGateway{container: container, db: db, callback: callback, clients: make(map[string]*whatsmeow.Client)}
+// waClient adapts the concrete Whatsmeow client to whatsAppClient.
+type waClient struct {
+	*whatsmeow.Client
+}
+
+func (w *waClient) PairedID() *types.JID {
+	return w.Store.ID
+}
+
+// qrSession preserves an active Whatsmeow QR channel for the lifetime of a
+// pairing attempt, serving the current rotated QR and its true expiry.
+type qrSession struct {
+	client    whatsAppClient
+	tenantID  string
+	cancel    context.CancelFunc
+	channel   <-chan whatsmeow.QRChannelItem
+	mu        sync.Mutex
+	code      string
+	expiresAt time.Time
+	err       error
+	changed   chan struct{}
+}
+
+func (session *qrSession) signalChangeLocked() {
+	close(session.changed)
+	session.changed = make(chan struct{})
+}
+
+type whatsmeowGateway struct {
+	mu         sync.RWMutex
+	clientMu   sync.Mutex
+	ctx        context.Context
+	cancel     context.CancelFunc
+	container  *sqlstore.Container
+	db         *sql.DB
+	callback   *callbackClient
+	newClient  func() whatsAppClient
+	clients    map[string]whatsAppClient
+	qrSessions map[string]*qrSession
+}
+
+func newWhatsmeowGateway(ctx context.Context, container *sqlstore.Container, db *sql.DB, callback *callbackClient) *whatsmeowGateway {
+	gatewayCtx, cancel := context.WithCancel(ctx)
+	return &whatsmeowGateway{
+		ctx:        gatewayCtx,
+		cancel:     cancel,
+		container:  container,
+		db:         db,
+		callback:   callback,
+		clients:    make(map[string]whatsAppClient),
+		qrSessions: make(map[string]*qrSession),
+	}
 }
 
 func (gateway *whatsmeowGateway) restore(ctx context.Context) error {
@@ -52,7 +108,8 @@ func (gateway *whatsmeowGateway) restore(ctx context.Context) error {
 		if err != nil || device == nil {
 			return fmt.Errorf("restore tenant %s: session missing", tenantID)
 		}
-		client := whatsmeow.NewClient(device, nil)
+		raw := whatsmeow.NewClient(device, nil)
+		client := &waClient{Client: raw}
 		gateway.registerClient(tenantID, client)
 		if err := client.Connect(); err != nil {
 			slog.Warn("session restore deferred", "tenant_id", tenantID, "error", err.Error())
@@ -66,26 +123,113 @@ func (gateway *whatsmeowGateway) Pair(ctx context.Context, tenantID string) (pai
 	if err != nil {
 		return pairingResponse{}, err
 	}
-	if client.Store.ID != nil {
+	if client.PairedID() != nil {
 		return pairingResponse{}, errors.New("already paired")
 	}
-	channel, err := client.GetQRChannel(ctx)
-	if err != nil {
-		return pairingResponse{}, providerError("create QR channel", err)
-	}
-	if err := client.Connect(); err != nil {
-		return pairingResponse{}, providerError("pair connect", err)
-	}
-	select {
-	case item := <-channel:
-		if item.Event != "code" || item.Code == "" {
-			return pairingResponse{}, fmt.Errorf("pairing event %s", item.Event)
+
+	gateway.mu.Lock()
+	session := gateway.qrSessions[tenantID]
+	if session == nil {
+		// The HTTP request ends as soon as the first code is returned. Bind the
+		// QR stream to the gateway lifecycle so it can emit replacement codes.
+		pairingCtx, cancel := context.WithCancel(gateway.ctx)
+		channel, err := client.GetQRChannel(pairingCtx)
+		if err != nil {
+			cancel()
+			gateway.mu.Unlock()
+			return pairingResponse{}, providerError("create QR channel", err)
 		}
-		return pairingResponse{PairingCode: item.Code, ExpiresAt: time.Now().Add(160 * time.Second)}, nil
-	case <-ctx.Done():
-		return pairingResponse{}, ctx.Err()
-	case <-time.After(15 * time.Second):
-		return pairingResponse{}, errors.New("pairing timeout")
+		if err := client.Connect(); err != nil {
+			cancel()
+			gateway.mu.Unlock()
+			return pairingResponse{}, providerError("pair connect", err)
+		}
+		session = &qrSession{
+			tenantID: tenantID,
+			cancel:   cancel,
+			client:   client,
+			channel:  channel,
+			changed:  make(chan struct{}),
+		}
+		gateway.qrSessions[tenantID] = session
+		go gateway.drain(session)
+	}
+	gateway.mu.Unlock()
+
+	timer := time.NewTimer(pairingTimeout)
+	defer timer.Stop()
+	for {
+		session.mu.Lock()
+		code := session.code
+		expiresAt := session.expiresAt
+		sessionErr := session.err
+		changed := session.changed
+		session.mu.Unlock()
+
+		if sessionErr != nil {
+			return pairingResponse{}, sessionErr
+		}
+		// If the browser asks right at expiry, wait for whatsmeow's next
+		// channel event instead of returning a QR that is about to expire.
+		if code != "" && time.Until(expiresAt) > pairingRefreshSkew {
+			return pairingResponse{PairingCode: code, ExpiresAt: expiresAt}, nil
+		}
+
+		select {
+		case <-changed:
+		case <-ctx.Done():
+			return pairingResponse{}, ctx.Err()
+		case <-timer.C:
+			return pairingResponse{}, errors.New("pairing timeout")
+		}
+	}
+}
+
+// pairingTimeout bounds how long Pair waits for the first QR code.
+const pairingTimeout = 15 * time.Second
+const pairingRefreshSkew = time.Second
+
+// drain consumes the QR channel and keeps the session's current code and true
+// expiry up to date as codes rotate. It runs for the lifetime of the pairing
+// attempt and terminates when the channel reaches a final state.
+func (gateway *whatsmeowGateway) drain(session *qrSession) {
+	defer func() {
+		session.mu.Lock()
+		session.code = ""
+		if session.err == nil {
+			session.err = errors.New("pairing channel closed")
+		}
+		session.signalChangeLocked()
+		session.mu.Unlock()
+		session.cancel()
+
+		gateway.mu.Lock()
+		if gateway.qrSessions[session.tenantID] == session {
+			delete(gateway.qrSessions, session.tenantID)
+		}
+		gateway.mu.Unlock()
+	}()
+	for item := range session.channel {
+		switch item.Event {
+		case whatsmeow.QRChannelEventCode:
+			session.mu.Lock()
+			session.code = item.Code
+			session.expiresAt = time.Now().Add(item.Timeout)
+			session.signalChangeLocked()
+			session.mu.Unlock()
+		case whatsmeow.QRChannelEventError:
+			session.mu.Lock()
+			session.err = item.Error
+			session.signalChangeLocked()
+			session.mu.Unlock()
+			return
+		default:
+			session.mu.Lock()
+			session.err = fmt.Errorf("pairing finished: %s", item.Event)
+			session.signalChangeLocked()
+			session.mu.Unlock()
+			return
+		}
 	}
 }
 
@@ -99,13 +243,20 @@ func (gateway *whatsmeowGateway) Connect(ctx context.Context, tenantID string) (
 			return connectResponse{}, providerError("connect", err)
 		}
 	}
-	if client.Store.ID == nil {
+	if client.PairedID() == nil {
 		return connectResponse{}, errors.New("pairing not complete")
 	}
-	if err := gateway.saveMapping(ctx, tenantID, client.Store.ID.String()); err != nil {
+	if err := gateway.saveMapping(ctx, tenantID, client.PairedID().String()); err != nil {
 		return connectResponse{}, err
 	}
-	return connectResponse{PhoneExternalID: client.Store.ID.String()}, nil
+	gateway.mu.Lock()
+	session := gateway.qrSessions[tenantID]
+	delete(gateway.qrSessions, tenantID)
+	gateway.mu.Unlock()
+	if session != nil {
+		session.cancel()
+	}
+	return connectResponse{PhoneExternalID: client.PairedID().String()}, nil
 }
 
 func (gateway *whatsmeowGateway) Disconnect(ctx context.Context, tenantID string) error {
@@ -113,8 +264,30 @@ func (gateway *whatsmeowGateway) Disconnect(ctx context.Context, tenantID string
 	if err != nil {
 		return err
 	}
+	gateway.mu.Lock()
+	session := gateway.qrSessions[tenantID]
+	delete(gateway.clients, tenantID)
+	delete(gateway.qrSessions, tenantID)
+	gateway.mu.Unlock()
+	if session != nil {
+		session.cancel()
+	}
 	client.Disconnect()
 	return nil
+}
+
+func (gateway *whatsmeowGateway) close() {
+	gateway.cancel()
+	gateway.mu.Lock()
+	defer gateway.mu.Unlock()
+	for _, session := range gateway.qrSessions {
+		session.cancel()
+	}
+	for tenantID, client := range gateway.clients {
+		client.Disconnect()
+		delete(gateway.clients, tenantID)
+		delete(gateway.qrSessions, tenantID)
+	}
 }
 
 func (gateway *whatsmeowGateway) Send(ctx context.Context, tenantID string, input sendRequest) (sendResponse, error) {
@@ -136,25 +309,36 @@ func (gateway *whatsmeowGateway) Send(ctx context.Context, tenantID string, inpu
 	return sendResponse{ExternalMessageID: response.ID}, nil
 }
 
-func (gateway *whatsmeowGateway) client(ctx context.Context, tenantID string) (*whatsmeow.Client, error) {
+func (gateway *whatsmeowGateway) client(ctx context.Context, tenantID string) (whatsAppClient, error) {
+	// Keep lazy client creation atomic. Otherwise simultaneous pairing requests
+	// can each create a different device and leave the active QR on a client that
+	// is no longer selected by this tenant for the subsequent connect request.
+	gateway.clientMu.Lock()
+	defer gateway.clientMu.Unlock()
+
 	gateway.mu.RLock()
 	client := gateway.clients[tenantID]
 	gateway.mu.RUnlock()
 	if client != nil {
 		return client, nil
 	}
-	device := gateway.container.NewDevice()
-	client = whatsmeow.NewClient(device, nil)
+	if gateway.newClient != nil {
+		client = gateway.newClient()
+	} else {
+		device := gateway.container.NewDevice()
+		raw := whatsmeow.NewClient(device, nil)
+		client = &waClient{Client: raw}
+	}
 	gateway.registerClient(tenantID, client)
 	return client, nil
 }
 
-func (gateway *whatsmeowGateway) registerClient(tenantID string, client *whatsmeow.Client) {
+func (gateway *whatsmeowGateway) registerClient(tenantID string, client whatsAppClient) {
 	client.AddEventHandler(func(raw any) {
 		switch event := raw.(type) {
 		case *events.Connected:
-			if client.Store.ID != nil {
-				_ = gateway.saveMapping(context.Background(), tenantID, client.Store.ID.String())
+			if client.PairedID() != nil {
+				_ = gateway.saveMapping(context.Background(), tenantID, client.PairedID().String())
 			}
 		case *events.Message:
 			if event.Info.IsFromMe || event.Info.IsGroup || event.Info.Chat.Server == types.NewsletterServer {

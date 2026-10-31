@@ -95,7 +95,7 @@ func main() {
 		token:   cfg.webhookToken,
 		client:  &http.Client{Timeout: 10 * time.Second},
 	}
-	gateway := newWhatsmeowGateway(container, db, callback)
+	gateway := newWhatsmeowGateway(ctx, container, db, callback)
 	gateway.startInboundDispatcher(ctx)
 	if err := gateway.restore(ctx); err != nil {
 		slog.Error("failed to restore sessions", "error", err.Error())
@@ -109,6 +109,7 @@ func main() {
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer shutdownCancel()
 		_ = server.Shutdown(shutdownCtx)
+		gateway.close()
 	}()
 	slog.Info("whatsmeow sidecar listening", "address", cfg.bindAddress)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
