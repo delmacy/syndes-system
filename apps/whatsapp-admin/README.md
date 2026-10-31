@@ -16,3 +16,6 @@ For production use a dedicated scoped service identity and audit, rather than a 
 
 ## Development
 `npm install && npm run lint && npm run build`; `npm run dev` after configuring environment.
+
+## Service authentication
+In production configure `GATEWAY_SERVICE_TOKEN_URL`, `GATEWAY_SERVICE_CLIENT_ID` and `GATEWAY_SERVICE_CLIENT_SECRET` to request a short-lived Keycloak client-credentials token for gateway REST requests. Configure the Keycloak service-account client with audience `GATEWAY_AUDIENCE` and scope `gateway.admin`. When all three service variables exist, the app does not use the bootstrap static token. Never expose the service secret to client-side JavaScript.
