@@ -46,7 +46,18 @@ func(s *server) routes()http.Handler{
   links,err:=s.db.Links(r.Context());if err!=nil{reply(w,500,map[string]string{"error":"database"});return}
   tenants:=map[string]bool{};for _,l:=range links{tenants[l.TenantID]=true}
   routes,err:=(outbox.Outbox{DB:s.db.DB}).Routes(r.Context());if err!=nil{reply(w,500,map[string]string{"error":"database"});return}
-  reply(w,200,map[string]any{"sessions":sessions,"links":links,"routes":routes,"totals":map[string]int{"sessions":len(sessions),"links":len(links),"tenants":len(tenants),"routes":len(routes)}})
+  totals:=map[string]int{"sessions":len(sessions),"links":len(links),"tenants":len(tenants),"routes":len(routes)}
+  for _,entry:=range []struct{name,query string}{
+   {"queued","SELECT count(*) FROM outbox WHERE state='queued'"},
+   {"processing","SELECT count(*) FROM outbox WHERE state='processing'"},
+   {"sent","SELECT count(*) FROM outbox WHERE state='sent'"},
+   {"inbound","SELECT count(*) FROM inbound_events"},
+  }{
+   var n int
+   if err:=s.db.DB.QueryRowContext(r.Context(),entry.query).Scan(&n);err!=nil{reply(w,500,map[string]string{"error":"database"});return}
+   totals[entry.name]=n
+  }
+  reply(w,200,map[string]any{"sessions":sessions,"links":links,"routes":routes,"totals":totals})
  }))
  mux.HandleFunc("POST /api/v1/sessions",s.auth(func(w http.ResponseWriter,r *http.Request){
   var v struct{ID string `json:"id"`}
