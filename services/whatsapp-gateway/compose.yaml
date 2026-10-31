@@ -1,0 +1,23 @@
+services:
+  gateway:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      GATEWAY_DB: /data/gateway.db
+      GATEWAY_LISTEN: 0.0.0.0:8080
+    volumes:
+      - gateway-data:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /data/gateway.db"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+networks:
+  internal:
+    internal: true
+volumes:
+  gateway-data:
