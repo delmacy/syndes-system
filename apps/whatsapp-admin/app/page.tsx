@@ -3,8 +3,24 @@ import { redirect } from "next/navigation";
 type Session={id:string;jid:string;state:string;created:string};
 type Link={session_id:string;tenant_id:string;can_send:boolean};
 type Overview={sessions:Session[];links:Link[];totals:{sessions:number;links:number;tenants:number;routes:number;queued:number;processing:number;sent:number;inbound:number}};
+async function gatewayToken():Promise<string|null>{
+ const url=process.env.GATEWAY_SERVICE_TOKEN_URL;
+ const client=process.env.GATEWAY_SERVICE_CLIENT_ID;
+ const secret=process.env.GATEWAY_SERVICE_CLIENT_SECRET;
+ if(!url||!client||!secret)return process.env.GATEWAY_ADMIN_TOKEN||null;
+ try{
+  const basic=Buffer.from(client+":"+secret).toString("base64");
+  const result=await fetch(url,{method:"POST",headers:{
+   Authorization:"Basic "+basic,"Content-Type":"application/x-www-form-urlencoded",
+  },body:new URLSearchParams({grant_type:"client_credentials"}),cache:"no-store",signal:AbortSignal.timeout(5000)});
+  if(!result.ok)return null;
+  const data=await result.json() as {access_token?:unknown};
+  return typeof data.access_token==="string"?data.access_token:null;
+ }catch{return null}
+}
 async function overview():Promise<Overview|null>{
- const endpoint=process.env.GATEWAY_INTERNAL_URL;const token=process.env.GATEWAY_ADMIN_TOKEN;
+ const endpoint=process.env.GATEWAY_INTERNAL_URL;
+ const token=await gatewayToken();
  if(!endpoint||!token)return null;
  try{
   const r=await fetch(new URL("/api/v1/overview",endpoint),{headers:{Authorization:"Bearer "+token},cache:"no-store",signal:AbortSignal.timeout(5000)});
