@@ -168,6 +168,19 @@ if (statusInfo) {
   }
 }
 
+// Interruptor unico de enforcement da frota. Enquanto "false", vazamento e
+// evidencia e vira aviso; quando "true", reprova o run. Virar e mudar uma linha
+// de env no workflow -- nenhuma outra alteracao de desenho e necessaria.
+const fleetEnforce = String(env.FLEET_ENFORCE || 'false').toLowerCase() === 'true';
+let finalVerdict = verdict;
+if (fleetEnforce) {
+  warnings.push('fleet-enforcement-active');
+  if (orchestration.status_state === 'failure') {
+    finalVerdict = 'fail';
+    warnings.push('fleet-enforced');
+  }
+}
+
 const workflowName = env.GITHUB_WORKFLOW || 'agent-ci-audit';
 const runUrl =
   env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY && env.GITHUB_RUN_ID
@@ -210,7 +223,7 @@ const manifest = {
   },
   gates: gateRecords,
   orchestration,
-  verdict,
+  verdict: finalVerdict,
   warnings,
 };
 
@@ -219,7 +232,7 @@ writeFileSync('audit-manifest.json', json);
 const digest = createHash('sha256').update(json).digest('hex');
 writeFileSync('audit-manifest.sha256', `${digest}  audit-manifest.json\n`);
 
-console.log(`verdict: ${verdict}`);
+console.log(`verdict: ${finalVerdict}`);
 console.log(`manifest sha256: ${digest}`);
 if (warnings.length) console.log(`warnings: ${warnings.join(' | ')}`);
 
@@ -232,7 +245,7 @@ if (env.GITHUB_STEP_SUMMARY) {
     [
       '## CI audit',
       '',
-      `- verdict: **${verdict}**`,
+      `- verdict: **${finalVerdict}**`,
       `- head: \`${manifest.commit.head_sha}\``,
       `- base: \`${manifest.commit.base_sha || 'n/a'}\``,
       `- agent: \`${manifest.agent.agent || 'n/a'}\` worktree \`${manifest.agent.worktree || 'n/a'}\``,

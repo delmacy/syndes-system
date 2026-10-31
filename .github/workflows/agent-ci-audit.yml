@@ -38,6 +38,9 @@ env:
   # em vez de reprovar o run. Virar para "true" depois que as branches em
   # andamento passarem a carregar os trailers.
   REQUIRE_TRAILERS: "false"
+  # Frota: com "false", vazamento de worker e evidencia (aviso fleet-status).
+  # Com "true", reprova o run. Uma linha decide; nada mais muda.
+  FLEET_ENFORCE: "false"
 
 jobs:
   provenance:
