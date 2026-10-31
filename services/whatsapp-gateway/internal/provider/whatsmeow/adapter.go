@@ -140,3 +140,19 @@ func recipient(s string)(types.JID,error){
  for _,c:=range s{if c<'0'||c>'9'{return types.JID{},errors.New("invalid phone")}}
  return types.NewJID(s,types.DefaultUserServer),nil
 }
+
+func(a *Adapter) Logout(ctx context.Context,id string)error{
+ a.mu.Lock();defer a.mu.Unlock()
+ d,ok:=a.clients[id];if !ok{return provider.ErrNotConnected}
+ if err:=d.client.Logout(ctx);err!=nil{return err}
+ delete(a.clients,id)
+ _,err:=a.operational.ExecContext(ctx,"UPDATE sessions SET jid='',state='logged_out' WHERE id=?",id)
+ return err
+}
+func(a *Adapter) Groups(ctx context.Context,id string)([]string,error){
+ a.mu.RLock();d,ok:=a.clients[id];a.mu.RUnlock()
+ if !ok||!d.client.IsLoggedIn(){return nil,provider.ErrNotConnected}
+ groups,err:=d.client.GetJoinedGroups(ctx);if err!=nil{return nil,err}
+ ids:=make([]string,0,len(groups));for _,g:=range groups{ids=append(ids,g.JID.String())}
+ return ids,nil
+}
