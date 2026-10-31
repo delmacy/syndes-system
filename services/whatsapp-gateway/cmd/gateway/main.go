@@ -70,6 +70,16 @@ func(s *server) routes()http.Handler{
   status,err:=s.supervisor.Status(r.Context(),id);if err!=nil{reply(w,500,map[string]string{"error":"status unavailable"});return}
   reply(w,200,map[string]any{"session_id":id,"status":status})
  }))
+ mux.HandleFunc("POST /api/v1/sessions/{id}/logout",s.auth(func(w http.ResponseWriter,r *http.Request){
+  id:=r.PathValue("id");if !valid(id){reply(w,400,map[string]string{"error":"invalid id"});return}
+  if err:=s.supervisor.Logout(r.Context(),id);err!=nil{reply(w,409,map[string]string{"error":err.Error()});return}
+  reply(w,200,map[string]string{"status":"logged_out"})
+ }))
+ mux.HandleFunc("GET /api/v1/sessions/{id}/groups",s.auth(func(w http.ResponseWriter,r *http.Request){
+  id:=r.PathValue("id");if !valid(id){reply(w,400,map[string]string{"error":"invalid id"});return}
+  groups,err:=s.wa.Groups(r.Context(),id);if err!=nil{reply(w,409,map[string]string{"error":"session unavailable"});return}
+  reply(w,200,map[string]any{"groups":groups})
+ }))
  mux.HandleFunc("GET /api/v1/sessions/{id}/qr",s.auth(func(w http.ResponseWriter,r *http.Request){
   id:=r.PathValue("id");if !valid(id){reply(w,400,map[string]string{"error":"invalid id"});return}
   code,ok:=s.wa.QR(id);if !ok{reply(w,404,map[string]string{"error":"no active QR; connect the session first"});return}
