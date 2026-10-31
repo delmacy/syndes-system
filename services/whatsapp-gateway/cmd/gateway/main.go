@@ -1,6 +1,7 @@
 package main
 
 import (
+ "context"
  "crypto/subtle"
  "encoding/json"
  "fmt"
@@ -10,6 +11,7 @@ import (
  "strings"
  "time"
  "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/store"
+ "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/outbox"
 )
 
 type server struct { db *store.Store; token string }
@@ -52,6 +54,16 @@ func(s *server) routes()http.Handler{
   ok,err:=s.db.Allowed(r.Context(),v.SessionID,v.TenantID);if err!=nil{reply(w,500,map[string]string{"error":"database"});return}
   reply(w,200,map[string]bool{"allowed":ok})
  }))
+ mux.HandleFunc("POST /api/v1/outbox",s.auth(func(w http.ResponseWriter,r *http.Request){
+  var j outbox.Job
+  if json.NewDecoder(http.MaxBytesReader(w,r.Body,70000)).Decode(&j)!=nil || !valid(j.ID)||!valid(j.SessionID)||!valid(j.TenantID){reply(w,400,map[string]string{"error":"invalid message"});return}
+  // An operator token is a temporary bootstrap mechanism; this endpoint only queues,
+  // never sends. Keycloak subject and conversation authorization are required for production.
+  e:=(outbox.Outbox{DB:s.db.DB}).Enqueue(r.Context(),j)
+  if e==outbox.ErrUnauthorized{reply(w,403,map[string]string{"error":"forbidden"});return}
+  if e!=nil{reply(w,400,map[string]string{"error":"enqueue failed"});return}
+  reply(w,202,map[string]string{"status":"queued","id":j.ID})
+ }))
  mux.HandleFunc("POST /mcp",s.auth(func(w http.ResponseWriter,r *http.Request){
   var q struct{JSONRPC string `json:"jsonrpc"`; ID any `json:"id"`; Method string `json:"method"`; Params struct{Name string `json:"name"`} `json:"params"`}
   if json.NewDecoder(http.MaxBytesReader(w,r.Body,8192)).Decode(&q)!=nil{reply(w,400,map[string]string{"error":"bad json"});return}
@@ -78,6 +90,7 @@ func main(){
  token:=os.Getenv("GATEWAY_ADMIN_TOKEN");if len(token)<32{log.Fatal("GATEWAY_ADMIN_TOKEN must be set and at least 32 characters")}
  path:=os.Getenv("GATEWAY_DB");if path==""{path="./gateway.db"}
  db,err:=store.Open(path);if err!=nil{log.Fatal(err)};defer db.Close()
+ if err=(outbox.Outbox{DB:db.DB}).Init(context.Background());err!=nil{log.Fatal(err)}
  address:=os.Getenv("GATEWAY_LISTEN");if address==""{address="127.0.0.1:8080"}
  srv:=&http.Server{Addr:address,Handler:(&server{db:db,token:token}).routes(),ReadHeaderTimeout:5*time.Second,ReadTimeout:15*time.Second,WriteTimeout:30*time.Second}
  fmt.Println("Syndes gateway control-plane on "+address+" (whatsmeow transport pending integration)")
