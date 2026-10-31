@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 type Session={id:string;jid:string;state:string;created:string};
 type Link={session_id:string;tenant_id:string;can_send:boolean};
 type Overview={sessions:Session[];links:Link[];totals:{sessions:number;links:number;tenants:number}};
