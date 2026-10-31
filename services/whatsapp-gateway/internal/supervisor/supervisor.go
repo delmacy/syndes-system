@@ -44,3 +44,12 @@ func(s *Supervisor) StopAll(ctx context.Context)error{
  }
  return failed
 }
+
+func(s *Supervisor) Logout(ctx context.Context,id string)error{
+ s.mu.Lock();defer s.mu.Unlock()
+ if _,ok:=s.active[id];!ok{return ErrNotRunning}
+ transport,ok:=s.transport.(interface{Logout(context.Context,string)error})
+ if !ok{return errors.New("provider does not support logout")}
+ if err:=transport.Logout(ctx,id);err!=nil{return err}
+ delete(s.active,id);return nil
+}
