@@ -1,9 +1,9 @@
 FROM golang:1.27-bookworm AS build
 WORKDIR /app
-COPY go.mod go.sum* ./
+COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=1 go build -trimpath -o /gateway ./cmd/gateway
+RUN CGO_ENABLED=1 go build -mod=readonly -trimpath -o /gateway ./cmd/gateway
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
