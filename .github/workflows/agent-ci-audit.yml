@@ -1,0 +1,185 @@
+name: Agent CI Audit
+
+# Ponte auditável entre o trabalho do agente (codex/Orca) e o CI.
+#
+# Este workflow não substitui os gates: ele os executa a partir da fonte única
+# (scripts em tests/), coleta a procedência do commit e publica um manifesto
+# verificável — commit status `agent-ci/audit`, artifact imutável e comentário
+# no PR com os SHAs e o digest do manifesto.
+#
+# Decisão deliberada: os gates rodam sobre o SHA de topo do PR, não sobre o
+# merge commit. O objetivo aqui é provar *aquele* commit produzido pelo agente;
+# a validação do resultado do merge continua sendo responsabilidade dos
+# workflows de integridade/merge-candidate.
+
+on:
+  push:
+    branches:
+      - main
+      - "work/**"
+      - "feature/**"
+      - "fix/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  statuses: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: agent-ci-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Adoção gradual: com "false", trailers Orca ausentes geram aviso no manifesto
+  # em vez de reprovar o run. Virar para "true" depois que as branches em
+  # andamento passarem a carregar os trailers.
+  REQUIRE_TRAILERS: "false"
+  # Frota: com "false", vazamento de worker e evidencia (aviso fleet-status).
+  # Com "true", reprova o run. Uma linha decide; nada mais muda.
+  FLEET_ENFORCE: "false"
+
+jobs:
+  provenance:
+    name: Provenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      provenance: ${{ steps.collect.outputs.provenance }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Collect provenance
+        id: collect
+        run: node .github/scripts/collect-provenance.mjs
+
+  gate-structure:
+    name: Repository structure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: "Gate: repository structure"
+        shell: bash
+        run: bash tests/integrity/repository-structure.sh
+
+  gate-module-contracts:
+    name: Module agent contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: "Gate: module agent contracts"
+        shell: bash
+        run: bash tests/integrity/module-contracts.sh
+
+  audit:
+    name: Audit manifest
+    needs:
+      - provenance
+      - gate-structure
+      - gate-module-contracts
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Check node runtime
+        run: |
+          set -euo pipefail
+          node --version
+          major="$(node -p 'process.versions.node.split(".")[0]')"
+          if [ "$major" -lt 20 ]; then
+            echo "::error::Node >= 20 required, found $major"
+            exit 1
+          fi
+
+      - name: Rehydrate provenance
+        env:
+          PROVENANCE: ${{ needs.provenance.outputs.provenance }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$PROVENANCE" > provenance.json
+          test -s provenance.json
+
+      - name: Fetch job durations from Actions API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" > jobs.json 2>jobs.err; then
+            echo "::warning::Could not fetch job durations; manifest will omit them"
+            cat jobs.err || true
+            echo '{"jobs":[]}' > jobs.json
+          fi
+
+      - name: Fetch fleet evidence status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          head_sha="${{ github.event.pull_request.head.sha || github.sha }}"
+          if ! gh api "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/statuses?per_page=100" > fleet-status.json 2>fleet.err; then
+            echo "::notice::Could not read commit statuses; fleet evidence may be absent"
+            cat fleet.err || true
+            echo '[]' > fleet-status.json
+          fi
+          count="$(node -p "JSON.parse(require('fs').readFileSync('fleet-status.json','utf8')).filter(s=>s.context==='orca-fleet/audit').length" 2>/dev/null || echo 0)"
+          echo "fleet statuses on ${head_sha}: $count"
+
+      - name: Build audit manifest
+        env:
+          AUDIT_FLEET_STATUS_FILE: fleet-status.json
+          GATES: >-
+            [
+              {"id":"repository-structure","name":"Repository structure","result":"${{ needs.gate-structure.result }}"},
+              {"id":"module-contracts","name":"Module agent contracts","result":"${{ needs.gate-module-contracts.result }}"}
+            ]
+        run: node .github/scripts/build-audit-manifest.mjs
+
+      - name: Upload audit manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-manifest-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            audit-manifest.json
+            audit-manifest.sha256
+            provenance.json
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Publish verdict
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+        run: node .github/scripts/publish-audit.mjs
+
+      - name: Enforce verdict
+        run: |
+          set -euo pipefail
+          verdict="$(node -p "require('./audit-manifest.json').verdict")"
+          digest="$(cut -d' ' -f1 audit-manifest.sha256)"
+          echo "verdict=$verdict manifest_sha256=$digest"
+          if [ "$verdict" != "pass" ]; then
+            echo "::error::CI audit verdict was '$verdict'; see the audit-manifest artifact"
+            exit 1
+          fi

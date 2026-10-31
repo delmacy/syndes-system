@@ -1,0 +1,5 @@
+# Scripts executados no runner Linux não podem carregar CRLF: o shebang e os
+# `set -euo pipefail` falham com `\r`. Fixar LF para os tipos que rodam no CI.
+*.sh text eol=lf
+*.mjs text eol=lf
+*.yml text eol=lf

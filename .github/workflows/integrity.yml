@@ -29,15 +29,4 @@ jobs:
 
       - name: Verify module agent contracts
         shell: bash
-        run: |
-          set -euo pipefail
-          count=0
-          for file in modules/*/AGENTS.md; do
-            test -s "$file"
-            count=$((count + 1))
-          done
-          if [ "$count" -lt 11 ]; then
-            echo "::error::Expected at least 11 module AGENTS.md files; found $count"
-            exit 1
-          fi
-          echo "Module AGENTS.md contracts: PASS ($count)"
+        run: bash tests/integrity/module-contracts.sh
