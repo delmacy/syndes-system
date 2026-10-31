@@ -17,7 +17,7 @@ jobs:
           go-version-file: services/whatsapp-gateway/go.mod
           cache-dependency-path: services/whatsapp-gateway/go.sum
       - name: Verify module
-        run: go mod tidy
+        run: go mod tidy && git diff --exit-code -- go.mod go.sum
       - name: Static analysis
         run: go vet ./...
       - name: Unit and integration tests with race detection
