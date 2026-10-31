@@ -131,19 +131,47 @@ func(s *server) routes()http.Handler{
   reply(w,202,map[string]string{"status":"queued","id":j.ID})
  }))
  mux.HandleFunc("POST /mcp",s.auth(func(w http.ResponseWriter,r *http.Request){
-  var q struct{JSONRPC string `json:"jsonrpc"`; ID any `json:"id"`; Method string `json:"method"`; Params struct{Name string `json:"name"`} `json:"params"`}
+  var q struct{JSONRPC string `json:"jsonrpc"`; ID any `json:"id"`; Method string `json:"method"`; Params struct{Name string `json:"name"`;Arguments json.RawMessage `json:"arguments"`} `json:"params"`}
   if json.NewDecoder(http.MaxBytesReader(w,r.Body,8192)).Decode(&q)!=nil{reply(w,400,map[string]string{"error":"bad json"});return}
   result:=any(nil)
   switch q.Method {
   case "initialize":result=map[string]any{"protocolVersion":"2025-03-26","capabilities":map[string]any{"tools":map[string]any{}},"serverInfo":map[string]string{"name":"syndes-whatsapp-gateway","version":"0.1.0"}}
   case "notifications/initialized":w.WriteHeader(202);return
   case "ping":result=map[string]any{}
-  case "tools/list":result=map[string]any{"tools":[]any{map[string]any{"name":"gateway_overview","description":"Read aggregate session and tenant associations; requires gateway administrator authorization.","inputSchema":map[string]any{"type":"object","properties":map[string]any{}}}}}
+  case "tools/list":
+   result=map[string]any{"tools":[]any{
+    map[string]any{"name":"gateway_overview","description":"Read session and tenant overview; requires gateway administrator scope.","inputSchema":map[string]any{"type":"object","properties":map[string]any{}}},
+    map[string]any{"name":"gateway_session_status","description":"Read live connection state for one session.","inputSchema":map[string]any{"type":"object","properties":map[string]any{"session_id":map[string]string{"type":"string"}},"required":[]string{"session_id"}}},
+    map[string]any{"name":"gateway_queue_text","description":"Enqueue a text message only when session, tenant, and conversation assignment allow it.","inputSchema":map[string]any{"type":"object","properties":map[string]any{
+     "id":map[string]string{"type":"string"},"session_id":map[string]string{"type":"string"},"tenant_id":map[string]string{"type":"string"},"recipient":map[string]string{"type":"string"},"body":map[string]string{"type":"string"},
+    },"required":[]string{"id","session_id","tenant_id","recipient","body"}}},
+   }}
   case "tools/call":
-   if q.Params.Name!="gateway_overview"{reply(w,200,map[string]any{"jsonrpc":"2.0","id":q.ID,"error":map[string]any{"code":-32602,"message":"unknown tool"}});return}
-   sessions,e:=s.db.Sessions(r.Context());if e!=nil{reply(w,500,map[string]string{"error":"database"});return}
-   links,e:=s.db.Links(r.Context());if e!=nil{reply(w,500,map[string]string{"error":"database"});return}
-   b,_:=json.Marshal(map[string]any{"sessions":sessions,"links":links})
+   var output any
+   switch q.Params.Name{
+   case "gateway_overview":
+    sessions,e:=s.db.Sessions(r.Context());if e!=nil{reply(w,500,map[string]string{"error":"database"});return}
+    links,e:=s.db.Links(r.Context());if e!=nil{reply(w,500,map[string]string{"error":"database"});return}
+    output=map[string]any{"sessions":sessions,"links":links}
+   case "gateway_session_status":
+    var args struct{ SessionID string `json:"session_id"` }
+    if json.Unmarshal(q.Params.Arguments,&args)!=nil||!valid(args.SessionID){
+     reply(w,200,map[string]any{"jsonrpc":"2.0","id":q.ID,"error":map[string]any{"code":-32602,"message":"invalid session_id"}});return
+    }
+    status,e:=s.supervisor.Status(r.Context(),args.SessionID)
+    if e!=nil{reply(w,500,map[string]string{"error":"status unavailable"});return}
+    output=map[string]any{"session_id":args.SessionID,"status":status}
+   case "gateway_queue_text":
+    var args struct{ID string `json:"id"`;SessionID string `json:"session_id"`;TenantID string `json:"tenant_id"`;Recipient string `json:"recipient"`;Body string `json:"body"`}
+    if json.Unmarshal(q.Params.Arguments,&args)!=nil||!valid(args.ID)||!valid(args.SessionID)||!valid(args.TenantID)||len(args.Body)==0||len(args.Body)>65536{
+     reply(w,200,map[string]any{"jsonrpc":"2.0","id":q.ID,"error":map[string]any{"code":-32602,"message":"invalid arguments"}});return
+    }
+    e:=(outbox.Outbox{DB:s.db.DB}).Enqueue(r.Context(),outbox.Job{ID:args.ID,SessionID:args.SessionID,TenantID:args.TenantID,Recipient:args.Recipient,Body:args.Body,Priority:2})
+    if e!=nil{reply(w,200,map[string]any{"jsonrpc":"2.0","id":q.ID,"result":map[string]any{"isError":true,"content":[]any{map[string]string{"type":"text","text":"message not authorized or invalid"}}}});return}
+    output=map[string]string{"id":args.ID,"status":"queued"}
+   default:reply(w,200,map[string]any{"jsonrpc":"2.0","id":q.ID,"error":map[string]any{"code":-32602,"message":"unknown tool"}});return
+   }
+   b,_:=json.Marshal(output)
    result=map[string]any{"content":[]any{map[string]string{"type":"text","text":string(b)}}}
   default:reply(w,200,map[string]any{"jsonrpc":"2.0","id":q.ID,"error":map[string]any{"code":-32601,"message":"method not found"}});return
   }
