@@ -12,6 +12,7 @@ import (
  "time"
  "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/store"
  "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/outbox"
+ "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/inbox"
 )
 
 type server struct { db *store.Store; token string }
@@ -91,6 +92,7 @@ func main(){
  path:=os.Getenv("GATEWAY_DB");if path==""{path="./gateway.db"}
  db,err:=store.Open(path);if err!=nil{log.Fatal(err)};defer db.Close()
  if err=(outbox.Outbox{DB:db.DB}).Init(context.Background());err!=nil{log.Fatal(err)}
+ if err=(inbox.Store{DB:db.DB}).Init(context.Background());err!=nil{log.Fatal(err)}
  address:=os.Getenv("GATEWAY_LISTEN");if address==""{address="127.0.0.1:8080"}
  srv:=&http.Server{Addr:address,Handler:(&server{db:db,token:token}).routes(),ReadHeaderTimeout:5*time.Second,ReadTimeout:15*time.Second,WriteTimeout:30*time.Second}
  fmt.Println("Syndes gateway control-plane on "+address+" (whatsmeow transport pending integration)")
