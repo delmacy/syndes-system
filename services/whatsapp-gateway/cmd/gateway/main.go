@@ -2,6 +2,9 @@ package main
 
 import (
  "context"
+ "errors"
+ "os/signal"
+ "syscall"
  "crypto/subtle"
  "encoding/json"
  "fmt"
@@ -13,9 +16,20 @@ import (
  "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/store"
  "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/outbox"
  "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/inbox"
+ "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/provider"
+ whatsmeowadapter "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/provider/whatsmeow"
+ "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/supervisor"
 )
 
-type server struct { db *store.Store; token string }
+type server struct { db *store.Store; token string; wa *whatsmeowadapter.Adapter; supervisor *supervisor.Supervisor }
+type inboundSink struct{ store inbox.Store }
+func(s inboundSink)OnMessage(ctx context.Context,e provider.Incoming)error{
+ _,err:=s.store.Insert(ctx,inbox.Event{
+  SessionID:e.SessionID,MessageID:e.MessageID,ChatID:e.ChatID,SenderID:e.SenderID,Kind:"message",Payload:e.Text,
+ })
+ return err
+}
+
 func reply(w http.ResponseWriter,status int,v any){w.Header().Set("Content-Type","application/json");w.Header().Set("Cache-Control","no-store");w.WriteHeader(status);_ = json.NewEncoder(w).Encode(v)}
 func(s *server) auth(next http.HandlerFunc) http.HandlerFunc{
  return func(w http.ResponseWriter,r *http.Request){
@@ -38,6 +52,27 @@ func(s *server) routes()http.Handler{
   if json.NewDecoder(http.MaxBytesReader(w,r.Body,4096)).Decode(&v)!=nil || !valid(v.ID){reply(w,400,map[string]string{"error":"invalid id"});return}
   if err:=s.db.AddSession(r.Context(),v.ID);err!=nil{reply(w,409,map[string]string{"error":"session already exists or unavailable"});return}
   reply(w,201,map[string]string{"id":v.ID,"state":"created","provider":"not_connected"})
+ }))
+ mux.HandleFunc("POST /api/v1/sessions/{id}/connect",s.auth(func(w http.ResponseWriter,r *http.Request){
+  id:=r.PathValue("id");if !valid(id){reply(w,400,map[string]string{"error":"invalid id"});return}
+  err:=s.supervisor.Start(r.Context(),id,inboundSink{store:inbox.Store{DB:s.db.DB}})
+  if err!=nil{reply(w,409,map[string]string{"error":err.Error()});return}
+  reply(w,202,map[string]string{"status":"connecting"})
+ }))
+ mux.HandleFunc("POST /api/v1/sessions/{id}/disconnect",s.auth(func(w http.ResponseWriter,r *http.Request){
+  id:=r.PathValue("id");if !valid(id){reply(w,400,map[string]string{"error":"invalid id"});return}
+  if err:=s.supervisor.Stop(r.Context(),id);err!=nil{reply(w,409,map[string]string{"error":err.Error()});return}
+  reply(w,200,map[string]string{"status":"disconnected"})
+ }))
+ mux.HandleFunc("GET /api/v1/sessions/{id}/status",s.auth(func(w http.ResponseWriter,r *http.Request){
+  id:=r.PathValue("id");if !valid(id){reply(w,400,map[string]string{"error":"invalid id"});return}
+  status,err:=s.supervisor.Status(r.Context(),id);if err!=nil{reply(w,500,map[string]string{"error":"status unavailable"});return}
+  reply(w,200,map[string]any{"session_id":id,"status":status})
+ }))
+ mux.HandleFunc("GET /api/v1/sessions/{id}/qr",s.auth(func(w http.ResponseWriter,r *http.Request){
+  id:=r.PathValue("id");if !valid(id){reply(w,400,map[string]string{"error":"invalid id"});return}
+  code,ok:=s.wa.QR(id);if !ok{reply(w,404,map[string]string{"error":"no active QR; connect the session first"});return}
+  reply(w,200,map[string]string{"code":code})
  }))
  mux.HandleFunc("POST /api/v1/links",s.auth(func(w http.ResponseWriter,r *http.Request){
   var v struct{ SessionID string `json:"session_id"`; TenantID string `json:"tenant_id"`; CanSend bool `json:"can_send"` }
@@ -91,10 +126,40 @@ func main(){
  token:=os.Getenv("GATEWAY_ADMIN_TOKEN");if len(token)<32{log.Fatal("GATEWAY_ADMIN_TOKEN must be set and at least 32 characters")}
  path:=os.Getenv("GATEWAY_DB");if path==""{path="./gateway.db"}
  db,err:=store.Open(path);if err!=nil{log.Fatal(err)};defer db.Close()
- if err=(outbox.Outbox{DB:db.DB}).Init(context.Background());err!=nil{log.Fatal(err)}
- if err=(inbox.Store{DB:db.DB}).Init(context.Background());err!=nil{log.Fatal(err)}
+ ctx,cancel:=signal.NotifyContext(context.Background(),syscall.SIGINT,syscall.SIGTERM);defer cancel()
+ if err=(outbox.Outbox{DB:db.DB}).Init(ctx);err!=nil{log.Fatal(err)}
+ incoming:=inbox.Store{DB:db.DB};if err=incoming.Init(ctx);err!=nil{log.Fatal(err)}
+ sessionPath:=os.Getenv("WHATSAPP_SESSIONS_DB");if sessionPath==""{sessionPath="./sessions.db"}
+ adapter,err:=whatsmeowadapter.New(ctx,sessionPath,db.DB);if err!=nil{log.Fatal(err)};defer adapter.Close()
+ manager:=supervisor.New(adapter)
+ svc:=&server{db:db,token:token,wa:adapter,supervisor:manager}
+ sessions,err:=db.Sessions(ctx)
+ if err!=nil{log.Fatal(err)}
+ for _,session:=range sessions{
+  if session.JID==""{continue}
+  if err:=manager.Start(ctx,session.ID,inboundSink{store:incoming});err!=nil{log.Printf("session %s: failed to reconnect: %v",session.ID,err)}
+ }
+ go dispatch(ctx,db,adapter)
  address:=os.Getenv("GATEWAY_LISTEN");if address==""{address="127.0.0.1:8080"}
- srv:=&http.Server{Addr:address,Handler:(&server{db:db,token:token}).routes(),ReadHeaderTimeout:5*time.Second,ReadTimeout:15*time.Second,WriteTimeout:30*time.Second}
- fmt.Println("Syndes gateway control-plane on "+address+" (whatsmeow transport pending integration)")
- log.Fatal(srv.ListenAndServe())
+ srv:=&http.Server{Addr:address,Handler:svc.routes(),ReadHeaderTimeout:5*time.Second,ReadTimeout:15*time.Second,WriteTimeout:30*time.Second}
+ go func(){<-ctx.Done();shutdownCtx,done:=context.WithTimeout(context.Background(),15*time.Second);defer done();_ =srv.Shutdown(shutdownCtx);_ =manager.StopAll(shutdownCtx)}()
+ log.Printf("Syndes WhatsApp gateway listening on %s",address)
+ if err:=srv.ListenAndServe();err!=nil&&!errors.Is(err,http.ErrServerClosed){log.Fatal(err)}
+}
+func dispatch(ctx context.Context,db *store.Store,adapter *whatsmeowadapter.Adapter){
+ ticker:=time.NewTicker(time.Second);defer ticker.Stop()
+ queue:=outbox.Outbox{DB:db.DB}
+ for{
+  select{case <-ctx.Done():return;case <-ticker.C:}
+  sessions,err:=db.Sessions(ctx);if err!=nil{log.Printf("queue list: %v",err);continue}
+  for _,s:=range sessions{
+   state,e:=adapter.Status(ctx,s.ID);if e!=nil||state!=provider.StatusConnected{continue}
+   job,e:=queue.Claim(ctx,s.ID,time.Now());if e!=nil{log.Printf("queue claim: %v",e);continue};if job==nil{continue}
+   sendCtx,cancel:=context.WithTimeout(ctx,20*time.Second)
+   _,sendErr:=adapter.Send(sendCtx,provider.SendRequest{SessionID:job.SessionID,Recipient:job.Recipient,Text:job.Body,IdempotencyKey:job.ID})
+   cancel()
+   if err:=queue.Complete(ctx,job.ID,sendErr==nil);err!=nil{log.Printf("queue complete: %v",err)}
+   if sendErr!=nil{log.Printf("outbound delivery failed for job %s: %v",job.ID,sendErr)}
+  }
+ }
 }
