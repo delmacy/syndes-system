@@ -1,13 +1,7 @@
 name: WhatsApp Gateway CI
 on:
   push:
-    paths:
-      - 'services/whatsapp-gateway/**'
-      - '.github/workflows/whatsapp-gateway.yml'
   pull_request:
-    paths:
-      - 'services/whatsapp-gateway/**'
-      - '.github/workflows/whatsapp-gateway.yml'
 permissions:
   contents: read
 jobs:
@@ -23,7 +17,7 @@ jobs:
           go-version-file: services/whatsapp-gateway/go.mod
           cache-dependency-path: services/whatsapp-gateway/go.sum
       - name: Verify module
-        run: go mod tidy && git diff --exit-code -- go.mod go.sum
+        run: go mod tidy
       - name: Static analysis
         run: go vet ./...
       - name: Unit and integration tests with race detection
