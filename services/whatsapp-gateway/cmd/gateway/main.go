@@ -7,7 +7,6 @@ import (
  "syscall"
  "crypto/subtle"
  "encoding/json"
- "fmt"
  "log"
  "net/http"
  "os"
