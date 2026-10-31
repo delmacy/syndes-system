@@ -4,6 +4,7 @@ import (
  "context"
  "database/sql"
  "errors"
+ "strings"
  "time"
 )
 
@@ -67,10 +68,20 @@ func(q Outbox) Enqueue(ctx context.Context,j Job)error{
 func(q Outbox) Claim(ctx context.Context,session string,now time.Time)(*Job,error){
  tx,e:=q.DB.BeginTx(ctx,nil);if e!=nil{return nil,e};defer tx.Rollback()
  ts:=now.Unix();window:=ts/60
+ // All linked devices for the same WhatsApp account share one send quota.
+ key:=session
+ var jid string
+ if e=tx.QueryRowContext(ctx,"SELECT jid FROM sessions WHERE id=?",session).Scan(&jid);e!=nil{return nil,e}
+ if jid!=""{
+  if colon:=strings.IndexByte(jid,':');colon>=0{
+   if at:=strings.IndexByte(jid,'@');at>colon{jid=jid[:colon]+jid[at:]}
+  }
+  key=jid
+ }
  _,e=tx.ExecContext(ctx,`INSERT INTO send_limits(session_id,window_start,used) VALUES(?,?,0)
- ON CONFLICT(session_id) DO UPDATE SET window_start=excluded.window_start,used=0 WHERE window_start<>excluded.window_start`,session,window)
+ ON CONFLICT(session_id) DO UPDATE SET window_start=excluded.window_start,used=0 WHERE window_start<>excluded.window_start`,key,window)
  if e!=nil{return nil,e}
- var used int;e=tx.QueryRowContext(ctx,"SELECT used FROM send_limits WHERE session_id=?",session).Scan(&used);if e!=nil{return nil,e}
+ var used int;e=tx.QueryRowContext(ctx,"SELECT used FROM send_limits WHERE session_id=?",key).Scan(&used);if e!=nil{return nil,e}
  if used>=40{return nil,nil}
  // Recheck authorization at dispatch: a revoked link must not allow queued sends.
  row:=tx.QueryRowContext(ctx,`SELECT o.id,o.session_id,o.tenant_id,o.recipient,o.body,o.priority,o.state,o.attempts
@@ -80,7 +91,7 @@ func(q Outbox) Claim(ctx context.Context,session string,now time.Time)(*Job,erro
  var j Job;e=row.Scan(&j.ID,&j.SessionID,&j.TenantID,&j.Recipient,&j.Body,&j.Priority,&j.State,&j.Attempts)
  if errors.Is(e,sql.ErrNoRows){return nil,nil};if e!=nil{return nil,e}
  _,e=tx.ExecContext(ctx,"UPDATE outbox SET state='processing',claimed_until=?,attempts=attempts+1 WHERE id=?",ts+60,j.ID);if e!=nil{return nil,e}
- _,e=tx.ExecContext(ctx,"UPDATE send_limits SET used=used+1 WHERE session_id=?",session);if e!=nil{return nil,e}
+ _,e=tx.ExecContext(ctx,"UPDATE send_limits SET used=used+1 WHERE session_id=?",key);if e!=nil{return nil,e}
  if e=tx.Commit();e!=nil{return nil,e};j.State="processing";j.Attempts++;return &j,nil
 }
 func(q Outbox) Complete(ctx context.Context,id string,sent bool)error{
