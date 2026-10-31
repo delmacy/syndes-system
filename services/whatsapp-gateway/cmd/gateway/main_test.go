@@ -33,6 +33,8 @@ func TestAuthTenantLinkAndMCP(t *testing.T){
  if w:=request("POST","/mcp",tok,`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`);w.Code!=200||!bytes.Contains(w.Body.Bytes(),[]byte("gateway_overview")){t.Fatalf("mcp %d: %s",w.Code,w.Body.String())}
  if w:=request("GET","/api/v1/overview",tok,"");w.Code!=200{t.Fatalf("overview: %d",w.Code)}
  if e:=(outbox.Outbox{DB:db.DB}).Assign(context.Background(),outbox.Route{SessionID:"device-1",ChatID:"551199999999",TenantID:"a"});e!=nil{t.Fatal(e)}
+ if w:=request("POST","/mcp",tok,`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"gateway_queue_text","arguments":{"id":"mcp-msg-1","session_id":"device-1","tenant_id":"a","recipient":"551199999999","body":"hello"}}}`);w.Code!=200||!bytes.Contains(w.Body.Bytes(),[]byte("queued")){t.Fatalf("mcp enqueue: %d %s",w.Code,w.Body.String())}
+ if w:=request("POST","/mcp",tok,`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"gateway_queue_text","arguments":{"id":"mcp-msg-2","session_id":"device-1","tenant_id":"b","recipient":"551199999999","body":"hello"}}}`);w.Code!=200||!bytes.Contains(w.Body.Bytes(),[]byte("isError")){t.Fatalf("mcp tenant isolation: %d %s",w.Code,w.Body.String())}
  if w:=request("POST","/api/v1/outbox",tok,`{"id":"out-a","session_id":"device-1","tenant_id":"a","recipient":"551199999999","body":"test","priority":1}`);w.Code!=202{t.Fatalf("queue: %d %s",w.Code,w.Body.String())}
  if w:=request("POST","/api/v1/outbox",tok,`{"id":"out-b","session_id":"device-1","tenant_id":"b","recipient":"551199999999","body":"test","priority":1}`);w.Code!=403{t.Fatalf("cross tenant: %d %s",w.Code,w.Body.String())}
  if w:=request("GET","/","","");w.Code!=404{t.Fatalf("embedded frontend still exposed: %d",w.Code)}
