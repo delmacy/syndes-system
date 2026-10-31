@@ -4,6 +4,7 @@ import (
  "bytes"
  "context"
  "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/outbox"
+ "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/inbox"
  "encoding/json"
  "net/http"
  "net/http/httptest"
@@ -16,6 +17,7 @@ func TestAuthTenantLinkAndMCP(t *testing.T){
  srv:=&server{db:db,token:"an-extra-long-test-token-1234567890"}
  handler:=srv.routes()
  if err:=(outbox.Outbox{DB:db.DB}).Init(context.Background());err!=nil{t.Fatal(err)}
+ if err:=(inbox.Store{DB:db.DB}).Init(context.Background());err!=nil{t.Fatal(err)}
  request:=func(method,path,token,body string)*httptest.ResponseRecorder{
   t.Helper();r:=httptest.NewRequest(method,path,bytes.NewBufferString(body));if token!=""{r.Header.Set("Authorization","Bearer "+token)}
   w:=httptest.NewRecorder();handler.ServeHTTP(w,r);return w
