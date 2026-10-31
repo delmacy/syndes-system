@@ -1,0 +1,125 @@
+package outbox
+
+import (
+ "context"
+ "database/sql"
+ "errors"
+ "strings"
+ "time"
+)
+
+var ErrUnauthorized = errors.New("tenant not authorized for session")
+var ErrInvalid = errors.New("invalid outbound request")
+
+// Outbox is an at-least-once durable queue. All callers must use stable idempotency IDs.
+// Provider dispatch MUST use a separately authenticated tenant identity.
+type Outbox struct{ DB *sql.DB }
+type Job struct {
+ ID string `json:"id"`
+ SessionID string `json:"session_id"`
+ TenantID string `json:"tenant_id"`
+ Recipient string `json:"recipient"`
+ Body string `json:"body"`
+ Priority int `json:"priority"`
+ State string `json:"state"`
+ Attempts int `json:"attempts"`
+}
+func (q Outbox) Init(ctx context.Context)error {
+ _,err:=q.DB.ExecContext(ctx,`CREATE TABLE IF NOT EXISTS outbox (
+ id TEXT PRIMARY KEY,
+ session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE RESTRICT,
+ tenant_id TEXT NOT NULL,
+ recipient TEXT NOT NULL,
+ body TEXT NOT NULL,
+ priority INTEGER NOT NULL DEFAULT 2 CHECK(priority BETWEEN 0 AND 3),
+ state TEXT NOT NULL DEFAULT 'queued' CHECK(state IN ('queued','processing','sent','failed')),
+ attempts INTEGER NOT NULL DEFAULT 0,
+ available_at INTEGER NOT NULL,
+ claimed_until INTEGER NOT NULL DEFAULT 0,
+ created_at INTEGER NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS idx_outbox_poll ON outbox(state,available_at,priority,created_at);
+ CREATE TABLE IF NOT EXISTS conversation_routes(
+ session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+ chat_id TEXT NOT NULL,
+ tenant_id TEXT NOT NULL,
+ PRIMARY KEY(session_id,chat_id),
+ FOREIGN KEY(session_id,tenant_id) REFERENCES links(session_id,tenant_id) ON DELETE CASCADE
+ );
+ CREATE INDEX IF NOT EXISTS idx_routes_tenant ON conversation_routes(tenant_id);
+ CREATE TABLE IF NOT EXISTS send_limits(session_id TEXT PRIMARY KEY,window_start INTEGER NOT NULL,used INTEGER NOT NULL);`)
+ return err
+}
+// Enqueue atomically checks the tenant/session authorization and inserts the job.
+// Identical idempotency keys cannot result in two jobs.
+func(q Outbox) Enqueue(ctx context.Context,j Job)error{
+ if j.ID==""||j.SessionID==""||j.TenantID==""||j.Recipient==""||j.Body==""||len(j.Body)>65536||j.Priority<0||j.Priority>3{return ErrInvalid}
+ j.Recipient=canonicalChat(j.Recipient)
+ tx,e:=q.DB.BeginTx(ctx,nil);if e!=nil{return e};defer tx.Rollback()
+ var authorized int
+ e=tx.QueryRowContext(ctx,"SELECT count(*) FROM links l JOIN conversation_routes cr ON cr.session_id=l.session_id AND cr.tenant_id=l.tenant_id WHERE l.session_id=? AND l.tenant_id=? AND l.can_send=1 AND cr.chat_id=?",j.SessionID,j.TenantID,j.Recipient).Scan(&authorized)
+ if e!=nil{return e};if authorized==0{return ErrUnauthorized}
+ now:=time.Now().Unix()
+ _,e=tx.ExecContext(ctx,`INSERT INTO outbox(id,session_id,tenant_id,recipient,body,priority,available_at,created_at)
+ VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`,j.ID,j.SessionID,j.TenantID,j.Recipient,j.Body,j.Priority,now,now)
+ if e!=nil{return e};return tx.Commit()
+}
+// Claim enforces a shared 40-message/minute limit per WhatsApp session,
+// including all tenants authorized to use it. Leases allow retry after worker failure.
+func(q Outbox) Claim(ctx context.Context,session string,now time.Time)(*Job,error){
+ tx,e:=q.DB.BeginTx(ctx,nil);if e!=nil{return nil,e};defer tx.Rollback()
+ ts:=now.Unix();window:=ts/60
+ // All linked devices for the same WhatsApp account share one send quota.
+ key:=session
+ var jid string
+ if e=tx.QueryRowContext(ctx,"SELECT jid FROM sessions WHERE id=?",session).Scan(&jid);e!=nil{return nil,e}
+ if jid!=""{
+  if colon:=strings.IndexByte(jid,':');colon>=0{
+   if at:=strings.IndexByte(jid,'@');at>colon{jid=jid[:colon]+jid[at:]}
+  }
+  key=jid
+ }
+ _,e=tx.ExecContext(ctx,`INSERT INTO send_limits(session_id,window_start,used) VALUES(?,?,0)
+ ON CONFLICT(session_id) DO UPDATE SET window_start=excluded.window_start,used=0 WHERE window_start<>excluded.window_start`,key,window)
+ if e!=nil{return nil,e}
+ var used int;e=tx.QueryRowContext(ctx,"SELECT used FROM send_limits WHERE session_id=?",key).Scan(&used);if e!=nil{return nil,e}
+ if used>=40{return nil,nil}
+ // Recheck authorization at dispatch: a revoked link must not allow queued sends.
+ row:=tx.QueryRowContext(ctx,`SELECT o.id,o.session_id,o.tenant_id,o.recipient,o.body,o.priority,o.state,o.attempts
+ FROM outbox o JOIN links l ON l.session_id=o.session_id AND l.tenant_id=o.tenant_id AND l.can_send=1 JOIN conversation_routes cr ON cr.session_id=o.session_id AND cr.tenant_id=o.tenant_id AND cr.chat_id=o.recipient
+ WHERE o.session_id=? AND o.available_at<=? AND (o.state='queued' OR (o.state='processing' AND o.claimed_until<=?))
+ ORDER BY o.priority ASC,o.created_at ASC,o.id ASC LIMIT 1`,session,ts,ts)
+ var j Job;e=row.Scan(&j.ID,&j.SessionID,&j.TenantID,&j.Recipient,&j.Body,&j.Priority,&j.State,&j.Attempts)
+ if errors.Is(e,sql.ErrNoRows){return nil,nil};if e!=nil{return nil,e}
+ _,e=tx.ExecContext(ctx,"UPDATE outbox SET state='processing',claimed_until=?,attempts=attempts+1 WHERE id=?",ts+60,j.ID);if e!=nil{return nil,e}
+ _,e=tx.ExecContext(ctx,"UPDATE send_limits SET used=used+1 WHERE session_id=?",key);if e!=nil{return nil,e}
+ if e=tx.Commit();e!=nil{return nil,e};j.State="processing";j.Attempts++;return &j,nil
+}
+func(q Outbox) Complete(ctx context.Context,id string,sent bool)error{
+ state:="sent";if !sent{state="queued"}
+ _,e:=q.DB.ExecContext(ctx,"UPDATE outbox SET state=?,claimed_until=0,available_at=? WHERE id=? AND state='processing'",state,time.Now().Add(time.Minute).Unix(),id)
+ return e
+}
+
+type Route struct { SessionID string `json:"session_id"`; ChatID string `json:"chat_id"`; TenantID string `json:"tenant_id"` }
+func(q Outbox) Assign(ctx context.Context,r Route)error{
+ if r.SessionID==""||r.ChatID==""||r.TenantID==""{return ErrInvalid}
+ r.ChatID=canonicalChat(r.ChatID)
+ tx,err:=q.DB.BeginTx(ctx,nil);if err!=nil{return err};defer tx.Rollback()
+ var ok int
+ if err=tx.QueryRowContext(ctx,"SELECT count(*) FROM links WHERE session_id=? AND tenant_id=?",r.SessionID,r.TenantID).Scan(&ok);err!=nil{return err}
+ if ok==0{return ErrUnauthorized}
+ _,err=tx.ExecContext(ctx,`INSERT INTO conversation_routes(session_id,chat_id,tenant_id) VALUES(?,?,?)
+ ON CONFLICT(session_id,chat_id) DO UPDATE SET tenant_id=excluded.tenant_id`,r.SessionID,r.ChatID,r.TenantID)
+ if err!=nil{return err};return tx.Commit()
+}
+func(q Outbox) Routes(ctx context.Context)([]Route,error){
+ rows,err:=q.DB.QueryContext(ctx,"SELECT session_id,chat_id,tenant_id FROM conversation_routes ORDER BY session_id,chat_id");if err!=nil{return nil,err};defer rows.Close()
+ out:=[]Route{};for rows.Next(){var r Route;if err=rows.Scan(&r.SessionID,&r.ChatID,&r.TenantID);err!=nil{return nil,err};out=append(out,r)};return out,rows.Err()
+}
+
+func canonicalChat(input string)string{
+ if strings.Contains(input,"@"){return input}
+ for _,c:=range input{if c<'0'||c>'9'{return input}}
+ return input+"@s.whatsapp.net"
+}
