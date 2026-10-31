@@ -1,10 +1,18 @@
-# WhatsApp Admin (independent frontend)
+# WhatsApp Admin — separate Next.js UI
 
-Separate Next.js application consuming the **Go gateway REST API server-side**. Do not mix React/HTML/CSS code with the Go gateway module.
+Independent of the Go gateway; no HTML or React code is embedded in the Go service.
 
-## Security
-**This is an internal bootstrap prototype, not an authenticated production panel.**
-Keep it reachable exclusively through a private VPN or identity-aware access proxy until Keycloak OIDC, session management, CSRF and per-operation RBAC are implemented. The Node server reads the secret from `GATEWAY_ADMIN_TOKEN`; the browser never sees it.
+## Authentication
+Login uses Auth.js v5 + Keycloak OIDC and denies accounts that do not have the realm role `syndes-gateway-admin` (configurable with `AUTH_ADMIN_ROLE`).
+Configure a Keycloak OIDC confidential client with redirect URI `https://YOUR_ADMIN_DOMAIN/api/auth/callback/keycloak`.
+Add an ID-token mapper/client scope that includes `realm_access.roles`; without the expected role the login is rejected.
+Set `AUTH_SECRET`, `AUTH_KEYCLOAK_ID`, `AUTH_KEYCLOAK_SECRET`, `AUTH_KEYCLOAK_ISSUER` and your trusted HTTPS hostname.
+Do not expose the admin page until Keycloak and HTTPS are configured.
 
-## Run
-`npm install && npm run dev`, after configuring the environment. In Docker, `GATEWAY_INTERNAL_URL` should resolve to the Go gateway's internal DNS name. Do not expose the gateway port to the public internet.
+## Backend connectivity
+The Next.js server (not the browser) calls `GATEWAY_INTERNAL_URL` using `GATEWAY_ADMIN_TOKEN`.
+The gateway itself remains on a private Docker network without a published host port. Do not expose gateway API directly.
+For production use a dedicated scoped service identity and audit, rather than a long-lived shared bootstrap secret.
+
+## Development
+`npm install && npm run lint && npm run build`; `npm run dev` after configuring environment.
