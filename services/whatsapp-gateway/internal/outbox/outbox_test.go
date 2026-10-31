@@ -17,6 +17,7 @@ func TestIsolationIdempotencyLimitsAndRecovery(t *testing.T){
  if e=s.Link(ctx,"session","tenant-a",true);e!=nil{t.Fatal(e)}
  unauthorized:=Job{ID:"wrong",SessionID:"session",TenantID:"tenant-b",Recipient:"123",Body:"hello",Priority:0}
  if e=q.Enqueue(ctx,unauthorized);!errors.Is(e,ErrUnauthorized){t.Fatalf("cross tenant accepted: %v",e)}
+ if e=q.Assign(ctx,Route{SessionID:"session",ChatID:"123",TenantID:"tenant-a"});e!=nil{t.Fatal(e)}
  for i:=0;i<50;i++{j:=Job{ID:fmt.Sprintf("job-%d",i),SessionID:"session",TenantID:"tenant-a",Recipient:"123",Body:"hello",Priority:1};if e=q.Enqueue(ctx,j);e!=nil{t.Fatal(e)}}
  if e=q.Enqueue(ctx,Job{ID:"job-0",SessionID:"session",TenantID:"tenant-a",Recipient:"123",Body:"hello",Priority:1});e!=nil{t.Fatal(e)}
  now:=time.Now().UTC()
