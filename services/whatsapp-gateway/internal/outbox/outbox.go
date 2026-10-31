@@ -54,6 +54,7 @@ func (q Outbox) Init(ctx context.Context)error {
 // Identical idempotency keys cannot result in two jobs.
 func(q Outbox) Enqueue(ctx context.Context,j Job)error{
  if j.ID==""||j.SessionID==""||j.TenantID==""||j.Recipient==""||j.Body==""||len(j.Body)>65536||j.Priority<0||j.Priority>3{return ErrInvalid}
+ j.Recipient=canonicalChat(j.Recipient)
  tx,e:=q.DB.BeginTx(ctx,nil);if e!=nil{return e};defer tx.Rollback()
  var authorized int
  e=tx.QueryRowContext(ctx,"SELECT count(*) FROM links l JOIN conversation_routes cr ON cr.session_id=l.session_id AND cr.tenant_id=l.tenant_id WHERE l.session_id=? AND l.tenant_id=? AND l.can_send=1 AND cr.chat_id=?",j.SessionID,j.TenantID,j.Recipient).Scan(&authorized)
@@ -103,6 +104,7 @@ func(q Outbox) Complete(ctx context.Context,id string,sent bool)error{
 type Route struct { SessionID string `json:"session_id"`; ChatID string `json:"chat_id"`; TenantID string `json:"tenant_id"` }
 func(q Outbox) Assign(ctx context.Context,r Route)error{
  if r.SessionID==""||r.ChatID==""||r.TenantID==""{return ErrInvalid}
+ r.ChatID=canonicalChat(r.ChatID)
  tx,err:=q.DB.BeginTx(ctx,nil);if err!=nil{return err};defer tx.Rollback()
  var ok int
  if err=tx.QueryRowContext(ctx,"SELECT count(*) FROM links WHERE session_id=? AND tenant_id=?",r.SessionID,r.TenantID).Scan(&ok);err!=nil{return err}
@@ -114,4 +116,10 @@ func(q Outbox) Assign(ctx context.Context,r Route)error{
 func(q Outbox) Routes(ctx context.Context)([]Route,error){
  rows,err:=q.DB.QueryContext(ctx,"SELECT session_id,chat_id,tenant_id FROM conversation_routes ORDER BY session_id,chat_id");if err!=nil{return nil,err};defer rows.Close()
  out:=[]Route{};for rows.Next(){var r Route;if err=rows.Scan(&r.SessionID,&r.ChatID,&r.TenantID);err!=nil{return nil,err};out=append(out,r)};return out,rows.Err()
+}
+
+func canonicalChat(input string)string{
+ if strings.Contains(input,"@"){return input}
+ for _,c:=range input{if c<'0'||c>'9'{return input}}
+ return input+"@s.whatsapp.net"
 }
