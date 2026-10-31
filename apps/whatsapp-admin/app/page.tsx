@@ -1,3 +1,5 @@
+import { auth } from "../auth";
+import { redirect } from "next/navigation";
 type Session={id:string;jid:string;state:string;created:string};
 type Link={session_id:string;tenant_id:string;can_send:boolean};
 type Overview={sessions:Session[];links:Link[];totals:{sessions:number;links:number;tenants:number;routes:number;queued:number;processing:number;sent:number;inbound:number}};
@@ -10,6 +12,8 @@ async function overview():Promise<Overview|null>{
  }catch{return null}
 }
 export default async function Page(){
+ const session=await auth();
+ if(!session?.user) redirect("/api/auth/signin");
  // Bootstrap UI only. Must be behind trusted identity-aware access proxy;
  // replace with Keycloak OIDC session + server-side permission checks before production.
  const data=await overview();
