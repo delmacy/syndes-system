@@ -5,6 +5,11 @@ import type {
   WhatsAppProvider,
 } from './whatsapp-provider';
 
+// Whatsmeow emits replacement QR codes after up to 20 seconds. Leave margin
+// for the sidecar and API round trip so renewal does not inherit the shorter
+// timeout used by ordinary WhatsApp operations.
+const PAIRING_REQUEST_TIMEOUT_MS = 30_000;
+
 @Injectable()
 export class WhatsmeowProvider implements WhatsAppProvider {
   readonly providerId = 'whatsmeow' as const;
@@ -17,6 +22,7 @@ export class WhatsmeowProvider implements WhatsAppProvider {
     tenantId: string,
     path: string,
     init?: RequestInit,
+    timeoutMs = this.config.requestTimeoutMs,
   ): Promise<T> {
     if (!this.config.whatsmeowUrl)
       throw new Error('whatsapp_whatsmeow_url_missing');
@@ -29,7 +35,7 @@ export class WhatsmeowProvider implements WhatsAppProvider {
       {
         ...init,
         headers,
-        signal: AbortSignal.timeout(this.config.requestTimeoutMs),
+        signal: AbortSignal.timeout(timeoutMs),
       },
     );
     if (!response.ok) throw new Error(`whatsapp_whatsmeow_${response.status}`);
@@ -41,7 +47,12 @@ export class WhatsmeowProvider implements WhatsAppProvider {
     const result = await this.request<{
       pairingCode: string;
       expiresAt: string;
-    }>(tenantId, '/pairing', { method: 'POST', body: '{}' });
+    }>(
+      tenantId,
+      '/pairing',
+      { method: 'POST', body: '{}' },
+      Math.max(this.config.requestTimeoutMs, PAIRING_REQUEST_TIMEOUT_MS),
+    );
     const expiresAt = new Date(result.expiresAt);
     if (!result.pairingCode || Number.isNaN(expiresAt.getTime()))
       throw new Error('whatsapp_whatsmeow_invalid_response');
