@@ -6,9 +6,10 @@ services:
     environment:
       GATEWAY_DB: /data/gateway.db
       GATEWAY_LISTEN: 0.0.0.0:8080
+      WHATSAPP_SESSIONS_DB: /data/sessions.db
     volumes:
       - gateway-data:/data
-    networks: [internal]
+    networks: [gateway]
     healthcheck:
       test: ["CMD-SHELL", "test -f /data/gateway.db"]
       interval: 30s
@@ -17,7 +18,7 @@ services:
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
 networks:
-  internal:
-    internal: true
+  gateway:
+    name: syndes-whatsapp-gateway
 volumes:
   gateway-data:
