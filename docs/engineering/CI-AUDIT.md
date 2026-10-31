@@ -72,36 +72,53 @@ alguém adulterar um manifesto, o sha256 deixa de bater.
 ## Tratamento da frota Orca
 
 Os trailers provam **quem** produziu o commit. Não provam **como o Orca tratou
-esse worker** — se nasceu com modelo pinado, quanto durou, se foi liberado ou
+esse worker**: se nasceu com modelo pinado, quanto durou, se foi liberado ou
 ficou vazando.
 
-Quando o commit traz `.audit/fleet/<head_sha>.json` (schema
-`syndes.fleet-audit/1`, gerado por `orca-fleet-audit.ps1`), o manifesto incorpora
-um bloco `orchestration` com:
+A evidência de frota vem como **commit status** `orca-fleet/audit`, publicado
+pelo host que tem a frota (o Orca local, via `orca-fleet-audit.ps1 -PostStatus`),
+não por arquivo dentro do commit.
+
+### Por que status e não arquivo
+
+Um arquivo `.audit/fleet/<sha>.json` dentro do commit precisaria conter o SHA do
+próprio commit que o contém — impossível. Commitar em um commit seguinte desloca
+a evidência para fora do objeto auditado. O status resolve porque é publicado
+**depois** que o SHA existe e fica vinculado a ele pela própria API.
+
+Checks API não é usada: exige autenticação de GitHub App. O token disponível é
+OAuth, que cria status mas não check runs (`403: You must authenticate via a
+GitHub App`).
+
+### Formato
+
+Descrição limitada a 140 caracteres, formato estável e parseável:
+
+```
+w10 rel5 leak0 pin0/10 churn306 sha:86b79918
+```
 
 | Campo | Significado |
 | --- | --- |
-| `workers` / `settled` | quantos nasceram e quantos entregaram |
-| `released` / `retained_actionable` | quantos foram liberados; quantos ficaram vazando |
-| `external_residue` | terminais que o Orca nunca possuiu (resíduo inerte) |
-| `model_pinned` / `model_unpinned` | se o worker foi pinado num modelo ou caiu no default |
-| `coordinator_churn` | `consumer_generation` do run — proxy de recriação do coordenador |
-| `ledger_digest` | sha256 da linha correspondente no ledger local |
+| `w` | workers criados |
+| `rel` | liberados |
+| `leak` | retidos acionáveis (vazamento) |
+| `pin` | com modelo pinado / total |
+| `churn` | `consumer_generation` do run — proxy de recriação do coordenador |
+| `sha:` | prefixo do digest do registro completo, para casar com o ledger local |
 
-### O que é validado
+O JSON completo fica no ledger append-only do host (`~/.orca-fleet/ledger.jsonl`),
+endereçado por esse prefixo de digest.
 
-- schema igual a `syndes.fleet-audit/1`
-- `scope.commit_sha` **igual** ao head do run — impede reaproveitar o registro de
-  outro commit
-- `evidence.sha256` com formato válido (64 hex)
+### Efeito no veredito
 
-O digest **não** é recriptografado aqui, e é deliberado: o arquivo está dentro do
-próprio commit, então o git é a camada de integridade. Recalcular o hash só
-provaria que o arquivo concorda consigo mesmo.
+O status de frota **não** altera o `verdict` do manifesto: reprovar CI por
+vazamento de terminal misturaria duas coisas diferentes. Ele entra como dado e
+como aviso — `fleet-status:failure` quando há vazamento, `fleet-status:unparsable`
+quando a descrição não segue o formato.
 
-Registro ausente não reprova: vira `orchestration.present = false` e o comentário
-diz "sem registro". Vazamento real (`retained_actionable > 0`) gera aviso
-`fleet-leak:N` no manifesto.
+Ausência é registrada como `orchestration.present = false`, e o comentário diz
+"sem registro".
 
 
 ## Decisão sobre qual SHA é testado

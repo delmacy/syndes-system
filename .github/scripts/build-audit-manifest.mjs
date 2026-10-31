@@ -73,48 +73,98 @@ if (!trailers.complete) {
 
 const verdict = gatesPassed && !(requireTrailers && !trailers.complete) ? 'pass' : 'fail';
 
-// Tratamento da frota Orca, quando o commit trouxer o registro.
-// A integridade aqui nao vem de recriptografar o digest: o arquivo esta dentro
-// do proprio commit, logo o git e a camada de integridade. O que se verifica e
-// que o registro pertence a ESTE commit e nao a outro.
+// Tratamento da frota Orca.
+//
+// Fonte preferida: commit status `orca-fleet/audit`, publicado pelo host que tem
+// a frota (o Orca local). Um arquivo dentro do commit nao serve como fonte
+// primaria: o registro precisaria conter o SHA do proprio commit que o contem,
+// o que e impossivel. O status e publicado depois que o SHA existe, e fica
+// vinculado a ele pela propria API.
+//
+// A descricao do status tem formato estavel e limitado a 140 chars:
+//   w10 rel5 leak0 pin0/10 churn306 sha:86b79918
+// Checks API nao e usada: exige GitHub App, e o token disponivel e OAuth.
 const headSha = provenance.head_sha || env.GITHUB_SHA || '';
-const fleetPath = `.audit/fleet/${headSha}.json`;
+
+function parseFleetDescription(text) {
+  const re = /w(\d+) rel(\d+) leak(\d+) pin(\d+)\/(\d+) churn(\d+) sha:([0-9a-f]{8})/i;
+  const hit = re.exec(text || '');
+  if (!hit) return null;
+  const [, w, rel, leak, pin, total, churn, digest] = hit;
+  return {
+    workers: Number(w),
+    released: Number(rel),
+    retained_actionable: Number(leak),
+    model_pinned: Number(pin),
+    model_unpinned: Number(total) - Number(pin),
+    coordinator_churn: Number(churn),
+    ledger_digest_prefix: digest,
+  };
+}
+
+let statusInfo = null;
+const statusFile = env.AUDIT_FLEET_STATUS_FILE || 'fleet-status.json';
+if (existsSync(statusFile)) {
+  const list = parseJson(readFileSync(statusFile, 'utf8'), []);
+  const rows = Array.isArray(list) ? list : [];
+  statusInfo = rows.find((s) => s.context === 'orca-fleet/audit') || null;
+}
+
+let fleetDoc = null;
+let fleetSource = null;
 let orchestration = { present: false };
-if (headSha && existsSync(fleetPath)) {
-  const problems = [];
-  let doc = null;
-  try {
-    doc = JSON.parse(readFileSync(fleetPath, 'utf8'));
-  } catch {
-    problems.push('invalid-json');
-  }
-  if (doc) {
-    if (doc.schema !== 'syndes.fleet-audit/1') problems.push('schema-mismatch');
-    if (doc.scope?.commit_sha !== headSha) problems.push('sha-mismatch');
-    if (!/^[0-9a-f]{64}$/.test(doc.evidence?.sha256 || '')) problems.push('digest-malformed');
-  }
-  const lc = doc?.lifecycle || {};
+
+if (statusInfo) {
+  const parsed = parseFleetDescription(statusInfo.description);
   orchestration = {
     present: true,
-    path: fleetPath,
-    schema: doc?.schema ?? null,
-    run_id: doc?.scope?.run_id ?? null,
-    branch: doc?.scope?.branch ?? null,
-    workers: lc.workers ?? null,
-    settled: lc.settled ?? null,
-    released: lc.released ?? null,
-    retained_actionable: lc.retained_actionable ?? null,
-    external_residue: lc.external_residue ?? null,
-    model_pinned: lc.model_pinned ?? null,
-    model_unpinned: lc.model_unpinned ?? null,
-    avg_duration_seconds: lc.avg_duration_seconds ?? null,
-    coordinator_churn: doc?.run?.coordinator_churn ?? null,
-    ledger_digest: doc?.evidence?.sha256 ?? null,
-    problems,
+    source: 'commit-status',
+    status_state: statusInfo.state,
+    description: statusInfo.description,
+    workers: parsed?.workers ?? null,
+    released: parsed?.released ?? null,
+    retained_actionable: parsed?.retained_actionable ?? null,
+    model_pinned: parsed?.model_pinned ?? null,
+    model_unpinned: parsed?.model_unpinned ?? null,
+    coordinator_churn: parsed?.coordinator_churn ?? null,
+    ledger_digest_prefix: parsed?.ledger_digest_prefix ?? null,
+    problems: parsed ? [] : ['status-unparsable'],
   };
-  if (problems.length) warnings.push(`fleet-evidence:${problems.join(',')}`);
-  if ((lc.retained_actionable ?? 0) > 0) {
-    warnings.push(`fleet-leak:${lc.retained_actionable}`);
+  if (!parsed) warnings.push('fleet-status:unparsable');
+  if (statusInfo.state === 'failure') warnings.push('fleet-status:failure');
+} else if (headSha && existsSync(`.audit/fleet/${headSha}.json`)) {
+  // Fallback historico: registro versionado no proprio commit.
+  try {
+    fleetDoc = JSON.parse(readFileSync(`.audit/fleet/${headSha}.json`, 'utf8'));
+    fleetSource = 'commit-file';
+  } catch {
+    fleetDoc = null;
+  }
+  if (fleetDoc) {
+    const problems = [];
+    if (fleetDoc.schema !== 'syndes.fleet-audit/1') problems.push('schema-mismatch');
+    if (fleetDoc.scope?.commit_sha !== headSha) problems.push('sha-mismatch');
+    const lc = fleetDoc.lifecycle || {};
+    orchestration = {
+      present: true,
+      source: fleetSource,
+      schema: fleetDoc.schema ?? null,
+      run_id: fleetDoc.scope?.run_id ?? null,
+      branch: fleetDoc.scope?.branch ?? null,
+      workers: lc.workers ?? null,
+      settled: lc.settled ?? null,
+      released: lc.released ?? null,
+      retained_actionable: lc.retained_actionable ?? null,
+      external_residue: lc.external_residue ?? null,
+      model_pinned: lc.model_pinned ?? null,
+      model_unpinned: lc.model_unpinned ?? null,
+      avg_duration_seconds: lc.avg_duration_seconds ?? null,
+      coordinator_churn: fleetDoc.run?.coordinator_churn ?? null,
+      ledger_digest: fleetDoc.evidence?.sha256 ?? null,
+      problems,
+    };
+    if (problems.length) warnings.push(`fleet-evidence:${problems.join(',')}`);
+    if ((lc.retained_actionable ?? 0) > 0) warnings.push(`fleet-leak:${lc.retained_actionable}`);
   }
 }
 
