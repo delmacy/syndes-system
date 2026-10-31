@@ -2,6 +2,8 @@ package whatsmeowadapter
 
 import (
  "context"
+ "crypto/sha256"
+ "encoding/hex"
  "database/sql"
  "errors"
  "fmt"
@@ -126,7 +128,12 @@ func(a *Adapter) Send(ctx context.Context,r provider.SendRequest)(provider.SendR
  a.mu.RLock();d,ok:=a.clients[r.SessionID];a.mu.RUnlock()
  if !ok||!d.client.IsLoggedIn()||!d.client.IsConnected(){return provider.SendReceipt{},provider.ErrNotConnected}
  jid,err:=recipient(r.Recipient);if err!=nil{return provider.SendReceipt{},err}
- resp,err:=d.client.SendMessage(ctx,jid,&waE2E.Message{Conversation:proto.String(r.Text)})
+  extra:=whatsmeow.SendRequestExtra{}
+ if r.IdempotencyKey!=""{
+  sum:=sha256.Sum256([]byte(r.IdempotencyKey))
+  extra.ID=types.MessageID(strings.ToUpper(hex.EncodeToString(sum[:16])))
+ }
+ resp,err:=d.client.SendMessage(ctx,jid,&waE2E.Message{Conversation:proto.String(r.Text)},extra)
  if err!=nil{return provider.SendReceipt{},err}
  return provider.SendReceipt{ProviderMessageID:string(resp.ID)},nil
 }
