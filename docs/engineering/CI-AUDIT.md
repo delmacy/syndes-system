@@ -69,6 +69,41 @@ O artifact fica retido por 90 dias. Como artefatos de Actions não podem ser
 alterados depois de publicado, o digest publicado no PR ancora o conteúdo: se
 alguém adulterar um manifesto, o sha256 deixa de bater.
 
+## Tratamento da frota Orca
+
+Os trailers provam **quem** produziu o commit. Não provam **como o Orca tratou
+esse worker** — se nasceu com modelo pinado, quanto durou, se foi liberado ou
+ficou vazando.
+
+Quando o commit traz `.audit/fleet/<head_sha>.json` (schema
+`syndes.fleet-audit/1`, gerado por `orca-fleet-audit.ps1`), o manifesto incorpora
+um bloco `orchestration` com:
+
+| Campo | Significado |
+| --- | --- |
+| `workers` / `settled` | quantos nasceram e quantos entregaram |
+| `released` / `retained_actionable` | quantos foram liberados; quantos ficaram vazando |
+| `external_residue` | terminais que o Orca nunca possuiu (resíduo inerte) |
+| `model_pinned` / `model_unpinned` | se o worker foi pinado num modelo ou caiu no default |
+| `coordinator_churn` | `consumer_generation` do run — proxy de recriação do coordenador |
+| `ledger_digest` | sha256 da linha correspondente no ledger local |
+
+### O que é validado
+
+- schema igual a `syndes.fleet-audit/1`
+- `scope.commit_sha` **igual** ao head do run — impede reaproveitar o registro de
+  outro commit
+- `evidence.sha256` com formato válido (64 hex)
+
+O digest **não** é recriptografado aqui, e é deliberado: o arquivo está dentro do
+próprio commit, então o git é a camada de integridade. Recalcular o hash só
+provaria que o arquivo concorda consigo mesmo.
+
+Registro ausente não reprova: vira `orchestration.present = false` e o comentário
+diz "sem registro". Vazamento real (`retained_actionable > 0`) gera aviso
+`fleet-leak:N` no manifesto.
+
+
 ## Decisão sobre qual SHA é testado
 
 Os gates rodam sobre o **SHA de topo do PR**, não sobre o merge commit. O objeto

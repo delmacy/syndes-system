@@ -84,6 +84,11 @@ function renderComment() {
     ? `**Atribuição:** agente \`${manifest.agent.agent}\`, worktree \`${manifest.agent.worktree}\`, sessão \`${manifest.agent.session}\``
     : `**Atribuição:** incompleta (faltam ${manifest.agent.trailers_missing.map((t) => `\`${t}\``).join(', ')})`;
 
+  const o = manifest.orchestration || { present: false };
+  const fleetLine = o.present
+    ? `| frota Orca | ${o.workers} workers, ${o.released} liberados, ${o.retained_actionable} vazando, ${o.model_pinned}/${o.workers} com modelo pinado |`
+    : '| frota Orca | sem registro `.audit/fleet/` neste commit |';
+
   return [
     marker,
     `## ${icon} CI audit — veredito \`${manifest.verdict}\``,
@@ -95,6 +100,7 @@ function renderComment() {
     `| commits no intervalo | ${manifest.commit.commits_since_base ?? 'n/a'} (${manifest.commit.commits_with_trailers ?? 0} com trailers) |`,
     `| run | ${targetUrl || 'n/a'} |`,
     `| manifest sha256 | \`${digest || 'n/a'}\` |`,
+    fleetLine,
     '',
     attribution,
     '',

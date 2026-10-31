@@ -73,6 +73,51 @@ if (!trailers.complete) {
 
 const verdict = gatesPassed && !(requireTrailers && !trailers.complete) ? 'pass' : 'fail';
 
+// Tratamento da frota Orca, quando o commit trouxer o registro.
+// A integridade aqui nao vem de recriptografar o digest: o arquivo esta dentro
+// do proprio commit, logo o git e a camada de integridade. O que se verifica e
+// que o registro pertence a ESTE commit e nao a outro.
+const headSha = provenance.head_sha || env.GITHUB_SHA || '';
+const fleetPath = `.audit/fleet/${headSha}.json`;
+let orchestration = { present: false };
+if (headSha && existsSync(fleetPath)) {
+  const problems = [];
+  let doc = null;
+  try {
+    doc = JSON.parse(readFileSync(fleetPath, 'utf8'));
+  } catch {
+    problems.push('invalid-json');
+  }
+  if (doc) {
+    if (doc.schema !== 'syndes.fleet-audit/1') problems.push('schema-mismatch');
+    if (doc.scope?.commit_sha !== headSha) problems.push('sha-mismatch');
+    if (!/^[0-9a-f]{64}$/.test(doc.evidence?.sha256 || '')) problems.push('digest-malformed');
+  }
+  const lc = doc?.lifecycle || {};
+  orchestration = {
+    present: true,
+    path: fleetPath,
+    schema: doc?.schema ?? null,
+    run_id: doc?.scope?.run_id ?? null,
+    branch: doc?.scope?.branch ?? null,
+    workers: lc.workers ?? null,
+    settled: lc.settled ?? null,
+    released: lc.released ?? null,
+    retained_actionable: lc.retained_actionable ?? null,
+    external_residue: lc.external_residue ?? null,
+    model_pinned: lc.model_pinned ?? null,
+    model_unpinned: lc.model_unpinned ?? null,
+    avg_duration_seconds: lc.avg_duration_seconds ?? null,
+    coordinator_churn: doc?.run?.coordinator_churn ?? null,
+    ledger_digest: doc?.evidence?.sha256 ?? null,
+    problems,
+  };
+  if (problems.length) warnings.push(`fleet-evidence:${problems.join(',')}`);
+  if ((lc.retained_actionable ?? 0) > 0) {
+    warnings.push(`fleet-leak:${lc.retained_actionable}`);
+  }
+}
+
 const workflowName = env.GITHUB_WORKFLOW || 'agent-ci-audit';
 const runUrl =
   env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY && env.GITHUB_RUN_ID
@@ -114,6 +159,7 @@ const manifest = {
     trailers_required: requireTrailers,
   },
   gates: gateRecords,
+  orchestration,
   verdict,
   warnings,
 };
