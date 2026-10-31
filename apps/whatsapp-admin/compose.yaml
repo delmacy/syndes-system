@@ -1,0 +1,15 @@
+services:
+  whatsapp-admin:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      GATEWAY_INTERNAL_URL: http://gateway:8080
+    networks: [whatsapp-gateway]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    # No host port is published. Expose behind authenticated HTTPS ingress.
+networks:
+  whatsapp-gateway:
+    name: syndes-whatsapp-gateway
+    external: true
