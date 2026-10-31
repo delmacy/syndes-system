@@ -14,6 +14,7 @@ import (
  "strings"
  "time"
  "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/store"
+ "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/auth"
  "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/outbox"
  "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/inbox"
  "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/provider"
@@ -21,7 +22,7 @@ import (
  "github.com/delmacy/syndes-system/services/whatsapp-gateway/internal/supervisor"
 )
 
-type server struct { db *store.Store; token string; wa *whatsmeowadapter.Adapter; supervisor *supervisor.Supervisor }
+type server struct { db *store.Store; token string; verifier *auth.Verifier; wa *whatsmeowadapter.Adapter; supervisor *supervisor.Supervisor }
 type inboundSink struct{ store inbox.Store }
 func(s inboundSink)OnMessage(ctx context.Context,e provider.Incoming)error{
  _,err:=s.store.Insert(ctx,inbox.Event{
@@ -34,7 +35,7 @@ func reply(w http.ResponseWriter,status int,v any){w.Header().Set("Content-Type"
 func(s *server) auth(next http.HandlerFunc) http.HandlerFunc{
  return func(w http.ResponseWriter,r *http.Request){
   h:=strings.TrimPrefix(r.Header.Get("Authorization"),"Bearer ")
-  if s.token=="" || subtle.ConstantTimeCompare([]byte(h),[]byte(s.token))!=1 {reply(w,401,map[string]string{"error":"unauthorized"});return}
+  if s.verifier!=nil {if err:=s.verifier.Validate(r.Context(),h,"gateway.admin");err!=nil{reply(w,401,map[string]string{"error":"unauthorized"});return}}else if s.token=="" || subtle.ConstantTimeCompare([]byte(h),[]byte(s.token))!=1 {reply(w,401,map[string]string{"error":"unauthorized"});return}
   next(w,r)
  }
 }
@@ -123,7 +124,13 @@ func(s *server) routes()http.Handler{
 }
 func valid(x string)bool{if len(x)<1||len(x)>96{return false};for _,c:=range x{if !(c>='a'&&c<='z'||c>='A'&&c<='Z'||c>='0'&&c<='9'||c=='-'||c=='_'){return false}};return true}
 func main(){
- token:=os.Getenv("GATEWAY_ADMIN_TOKEN");if len(token)<32{log.Fatal("GATEWAY_ADMIN_TOKEN must be set and at least 32 characters")}
+ token:=os.Getenv("GATEWAY_ADMIN_TOKEN")
+ issuer:=os.Getenv("GATEWAY_ISSUER");audience:=os.Getenv("GATEWAY_AUDIENCE");jwks:=os.Getenv("GATEWAY_JWKS_URL")
+ var verifier *auth.Verifier
+ if issuer!=""||audience!=""||jwks!=""{
+  if issuer==""||audience==""||jwks==""{log.Fatal("Keycloak issuer, audience and JWKS URL must all be configured")}
+  verifier=&auth.Verifier{Issuer:issuer,Audience:audience,JWKSURL:jwks}
+ }else if len(token)<32{log.Fatal("GATEWAY_ADMIN_TOKEN must be at least 32 characters when Keycloak is not configured")}
  path:=os.Getenv("GATEWAY_DB");if path==""{path="./gateway.db"}
  db,err:=store.Open(path);if err!=nil{log.Fatal(err)};defer db.Close()
  ctx,cancel:=signal.NotifyContext(context.Background(),syscall.SIGINT,syscall.SIGTERM);defer cancel()
@@ -132,7 +139,7 @@ func main(){
  sessionPath:=os.Getenv("WHATSAPP_SESSIONS_DB");if sessionPath==""{sessionPath="./sessions.db"}
  adapter,err:=whatsmeowadapter.New(ctx,sessionPath,db.DB);if err!=nil{log.Fatal(err)};defer adapter.Close()
  manager:=supervisor.New(adapter)
- svc:=&server{db:db,token:token,wa:adapter,supervisor:manager}
+ svc:=&server{db:db,token:token,verifier:verifier,wa:adapter,supervisor:manager}
  sessions,err:=db.Sessions(ctx)
  if err!=nil{log.Fatal(err)}
  for _,session:=range sessions{
