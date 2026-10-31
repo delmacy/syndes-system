@@ -46,7 +46,8 @@ func(s *server) routes()http.Handler{
   sessions,err:=s.db.Sessions(r.Context());if err!=nil{reply(w,500,map[string]string{"error":"database"});return}
   links,err:=s.db.Links(r.Context());if err!=nil{reply(w,500,map[string]string{"error":"database"});return}
   tenants:=map[string]bool{};for _,l:=range links{tenants[l.TenantID]=true}
-  reply(w,200,map[string]any{"sessions":sessions,"links":links,"totals":map[string]int{"sessions":len(sessions),"links":len(links),"tenants":len(tenants)}})
+  routes,err:=(outbox.Outbox{DB:s.db.DB}).Routes(r.Context());if err!=nil{reply(w,500,map[string]string{"error":"database"});return}
+  reply(w,200,map[string]any{"sessions":sessions,"links":links,"routes":routes,"totals":map[string]int{"sessions":len(sessions),"links":len(links),"tenants":len(tenants),"routes":len(routes)}})
  }))
  mux.HandleFunc("POST /api/v1/sessions",s.auth(func(w http.ResponseWriter,r *http.Request){
   var v struct{ID string `json:"id"`}
@@ -90,6 +91,14 @@ func(s *server) routes()http.Handler{
   if json.NewDecoder(http.MaxBytesReader(w,r.Body,4096)).Decode(&v)!=nil || !valid(v.SessionID)||!valid(v.TenantID){reply(w,400,map[string]string{"error":"invalid request"});return}
   ok,err:=s.db.Allowed(r.Context(),v.SessionID,v.TenantID);if err!=nil{reply(w,500,map[string]string{"error":"database"});return}
   reply(w,200,map[string]bool{"allowed":ok})
+ }))
+ mux.HandleFunc("POST /api/v1/conversations/assign",s.auth(func(w http.ResponseWriter,r *http.Request){
+  var assignment outbox.Route
+  if json.NewDecoder(http.MaxBytesReader(w,r.Body,4096)).Decode(&assignment)!=nil || !valid(assignment.SessionID)||!valid(assignment.TenantID)||len(assignment.ChatID)<3||len(assignment.ChatID)>128{reply(w,400,map[string]string{"error":"invalid assignment"});return}
+  e:=(outbox.Outbox{DB:s.db.DB}).Assign(r.Context(),assignment)
+  if errors.Is(e,outbox.ErrUnauthorized){reply(w,403,map[string]string{"error":"tenant is not linked to session"});return}
+  if e!=nil{reply(w,400,map[string]string{"error":"assignment failed"});return}
+  reply(w,200,map[string]bool{"ok":true})
  }))
  mux.HandleFunc("POST /api/v1/outbox",s.auth(func(w http.ResponseWriter,r *http.Request){
   var j outbox.Job
