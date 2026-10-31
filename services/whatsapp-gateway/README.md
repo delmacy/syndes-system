@@ -27,6 +27,7 @@ For an actual browser, bind a protected local reverse proxy or temporarily add a
 - `POST /api/v1/sessions` `{"id":"device-1"}` — metadata only, no WhatsApp connection
 - `POST /api/v1/links` `{"session_id":"device-1","tenant_id":"tenant-1","can_send":true}`
 - `DELETE /api/v1/links/{session}/{tenant}`
+- `POST /api/v1/outbox` — persistently queues an authorized outbound request; no provider dispatch is implemented yet. Requires stable `id`, `session_id`, `tenant_id`, `recipient`, `body`, `priority` (0–3). The administrator bootstrap token is NOT safe for tenant-facing use.
 - `POST /api/v1/authorize/send` `{"session_id":"device-1","tenant_id":"tenant-1"}` — decision only, does not send messages
 - `POST /mcp` (experimental JSON-RPC read-only tool `gateway_overview`)
 
@@ -39,6 +40,10 @@ Authorization currently uses a single static administrator bearer token. It is a
 - Secret stays in `.env` / protected deployment secrets.
 - Use backups consistent with SQLite (online backup API or `VACUUM INTO`, not uncoordinated file copies) and test restore.
 - Do not mount the same SQLite for concurrent writing across multiple host replicas.
+
+## Outbox durability and rate limiting
+
+The isolated outbox module stores idempotency keys, priorities, retry leases and a per-session fixed-window limit of 40 claims per minute. Claims revalidate the session–tenant link. It is **not yet wired to a real WhatsApp dispatcher**, and does not yet provide delivery confirmations, backoff policy, fair scheduling or service identity. No client-facing access may be enabled until Keycloak and Core authorizations are implemented. A link alone cannot authorize reading a conversation.
 
 ## Tests and workflow
 `go test -race -count=1 ./...`, `go vet ./...` and Docker build are configured in the GitHub Actions workflow triggered on every push and PR. Verification must be green before merging. This is a foundation only; real-provider integration tests, queue recovery, Keycloak authentication, MCP protocol conformance, message/tenant isolation and browser E2E tests remain pending.
