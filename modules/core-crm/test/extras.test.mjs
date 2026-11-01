@@ -27,7 +27,7 @@ test("CSV exports do not allow formula injection",()=>{
    {id:"2",tenantId:A,name:"-SUM(1,2)",email:null,phone:null,archivedAt:null},
  ]);
  assert.match(value,/"'=HYPERLINK/);
- assert.match(value,/'"'-SUM/);
+ assert.match(value,/"'-SUM/);
  assert.ok(value.startsWith("name,email,phone\r\n"));
 });
 test("CRM extras always enforce authorization before database selection",async()=>{
