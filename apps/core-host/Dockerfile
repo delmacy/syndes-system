@@ -11,6 +11,7 @@ RUN cd modules/core-crm && npm ci --no-audit --no-fund && npm run build
 COPY apps/core-host/package*.json apps/core-host/
 COPY apps/core-host/tsconfig.json apps/core-host/
 COPY apps/core-host/src apps/core-host/src
+COPY apps/core-host/public apps/core-host/public
 RUN cd apps/core-host && npm ci --no-audit --no-fund && npm run build
 FROM node:22-bookworm-slim
 WORKDIR /workspace/apps/core-host
