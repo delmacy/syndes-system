@@ -1,4 +1,5 @@
 import {createRemoteJWKSet,jwtVerify} from "jose";
+import {createHash} from "node:crypto";
 import type {Actor,TenancyPort,AuthorizationPort} from "@syndes/core-kernel";
 import type {Pool} from "pg";
 export const tenantUUID=(id:unknown):id is string=>typeof id==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -24,6 +25,8 @@ export class PgMembership implements TenancyPort{
     return (result.rowCount??0)>0;
   }
 }
+export const fgaResourceObject=(tenantId:string,resource:string):string=>
+  "resource:"+createHash("sha256").update(tenantId+"|"+resource).digest("hex");
 export class FgaPermission implements AuthorizationPort{
   constructor(private readonly endpoint:string,private readonly store:string,private readonly token:string,private readonly send:typeof fetch=fetch){}
   async canAccess({actor,tenantId,resource,action}:Parameters<AuthorizationPort["canAccess"]>[0]):Promise<boolean>{
@@ -32,7 +35,7 @@ export class FgaPermission implements AuthorizationPort{
     if(!permission)return false;
     const resp=await this.send(new URL("/stores/"+encodeURIComponent(this.store)+"/check",this.endpoint),{
       method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+this.token},
-      body:JSON.stringify({tuple_key:{user:"user:"+actor.id,relation:permission,object:"resource:"+tenantId+":"+resource}}),
+      body:JSON.stringify({tuple_key:{user:"user:"+actor.id,relation:permission,object:fgaResourceObject(tenantId,resource)}}),
       signal:AbortSignal.timeout(3000)
     });
     if(!resp.ok)throw new Error("OpenFGA unavailable");
