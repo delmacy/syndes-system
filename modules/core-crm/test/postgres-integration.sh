@@ -66,8 +66,8 @@ for id in 4ab44379-d557-4df6-a2be-d44e121a8077 d21930aa-f4f6-40c0-bb1a-e71d7bb92
   docker exec syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c \
     "GRANT CONNECT ON DATABASE $db TO $role" >/dev/null
   for migration in 001_crm_foundation.sql 002_crm_tags_notes.sql 003_crm_employees_channels.sql;do
-    docker exec -i syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d "$db" \
-      < "modules/core-crm/sql/$migration" >/dev/null
+    { printf 'SET ROLE %s;\n' "$role"; cat "modules/core-crm/sql/$migration"; } |
+      docker exec -i syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d "$db" >/dev/null
   done
 done
 node modules/core-crm/test/acceptance-journey.mjs
