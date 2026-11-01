@@ -52,3 +52,45 @@ jobs:
       - name: Remove disposable database
         if: always()
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml down -v --remove-orphans
+  identity-integration:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start isolated PostgreSQL
+        run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
+      - name: Start Keycloak and OpenFGA with migrations
+        run: docker compose --env-file infra/.env.ci -f infra/identity/compose.yaml up -d
+      - name: Verify Keycloak and authenticated OpenFGA availability
+        run: |
+          set -euo pipefail
+          set -a
+          source infra/.env.ci
+          set +a
+          for attempt in $(seq 1 75); do
+            if docker run --rm --network syndes-identity curlimages/curl:8.12.1 -fsS --max-time 3 http://keycloak:9000/health/ready >/dev/null 2>&1; then
+              echo "Keycloak readiness: OK"
+              break
+            fi
+            if [ "$attempt" = 75 ]; then echo "Keycloak failed to become ready" >&2; exit 1; fi
+            sleep 3
+          done
+          for attempt in $(seq 1 40); do
+            if docker run --rm --network syndes-identity curlimages/curl:8.12.1 -fsS --max-time 3 -H "Authorization: Bearer $OPENFGA_PRESHARED_KEY" http://openfga:8080/stores >/dev/null 2>&1; then
+              echo "Authenticated OpenFGA REST: OK"
+              break
+            fi
+            if [ "$attempt" = 40 ]; then echo "OpenFGA failed to become ready" >&2; exit 1; fi
+            sleep 2
+          done
+      - name: Identity logs on failure
+        if: failure()
+        run: |
+          docker compose --env-file infra/.env.ci -f infra/identity/compose.yaml ps
+          docker compose --env-file infra/.env.ci -f infra/identity/compose.yaml logs --no-color --tail 80
+      - name: Cleanup disposable services
+        if: always()
+        run: |
+          docker compose --env-file infra/.env.ci -f infra/identity/compose.yaml down -v --remove-orphans || true
+          docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml down -v --remove-orphans || true
