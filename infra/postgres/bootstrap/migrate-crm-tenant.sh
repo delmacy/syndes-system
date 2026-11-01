@@ -17,7 +17,9 @@ if [[ "$approved" != "$db" ]];then
 fi
 for file in 001_crm_foundation.sql 002_crm_tags_notes.sql 003_crm_employees_channels.sql;do
   echo "Applying CRM migration $file to canonical tenant database"
-  "${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d "$db" \
-    < "modules/core-crm/sql/$file" >/dev/null
+  # DDL must be owned by the tenant's dedicated database role, not postgres.
+  role="syndes_t_${TENANT_ID//-/}"
+  { printf 'SET ROLE %s;\n' "$role"; cat "modules/core-crm/sql/$file"; } |
+    "${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d "$db" >/dev/null
 done
 echo "CRM tenant migrations applied; tenant membership/authorization not modified."
