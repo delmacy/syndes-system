@@ -22,7 +22,7 @@ test("fetches credentials from OpenBao and always revokes bootstrap token",async
    methods.push({url,method:options.method,headers:options.headers,body:options.body});
    if(url.endsWith("/auth/approle/login"))return login();
    if(url.endsWith("/kv/data/production/core-host"))return read();
-   if(url.endsWith("/auth/token/revoke-self"))return new Response("{}",{status:204});
+   if(url.endsWith("/auth/token/revoke-self"))return new Response(null,{status:204});
    throw Error("Unexpected request");
   });
   assert.deepEqual(result,{controlDbUrl:"postgres://control",openfgaToken:"fga-ci-secret"});
@@ -40,13 +40,13 @@ test("denies missing permissions or missing KV keys; still revokes token",async(
   let revoke=0;
   await assert.rejects(loadCoreSecrets(source,async url=>{
    if(url.endsWith("/login"))return login();
-   if(url.endsWith("revoke-self")){revoke++;return new Response("{}",{status:204})}
+   if(url.endsWith("revoke-self")){revoke++;return new Response(null,{status:204})}
    return new Response("denied",{status:403});
   }),/OpenBao request rejected/);
   assert.equal(revoke,1);
   await assert.rejects(loadCoreSecrets(source,async url=>{
    if(url.endsWith("/login"))return login();
-   if(url.endsWith("revoke-self"))return new Response("{}",{status:204});
+   if(url.endsWith("revoke-self"))return new Response(null,{status:204});
    return new Response(JSON.stringify({data:{data:{control_db_url:"postgres://test"}}}),{status:200});
   }),/Missing or malformed OpenBao secret/);
  } finally {await rm(dir,{force:true,recursive:true})}
