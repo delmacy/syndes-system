@@ -12,16 +12,17 @@ Deploy order is **PostgreSQL → Keycloak/OpenFGA → Core Host** (even though t
 
 The single PostgreSQL **server** has separate **databases** for the control plane, Keycloak, OpenFGA and every tenant. No schema per tenant and no tenant database in the identity stack. `syndes_core` only receives SELECT access to the control registry and memberships; no tenant database superuser credential is given to Core Host.
 
-Tenant DB creation is an explicit privileged operation:
+Tenant DB creation is an explicit privileged operation. Run from an authorized operator shell with a unique secret already loaded from a vault or secrets manager:
+
 ```sh
-# Run from repository root with a verified tenant UUID and a UNIQUE strong secret.
-# Environment variables inside the PostgreSQL container must be supplied securely
-# by an authorized operator (not through an external API).
+export TENANT_ID=4ab44379-d557-4df6-a2be-d44e121a8077
+# Load TENANT_DB_PASSWORD from a protected secret store; never paste into shell history.
 docker compose --env-file infra/.env -f infra/postgres/compose.yaml exec -T \
-  -e TENANT_ID=4ab44379-d557-4df6-a2be-d44e121a8077 \
-  -e TENANT_DB_PASSWORD postgres bash /opt/syndes/provision-tenant.sh
+  -e TENANT_ID -e TENANT_DB_PASSWORD postgres bash /opt/syndes/provision-tenant.sh
+unset TENANT_DB_PASSWORD
 ```
-The value after `-e TENANT_DB_PASSWORD` must be a **real unique secret sourced from a secure secret store**; the shell example is only illustrative. Do not paste secrets in shell history. The script creates a restricted tenant owner role and `syndes_tenant_<uuid-without-hyphens>`, records the mapping as `provisioned` in `syndes_control`, and is idempotent for identical identifiers.
+
+The script creates a dedicated tenant DB role and `syndes_tenant_<uuid-without-hyphens>`, then registers the mapping as `provisioned` in `syndes_control`. Repeating the same tenant operation is idempotent. Do not use a shared password among tenants.
 
 No tenant is activated or granted membership automatically. Activation and FGA tuple assignments must occur only through a separately audited onboarding workflow. Control DB IDs are canonical: never choose a tenant database using client-input strings.
 
