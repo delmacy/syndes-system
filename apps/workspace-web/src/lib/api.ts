@@ -8,6 +8,9 @@ export type Conversation = {
 export type Message = {
   id: string; body: string; direction: string; createdAt?: string; authorId?: string;
 };
+export type CrmNote = { id: string; body: string; createdAt: string; createdBy: string };
+export type CrmTimelineEvent = { id: number; action: string; recordedAt: string; actorId: string };
+export type QueueFilter = "all" | "mine" | "unassigned";
 export type InboxMetrics = { open: number; pending: number; resolved: number; unassigned: number };
 
 export class ApiError extends Error {
@@ -54,14 +57,25 @@ export class TenantApi {
   organizations(query = "") {
     return this.request<Organization[]>("crm", "/organizations?limit=100&q=" + encodeURIComponent(query));
   }
+  person(id: string) {
+    return this.request<Person>("crm", "/people/" + encodeURIComponent(id));
+  }
+  personNotes(id: string) {
+    return this.request<CrmNote[]>("crm", "/people/" + encodeURIComponent(id) + "/notes");
+  }
+  personTimeline(id: string) {
+    return this.request<CrmTimelineEvent[]>("crm", "/people/" + encodeURIComponent(id) + "/timeline");
+  }
   createPerson(body: { name: string; email?: string; phone?: string }) {
     return this.request<Person>("crm", "/people", "POST", body);
   }
   createOrganization(body: { legalName: string; tradeName?: string }) {
     return this.request<Organization>("crm", "/organizations", "POST", body);
   }
-  conversations(status = "") {
-    return this.request<Conversation[]>("inbox", "/conversations?limit=100" + (status ? "&status=" + status : ""));
+  conversations(status = "", queue: QueueFilter = "all") {
+    return this.request<Conversation[]>("inbox", "/conversations?limit=100"
+      + (status ? "&status=" + encodeURIComponent(status) : "")
+      + "&queue=" + queue);
   }
   metrics() { return this.request<InboxMetrics>("inbox", "/metrics"); }
   conversation(id: string) { return this.request<Conversation>("inbox", "/conversations/" + encodeURIComponent(id)); }

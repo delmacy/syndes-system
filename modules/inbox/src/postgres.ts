@@ -1,4 +1,4 @@
-import type {Conversation,ConversationStatus,HandoffMode,Message,InboxRepository,InboxMetrics,TenantDatabase,TrustedTenantDatabaseProvider} from "./contracts.js";
+import type {Conversation,ConversationStatus,ConversationQueue,HandoffMode,Message,InboxRepository,InboxMetrics,TenantDatabase,TrustedTenantDatabaseProvider} from "./contracts.js";
 import {InboxTenantMismatchError} from "./contracts.js";
 import {id} from "./validation.js";
 const iso=(value:unknown):string=>value instanceof Date?value.toISOString():String(value);
@@ -35,13 +35,17 @@ export class PgInboxRepository implements InboxRepository {
   if(!rows[0])throw Error("Conversation insert failed");
   return conversation(rows[0]);
  }
- async list(tenantId:string,status:ConversationStatus|null,limit:number):Promise<readonly Conversation[]>{
+ async list(tenantId:string,status:ConversationStatus|null,limit:number,queue:ConversationQueue="all",actorId=""):Promise<readonly Conversation[]>{
   this.check(tenantId);
+  // Filter before LIMIT, in the tenant's database. Never query all tenants and then filter in UI.
+  if(!["all","mine","unassigned"].includes(queue))throw new Error("Invalid queue");
   const rows=(await this.db.query(`
     SELECT * FROM inbox_conversations WHERE tenant_id=$1::uuid
     AND ($2::text IS NULL OR status=$2)
+    AND ($4::text='all' OR ($4::text='mine' AND assigned_to=$5::text)
+      OR ($4::text='unassigned' AND assigned_to IS NULL))
     ORDER BY updated_at DESC,id DESC LIMIT $3
-  `,[tenantId,status,limit])).rows;
+  `,[tenantId,status,limit,queue,actorId])).rows;
   return rows.map(conversation);
  }
  async get(tenantId:string,key:string):Promise<Conversation|null>{

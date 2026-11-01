@@ -6,11 +6,12 @@ const actor = "agent-1";
 const tenantId = "4ab44379-d557-4df6-a2be-d44e121a8077";
 const id = "11111111-1111-4111-8111-111111111111";
 const id2 = "22222222-2222-4222-8222-222222222222";
+const crmId = "33333333-3333-4333-8333-333333333333";
 const token = ["header", Buffer.from(JSON.stringify({ sub: actor })).toString("base64url"), "signature"].join(".");
 
 async function mockWorkspace(page) {
   let records = [
-    { id, subject: "Pedido inicial", status: "open", handoff: "human", channel: "simulation", assignedTo: actor, crmPersonId: null, updatedAt: "2026-11-01T10:00:00Z" },
+    { id, subject: "Pedido inicial", status: "open", handoff: "human", channel: "simulation", assignedTo: actor, crmPersonId: crmId, updatedAt: "2026-11-01T10:00:00Z" },
     { id: id2, subject: "Conversa resolvida", status: "resolved", handoff: "human", channel: "simulation", assignedTo: null, crmPersonId: null, updatedAt: "2026-11-01T09:00:00Z" },
   ];
   const threads = {
@@ -37,10 +38,17 @@ async function mockWorkspace(page) {
     const respond = (data, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(data) });
     const current = records.find(record => record.id === conversationId);
     if (path === "/crm/people" || path.startsWith("/crm/people?")) return respond([]);
+    if (path === "/crm/people/" + crmId) return respond({ id: crmId, name: "Ana Exemplo", email: "ana@example.org", phone: "+5551999999999" });
+    if (path === "/crm/people/" + crmId + "/notes") return respond([{ id: "crm-note-1", body: "Prefere contato pela manhã", createdAt: "2026-11-01T09:00:00Z", createdBy: actor }]);
+    if (path === "/crm/people/" + crmId + "/timeline") return respond([{ id: 12, action: "linked_organization", recordedAt: "2026-11-01T09:15:00Z", actorId: actor }]);
     if (path === "/inbox/metrics") return respond({ open: 1, pending: 0, resolved: 1, unassigned: 1 });
     if (path === "/inbox/conversations" && method === "GET") {
       const status = url.searchParams.get("status");
-      return respond(records.filter(record => !status || record.status === status));
+      const queue = url.searchParams.get("queue") ?? "all";
+      if (!["mine", "unassigned", "all"].includes(queue)) return respond({ message: "Invalid queue" }, 400);
+      return respond(records.filter(record => (!status || record.status === status) &&
+        (queue === "all" || (queue === "mine" && record.assignedTo === actor) ||
+          (queue === "unassigned" && record.assignedTo === null))));
     }
     if (path === "/inbox/conversations" && method === "POST") {
       const body = req.postDataJSON();
@@ -88,8 +96,18 @@ try {
   const errors = [];
   desktop.on("pageerror", error => errors.push(error.message));
   await mockWorkspace(desktop);
+  await desktop.getByRole("button", { name: "Minhas" }).click();
+  await desktop.getByRole("button", { name: /Pedido inicial/ }).waitFor();
+  assert.equal(await desktop.getByRole("button", { name: /Conversa resolvida/ }).count(), 0);
+  await desktop.getByRole("button", { name: "Não atribuídas" }).click();
+  await desktop.getByRole("button", { name: /Conversa resolvida/ }).waitFor();
+  assert.equal(await desktop.getByRole("button", { name: /Pedido inicial/ }).count(), 0);
+  await desktop.getByRole("group", { name: "Filtrar conversas por responsável" }).getByRole("button", { name: "Todas" }).click();
   await desktop.getByRole("button", { name: /Pedido inicial/ }).click();
   await desktop.getByText("Olá, preciso de ajuda").waitFor();
+  await desktop.getByRole("heading", { name: "Ana Exemplo" }).waitFor();
+  await desktop.getByText("Prefere contato pela manhã").waitFor();
+  console.log("PASS: server-filtered Mine/Unassigned/All queues and authorized CRM notes/context");
   assert.equal(await desktop.locator("#inbox-composer").isDisabled(), false);
   console.log("PASS: Desktop Inbox opens thread with authorized agent composer");
 
@@ -135,6 +153,9 @@ try {
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await mockWorkspace(mobile);
   await mobile.getByRole("button", { name: /Pedido inicial/ }).click();
+  await mobile.getByRole("button", { name: "Ver contexto CRM" }).click();
+  await mobile.getByRole("heading", { name: "Ana Exemplo" }).waitFor();
+  await mobile.getByRole("button", { name: "Close", exact: true }).click();
   await mobile.getByRole("button", { name: "Voltar para conversas" }).waitFor();
   await mobile.getByRole("button", { name: "Voltar para conversas" }).click();
   await mobile.getByRole("button", { name: /Pedido inicial/ }).waitFor();

@@ -128,7 +128,7 @@ export default function App() {
           {!initializing && view === "settings" && config && <SecurityInfo config={config} />}
           {!initializing && (view === "crm" || view === "inbox") && !api && <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-4 rounded-3xl border border-[#e3eaf6] bg-white p-10 text-center shadow-sm"><div className="rounded-2xl bg-[#eaf0ff] p-5 text-[#4d6ed3]"><LockKeyhole className="size-8" /></div><h2 className="text-xl font-bold">Acesso protegido</h2><p className="text-sm leading-relaxed text-muted-foreground">Para trabalhar no {title}, autentique-se com sua conta. O Keycloak validará sua identidade e as permissões serão conferidas no servidor.</p><Button size="lg" onClick={() => config && void beginLogin(config)}><LogIn className="size-4" /> Entrar com Keycloak</Button></div>}
           {!initializing && api && view === "crm" && <CrmFeature api={api} />}
-          {!initializing && api && view === "inbox" && <InboxFeature api={api} actorId={actorId} />}
+          {!initializing && api && view === "inbox" && <InboxFeature api={api} actorId={actorId} onOpenCrm={() => navigate("crm")} />}
         </div>
       </div>
       <footer className="flex items-center justify-between gap-4 border-t border-[#e6eaf1] bg-white/70 px-5 py-3 text-[11px] text-slate-400 lg:px-9"><span>© Syndes · Workspace</span><span className="flex items-center gap-1"><ShieldCheck className="size-3" /> Controle de acesso pelo Core Host</span></footer>

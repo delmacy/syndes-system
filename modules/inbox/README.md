@@ -42,3 +42,8 @@ Run `npm run test:ui` to execute the actual `public/app.js` in a minimal DOM mod
 ## Core Host + PostgreSQL HTTP integration
 
 `modules/inbox/test/postgres-integration.sh` provisions a disposable PostgreSQL container, applies CRM/Inbox migrations twice (idempotency), runs the Inbox repository integration and then `node --test apps/core-host/test/inbox-pg-http.integration.mjs`. This boots an **actual NestJS application** using installed Host plugin descriptors and the real PostgreSQL repository behind a test-only verifier/membership/FGA port; no production credentials, servers or graphical browsers. The HTTP suite asserts mounted assets/routes, input limits, missing records, auth, cross-tenant denials before DB leasing, CRM tenant-qualified FK, append retry/409, assignment/reply/handoff/status, metrics and audit. Production Keycloak/OpenFGA adapter end-to-end remains a separate gate.
+
+
+## Filtros de fila por responsável
+
+``GET /v1/tenants/:tenantId/inbox/conversations?status=open&queue=mine&limit=100`` permite ``queue`` opcional: ``all`` (padrão, compatível com clientes antigos), ``mine`` e ``unassigned``. O serviço resolve ``mine`` usando o ``actor.id`` verificado pelo Host, **não** aceita ``assigneeId`` na query string; o repositório aplica filtro por tenant, status e responsável **antes de LIMIT**, sem SQL dinâmico vindo do usuário. A permissão ``inbox:conversations/read`` continua exigida. Esta evolução não implementa paginação acima de 100 nem novas permissões automáticas.

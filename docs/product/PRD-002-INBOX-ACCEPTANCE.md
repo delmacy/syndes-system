@@ -44,3 +44,11 @@ No checklist is a substitute for reviewed CI evidence. Do not merge any chained 
 - [ ] Performance, recovery, observabilidade, backup/restore e Product Gate final.
 
 Não confundir testes mockados de UI com aceite de segurança real. O backend atual não foi alterado.
+
+## Melhorias da experiência de atendimento (2026-11-01)
+
+- [x] Filtragem por responsabilidade ``Minhas / Não atribuídas / Todas`` através de parâmetro opcional na API, assignee obtido da identidade já validada pelo Core Host e cláusula SQL tenant-scoped antes do limite.
+- [x] Contexto CRM no Workspace com dados mínimos de pessoa, notas e timeline, respeitando negações separadas do backend.
+- [x] Layout desktop de três painéis e painel lateral mobile, testados no Chrome com dados mockados.
+- [ ] Testes de aceite positivo/negativo do filtro por responsável com Keycloak real, múltiplos atendentes e FGA.
+- [ ] Organizações/tags no contexto somente quando existirem endpoints autorizados aprovados para elas.
