@@ -11,6 +11,8 @@ class MemoryRepo{
   people=new Map();
   organizations=new Map();
   links=new Set();
+  tags=new Map();
+  notes=new Map();
   createOrganization(tenantId,_actorId,id,input) {
     const o={id,tenantId,legalName:input.legalName,tradeName:input.tradeName,taxId:input.taxId,archivedAt:null};
     this.organizations.set(id,o);return Promise.resolve(o);
@@ -26,6 +28,27 @@ class MemoryRepo{
     }
     this.links.add([tenantId,personId,organizationId].join("|"));
     return {tenantId,personId,organizationId};
+  }
+  async createTag(tenantId,_actorId,id,label){
+    const tag={id,tenantId,label};this.tags.set(id,tag);return tag;
+  }
+  async tagPerson(tenantId,_actorId,personId,tagId){
+    const p=this.people.get(personId),t=this.tags.get(tagId);
+    if(!p||!t||p.tenantId!==tenantId||t.tenantId!==tenantId||p.archivedAt){
+      throw new Error("Tenant tag denied");
+    }
+    return {tenantId,personId,tagId};
+  }
+  async createNote(tenantId,actorId,id,personId,body){
+    const p=this.people.get(personId);
+    if(!p||p.tenantId!==tenantId||p.archivedAt)throw new Error("Tenant note denied");
+    const note={id,tenantId,personId,body,createdBy:actorId,createdAt:new Date().toISOString()};
+    this.notes.set(id,note);return note;
+  }
+  async listTimeline(tenantId,personId,limit){
+    return [...this.notes.values()].filter(n=>n.tenantId===tenantId&&n.personId===personId)
+      .slice(0,limit).map((n,index)=>({id:index+1,tenantId,personId,
+        actorId:n.createdBy,action:"noted",recordedAt:n.createdAt}));
   }
   async getPerson(tenantId,id){
     const p=this.people.get(id);return p?.tenantId===tenantId&&!p.archivedAt?p:null;
@@ -105,6 +128,11 @@ test("invalid input and unsafe search limits are rejected",async()=>{
   assert.throws(()=>crm.createPerson(alice,{name:"Ana",phone:"123"}),CrmValidationError);
   assert.throws(()=>crm.listPeople(alice,"x",1000),CrmValidationError);
   assert.throws(()=>crm.archivePerson(alice,"../../etc/passwd"),CrmValidationError);
+  assert.throws(()=>crm.createTag(alice,""),CrmValidationError);
+  assert.throws(()=>crm.createTag(alice,"x".repeat(65)),CrmValidationError);
+  assert.throws(()=>crm.createNote(alice,"9b3df87e-ec6c-46f5-9339-3a6851da0119",""),CrmValidationError);
+  assert.throws(()=>crm.listTimeline(alice,"9b3df87e-ec6c-46f5-9339-3a6851da0119",200),CrmValidationError);
+
 });
 
 test("a trusted database resolver must return the same canonical tenant ID",async()=>{
@@ -134,4 +162,21 @@ test("PostgreSQL operations are tenant-filtered and parameterized",async()=>{
   await repo.getPerson(A,person.id);
   assert.deepEqual(audit[1].values,[A,person.id]);
   assert.match(audit[1].sql,/tenant_id=\$1::uuid/);
+});
+
+test("tags, notes and timeline respect authorized tenant context",async()=>{
+  const {crm,selects}=await app();
+  const p=await crm.createPerson(alice,{name:"Marina"});
+  const tag=await crm.createTag(alice,"  Atendimento VIP ");
+  assert.equal(tag.label,"Atendimento VIP");
+  const link=await crm.tagPerson(alice,p.id,tag.id);
+  assert.equal(link.personId,p.id);
+  const note=await crm.createNote(alice,p.id," Primeiro atendimento\nEnviar retorno ");
+  assert.equal(note.body,"Primeiro atendimento\nEnviar retorno");
+  assert.equal((await crm.listTimeline(alice,p.id))[0].action,"noted");
+  const before=selects();
+  await assert.rejects(crm.createNote({...alice,tenantId:B},p.id,"Vazamento"),AccessDeniedError);
+  await assert.rejects(crm.tagPerson({...alice,tenantId:B},p.id,tag.id),AccessDeniedError);
+  await assert.rejects(crm.listTimeline({...alice,tenantId:B},p.id),AccessDeniedError);
+  assert.equal(selects(),before);
 });

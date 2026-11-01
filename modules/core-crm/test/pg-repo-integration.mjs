@@ -30,6 +30,20 @@ try {
     "wildcard search should be escaped by the service layer");
   const link=await a.linkPerson(A,"alice",created.id,organization.id);
   assert.deepEqual(link,{tenantId:A,personId:created.id,organizationId:organization.id});
+  const tag=await a.createTag(A,"alice",randomUUID(),"VIP");
+  assert.equal(tag.label,"VIP");
+  await assert.rejects(a.createTag(A,"alice",randomUUID(),"VIP"),/duplicate key/);
+  const tagged=await a.tagPerson(A,"alice",created.id,tag.id);
+  assert.equal(tagged.tagId,tag.id);
+  await assert.rejects(b.tagPerson(B,"bob",created.id,tag.id));
+  assert.equal((await a.listPeople(A,"VIP",10)).length,1);
+  assert.equal((await a.listPeople(A,"Acme",10)).length,1);
+  assert.equal((await a.listPeople(A,"12345678000190",10)).length,1);
+  const note=await a.createNote(A,"alice",randomUUID(),created.id,"Cliente pediu retorno");
+  assert.equal(note.personId,created.id);
+  assert.equal((await a.listTimeline(A,created.id,10))[0].action,"noted");
+  assert.deepEqual(await b.listTimeline(B,created.id,10),[]);
+
   await assert.rejects(b.linkPerson(B,"bob",created.id,organization.id));
   assert.equal(await b.archivePerson(B,"bob",created.id),false);
   assert.equal(await a.archivePerson(A,"alice",created.id),true);
@@ -38,7 +52,7 @@ try {
   const audit=await pool.query(
     "SELECT action, actor_id FROM crm_audit WHERE tenant_id=$1 ORDER BY id", [A]);
   assert.deepEqual(audit.rows.map(x=>x.action),[
-    "created","created","linked_organization","archived"
+    "created","created","linked_organization","created","tagged","noted","archived"
   ]);
   assert.ok(audit.rows.every(x=>x.actor_id==="alice"));
   console.log("CRM real PostgreSQL CRUD, audit and cross-tenant predicates: PASS");
