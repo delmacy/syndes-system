@@ -31,7 +31,7 @@ Trabalhar funcionalmente em apenas um módulo de produto por vez:
 10. Commercial Website
 11. Release Candidate
 
-A fase corrente é **Core CRM**.
+A fase corrente é **Inbox (PRD-002)**. Core CRM passou no Product Gate de desenvolvimento; produção/staging permanecem separados.
 
 ## Princípios de engenharia
 

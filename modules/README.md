@@ -3,8 +3,8 @@
 | Module | Status |
 |---|---|
 | platform-core | supporting capabilities |
-| core-crm | CURRENT |
-| inbox | planned |
+| core-crm | development gate passed, staging pending |
+| inbox | CURRENT — PRD-002 |
 | whatsapp | planned |
 | scheduling | planned |
 | ai-assistant | planned |
