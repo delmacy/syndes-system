@@ -58,6 +58,7 @@ export interface CrmRepository {
   tagPerson(tenantId:string,actorId:string,personId:string,tagId:string):Promise<PersonTag>;
   createNote(tenantId:string,actorId:string,id:string,personId:string,body:string):Promise<Note>;
   listTimeline(tenantId:string,personId:string,limit:number):Promise<readonly TimelineEntry[]>;
+  listNotes(tenantId:string,personId:string,limit:number):Promise<readonly Note[]>;
 
 }
 

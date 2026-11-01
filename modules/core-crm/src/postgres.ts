@@ -219,6 +219,18 @@ export class PgCrmRepository implements CrmRepository {
     };
   }
 
+  async listNotes(tenantId:string,personId:string,limit:number):Promise<readonly Note[]>{
+    this.check(tenantId);
+    const result=await this.db.query(`SELECT id,tenant_id,person_id,body,created_by,created_at
+      FROM crm_notes WHERE tenant_id=$1::uuid AND person_id=$2::uuid
+      ORDER BY created_at DESC,id DESC LIMIT $3`,[tenantId,personId,limit]);
+    return result.rows.map(row=>({
+      id:String(row.id),tenantId:String(row.tenant_id),personId:String(row.person_id),
+      body:String(row.body),createdBy:String(row.created_by),
+      createdAt:row.created_at instanceof Date?row.created_at.toISOString():String(row.created_at)
+    }));
+  }
+
   async listTimeline(tenantId:string,personId:string,limit:number):Promise<readonly TimelineEntry[]>{
     this.check(tenantId);
     const result=await this.db.query(`

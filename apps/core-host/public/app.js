@@ -134,6 +134,12 @@ async function details(kind,item){
    notify("Tag adicionada.");await details("people",item);
  });actions.append(tagButton);
  const timeline=el("div");append(body,el("h2","Linha do tempo"),timeline);
+ const notes=await api("/people/"+item.id+"/notes");
+ const notesHost=el("div");append(body,el("h2","Notas"),notesHost);
+ for(const n of notes)notesHost.append(el("p",n.body+" · "+new Date(n.createdAt).toLocaleString("pt-BR"),"muted"));
+ const channels=await api("/people/"+item.id+"/channels");
+ const channelHost=el("div");append(body,el("h2","Identidades de canais"),channelHost);
+ for(const ch of channels)channelHost.append(el("p",ch.channel+" · "+ch.externalId+" · "+(ch.displayName??""),"muted"));
  const events=await api("/people/"+item.id+"/timeline");
  if(!events.length)timeline.append(el("p","Sem eventos registrados.","muted"));
  for(const event of events)timeline.append(el("p",event.action+" · "+new Date(event.recordedAt).toLocaleString("pt-BR"),"muted"));

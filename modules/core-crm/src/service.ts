@@ -100,6 +100,13 @@ export class CrmService {
       repo=>repo.createNote(context.tenantId,context.actor.id,randomUUID(),person,normalized));
   }
 
+  listNotes(context:CrmContext,personId:string,limit=50):Promise<readonly Note[]>{
+    const person=id(personId,"person ID");
+    if(!Number.isInteger(limit)||limit<1||limit>100)throw new CrmValidationError("Invalid notes size");
+    return this.execute(context,"read","crm:notes",
+      repo=>repo.listNotes(context.tenantId,person,limit));
+  }
+
   listTimeline(context:CrmContext,personId:string,limit=50):Promise<readonly TimelineEntry[]>{
     const person=id(personId,"person ID");
     if(!Number.isInteger(limit)||limit<1||limit>100)throw new CrmValidationError("Invalid timeline size");

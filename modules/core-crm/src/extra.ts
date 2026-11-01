@@ -23,6 +23,8 @@ export interface ExtraRepository {
   duplicates(tenant:string,email:string|null,phone:string|null,excludeId:string|null):Promise<readonly DuplicateCandidate[]>;
   importPeople(tenant:string,actor:string,people:readonly (CreatePerson&{id:string})[]):Promise<number>;
   listExportPeople(tenant:string,limit:number):Promise<readonly Person[]>;
+  listEmployees(tenant:string,limit:number):Promise<readonly Employee[]>;
+  listChannels(tenant:string,personId:string,limit:number):Promise<readonly ChannelIdentity[]>;
 }
 
 export class CrmExtras {
@@ -79,6 +81,14 @@ export class CrmExtras {
   importCsv(ctx:CrmContext,csv:unknown):Promise<ImportResult>{
     const parsed=parseContactsCsv(csv).map(x=>({...x,id:randomUUID()}));
     return this.run(ctx,"write","crm:people",async db=>({imported:await db.importPeople(ctx.tenantId,ctx.actor.id,parsed)}));
+  }
+  listEmployees(ctx:CrmContext,limit=100):Promise<readonly Employee[]>{
+    if(!Number.isInteger(limit)||limit<1||limit>100)throw new CrmValidationError("Invalid employee page size");
+    return this.run(ctx,"read","crm:employees",db=>db.listEmployees(ctx.tenantId,limit));
+  }
+  listChannels(ctx:CrmContext,personId:string):Promise<readonly ChannelIdentity[]>{
+    const person=id(personId,"person ID");
+    return this.run(ctx,"read","crm:channels",db=>db.listChannels(ctx.tenantId,person,100));
   }
   exportCsv(ctx:CrmContext):Promise<string>{
     return this.run(ctx,"read","crm:people",async db=>contactsToCsv(await db.listExportPeople(ctx.tenantId,1000)));
@@ -203,6 +213,22 @@ export class PgCrmExtras implements ExtraRepository {
     const count=Number(r.rows[0]?.imported??0);
     if(count!==people.length)throw new Error("CRM batch import failed");
     return count;
+  }
+  async listEmployees(t:string,limit:number):Promise<readonly Employee[]>{
+    this.check(t);
+    const r=await this.db.query(`SELECT id,tenant_id,person_id,job_title,active FROM crm_employees
+      WHERE tenant_id=$1::uuid ORDER BY created_at DESC,id LIMIT $2`,[t,limit]);
+    return r.rows.map(row=>({id:String(row.id),tenantId:t,personId:String(row.person_id),
+      jobTitle:String(row.job_title),active:Boolean(row.active)}));
+  }
+  async listChannels(t:string,personId:string,limit:number):Promise<readonly ChannelIdentity[]>{
+    this.check(t);
+    const r=await this.db.query(`SELECT id,tenant_id,person_id,channel,external_id,display_name
+      FROM crm_channel_identities WHERE tenant_id=$1::uuid AND person_id=$2::uuid
+      ORDER BY created_at DESC,id LIMIT $3`,[t,personId,limit]);
+    return r.rows.map(row=>({id:String(row.id),tenantId:t,personId,
+      channel:String(row.channel),externalId:String(row.external_id),
+      displayName:row.display_name===null?null:String(row.display_name)}));
   }
   async listExportPeople(t:string,limit:number):Promise<readonly Person[]>{
     this.check(t);
