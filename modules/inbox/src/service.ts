@@ -39,7 +39,7 @@ export class InboxService {
  }
  assign(ctx:InboxContext,conversationId:string,value:unknown):Promise<Conversation|null>{
    const key=id(conversationId),to=assignee(value);
-   return this.execute(ctx,"assign","inbox:conversations",
+   return this.execute(ctx,"write","inbox:assignment",
      repo=>repo.assign(ctx.tenantId,key,ctx.actor.id,to));
  }
  status(ctx:InboxContext,conversationId:string,value:ConversationStatus):Promise<Conversation|null>{
@@ -56,7 +56,7 @@ export class InboxService {
  }
  reply(ctx:InboxContext,conversationId:string,value:unknown):Promise<Message|null>{
    const key=id(conversationId),body=text(value,"message",5000);
-   return this.execute(ctx,"reply","inbox:messages",
+   return this.execute(ctx,"write","inbox:messages",
      repo=>repo.append(ctx.tenantId,key,ctx.actor.id,
        {id:randomUUID(),direction:"outbound",body,externalMessageId:null}));
  }
@@ -70,7 +70,7 @@ export class InboxService {
  simulate(ctx:InboxContext,conversationId:string,bodyValue:unknown,externalId:unknown):Promise<Message|null>{
    const key=id(conversationId),body=text(bodyValue,"message",5000),ref=optionalExternal(externalId);
    if(!ref)throw new InboxValidationError("Simulation message ID is required for retries");
-   return this.execute(ctx,"simulate","inbox:messages",
+   return this.execute(ctx,"write","inbox:simulation",
      repo=>repo.append(ctx.tenantId,key,ctx.actor.id,
        {id:randomUUID(),direction:"inbound",body,externalMessageId:ref}));
  }

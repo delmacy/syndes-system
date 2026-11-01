@@ -9,8 +9,10 @@ export const syndesPlugin=defineSyndesModule({
  apiModule:InboxHttpModule,
  publicOidcClientId:"syndes-inbox-ui",
  permissions:[
-  {resource:"inbox:conversations",actions:["read","write","assign"]},
-  {resource:"inbox:messages",actions:["read","reply","simulate"]},
+  {resource:"inbox:conversations",actions:["read","write"]},
+  {resource:"inbox:assignment",actions:["write"]},
+  {resource:"inbox:messages",actions:["read","write"]},
+  {resource:"inbox:simulation",actions:["write"]},
   {resource:"inbox:notes",actions:["write"]},
   {resource:"inbox:metrics",actions:["read"]}
  ],

@@ -81,7 +81,7 @@ test("authorization and membership deny before database resolution",async()=>{
  await assert.rejects(inbox.list({...alice,tenantId:B}),AccessDeniedError);
  await assert.rejects(inbox.metrics({...alice,tenantId:B}),AccessDeniedError);
  assert.equal(selects(),before);
- const denied=await setup("reply");
+ const denied=await setup("write");
  await assert.rejects(denied.inbox.reply(alice,"b341ae20-8215-4796-8ab3-3997abb3d575","teste"),AccessDeniedError);
  assert.equal(denied.selects(),0);
 });
