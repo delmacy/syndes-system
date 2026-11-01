@@ -4,6 +4,7 @@ on:
     paths:
       - "apps/core-host/**"
       - "modules/core-crm/**"
+      - "modules/inbox/**"
       - "packages/core-kernel/**"
       - "infra/**"
       - "tests/platform/**"
@@ -12,6 +13,7 @@ on:
     paths:
       - "apps/core-host/**"
       - "modules/core-crm/**"
+      - "modules/inbox/**"
       - "infra/**"
       - "tests/platform/**"
       - ".github/workflows/core-host-infra.yml"
@@ -29,6 +31,8 @@ jobs:
         run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
       - name: Build CRM business module
         run: cd modules/core-crm && npm ci --no-audit --no-fund && npm run build
+      - name: Build Inbox business module
+        run: cd modules/inbox && npm ci --no-audit --no-fund && npm run build
       - name: Install host dependencies
         run: cd apps/core-host && npm ci --no-audit --no-fund
       - name: Strict type checks
@@ -49,7 +53,7 @@ jobs:
           python3 tests/platform/ci-secret-fixtures.py
       - name: Validate compose and bash configuration
         run: |
-          bash -n infra/postgres/bootstrap/00-init.sh infra/postgres/bootstrap/provision-tenant.sh infra/postgres/bootstrap/migrate-modules-tenant.sh infra/postgres/bootstrap/migrate-crm-tenant.sh tests/platform/postgres-smoke.sh tests/platform/openfga-smoke.sh tests/platform/openbao-smoke.sh
+          bash -n infra/postgres/bootstrap/00-init.sh infra/postgres/bootstrap/provision-tenant.sh infra/postgres/bootstrap/migrate-modules-tenant.sh infra/postgres/bootstrap/migrate-crm-tenant.sh tests/platform/postgres-smoke.sh tests/platform/openfga-smoke.sh tests/platform/openbao-smoke.sh tests/platform/core-host-runtime-smoke.sh
           docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml config --quiet
           docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml config --quiet
           docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml config --quiet
@@ -112,6 +116,7 @@ jobs:
         run: |
           cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
           cd ../../modules/core-crm && npm ci --no-audit --no-fund && npm run build
+          cd ../../modules/inbox && npm ci --no-audit --no-fund && npm run build
           cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run build
       - name: Create private Docker data network
         run: docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data
@@ -156,9 +161,22 @@ jobs:
             sleep 2
           done
       - name: OpenBao TLS, KV and encrypted Raft lifecycle
+        env:
+          CI_RUNTIME_SMOKE: '1'
         run: bash tests/platform/openbao-smoke.sh
       - name: OpenFGA relationship model and cross-tenant verification
+        env:
+          CI_RUNTIME_SMOKE: '1'
         run: bash tests/platform/openfga-smoke.sh
+      - name: Boot real Core Host process with disposable security services
+        env:
+          CI_RUNTIME_SMOKE: '1'
+        run: bash tests/platform/core-host-runtime-smoke.sh
+      - name: Diagnose Core Host bootstrap failures
+        if: failure()
+        run: |
+          docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml ps || true
+          docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml logs --no-color --tail 80 core-host || true
       - name: Identity logs on failure
         if: failure()
         run: |
@@ -167,6 +185,7 @@ jobs:
       - name: Cleanup disposable services
         if: always()
         run: |
+          docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml down --remove-orphans || true
           docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml down -v --remove-orphans || true
           docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml down -v --remove-orphans || true
-          sudo rm -rf /run/syndes/runtime
+          sudo rm -rf /run/syndes/approle /run/syndes/runtime
