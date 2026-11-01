@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate compose and bash configuration
         run: |
-          bash -n infra/postgres/bootstrap/00-init.sh infra/postgres/bootstrap/provision-tenant.sh tests/platform/postgres-smoke.sh tests/platform/openfga-smoke.sh
+          bash -n infra/postgres/bootstrap/00-init.sh infra/postgres/bootstrap/provision-tenant.sh tests/platform/postgres-smoke.sh tests/platform/openfga-smoke.sh tests/platform/openbao-smoke.sh
           docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml config --quiet
           docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml config --quiet
           docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml config --quiet
@@ -60,6 +60,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start isolated PostgreSQL
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
+      - name: Generate disposable OpenBao TLS certificate
+        run: |
+          set -euo pipefail
+          mkdir -p infra/security-access/openbao/tls
+          openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
+            -keyout infra/security-access/openbao/tls/server.key \
+            -out infra/security-access/openbao/tls/server.crt \
+            -subj "/CN=openbao" \
+            -addext "subjectAltName=DNS:openbao,DNS:localhost,IP:127.0.0.1" >/dev/null 2>&1
+          chmod 0644 infra/security-access/openbao/tls/server.key
       - name: Start Keycloak and OpenFGA with migrations
         run: docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml up -d
       - name: Verify Keycloak and authenticated OpenFGA availability
@@ -84,6 +94,8 @@ jobs:
             if [ "$attempt" = 40 ]; then echo "OpenFGA failed to become ready" >&2; exit 1; fi
             sleep 2
           done
+      - name: OpenBao TLS, KV and encrypted Raft lifecycle
+        run: bash tests/platform/openbao-smoke.sh
       - name: OpenFGA relationship model and cross-tenant verification
         run: bash tests/platform/openfga-smoke.sh
       - name: Identity logs on failure
