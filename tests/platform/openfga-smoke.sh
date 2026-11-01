@@ -18,10 +18,12 @@ python3 -c 'import json,sys; assert json.load(sys.stdin)["authorization_model_id
 
 a="4ab44379-d557-4df6-a2be-d44e121a8077"
 b="d21930aa-f4f6-40c0-bb1a-e71d7bb92caa"
+ra=$(printf "%s|%s" "$a" "person:42" | sha256sum | cut -d" " -f1)
+rb=$(printf "%s|%s" "$b" "person:42" | sha256sum | cut -d" " -f1)
 fga -X POST -d "{\"writes\":{\"tuple_keys\":[
  {\"user\":\"user:alice\",\"relation\":\"member\",\"object\":\"tenant:$a\"},
- {\"user\":\"tenant:$a\",\"relation\":\"tenant\",\"object\":\"resource:$a:person:42\"},
- {\"user\":\"tenant:$b\",\"relation\":\"tenant\",\"object\":\"resource:$b:person:42\"}
+ {\"user\":\"tenant:$a\",\"relation\":\"tenant\",\"object\":\"resource:$ra\"},
+ {\"user\":\"tenant:$b\",\"relation\":\"tenant\",\"object\":\"resource:$rb\"}
 ]}}" "http://openfga:8080/stores/$store_id/write" >/dev/null
 
 check() {
@@ -29,8 +31,8 @@ check() {
   response=$(fga -X POST -d "{\"tuple_key\":{\"user\":\"user:$user\",\"relation\":\"$relation\",\"object\":\"$object\"}}" "http://openfga:8080/stores/$store_id/check")
   python3 -c 'import json,sys; assert json.load(sys.stdin)["allowed"] == (sys.argv[1]=="true")' "$expected" <<< "$response"
 }
-check alice can_read "resource:$a:person:42" true
-check alice can_write "resource:$a:person:42" false
-check alice can_read "resource:$b:person:42" false
-check bob can_read "resource:$a:person:42" false
+check alice can_read "resource:$ra" true
+check alice can_write "resource:$ra" false
+check alice can_read "resource:$rb" false
+check bob can_read "resource:$ra" false
 echo "OpenFGA model: grants expected access, denies cross-tenant and unauthorized writes."
