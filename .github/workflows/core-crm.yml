@@ -20,20 +20,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: modules/core-crm/package-lock.json
       - name: Build Core Kernel
         run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
-      - name: Bootstrap CRM lockfile
-        run: cd modules/core-crm && npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Install CRM dependencies
         run: cd modules/core-crm && npm ci --no-audit --no-fund
       - name: Typecheck and domain isolation tests
         run: cd modules/core-crm && npm run check && npm test
-      - name: Capture CRM lockfile
-        run: |
-          echo SYNDES_CRM_LOCK_BEGIN
-          base64 -w0 modules/core-crm/package-lock.json
-          echo
-          echo SYNDES_CRM_LOCK_END
   crm-postgres:
     runs-on: ubuntu-latest
     steps:
