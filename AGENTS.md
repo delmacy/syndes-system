@@ -31,7 +31,7 @@ Trabalhar funcionalmente em apenas um módulo de produto por vez:
 10. Commercial Website
 11. Release Candidate
 
-A fase de implementação funcional corrente é **Inbox (PRD-002)** por decisão explícita do responsável pelo produto em 2026-11-01. **O Core CRM não está concluído como produto**: seu frontend e UX mantêm pendências abertas. O aceite técnico de backend não implica Product Gate completo. Focar somente Inbox nesta iteração e manter a dívida do CRM rastreada; esta exceção não altera o escopo congelado do MVP.
+**Priorização mais recente (2026-11-01):** após a evolução da Inbox, o responsável pelo produto **autorizou concluir as tarefas pendentes do frontend Core CRM**, mantendo o escopo do MVP congelado. O foco imediato é validar e finalizar `feat/crm-workspace-completion` e seus critérios, não abrir novos módulos. CRM e Inbox **não são DONE** até Product Gate formal com testes de identidade/tenant reais e operação comprovada. A sequência comercial do MVP permanece inalterada.
 
 ## Princípios de engenharia
 

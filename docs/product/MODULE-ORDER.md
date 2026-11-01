@@ -25,3 +25,7 @@ Não detalhar tecnicamente módulos posteriores enquanto o módulo corrente não
 ## Priorização operacional (exceção registrada em 2026-11-01)
 
 O responsável pelo produto determinou iniciar a implementação da **Inbox** mesmo com pendências abertas na **UI do Core CRM**. A sequência de lançamento e os critérios de conclusão permanecem válidos, mas as tarefas de CRM não bloqueiam o início da Inbox neste ciclo. Nenhum módulo é marcado DONE por ter somente backend/CI aprovado.
+
+## Finalização das pendências do CRM (2026-11-01)
+
+O responsável pelo produto autorizou explicitamente completar as tarefas antigas do Core CRM frontend em paralelo ao histórico de priorização da Inbox. Isso não altera o escopo nem aprova lançamento. A referência atual é `docs/product/CORE-CRM-FRONTEND-COMPLETION.md`: implementação, testes e riscos remanescentes de homologação Keycloak/OpenFGA e produção.

@@ -63,11 +63,12 @@ export class CrmService {
       repo=>repo.getPerson(context.tenantId,p));
   }
 
-  listPeople(context:CrmContext,query:unknown=null,limit=25):Promise<readonly Person[]>{
+  listPeople(context:CrmContext,query:unknown=null,limit=25,offset=0):Promise<readonly Person[]>{
     if(!Number.isInteger(limit)||limit<1||limit>100)throw new CrmValidationError("Invalid page size");
+    if(!Number.isInteger(offset)||offset<0||offset>100000)throw new CrmValidationError("Invalid offset");
     const normalized=searchQuery(query);
     return this.execute(context,"read","crm:people",
-      repo=>repo.listPeople(context.tenantId,normalized,limit));
+      repo=>repo.listPeople(context.tenantId,normalized,limit,offset));
   }
 
   archivePerson(context:CrmContext,personId:string):Promise<boolean>{

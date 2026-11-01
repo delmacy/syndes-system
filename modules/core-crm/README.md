@@ -37,3 +37,13 @@ Tenant database credentials **must** be selected by the trusted provider using t
 ## Leitura de vínculos CRM no contexto da Inbox
 
 Os endpoints `GET /v1/tenants/:tenantId/crm/people/:id/organizations` e `/tags` expõem somente os relacionamentos existentes **da pessoa no tenant autenticado**, sem modificar dados. O primeiro exige `crm:organizations/read` e o segundo `crm:tags/read` antes da seleção do banco. Os JOINs incluem `tenant_id` e excluem pessoa arquivada e organizações arquivadas. Sem alterações de schema, migração ou autorização implícita a partir de leitura de Inbox.
+
+## Capabilities e novos endpoints de gestão do Workspace
+
+- ``GET /crm/capabilities`` consulta as permissões ``read/write`` por recurso via Core Kernel/OpenFGA, usando ator e tenant verificados. Retorna falso quando uma capacidade é negada e falha fechada em indisponibilidade do FGA. Não abre conexão de banco para esta consulta.
+- ``GET /crm/people?limit=25&offset=25&q=...`` e ``/organizations``: paginação consistente por nome/ID e offset validado (0–100000) **no PostgreSQL do tenant**.
+- ``GET /crm/tags``: catálogo do tenant para reutilização de tags.
+- ``DELETE /crm/people/:id/tags/:tagId`` e ``/organizations/:organizationId``: desvinculação autorizada/auditada, sem exclusão dos registros canônicos.
+- ``GET /crm/people/:id/employee``: consulta pontual de perfil de funcionário do contato, sem listar funcionários de outros contatos.
+
+Sem mudança de schemas ou de política por conveniência do frontend. A permissão backend existente é por recurso ``read/write``, não por operação CRUD detalhada. Para concluir a homologação de UI, veja `docs/product/CORE-CRM-FRONTEND-COMPLETION.md`.

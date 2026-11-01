@@ -61,3 +61,8 @@ Para iniciar nova conversa/agente, usar o contexto:
 - Registro das stacks no Komodo adiado intencionalmente.
 
 Este documento é um **checkpoint de continuidade**. Não é declaração de conclusão do MVP nem autorização de implantação em produção.
+
+
+## Atualização de continuidade — conclusão técnica do frontend CRM (2026-11-01)
+
+O responsável pelo produto **autorizou retomar o CRM** para fechar as tarefas de frontend antes de avançar novamente. A branch `feat/crm-workspace-completion` implementa ficha, edição, arquivamento, relacionamentos, CSV, paginação e interface por capacidades. Ver `docs/product/CORE-CRM-FRONTEND-COMPLETION.md`. Mesmo com testes técnicos, CRM permanece **em desenvolvimento** até verificação real com Keycloak/OpenFGA e Product Gate. A Inbox também segue aberta, sem novos módulos nesta etapa.

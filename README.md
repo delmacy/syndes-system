@@ -59,3 +59,8 @@ Leia o `AGENTS.md` raiz antes de alterar qualquer parte do repositório.
 **Próxima fase funcional:** Inbox (PRD-002), autorizada pelo responsável pelo produto com pendências abertas no frontend CRM. Ambos exigirão aceite antes de lançamento.
 
 - [Progresso da Inbox no Workspace e pendências de aceite](docs/product/INBOX-FRONTEND-PROGRESS.md)
+
+
+## CRM Workspace — finalização das tarefas de frontend
+
+As tarefas de interface Core CRM foram retomadas por autorização explícita em 2026-11-01 na branch `feat/crm-workspace-completion`. A implementação contempla ficha, operações CRUD, vínculos, paginação, CSV e capacidades consultadas no backend. **Não é release de produção nem Product Gate concluído.** [Checkpoint e critérios](docs/product/CORE-CRM-FRONTEND-COMPLETION.md).
