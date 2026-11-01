@@ -25,7 +25,7 @@ OpenBao is **part of the same Compose project** as Keycloak and OpenFGA: `syndes
 
 ### Important migration limitation
 
-**Only the OpenBao server itself is fully independent of the existing `.env` mechanism in this PR.** The current Keycloak, OpenFGA, Core Host and PostgreSQL Compose services still use their bootstrap passwords from runtime environment variables. They are **not yet consuming OpenBao tokens or its KV secrets**; the templates here do not make this migration happen automatically. Before production release, replace their temporary credential handling with authenticated OpenBao Agent/workload delivery and verify no sensitive value appears in `docker inspect`, Komodo stack metadata, CI logs or Git.
+**Core Host is now the first OpenBao consumer.** It authenticates via AppRole credentials mounted as Docker secrets from volatile host files, reads `kv/data/production/core-host` over verified HTTPS and revokes its bootstrap token. PostgreSQL, Keycloak and OpenFGA still receive their own startup/bootstrap secrets from the existing `.env` mechanism; they are **not yet migrated**. Before production, replace those environment secrets with a compatible file/Agent delivery mechanism and verify their absence from Compose and Docker metadata. Service-specific identity credentials must still be distributed securely outside Git. See `apps/core-host/README.md`.
 
 The first secrets bootstrap and TLS trust root necessarily have to be established out-of-band. No secrets manager can securely manufacture its own initial operator trust without an external trust anchor.
 
