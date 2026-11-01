@@ -30,3 +30,7 @@ The GitHub Actions workflow additionally runs the SQL migration twice in disposa
 ## Scope boundaries
 
 The provider simulator is intentionally not a public unauthenticated webhook. WhatsApp and Scheduling belong in later PRs. There is no real channel delivery, push WebSocket transport or attachment store in this foundation; media upload and push notifications require separate security/integration acceptance before production.
+
+## Channel boundary
+
+`InboundChannelAdapter` accepts an `InboundChannelEvent` independent of protocol. `SimulatedChannelAdapter` is the only registered provider in this PR and validates its channel before calling tenant-authorized Inbox operations. Future WhatsApp adapter and delivery acknowledgements require their own scoped PR; the simulation route is not an anonymous webhook.

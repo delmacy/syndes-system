@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {CoreKernel,AccessDeniedError} from "@syndes/core-kernel";
-import {InboxService,inboxModule,PgInboxRepositoryFactory,InboxTenantMismatchError,InboxValidationError} from "../dist/index.js";
+import {InboxService,inboxModule,PgInboxRepositoryFactory,InboxTenantMismatchError,InboxValidationError,SimulatedChannelAdapter} from "../dist/index.js";
 const A="4ab44379-d557-4df6-a2be-d44e121a8077";
 const B="d21930aa-f4f6-40c0-bb1a-e71d7bb92caa";
 const alice={actor:{id:"alice",kind:"user"},tenantId:A};
@@ -103,4 +103,14 @@ test("authorization outage does not resolve any database",async()=>{
  const service=new InboxService(kernel,async()=>{selected++;return new MemoryStore()});
  await assert.rejects(service.list(alice),/FGA down/);
  assert.equal(selected,0);
+});
+
+test("simulation adapter accepts only its channel envelope",async()=>{
+ const {inbox}=await setup();
+ const c=await inbox.create(alice,{subject:"Channel adapter"});
+ const adapter=new SimulatedChannelAdapter(inbox);
+ const inbound=await adapter.receive(alice,{channel:"simulation",conversationId:c.id,body:"Olá adapter",externalMessageId:"adapter-1"});
+ assert.equal(inbound.direction,"inbound");
+ await assert.rejects(adapter.receive(alice,{channel:"whatsapp",conversationId:c.id,body:"untrusted",externalMessageId:"adapter-2"}),InboxValidationError);
+ assert.equal((await inbox.messages(alice,c.id)).length,1);
 });

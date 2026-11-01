@@ -3,3 +3,5 @@ export {PgInboxRepository,PgInboxRepositoryFactory,InboxConflictError} from "./p
 export {InboxValidationError,InboxTenantMismatchError} from "./contracts.js";
 export type {InboxContext,Conversation,Message,InboxRepository,ConversationStatus,
  HandoffMode,CreateConversation,InboxMetrics} from "./contracts.js";
+export {SimulatedChannelAdapter} from "./channels.js";
+export type {InboundChannelEvent,InboundChannelAdapter} from "./channels.js";

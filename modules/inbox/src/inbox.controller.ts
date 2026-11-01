@@ -1,6 +1,7 @@
 import {Body,Controller,Get,Headers,HttpException,Inject,Injectable,Param,Patch,Post,Query} from "@nestjs/common";
 import {AccessDeniedError} from "@syndes/core-kernel";
 import {InboxService} from "./service.js";
+import {SimulatedChannelAdapter} from "./channels.js";
 import {InboxConflictError,PgInboxRepositoryFactory} from "./postgres.js";
 import {InboxTenantMismatchError,InboxValidationError} from "./contracts.js";
 import type {ConversationStatus,HandoffMode,InboxContext,CreateConversation} from "./contracts.js";
@@ -11,12 +12,14 @@ import type {TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 @Injectable()
 export class InboxHost{
  readonly inbox:InboxService;
+ readonly simulator:SimulatedChannelAdapter;
  constructor(
   @Inject(CORE_RUNTIME) private readonly core:InboxHostRuntime,
   @Inject(TENANT_DATABASES) pools:TrustedTenantDatabaseProvider
  ){
   const repo=new PgInboxRepositoryFactory(pools);
   this.inbox=new InboxService(core.kernel,tenantId=>repo.forTenant(tenantId));
+  this.simulator=new SimulatedChannelAdapter(this.inbox);
  }
  async run<T>(tenantId:string,authorization:string|undefined,task:(context:InboxContext)=>Promise<T>):Promise<T>{
   try{id(tenantId,"tenant")}catch{throw new HttpException("Invalid tenant ID",400)}
@@ -95,7 +98,7 @@ export class InboxController{
  @Post("conversations/:id/simulator/inbound")
  simulate(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
           @Param("id")key:string,@Body()b:{body:string;externalMessageId:string}){
-  return this.run(t,h,async c=>found(await this.host.inbox.simulate(c,key,b?.body,b?.externalMessageId)));
+  return this.run(t,h,async c=>found(await this.host.simulator.receive(c,{channel:"simulation",conversationId:key,body:b?.body,externalMessageId:b?.externalMessageId})));
  }
  @Get("metrics")
  metrics(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined){
