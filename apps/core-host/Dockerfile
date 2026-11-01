@@ -4,6 +4,10 @@ COPY packages/core-kernel/package*.json packages/core-kernel/
 COPY packages/core-kernel/tsconfig.json packages/core-kernel/
 COPY packages/core-kernel/src packages/core-kernel/src
 RUN cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+COPY modules/core-crm/package*.json modules/core-crm/
+COPY modules/core-crm/tsconfig.json modules/core-crm/
+COPY modules/core-crm/src modules/core-crm/src
+RUN cd modules/core-crm && npm ci --no-audit --no-fund && npm run build
 COPY apps/core-host/package*.json apps/core-host/
 COPY apps/core-host/tsconfig.json apps/core-host/
 COPY apps/core-host/src apps/core-host/src

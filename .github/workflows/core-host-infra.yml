@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - "apps/core-host/**"
+      - "modules/core-crm/**"
       - "packages/core-kernel/**"
       - "infra/**"
       - "tests/platform/**"
@@ -25,6 +26,8 @@ jobs:
           node-version: "22"
       - name: Build reusable kernel
         run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Build CRM business module
+        run: cd modules/core-crm && npm ci --no-audit --no-fund && npm run build
       - name: Install host dependencies
         run: cd apps/core-host && npm ci --no-audit --no-fund
       - name: Strict type checks
@@ -107,6 +110,7 @@ jobs:
       - name: Build Core Host OpenBao client for real AppRole integration
         run: |
           cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+          cd ../../modules/core-crm && npm ci --no-audit --no-fund && npm run build
           cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run build
       - name: Create private Docker data network
         run: docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data
