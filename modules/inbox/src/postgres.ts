@@ -38,8 +38,12 @@ export class PgInboxRepository implements InboxRepository {
   ), audit AS (
     INSERT INTO inbox_events(tenant_id,conversation_id,event,actor_id)
     SELECT tenant_id,conversation_id,'message_received',$6 FROM inserted RETURNING id
+  ), bumped AS (
+    UPDATE inbox_conversations SET updated_at=now()
+    WHERE tenant_id=$1::uuid AND id=$3::uuid AND EXISTS(SELECT 1 FROM inserted)
+    RETURNING id
   )
-  SELECT inserted.*,true AS inserted_now FROM inserted CROSS JOIN audit`,
+  SELECT inserted.*,true AS inserted_now FROM inserted CROSS JOIN audit CROSS JOIN bumped`,
   [t,messageId,c.id,input.source,input.externalMessageId,actor,input.body]);
   let row=inserted.rows[0];let created=Boolean(row);
   if(!row){
@@ -107,8 +111,21 @@ export class PgInboxRepository implements InboxRepository {
   SELECT changed.* FROM changed CROSS JOIN audit`,[t,id,event,actor,...params]);
   return r.rows[0]?conv(r.rows[0]):null;
  }
- assign(t:string,a:string,id:string,assignee:string|null){
-  return this.update(t,a,id,"assigned_to=$5",[assignee],"assigned");
+ async assign(t:string,a:string,id:string,assignee:string|null):Promise<Conversation|null>{
+  this.verify(t);
+  // Atomic self-claim or self-release. Another agent cannot steal/release it.
+  const r=await this.db.query(`WITH changed AS (
+    UPDATE inbox_conversations SET assigned_to=$5,updated_at=now()
+    WHERE tenant_id=$1::uuid AND id=$2::uuid
+      AND (($5::text IS NULL AND assigned_to=$4)
+        OR ($5::text=$4 AND (assigned_to IS NULL OR assigned_to=$4)))
+    RETURNING ${C}
+  ), audit AS(
+    INSERT INTO inbox_events(tenant_id,conversation_id,event,actor_id)
+    SELECT tenant_id,id,$3,$4 FROM changed RETURNING id
+  )
+  SELECT changed.* FROM changed CROSS JOIN audit`,[t,id,"assigned",a,assignee]);
+  return r.rows[0]?conv(r.rows[0]):null;
  }
  setStatus(t:string,a:string,id:string,status:ConversationStatus){
   return this.update(t,a,id,"status=$5",[status],"status_changed");
