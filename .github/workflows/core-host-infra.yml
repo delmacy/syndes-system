@@ -75,6 +75,12 @@ jobs:
                   data=json.load(file)
               for name,service in data["services"].items():
                   assert not forbidden.intersection(service.get("environment",{})), f"Secret in environment: {name}"
+          with open("/tmp/syndes-security-compose.json",encoding="utf-8") as file:
+              identity=json.load(file)
+          keycloak=identity["services"]["keycloak"]
+          assert "--config-file=/run/secrets/keycloak.conf" in keycloak["command"]
+          assert any(s.get("target")=="keycloak.conf" for s in keycloak["secrets"])
+          print("Keycloak .conf extension, file-backed secrets: PASS")
           print("PostgreSQL/Keycloak/OpenFGA: no sensitive env in Compose")
           PY
       - name: Start isolated PostgreSQL
