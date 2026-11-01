@@ -42,6 +42,12 @@ try{
  const out=await pa.query("SELECT count(*)::int AS count FROM inbox_outbox WHERE tenant_id=$1",[A]);
  assert.equal(out.rows[0].count,1,"Reply must queue, not directly dispatch");
  assert.equal((await inbox.assign(user,cid,"alice")).assignedTo,"alice");
+ const another=ctx(A,"charlie","user");
+ assert.equal(await inbox.assign(another,cid,"charlie"),null,"Other agent cannot steal assignment");
+ assert.equal(await inbox.assign(another,cid,null),null,"Other agent cannot release assignment");
+ assert.equal((await inbox.get(user,cid)).assignedTo,"alice");
+ assert.equal((await inbox.assign(user,cid,null)).assignedTo,null);
+ assert.equal((await inbox.assign(user,cid,"alice")).assignedTo,"alice");
  assert.equal((await inbox.handoff(user,cid,true)).humanHandoff,true);
  assert.equal((await inbox.status(user,cid,"pending")).status,"pending");
  const events=await inbox.events(user,0);
