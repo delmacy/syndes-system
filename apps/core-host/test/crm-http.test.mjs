@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {NestFactory} from "@nestjs/core";
 import {Module,HttpException} from "@nestjs/common";
-import {CrmController,CrmHost} from "../dist/crm.controller.js";
+import {CrmController,CrmHost} from "@syndes/core-crm/plugin";
 
 const A="4ab44379-d557-4df6-a2be-d44e121a8077";
 const B="d21930aa-f4f6-40c0-bb1a-e71d7bb92caa";

@@ -24,6 +24,14 @@ jobs:
           cache-dependency-path: modules/core-crm/package-lock.json
       - name: Build Core Kernel
         run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Regenerate development peer lock and emit it for review
+        run: |
+          cd modules/core-crm
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          echo SYNDES_PLUGIN_LOCK_BEGIN
+          base64 -w0 package-lock.json
+          echo
+          echo SYNDES_PLUGIN_LOCK_END
       - name: Install CRM dependencies
         run: cd modules/core-crm && npm ci --no-audit --no-fund
       - name: Typecheck and domain isolation tests

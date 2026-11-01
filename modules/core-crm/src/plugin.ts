@@ -34,3 +34,5 @@ export const syndesPlugin=defineSyndesModule({
     asset("/crm/styles.css","styles.css","text/css; charset=utf-8"),
   ],
 });
+
+export {CrmController,CrmHost} from "./crm.controller.js";
