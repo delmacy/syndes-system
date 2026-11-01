@@ -1,18 +1,16 @@
 #!/bin/bash
 set -Eeuo pipefail
-for variable in PG_KEYCLOAK_PASSWORD PG_OPENFGA_PASSWORD PG_CORE_PASSWORD; do
-  if [[ -z "${!variable:-}" ]]; then echo "Missing $variable" >&2; exit 1; fi
+# PostgreSQL superuser reads role bootstrap passwords only from Docker Secrets.
+# No passwords are injected into Compose environment variables or psql argv.
+for file in /run/secrets/pg_keycloak_password /run/secrets/pg_openfga_password /run/secrets/pg_core_password; do
+  if [[ ! -s "$file" ]]; then echo "Missing required PostgreSQL secret" >&2; exit 1; fi
 done
-# psql variables read secrets from environment, not from command-line arguments.
 psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres <<'SQL'
-\getenv keycloak_pwd PG_KEYCLOAK_PASSWORD
-\getenv openfga_pwd PG_OPENFGA_PASSWORD
-\getenv core_pwd PG_CORE_PASSWORD
-SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', 'syndes_keycloak', :'keycloak_pwd')
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', 'syndes_keycloak', trim(pg_read_file('/run/secrets/pg_keycloak_password'), E'\n'))
  WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='syndes_keycloak') \gexec
-SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', 'syndes_openfga', :'openfga_pwd')
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', 'syndes_openfga', trim(pg_read_file('/run/secrets/pg_openfga_password'), E'\n'))
  WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='syndes_openfga') \gexec
-SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', 'syndes_core', :'core_pwd')
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', 'syndes_core', trim(pg_read_file('/run/secrets/pg_core_password'), E'\n'))
  WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='syndes_core') \gexec
 SELECT 'CREATE DATABASE syndes_keycloak OWNER syndes_keycloak'
  WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname='syndes_keycloak') \gexec

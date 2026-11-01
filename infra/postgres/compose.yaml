@@ -6,11 +6,13 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_DB: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?}
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_admin_password
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
-      PG_KEYCLOAK_PASSWORD: ${PG_KEYCLOAK_PASSWORD:?}
-      PG_OPENFGA_PASSWORD: ${PG_OPENFGA_PASSWORD:?}
-      PG_CORE_PASSWORD: ${PG_CORE_PASSWORD:?}
+    secrets:
+      - pg_admin_password
+      - pg_keycloak_password
+      - pg_openfga_password
+      - pg_core_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./bootstrap/00-init.sh:/docker-entrypoint-initdb.d/00-init.sh:ro
@@ -27,6 +29,15 @@ services:
       start_period: 30s
     security_opt: [no-new-privileges:true]
     # Intentionally no published database port.
+secrets:
+  pg_admin_password:
+    file: /run/syndes/runtime/pg_admin_password
+  pg_keycloak_password:
+    file: /run/syndes/runtime/pg_keycloak_password
+  pg_openfga_password:
+    file: /run/syndes/runtime/pg_openfga_password
+  pg_core_password:
+    file: /run/syndes/runtime/pg_core_password
 volumes:
   postgres_data:
 networks:

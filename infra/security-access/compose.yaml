@@ -2,19 +2,17 @@ name: syndes-security-access
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.1
-    command: ["start","--http-enabled=true","--proxy-headers=xforwarded"]
+    command: ["--config-file=/run/secrets/keycloak_config", "start","--http-enabled=true","--proxy-headers=xforwarded"]
     restart: unless-stopped
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://syndes-postgres:5432/syndes_keycloak
       KC_DB_USERNAME: syndes_keycloak
-      KC_DB_PASSWORD: ${PG_KEYCLOAK_PASSWORD:?}
       KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:?}
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
       KC_DB_POOL_MAX_SIZE: "10"
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME:?}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD:?}
+    secrets: [keycloak_config]
     networks: [syndes-data,syndes-security-access,syndes-secrets]
     mem_limit: 1024m
     security_opt: [no-new-privileges:true]
@@ -22,20 +20,18 @@ services:
   openfga-migrate:
     image: openfga/openfga:v1.22.1
     command: ["migrate"]
+    volumes:
+      - /run/syndes/runtime/openfga.yaml:/etc/openfga/config.yaml:ro
     restart: "no"
-    environment:
-      OPENFGA_DATASTORE_ENGINE: postgres
-      OPENFGA_DATASTORE_URI: ${OPENFGA_DATASTORE_URI:?}
     networks: [syndes-data]
   openfga:
     image: openfga/openfga:v1.22.1
     command: ["run"]
+    volumes:
+      - /run/syndes/runtime/openfga.yaml:/etc/openfga/config.yaml:ro
     restart: unless-stopped
     depends_on:
       openfga-migrate: {condition: service_completed_successfully}
-    environment:
-      OPENFGA_DATASTORE_ENGINE: postgres
-      OPENFGA_DATASTORE_URI: ${OPENFGA_DATASTORE_URI:?}
       OPENFGA_AUTHN_METHOD: preshared
       OPENFGA_AUTHN_PRESHARED_KEYS: ${OPENFGA_PRESHARED_KEY:?}
       OPENFGA_PLAYGROUND_ENABLED: "false"
@@ -60,6 +56,9 @@ services:
     cap_drop: [ALL]
     # Bootstrap init/unseal is deliberately an operator action; never run -dev.
     # No published port; API restricted to the internal secrets network.
+secrets:
+  keycloak_config:
+    file: /run/syndes/runtime/keycloak.conf
 networks:
   syndes-data: {external: true}
   syndes-security-access:
