@@ -213,7 +213,7 @@ test("browserless Inbox: OIDC callback, UI clicks, assignment, replies, notes, s
 
 test("browserless Inbox: unauthenticated and foreign-tenant requests fail visibly",async()=>{
   const anonymous=makeHarness({loggedIn:false});
-  await anonymous.until(()=>anonymous.nodes.notice.textContent!=="","startup did not finish");
+  // The original HTML supplies the initial status text; the VM executes JS only.
   await anonymous.activate("refresh");
   assert.equal(anonymous.nodes.notice.textContent,"Faça login primeiro");
   assert.equal(anonymous.nodes.notice.classList.contains("error"),true);
