@@ -4,14 +4,14 @@ A **business module**, not a framework dependency. The CRM is the canonical sour
 
 ## Delivered
 - Independent `@syndes/core-crm` private TypeScript package implementing `ModuleDefinition`.
-- Create organizations and people, assign relationships, list/search/get/archive people.
+- Create organizations and people; relate people to organizations; create tags, assign tags to people, add notes, and read an audited person timeline. List/search/get/archive people. Searches include person name/email/phone, linked organization names/CNPJ and tags.
 - Email/phone normalization; archive instead of destructive deletion.
 - Mandatory CoreKernel execution before a tenant repository is resolved.
-- PostgreSQL migration `sql/001_crm_foundation.sql` for each isolated tenant database, plus `tenant_id` checks and atomic audit logs.
+- PostgreSQL migrations `sql/001_crm_foundation.sql` and `sql/002_crm_tags_notes.sql` for each isolated tenant database, plus `tenant_id` checks and atomic audit logs.
 - Tests for permissions, data normalization and tenant routing.
 
 ## Intentional constraints
-**This first vertical slice is not the full PRD-001 Product Gate.** Remaining work: employee/tag/note/timeline/channel identity, CSV validation/import/export, duplicate alert, search by tags/CNPJ/organization, UI/HTTP API, onboarding-backed tenant database credentials, migration automation and realistic multi-tenant E2E. The module is now **registered** in the NestJS Core Host composition root. No production CRM routes are enabled until a trusted tenant DB provider is wired and tested.
+**This first vertical slice is not the full PRD-001 Product Gate.** Remaining work: Employee and ChannelIdentity, CSV validation/import/export, duplicate alert, UI/HTTP API, onboarding-backed tenant database credentials, migration orchestration and realistic multi-tenant E2E. The module is now **registered** in the NestJS Core Host composition root. No production CRM routes are enabled until a trusted tenant DB provider is wired and tested.
 
 Use `npm ci && npm test` in this package after building `packages/core-kernel`.
 
