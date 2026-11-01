@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Syndes · Inbox</title><link rel="stylesheet" href="/inbox/styles.css"><script defer src="/inbox/app.js"></script></head>
+<body>
+<header><div class="brand"><span class="logo">S</span><div><strong>SYNDES</strong><small>INBOX · ATENDIMENTO</small></div></div>
+<div class="auth"><label for="tenant">Empresa</label><input id="tenant" placeholder="UUID do tenant" aria-label="Tenant UUID"><button id="login">Entrar</button><button id="logout" hidden>Sair</button></div></header>
+<main><aside><div class="section-heading"><div><p class="overline">ATENDIMENTO</p><h1>Conversas</h1></div><button id="refresh" class="secondary">Atualizar</button></div>
+<div class="filter-row"><span id="count">—</span><span id="conn">Desconectado</span></div><div id="conversations" class="conversations" aria-live="polite"></div></aside>
+<section class="conversation"><div class="chat-header"><div><h2 id="chat-name">Selecione uma conversa</h2><p id="chat-sub">Histórico centralizado e auditável</p></div>
+<div id="chat-actions" hidden><button id="claim" class="secondary">Assumir</button><button id="handoff" class="secondary">Atendimento humano</button><select id="status" aria-label="Status"><option value="open">Aberta</option><option value="pending">Pendente</option><option value="resolved">Resolvida</option></select></div></div>
+<div id="notice" class="notice" role="status" aria-live="polite">Entre com Keycloak e selecione a empresa para consultar os atendimentos.</div>
+<div id="messages" class="messages"><div class="empty">Abra uma conversa para consultar o histórico.</div></div>
+<form id="compose"><textarea id="reply" maxlength="4096" placeholder="Responder ao cliente..." rows="2" aria-label="Mensagem de resposta" disabled></textarea><button id="send" disabled>Enviar</button></form>
+</section></main>
+</body></html>
