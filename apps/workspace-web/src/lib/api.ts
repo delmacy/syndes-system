@@ -64,6 +64,7 @@ export class TenantApi {
     return this.request<Conversation[]>("inbox", "/conversations?limit=100" + (status ? "&status=" + status : ""));
   }
   metrics() { return this.request<InboxMetrics>("inbox", "/metrics"); }
+  conversation(id: string) { return this.request<Conversation>("inbox", "/conversations/" + encodeURIComponent(id)); }
   messages(id: string) { return this.request<Message[]>("inbox", "/conversations/" + encodeURIComponent(id) + "/messages"); }
   createConversation(body: { subject: string; crmPersonId?: string | null }) {
     return this.request<Conversation>("inbox", "/conversations", "POST", body);
@@ -76,5 +77,8 @@ export class TenantApi {
   }
   setAssignment(id: string, assigneeId: string | null) {
     return this.request<Conversation>("inbox", "/conversations/" + encodeURIComponent(id) + "/assignment", "PATCH", { assigneeId });
+  }
+  setHandoff(id: string, mode: "human" | "bot") {
+    return this.request<Conversation>("inbox", "/conversations/" + encodeURIComponent(id) + "/handoff", "PATCH", { mode });
   }
 }

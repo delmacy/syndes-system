@@ -56,3 +56,19 @@ test("writes use tenant path, JSON, and never derive tenant from supplied record
   assert.deepEqual(JSON.parse(request.options.body), { name: "João" });
   assert.equal(request.options.headers["Content-Type"], "application/json");
 });
+
+test("handoff and detail use tenant-scoped Inbox routes", async () => {
+  const requests = [];
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url, options });
+    return Response.json({ id: "conversation-id", status: "pending", handoff: "bot" });
+  };
+  const api = new TenantApi("tenant-main", "token", () => assert.fail("Unexpected logout"));
+  await api.conversation("conversation-id");
+  await api.setHandoff("conversation-id", "bot");
+  assert.equal(requests[0].url, "/v1/tenants/tenant-main/inbox/conversations/conversation-id");
+  assert.equal(requests[0].options.method, "GET");
+  assert.equal(requests[1].url, "/v1/tenants/tenant-main/inbox/conversations/conversation-id/handoff");
+  assert.equal(requests[1].options.method, "PATCH");
+  assert.deepEqual(JSON.parse(requests[1].options.body), { mode: "bot" });
+});

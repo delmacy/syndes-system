@@ -31,7 +31,7 @@ Trabalhar funcionalmente em apenas um módulo de produto por vez:
 10. Commercial Website
 11. Release Candidate
 
-A fase corrente é **Core CRM**.
+A fase de implementação funcional corrente é **Inbox (PRD-002)** por decisão explícita do responsável pelo produto em 2026-11-01. **O Core CRM não está concluído como produto**: seu frontend e UX mantêm pendências abertas. O aceite técnico de backend não implica Product Gate completo. Focar somente Inbox nesta iteração e manter a dívida do CRM rastreada; esta exceção não altera o escopo congelado do MVP.
 
 ## Princípios de engenharia
 

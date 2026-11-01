@@ -1,6 +1,6 @@
 # PRD-002 — Core Inbox Development Acceptance
 
-**Status:** Development implementation in progress (not production release).
+**Status (2026-11-01):** Em desenvolvimento; frontend atualizado no Workspace. **Não concluído e não autorizado para produção.**
 
 ## Approved journey
 
@@ -26,3 +26,21 @@
 - [ ] Operational secrets/recovery/hardening and production rollout (homologation).
 
 No checklist is a substitute for reviewed CI evidence. Do not merge any chained PR automatically.
+
+
+## Progresso do frontend no Workspace (2026-11-01)
+
+- [x] Fila, busca, filtros aberto/pendente/resolvido e leitura da conversa com histórico.
+- [x] Atribuição ao próprio atendente e liberação; transições de status e transferência humano/bot pela API.
+- [x] Modos de composição separados: resposta, nota interna e entrada **simulada** (não canal externo).
+- [x] Compositor respeita status, handoff e atribuição. Essa checagem é **somente UX**; OpenFGA e regras de escrita continuam no backend.
+- [x] Atualização **periódica HTTP a cada 10 segundos** com aba visível; **não é WebSocket/realtime push**.
+- [x] UI mobile lista/detalhe e navegação de retorno; teste de ausência de scroll horizontal.
+- [x] 11 testes unitários de Workspace e smoke Playwright com APIs e identidade **simuladas**, sem gravação em tenant real.
+- [ ] Homologar fluxo no navegador com Keycloak, tenant e OpenFGA reais.
+- [ ] Realtime push autenticado com isolamento/reconexão.
+- [ ] Upload, download, validação e retenção segura de anexos por tenant.
+- [ ] UX e autorização granular para múltiplos atendentes; acessibilidade.
+- [ ] Performance, recovery, observabilidade, backup/restore e Product Gate final.
+
+Não confundir testes mockados de UI com aceite de segurança real. O backend atual não foi alterado.

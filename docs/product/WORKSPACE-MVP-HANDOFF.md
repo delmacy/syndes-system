@@ -41,9 +41,9 @@
 
 ## Próxima etapa funcional
 
-Pelo `AGENTS.md` global, a fase funcional ainda é **PRD-001 Core CRM**. Portanto, **não marcar Core CRM como concluído apenas porque o Shell está pronto**. Antes de mudar de módulo, confrontar seu checklist com `docs/product/CORE-CRM-MVP-ACCEPTANCE.md`, registrar evidências de segurança, usabilidade e integração que faltarem, e atualizar o gate formal. Enquanto o gate não estiver aprovado, completar somente os itens faltantes de Core CRM.
+**Atualização da decisão (2026-11-01):** o responsável pelo produto esclareceu que o **Core CRM não está concluído, principalmente no frontend**, mas autorizou avançar para a **Inbox (PRD-002)**. Esta decisão muda a *prioridade de trabalho*, não atribui o status DONE ao CRM nem revoga seus critérios de aceite. O próximo foco de produto é a Inbox, aproveitando o Shell compartilhado. Ver `docs/product/INBOX-FRONTEND-PROGRESS.md` e `docs/product/PRD-002-INBOX-ACCEPTANCE.md`.
 
-Quando o **Product Gate do Core CRM** for explicitamente aprovado, avançar **somente para PRD-002 Inbox** na ordem do MVP, usando o Shell compartilhado. O backend Inbox e a UI da Inbox já oferecem uma fundação demonstrável, mas os critérios de aceite da Inbox permanecem em `docs/product/PRD-002-INBOX-ACCEPTANCE.md`; não tratá-los como cumpridos sem verificação.
+As pendências de UX, formulários, permissões por ação e relacionamentos do CRM continuam abertas. Antes do lançamento, todos os gates funcionais de CRM e Inbox deverão ser retomados e validados; não usar o aceite de backend como sinônimo de módulo entregue.
 
 Para iniciar nova conversa/agente, usar o contexto:
 

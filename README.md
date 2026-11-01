@@ -5,7 +5,7 @@ Codinome interno do produto SaaS atualmente em desenvolvimento.
 ## Estado
 
 - MVP scope: **FROZEN**
-- Fase atual: **PRD-001 Core CRM**
+- Fase funcional atual: **PRD-002 Inbox** (priorização explícita de 2026-11-01; **Core CRM permanece incompleto, especialmente no frontend**)
 - Estratégia: **um módulo funcional por vez**
 - Arquitetura de negócio: **monólito modular**, salvo separação comprovadamente necessária
 - Regra de escopo: toda nova ideia é classificada como `BLOCKER`, `BUG`, `MVP` ou `POST-MVP`
@@ -56,4 +56,6 @@ Leia o `AGENTS.md` raiz antes de alterar qualquer parte do repositório.
 - [Handoff do Workspace e gate para o próximo módulo](docs/product/WORKSPACE-MVP-HANDOFF.md)
 - [README da aplicação Workspace](apps/workspace-web/README.md)
 
-**Próxima fase:** a sequência do MVP não mudou. Validar/encerrar os critérios de aceite do **Core CRM** antes de formalizar o avanço ao **PRD-002 Inbox**.
+**Próxima fase funcional:** Inbox (PRD-002), autorizada pelo responsável pelo produto com pendências abertas no frontend CRM. Ambos exigirão aceite antes de lançamento.
+
+- [Progresso da Inbox no Workspace e pendências de aceite](docs/product/INBOX-FRONTEND-PROGRESS.md)
