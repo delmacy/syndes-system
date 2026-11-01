@@ -17,7 +17,7 @@ export interface InboundChannelAdapter{
 export class SimulatedChannelAdapter implements InboundChannelAdapter{
  readonly channel="simulation";
  constructor(private readonly inbox:InboxService){}
- receive(context:InboxContext,event:InboundChannelEvent):Promise<Message|null>{
+ async receive(context:InboxContext,event:InboundChannelEvent):Promise<Message|null>{
   if(!event||event.channel!==this.channel)throw new InboxValidationError("Unsupported channel");
   return this.inbox.simulate(context,event.conversationId,event.body,event.externalMessageId);
  }
