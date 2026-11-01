@@ -76,12 +76,19 @@ export async function loadCoreSecrets(
     });
   } finally {
     // The read-only AppRole token must not remain valid after bootstrap.
-    await jsonRequest(fetcher, source.address, "/v1/auth/token/revoke-self", {
-      method: "POST", headers: { "X-Vault-Token": token },
-    }).catch((err: unknown) => {
-      // Enforce revocation rather than running while a bootstrap token survives.
-      throw new Error("OpenBao bootstrap token revocation failed", { cause: err });
-    });
+    try {
+      const revoke = await fetcher(httpUrl(source.address, "/v1/auth/token/revoke-self"), {
+        method: "POST",
+        headers: { "X-Vault-Token": token },
+        redirect: "error",
+        signal: AbortSignal.timeout(5000),
+      });
+      // Token revocation normally returns 204 No Content.
+      if (!revoke.ok) throw new Error("Revoke request was rejected");
+    } catch {
+      // Fail startup rather than allowing an orphaned bootstrap token.
+      throw new Error("OpenBao bootstrap token revocation failed");
+    }
   }
   return loaded!;
 }
