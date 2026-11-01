@@ -11,6 +11,7 @@ on:
   pull_request:
     paths:
       - "apps/core-host/**"
+      - "modules/core-crm/**"
       - "infra/**"
       - "tests/platform/**"
       - ".github/workflows/core-host-infra.yml"
