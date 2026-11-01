@@ -15,18 +15,19 @@ const browser = await chromium.launch({
 const errors = [];
 let step = "initialization";
 try {
+  // No HTTP Basic credentials: tenant Workspace must use only Keycloak login.
   const context = await browser.newContext({
-    httpCredentials: { username: "syndes-demo", password },
     ignoreHTTPSErrors: false,
     viewport: { width: 1440, height: 900 },
   });
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
-  step = "open protected Workspace";
+  step = "open Workspace without browser Basic Auth prompt";
   const response = await page.goto(origin + "/", { waitUntil: "domcontentloaded", timeout: 30000 });
-  assert.equal(response?.status(), 200, "Workspace should be served via HTTPS after Basic Auth");
+  assert.equal(response?.status(), 200, "Workspace should render without HTTP Basic Auth");
+  assert.equal(response?.headers()["www-authenticate"], undefined, "No browser Basic Auth challenge");
   await page.getByRole("heading", { name: /Bem-vindo ao/ }).waitFor({ timeout: 20000 });
-  console.log("PASS: HTTPS Workspace shell rendered");
+  console.log("PASS: HTTPS Workspace renders without Basic Auth, no browser prompt");
   step = "begin OIDC login";
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.waitForURL(/:9444\/realms\/syndes\//, { timeout: 25000 });

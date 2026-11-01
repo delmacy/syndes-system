@@ -47,7 +47,7 @@ Para o smoke no navegador, configure a variável `SYNDES_PREVIEW_PASSWORD` **som
 
 ## Publicação no DevServer01
 
-- Portal: `https://delmacy-desktoppc.tayra-delta.ts.net:9443/` (Tailnet + Basic Auth temporário).
+- Portal: `https://delmacy-desktoppc.tayra-delta.ts.net:9443/` (Tailnet; **Keycloak é a única autenticação de usuário**).
 - Tailscale Serve HTTPS encaminha para o Traefik na porta 80 de loopback.
 - Traefik termina o roteamento interno e envia `/` ao frontend estático e `/v1/*` ao Core Host. Backend exige JWT e não usa Basic Auth.
 - Um Nginx mínimo *dentro* do container serve apenas arquivos compilados e o JSON de configuração, **não é um segundo proxy reverso**.
