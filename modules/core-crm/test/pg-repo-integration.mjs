@@ -69,7 +69,7 @@ try {
   assert.equal(channel.personId,second.id);
   assert.equal((await a.getPerson(A,second.id)).name,"Carlos Silva","Channel push name cannot overwrite CRM name");
   await assert.rejects(bx.linkChannel(B,"bob",randomUUID(),second.id,"whatsapp","other",null));
-  const imported=parseContactsCsv('name,email,phone\\n"Pessoa, Importada",importada@example.com,551199991111\\n');
+  const imported=parseContactsCsv('name,email,phone\n"Pessoa, Importada",importada@example.com,551199991111\n');
   assert.equal(await ex.importPeople(A,"alice",imported.map(x=>({...x,id:randomUUID()}))),1);
   const exported=contactsToCsv(await ex.listExportPeople(A,1000));
   assert.match(exported,/Pessoa, Importada/);
