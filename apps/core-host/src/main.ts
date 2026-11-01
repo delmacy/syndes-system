@@ -4,6 +4,8 @@ import {NestFactory} from "@nestjs/core";
 import {Pool} from "pg";
 import {CoreKernel,AccessDeniedError} from "@syndes/core-kernel";
 import {registeredModules} from "./modules.js";
+import {CrmController,CrmHost} from "./crm.controller.js";
+import {TenantPgProvider} from "./tenant-database.js";
 import {ActorVerifier,PgMembership,FgaPermission,tenantUUID} from "./adapters.js";
 import {loadCoreSecrets,openBaoSourceFromEnv,type CoreRuntimeSecrets} from "./secrets.js";
 
@@ -46,9 +48,11 @@ class CoreController{
   }
  }
 }
-@Module({controllers:[CoreController],providers:[
+@Module({controllers:[CoreController,CrmController],providers:[
   {provide:RUNTIME_SECRETS,useFactory:async()=>loadCoreSecrets(openBaoSourceFromEnv())},
-  CoreService
+  CoreService,
+  {provide:"SYNDES_CORE_API",useExisting:CoreService},
+  TenantPgProvider,CrmHost,
 ]})class AppModule{}
 async function bootstrap(){
  const port=Number(process.env.CORE_PORT??"8082");

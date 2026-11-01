@@ -33,6 +33,7 @@ export class CrmHost {
    const ctx=await this.context(tenantId,bearer);
    try{return await task(ctx)}
    catch(e){
+     if(e instanceof HttpException)throw e;
      if(e instanceof CrmValidationError)throw new HttpException(e.message,400);
      if(e instanceof AccessDeniedError)throw new HttpException("Forbidden",403);
      if(e instanceof TenantDatabaseMismatchError)throw new HttpException("Tenant unavailable",503);

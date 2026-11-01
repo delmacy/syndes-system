@@ -24,3 +24,13 @@ The OpenBao AppRole must have policy `infra/security-access/openbao/policies/cor
 **Manual preparation before deployment:** an administrator must populate the KV v2 secret path with `control_db_url` and `openfga_token`, create and bind the AppRole and distribute the login files. None of these is automatically created in production by CI or Compose. Never copy the disposable CI credentials to a real host.
 
 The initial retrieval occurs at startup; running Node's token is revoked after retrieval, but database/FGA credentials remain active in process memory until restart. Rolling key rotation therefore requires a controlled restart for now.
+
+## Tenant CRM API
+
+The authenticated Core Host exposes `/v1/tenants/:tenantId/crm` with Person/Organization CRUD, relations, tags, notes, timeline, employees, ChannelIdentity, duplicate suggestions, and CSV import/export. Each action verifies a Keycloak JWT, enforces CoreKernel tenant membership and an OpenFGA permission **before** resolving a tenant database.
+
+The tenant pool provider checks the canonical active tenant mapping in `syndes_control` and fetches `kv/data/production/tenants/<uuid>` from OpenBao using a **separate limited AppRole** (`infra/security-access/openbao/policies/core-tenant-db.hcl`). Each tenant KV record contains the `username` (must match the registry role) and `password` (distinct PostgreSQL login for that tenant). The DB host is fixed at `syndes-postgres`; arbitrary client-provided DSNs, hosts, roles and database names are rejected. Inactive or missing tenants cannot resolve a DB. Up to 8 small pools are cached with idle credential refresh.
+
+For production, provision and rotate per-tenant OpenBao KV records as part of the audited onboarding transaction. Mount `/run/syndes/approle/core-tenant-db/{role-id,secret-id}` as protected files (root:10001, mode 0440), separate from the Core Host AppRole. No DB superuser password is present in the application. The Core Host application cannot start normally without the original Core Host OpenBao credentials, but the tenant-specific AppRole is accessed only on first CRM operation and fails closed when absent.
+
+**Warning:** This implementation enforces access at request boundaries; the OpenFGA relationship assignments and user memberships are still provided by the separate onboarding administrative workflow. Do not activate real customers before those are provisioned and verified.

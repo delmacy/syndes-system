@@ -11,7 +11,7 @@ A **business module**, not a framework dependency. The CRM is the canonical sour
 - Tests for permissions, data normalization and tenant routing.
 
 ## Intentional constraints
-**This first vertical slice is not the full PRD-001 Product Gate.** Remaining work: HTTP/UI integration, onboarding-backed tenant database credentials, automated migration orchestration and realistic multi-tenant E2E. Employee, ChannelIdentity, CSV import/export and duplicate alerts are implemented and covered by domain/SQL tests. The module is now **registered** in the NestJS Core Host composition root. No production CRM routes are enabled until a trusted tenant DB provider is wired and tested.
+**This first vertical slice is not the full PRD-001 Product Gate.** Remaining work: browser UI, onboarding automation and full HTTP+OIDC+OpenFGA end-to-end tests. Core Host now has authenticated HTTP routes, a trusted control-plane tenant DB resolver and OpenBao per-tenant credentials. Employee, ChannelIdentity, CSV import/export and duplicate alerts are implemented and covered by domain/SQL tests. The module is now **registered** in the NestJS Core Host composition root. CRM routes are defined in Core Host and require Keycloak JWT, active membership and OpenFGA access; all calls fail closed without the trusted tenant database credentials.
 
 Use `npm ci && npm test` in this package after building `packages/core-kernel`.
 
@@ -31,4 +31,4 @@ const crm = new CrmService(kernel, id => repos.forTenant(id));
 await crm.createPerson({actor:verifiedActor,tenantId:verifiedTenantId},{name:"Ana",email:"ANA@example.com"});
 ```
 
-Tenant database credentials **must** be selected by the trusted provider using the verified control-plane registry, never via a user-supplied database name. The Core Host already registers `crmModule`; the tenant-scoped connection provider and authenticated HTTP routes are intentionally deferred until their isolation tests are ready.
+Tenant database credentials **must** be selected by the trusted provider using the verified control-plane registry, never via a user-supplied database name. The Core Host registers `crmModule` and exposes verified CRM routes; actual per-tenant production credentials are supplied during audited onboarding.
