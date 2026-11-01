@@ -1,0 +1,45 @@
+name: Core Inbox CI
+on:
+  push:
+    paths:
+      - "modules/inbox/**"
+      - ".github/workflows/core-inbox.yml"
+      - "packages/core-kernel/**"
+  pull_request:
+    paths:
+      - "modules/inbox/**"
+      - ".github/workflows/core-inbox.yml"
+      - "packages/core-kernel/**"
+permissions:
+  contents: read
+jobs:
+  inbox-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: modules/inbox/package-lock.json
+      - name: Build Core Kernel
+        run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Install Inbox from frozen lockfile
+        run: cd modules/inbox && npm ci --no-audit --no-fund
+      - name: Strict check, package build and isolation tests
+        run: cd modules/inbox && npm run check && npm test && npm pack --dry-run
+  inbox-postgres:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build kernel
+        run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Build Inbox
+        run: cd modules/inbox && npm ci --no-audit --no-fund && npm run build
+      - name: Install PostgreSQL JS driver from frozen Host lockfile
+        run: cd apps/core-host && npm ci --no-audit --no-fund
+      - name: Apply disposable PostgreSQL migrations and exercise isolation
+        run: bash modules/inbox/test/postgres-integration.sh
