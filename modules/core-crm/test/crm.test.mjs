@@ -100,11 +100,11 @@ test("policy denial also occurs before tenant connection is selected",async()=>{
 });
 test("invalid input and unsafe search limits are rejected",async()=>{
   const {crm}=await app();
-  await assert.rejects(crm.createPerson(alice,{name:"  "}),CrmValidationError);
-  await assert.rejects(crm.createPerson(alice,{name:"Ana",email:"not-an-email"}),CrmValidationError);
-  await assert.rejects(crm.createPerson(alice,{name:"Ana",phone:"123"}),CrmValidationError);
-  await assert.rejects(crm.listPeople(alice,"x",1000),CrmValidationError);
-  await assert.rejects(crm.archivePerson(alice,"../../etc/passwd"),CrmValidationError);
+  assert.throws(()=>crm.createPerson(alice,{name:"  "}),CrmValidationError);
+  assert.throws(()=>crm.createPerson(alice,{name:"Ana",email:"not-an-email"}),CrmValidationError);
+  assert.throws(()=>crm.createPerson(alice,{name:"Ana",phone:"123"}),CrmValidationError);
+  assert.throws(()=>crm.listPeople(alice,"x",1000),CrmValidationError);
+  assert.throws(()=>crm.archivePerson(alice,"../../etc/passwd"),CrmValidationError);
 });
 
 test("a trusted database resolver must return the same canonical tenant ID",async()=>{
