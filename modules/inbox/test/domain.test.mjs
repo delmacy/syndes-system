@@ -79,11 +79,11 @@ test("deny cross-tenant and permissions before tenant database selection",async(
 });
 test("channel ingress is restricted to authenticated service identities",async()=>{
  const {inbox}=await harness();
- assert.throws(()=>inbox.receive(user,inbound),InboxValidationError);
+ assert.throws(()=>inbox.receive(user,inbound),AccessDeniedError);
  assert.throws(()=>inbox.receive(service,{...inbound,source:"arbitrary"}),InboxValidationError);
  assert.throws(()=>inbox.receive(service,{...inbound,body:""}),InboxValidationError);
- assert.throws(()=>inbox.reply(service,"9b3df87e-ec6c-46f5-9339-3a6851da0119","hello"),InboxValidationError);
- assert.throws(()=>inbox.assign(user,"9b3df87e-ec6c-46f5-9339-3a6851da0119","bob"),InboxValidationError);
+ assert.throws(()=>inbox.reply(service,"9b3df87e-ec6c-46f5-9339-3a6851da0119","hello"),AccessDeniedError);
+ assert.throws(()=>inbox.assign(user,"9b3df87e-ec6c-46f5-9339-3a6851da0119","bob"),AccessDeniedError);
  assert.throws(()=>inbox.events(user,-1),InboxValidationError);
 });
 test("trusted resolver requires exact tenant database identity",async()=>{
