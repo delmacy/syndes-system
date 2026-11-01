@@ -11,7 +11,7 @@ export function parseContactsCsv(csv:unknown):readonly CreatePerson[]{
     const ch=source[i];
     if(quoted){
       if(ch==='"'&&source[i+1]==='"'){field+='"';i++;}
-      else if(ch==='"'){quoted=false;if(source[i+1]&&![",\n\r].includes(source[i+1]!))throw new CrmValidationError("Invalid CSV quoting");}
+      else if(ch==='"'){quoted=false;if(source[i+1]&&![",","\n","\r"].includes(source[i+1]!))throw new CrmValidationError("Invalid CSV quoting");}
       else field+=ch;
     }else if(ch==='"'){
       if(field)throw new CrmValidationError("Unexpected quote");
