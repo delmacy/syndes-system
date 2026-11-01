@@ -1,6 +1,6 @@
 # OpenBao — Syndes Security and Access
 
-OpenBao is **part of the same Compose project** as Keycloak and OpenFGA: `syndes-security-access`. Its state lives on an independent named Docker volume (`openbao_raft`) using Integrated Storage (Raft). **No PostgreSQL database for OpenBao is needed.** This avoids a bootstrapping loop when PostgreSQL credentials eventually come from OpenBao.
+OpenBao is **part of the same Compose project** as Keycloak and OpenFGA: `syndes-security-access`. Its state lives on an independent named Docker volume (`openbao_raft`, mounted at `/openbao/file`) using Integrated Storage (Raft). **No PostgreSQL database for OpenBao is needed.** This avoids a bootstrapping loop when PostgreSQL credentials eventually come from OpenBao.
 
 ## Boundaries
 
