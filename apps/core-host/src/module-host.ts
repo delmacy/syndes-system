@@ -1,6 +1,6 @@
 import {readFile} from "node:fs/promises";
 import {fileURLToPath} from "node:url";
-import type {INestApplication} from "@nestjs/common";
+import type {INestApplication,Type} from "@nestjs/common";
 import {ModuleRegistry,type SyndesPlugin} from "@syndes/core-kernel";
 
 type InstalledConfig={modules:readonly string[]};
@@ -8,11 +8,11 @@ const configFile=new URL("../config/modules.json",import.meta.url);
 
 /** Only explicitly approved, installed package names are loaded.
  * This is NOT a runtime marketplace or an untrusted plugin sandbox. */
-export async function loadInstalledPlugins():Promise<readonly SyndesPlugin[]>{
+export async function loadInstalledPlugins():Promise<readonly SyndesPlugin<Type<unknown>>[]>{
   const raw=JSON.parse(await readFile(configFile,"utf8")) as InstalledConfig;
   if(!Array.isArray(raw.modules)||new Set(raw.modules).size!==raw.modules.length)
     throw new Error("Invalid or duplicated installed modules");
-  const plugins:SyndesPlugin[]=[];
+  const plugins:SyndesPlugin<Type<unknown>>[]=[];
   for(const specifier of raw.modules){
     if(typeof specifier!=="string"||!/^@syndes\/[a-z][a-z0-9-]*\/plugin$/.test(specifier))
       throw new Error("Only trusted installed Syndes packages are supported");
@@ -23,7 +23,7 @@ export async function loadInstalledPlugins():Promise<readonly SyndesPlugin[]>{
     const packageId=specifier.match(/^@syndes\/(.+)\/plugin$/)?.[1];
     if(!packageId||plugin.definition.id!==packageId.replace(/^core-/,""))
       throw new Error("Installed module package ID mismatch");
-    plugins.push(plugin);
+    plugins.push(plugin as SyndesPlugin<Type<unknown>>);
   }
   // Validate missing dependencies and cycles before starting the application.
   const definitions=[{id:"platform",version:"0.1.0"},...plugins.map(p=>p.definition)];
