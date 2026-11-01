@@ -51,7 +51,7 @@ services:
       BAO_ADDR: https://openbao:8200
       BAO_CACERT: /openbao/tls/server.crt
     volumes:
-      - openbao_raft:/openbao/data
+      - openbao_raft:/openbao/file
       - ./openbao/config.hcl:/openbao/config/openbao.hcl:ro
       - ./openbao/tls:/openbao/tls:ro
     networks: [syndes-secrets]
