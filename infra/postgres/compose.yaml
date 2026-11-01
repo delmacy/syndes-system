@@ -43,5 +43,4 @@ volumes:
 networks:
   syndes-data:
     name: syndes-data
-    driver: bridge
-    internal: true
+    external: true
