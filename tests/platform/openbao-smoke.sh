@@ -96,5 +96,56 @@ docker run --rm --network syndes-secrets \
     console.log("Core Host AppRole -> OpenBao KV: PASS");
   '
 
+# Provisioner is an independent identity, permitted to read only infrastructure
+# credentials. Do not reuse the Core Host AppRole for platform bootstrap.
+jq -Rs '{policy:.}' < infra/security-access/openbao/policies/runtime-delivery.hcl |
+  bao_http --fail -X PUT -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+    --data-binary @- https://openbao:8200/v1/sys/policies/acl/runtime-delivery >/dev/null
+bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+  --data '{"token_policies":["runtime-delivery"],"token_ttl":"10m","token_max_ttl":"10m","token_no_default_policy":true}' \
+  https://openbao:8200/v1/auth/approle/role/runtime-delivery >/dev/null
+set -a
+source infra/.env.ci
+set +a
+# All values below are throwaway credentials from .env.ci, never production.
+jq -n --arg admin "$POSTGRES_SUPERUSER_PASSWORD" --arg kc "$PG_KEYCLOAK_PASSWORD" \
+  --arg fga "$PG_OPENFGA_PASSWORD" --arg core "$PG_CORE_PASSWORD" \
+  '{data:{admin_password:$admin,keycloak_password:$kc,openfga_password:$fga,core_password:$core}}' |
+  bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+    --data-binary @- https://openbao:8200/v1/kv/data/production/postgres >/dev/null
+jq -n --arg pass "$KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD" --arg user "$KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME" \
+  '{data:{bootstrap_admin_password:$pass,bootstrap_admin_username:$user}}' |
+  bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+    --data-binary @- https://openbao:8200/v1/kv/data/production/keycloak >/dev/null
+jq -n --arg token "$OPENFGA_PRESHARED_KEY" '{data:{preshared_key:$token}}' |
+  bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+    --data-binary @- https://openbao:8200/v1/kv/data/production/openfga >/dev/null
+bao_http --fail -H "X-Vault-Token: $root_token" \
+  https://openbao:8200/v1/auth/approle/role/runtime-delivery/role-id |
+  jq -er '.data.role_id' > "$temp/role-id"
+bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+  --data '{}' https://openbao:8200/v1/auth/approle/role/runtime-delivery/secret-id |
+  jq -er '.data.secret_id' > "$temp/secret-id"
+chmod 0600 "$temp/role-id" "$temp/secret-id"
+docker run --rm --network syndes-secrets \
+  -v "$PWD/infra/security-access/openbao/render_runtime.py:/app/render_runtime.py:ro" \
+  -v "$temp:/run/approle:ro" \
+  -v "/run/syndes/runtime:/mnt/runtime" \
+  -v "$cert:/etc/openbao/ca.crt:ro" \
+  python:3.12-alpine python /app/render_runtime.py
+python3 - <<'PY'
+import json
+from pathlib import Path
+from urllib.parse import urlsplit
+out=Path("/run/syndes/runtime")
+for name in ("pg_admin_password","pg_keycloak_password","pg_openfga_password",
+             "pg_core_password","keycloak.conf","openfga.yaml"):
+    assert (out/name).is_file() and (out/name).stat().st_size > 0, name
+cfg=json.loads((out/"openfga.yaml").read_text())
+assert cfg["authn"]["method"]=="preshared" and len(cfg["authn"]["preshared"]["keys"])==1
+assert urlsplit(cfg["datastore"]["uri"]).hostname=="syndes-postgres"
+print("OpenBao renderer generated six usable Docker Secrets without exposing values")
+PY
+
 unset unseal_key root_token
-echo "OpenBao TLS, initialization, sealing, unsealing and encrypted Raft persistence: PASS"
+echo "OpenBao TLS, initialization, sealing/unsealing, AppRole rendering and Raft persistence: PASS"
