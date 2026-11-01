@@ -11,10 +11,10 @@ services:
       CORE_OPENFGA_URL: http://syndes-openfga:8080
       CORE_OPENFGA_STORE_ID: ${CORE_OPENFGA_STORE_ID:?}
       CORE_OPENFGA_TOKEN: ${OPENFGA_PRESHARED_KEY:?}
-    networks: [syndes-data, syndes-identity]
+    networks: [syndes-data, syndes-security-access]
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
     # No ports published; route only via trusted internal services.
 networks:
   syndes-data: {external: true}
-  syndes-identity: {external: true}
+  syndes-security-access: {external: true}

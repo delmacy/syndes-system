@@ -5,8 +5,8 @@ source infra/.env.ci
 set +a
 # Exercises the real OpenFGA model against a disposable CI store.
 fga() {
-  docker run --rm --network syndes-identity \
-    -v "$PWD/infra/identity/fga-model.json:/model.json:ro" \
+  docker run --rm --network syndes-security-access \
+    -v "$PWD/infra/security-access/fga-model.json:/model.json:ro" \
     curlimages/curl:8.12.1 -fsS --max-time 15 \
     -H "Authorization: Bearer $OPENFGA_PRESHARED_KEY" \
     -H "Content-Type: application/json" "$@"

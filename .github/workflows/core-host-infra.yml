@@ -39,9 +39,9 @@ jobs:
         run: |
           bash -n infra/postgres/bootstrap/00-init.sh infra/postgres/bootstrap/provision-tenant.sh tests/platform/postgres-smoke.sh tests/platform/openfga-smoke.sh
           docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml config --quiet
-          docker compose --env-file infra/.env.ci -f infra/identity/compose.yaml config --quiet
+          docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml config --quiet
           docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml config --quiet
-          python3 -m json.tool infra/identity/fga-model.json >/dev/null
+          python3 -m json.tool infra/security-access/fga-model.json >/dev/null
       - name: Start isolated PostgreSQL
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
       - name: Verify service database and tenant provisioning
@@ -61,7 +61,7 @@ jobs:
       - name: Start isolated PostgreSQL
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
       - name: Start Keycloak and OpenFGA with migrations
-        run: docker compose --env-file infra/.env.ci -f infra/identity/compose.yaml up -d
+        run: docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml up -d
       - name: Verify Keycloak and authenticated OpenFGA availability
         run: |
           set -euo pipefail
@@ -69,7 +69,7 @@ jobs:
           source infra/.env.ci
           set +a
           for attempt in $(seq 1 75); do
-            if docker run --rm --network syndes-identity curlimages/curl:8.12.1 -fsS --max-time 3 http://keycloak:9000/health/ready >/dev/null 2>&1; then
+            if docker run --rm --network syndes-security-access curlimages/curl:8.12.1 -fsS --max-time 3 http://keycloak:9000/health/ready >/dev/null 2>&1; then
               echo "Keycloak readiness: OK"
               break
             fi
@@ -77,7 +77,7 @@ jobs:
             sleep 3
           done
           for attempt in $(seq 1 40); do
-            if docker run --rm --network syndes-identity curlimages/curl:8.12.1 -fsS --max-time 3 -H "Authorization: Bearer $OPENFGA_PRESHARED_KEY" http://openfga:8080/stores >/dev/null 2>&1; then
+            if docker run --rm --network syndes-security-access curlimages/curl:8.12.1 -fsS --max-time 3 -H "Authorization: Bearer $OPENFGA_PRESHARED_KEY" http://openfga:8080/stores >/dev/null 2>&1; then
               echo "Authenticated OpenFGA REST: OK"
               break
             fi
@@ -89,10 +89,10 @@ jobs:
       - name: Identity logs on failure
         if: failure()
         run: |
-          docker compose --env-file infra/.env.ci -f infra/identity/compose.yaml ps
-          docker compose --env-file infra/.env.ci -f infra/identity/compose.yaml logs --no-color --tail 80
+          docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml ps
+          docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml logs --no-color --tail 80
       - name: Cleanup disposable services
         if: always()
         run: |
-          docker compose --env-file infra/.env.ci -f infra/identity/compose.yaml down -v --remove-orphans || true
+          docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml down -v --remove-orphans || true
           docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml down -v --remove-orphans || true
