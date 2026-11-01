@@ -1,5 +1,6 @@
 services:
   core-host:
+    image: ${SYNDES_CORE_HOST_IMAGE:?Set an approved immutable Core Host image}
     build: {context: ../.., dockerfile: apps/core-host/Dockerfile}
     restart: unless-stopped
     environment:
