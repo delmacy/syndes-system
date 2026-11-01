@@ -1,0 +1,18 @@
+-- Control plane is not a tenant database. Run via the bootstrap superuser only.
+CREATE TABLE IF NOT EXISTS tenant_registry (
+ tenant_id UUID PRIMARY KEY,
+ database_name TEXT NOT NULL UNIQUE CHECK(database_name ~ '^syndes_tenant_[0-9a-f]{32}$'),
+ role_name TEXT NOT NULL UNIQUE CHECK(role_name ~ '^syndes_t_[0-9a-f]{32}$'),
+ state TEXT NOT NULL DEFAULT 'provisioned' CHECK(state IN ('provisioned','active','suspended')),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS tenant_memberships(
+ tenant_id UUID NOT NULL REFERENCES tenant_registry(tenant_id) ON DELETE CASCADE,
+ principal_id TEXT NOT NULL CHECK(length(principal_id) BETWEEN 1 AND 256),
+ state TEXT NOT NULL DEFAULT 'active' CHECK(state IN ('active','revoked')),
+ PRIMARY KEY(tenant_id,principal_id)
+);
+CREATE INDEX IF NOT EXISTS tenant_memberships_by_principal ON tenant_memberships(principal_id);
+REVOKE ALL ON tenant_registry,tenant_memberships FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO syndes_core;
+GRANT SELECT ON tenant_registry,tenant_memberships TO syndes_core;

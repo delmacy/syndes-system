@@ -1,0 +1,167 @@
+name: Core Host and Infrastructure CI
+on:
+  push:
+    paths:
+      - "apps/core-host/**"
+      - "packages/core-kernel/**"
+      - "infra/**"
+      - "tests/platform/**"
+      - ".github/workflows/core-host-infra.yml"
+  pull_request:
+    paths:
+      - "apps/core-host/**"
+      - "infra/**"
+      - "tests/platform/**"
+      - ".github/workflows/core-host-infra.yml"
+permissions:
+  contents: read
+jobs:
+  core-host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build reusable kernel
+        run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Install host dependencies
+        run: cd apps/core-host && npm ci --no-audit --no-fund
+      - name: Strict type checks
+        run: cd apps/core-host && npm run check
+      - name: Authorization and adapter regressions
+        run: cd apps/core-host && npm test
+      - name: Build deployable Core Host image
+        run: docker build --file apps/core-host/Dockerfile --tag syndes-core-host:ci .
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create private Docker data network
+        run: docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data
+      - name: Prepare throwaway Docker Secret files on CI runner
+        run: |
+          sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/syndes /run/syndes/runtime
+          python3 tests/platform/ci-secret-fixtures.py
+      - name: Validate compose and bash configuration
+        run: |
+          bash -n infra/postgres/bootstrap/00-init.sh infra/postgres/bootstrap/provision-tenant.sh tests/platform/postgres-smoke.sh tests/platform/openfga-smoke.sh tests/platform/openbao-smoke.sh
+          docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml config --quiet
+          docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml config --quiet
+          docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml config --quiet
+          docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml config --format json > /tmp/syndes-core-host-compose.json
+          python3 - <<'PY'
+          import json
+          with open("/tmp/syndes-core-host-compose.json", encoding="utf-8") as file:
+              cfg=json.load(file)
+          service=cfg["services"]["core-host"]
+          env=service.get("environment", {})
+          forbidden={"CORE_CONTROL_DB_URL", "CORE_OPENFGA_TOKEN", "OPENFGA_PRESHARED_KEY"}
+          assert not (forbidden & set(env)), "Sensitive Core Host credentials must not be Compose environment variables"
+          names={x.get("source") for x in service.get("secrets", [])}
+          assert {"core_host_role_id","core_host_secret_id"}.issubset(names), "Core Host AppRole files not mounted"
+          print("Core Host Compose credential isolation: PASS")
+          PY
+          python3 -m json.tool infra/security-access/fga-model.json >/dev/null
+          docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml config --format json > /tmp/syndes-pg-compose.json
+          docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml config --format json > /tmp/syndes-security-compose.json
+          python3 - <<'PY'
+          import json
+          forbidden={"POSTGRES_PASSWORD","PG_KEYCLOAK_PASSWORD","PG_OPENFGA_PASSWORD","PG_CORE_PASSWORD",
+                     "KC_DB_PASSWORD","KC_BOOTSTRAP_ADMIN_PASSWORD","OPENFGA_DATASTORE_URI",
+                     "OPENFGA_AUTHN_PRESHARED_KEYS"}
+          for path in ("/tmp/syndes-pg-compose.json","/tmp/syndes-security-compose.json"):
+              with open(path,encoding="utf-8") as file:
+                  data=json.load(file)
+              for name,service in data["services"].items():
+                  assert not forbidden.intersection(service.get("environment",{})), f"Secret in environment: {name}"
+          with open("/tmp/syndes-security-compose.json",encoding="utf-8") as file:
+              identity=json.load(file)
+          keycloak=identity["services"]["keycloak"]
+          assert "--config-file=/run/secrets/keycloak.conf" in keycloak["command"]
+          assert any(s.get("target")=="keycloak.conf" for s in keycloak["secrets"])
+          print("Keycloak .conf extension, file-backed secrets: PASS")
+          print("PostgreSQL/Keycloak/OpenFGA: no sensitive env in Compose")
+          PY
+      - name: Start isolated PostgreSQL
+        run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
+      - name: Verify service database and tenant provisioning
+        run: bash tests/platform/postgres-smoke.sh
+      - name: PostgreSQL logs on failure
+        if: failure()
+        run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml logs --no-color --tail 100
+      - name: Remove disposable database and CI secret files
+        if: always()
+        run: |
+          docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml down -v --remove-orphans
+          sudo rm -rf /run/syndes/runtime
+  identity-integration:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build Core Host OpenBao client for real AppRole integration
+        run: |
+          cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+          cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run build
+      - name: Create private Docker data network
+        run: docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data
+      - name: Prepare throwaway Docker Secret files on CI runner
+        run: |
+          sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/syndes /run/syndes/runtime
+          python3 tests/platform/ci-secret-fixtures.py
+      - name: Start isolated PostgreSQL
+        run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
+      - name: Generate disposable OpenBao TLS certificate
+        run: |
+          set -euo pipefail
+          mkdir -p infra/security-access/openbao/tls
+          openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
+            -keyout infra/security-access/openbao/tls/server.key \
+            -out infra/security-access/openbao/tls/server.crt \
+            -subj "/CN=openbao" \
+            -addext "subjectAltName=DNS:openbao,DNS:localhost,IP:127.0.0.1" >/dev/null 2>&1
+          chmod 0644 infra/security-access/openbao/tls/server.key
+      - name: Start Keycloak and OpenFGA with migrations
+        run: docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml up -d
+      - name: Verify Keycloak and authenticated OpenFGA availability
+        run: |
+          set -euo pipefail
+          set -a
+          source infra/.env.ci
+          set +a
+          for attempt in $(seq 1 25); do
+            if docker run --rm --network syndes-security-access curlimages/curl:8.12.1 -fsS --max-time 3 http://keycloak:9000/health/ready >/dev/null 2>&1; then
+              echo "Keycloak readiness: OK"
+              break
+            fi
+            if [ "$attempt" = 25 ]; then echo "Keycloak failed to become ready" >&2; exit 1; fi
+            sleep 3
+          done
+          for attempt in $(seq 1 40); do
+            if docker run --rm --network syndes-security-access curlimages/curl:8.12.1 -fsS --max-time 3 -H "Authorization: Bearer $OPENFGA_PRESHARED_KEY" http://openfga:8080/stores >/dev/null 2>&1; then
+              echo "Authenticated OpenFGA REST: OK"
+              break
+            fi
+            if [ "$attempt" = 40 ]; then echo "OpenFGA failed to become ready" >&2; exit 1; fi
+            sleep 2
+          done
+      - name: OpenBao TLS, KV and encrypted Raft lifecycle
+        run: bash tests/platform/openbao-smoke.sh
+      - name: OpenFGA relationship model and cross-tenant verification
+        run: bash tests/platform/openfga-smoke.sh
+      - name: Identity logs on failure
+        if: failure()
+        run: |
+          docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml ps
+          docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml logs --no-color --tail 80
+      - name: Cleanup disposable services
+        if: always()
+        run: |
+          docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml down -v --remove-orphans || true
+          docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml down -v --remove-orphans || true
+          sudo rm -rf /run/syndes/runtime
