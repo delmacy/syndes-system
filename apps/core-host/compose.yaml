@@ -16,6 +16,8 @@ services:
     secrets:
       - core_host_role_id
       - core_host_secret_id
+      - core_tenant_role_id
+      - core_tenant_secret_id
     networks: [syndes-data, syndes-security-access, syndes-secrets]
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
@@ -25,6 +27,10 @@ secrets:
     file: /run/syndes/approle/core-host/role-id
   core_host_secret_id:
     file: /run/syndes/approle/core-host/secret-id
+  core_tenant_role_id:
+    file: /run/syndes/approle/core-tenant-db/role-id
+  core_tenant_secret_id:
+    file: /run/syndes/approle/core-tenant-db/secret-id
 networks:
   syndes-data: {external: true}
   syndes-security-access: {external: true}
