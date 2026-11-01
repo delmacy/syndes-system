@@ -32,7 +32,12 @@ function person(row:Record<string,unknown>):Person {
 export class PgCrmRepository implements CrmRepository {
   constructor(private readonly db:TenantDatabase){}
 
+  private check(tenantId:string):void {
+    if(!isUuid(tenantId)||this.db.tenantId!==tenantId) throw new TenantDatabaseMismatchError();
+  }
+
   async createOrganization(tenantId:string,actorId:string,id:string,input:CreateOrganization):Promise<Organization>{
+    this.check(tenantId);
     const result=await this.db.query(`
       WITH created AS (
         INSERT INTO crm_organizations (id,tenant_id,legal_name,trade_name,tax_id)
@@ -50,6 +55,7 @@ export class PgCrmRepository implements CrmRepository {
   }
 
   async createPerson(tenantId:string,actorId:string,id:string,input:CreatePerson):Promise<Person>{
+    this.check(tenantId);
     const result=await this.db.query(`
       WITH created AS (
         INSERT INTO crm_people (id,tenant_id,name,email,phone)
@@ -67,6 +73,7 @@ export class PgCrmRepository implements CrmRepository {
   }
 
   async linkPerson(tenantId:string,actorId:string,personId:string,organizationId:string):Promise<PersonOrganization>{
+    this.check(tenantId);
     const result=await this.db.query(`
       WITH linked AS (
         INSERT INTO crm_person_organizations(tenant_id,person_id,organization_id)
@@ -95,6 +102,7 @@ export class PgCrmRepository implements CrmRepository {
   }
 
   async getPerson(tenantId:string,id:string):Promise<Person|null>{
+    this.check(tenantId);
     const result=await this.db.query(
       "SELECT id,tenant_id,name,email,phone,archived_at FROM crm_people WHERE tenant_id=$1::uuid AND id=$2::uuid AND archived_at IS NULL",
       [tenantId,id]);
@@ -102,6 +110,7 @@ export class PgCrmRepository implements CrmRepository {
   }
 
   async listPeople(tenantId:string,query:string|null,limit:number):Promise<readonly Person[]>{
+    this.check(tenantId);
     const result=await this.db.query(`
       SELECT id,tenant_id,name,email,phone,archived_at FROM crm_people
       WHERE tenant_id=$1::uuid AND archived_at IS NULL
@@ -130,6 +139,7 @@ export class PgCrmRepository implements CrmRepository {
   }
 
   async archivePerson(tenantId:string,actorId:string,id:string):Promise<boolean>{
+    this.check(tenantId);
     const result=await this.db.query(`
       WITH changed AS (
         UPDATE crm_people SET archived_at=now()
@@ -145,6 +155,7 @@ export class PgCrmRepository implements CrmRepository {
   }
 
   async createTag(tenantId:string,actorId:string,id:string,label:string):Promise<Tag>{
+    this.check(tenantId);
     const result=await this.db.query(`
       WITH created AS (
         INSERT INTO crm_tags (id,tenant_id,label,label_key)
@@ -162,6 +173,7 @@ export class PgCrmRepository implements CrmRepository {
   }
 
   async tagPerson(tenantId:string,actorId:string,personId:string,tagId:string):Promise<PersonTag>{
+    this.check(tenantId);
     const result=await this.db.query(`
       WITH tagged AS (
         INSERT INTO crm_person_tags(tenant_id,person_id,tag_id)
@@ -183,6 +195,7 @@ export class PgCrmRepository implements CrmRepository {
   }
 
   async createNote(tenantId:string,actorId:string,id:string,personId:string,body:string):Promise<Note>{
+    this.check(tenantId);
     const result=await this.db.query(`
       WITH created AS (
         INSERT INTO crm_notes(id,tenant_id,person_id,body,created_by)
@@ -207,6 +220,7 @@ export class PgCrmRepository implements CrmRepository {
   }
 
   async listTimeline(tenantId:string,personId:string,limit:number):Promise<readonly TimelineEntry[]>{
+    this.check(tenantId);
     const result=await this.db.query(`
       SELECT id,tenant_id,actor_id,action,recorded_at
       FROM crm_audit
