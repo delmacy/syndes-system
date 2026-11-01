@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - "apps/core-host/**"
+      - "packages/core-kernel/**"
       - "infra/**"
       - "tests/platform/**"
       - ".github/workflows/core-host-infra.yml"
@@ -24,20 +25,12 @@ jobs:
           node-version: "22"
       - name: Build reusable kernel
         run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
-      - name: Bootstrap host package lock
-        run: cd apps/core-host && npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Install host dependencies
         run: cd apps/core-host && npm ci --no-audit --no-fund
       - name: Strict type checks
         run: cd apps/core-host && npm run check
       - name: Authorization and adapter regressions
         run: cd apps/core-host && npm test
-      - name: Capture initial host dependency lock
-        run: |
-          echo CORE_HOST_LOCK_BEGIN
-          base64 -w0 apps/core-host/package-lock.json
-          echo
-          echo CORE_HOST_LOCK_END
   infrastructure:
     runs-on: ubuntu-latest
     steps:
