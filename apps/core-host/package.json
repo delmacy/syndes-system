@@ -19,7 +19,8 @@
     "pg": "8.16.3",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
-    "@syndes/core-crm": "file:../../modules/core-crm"
+    "@syndes/core-crm": "file:../../modules/core-crm",
+    "@syndes/inbox": "file:../../modules/inbox"
   },
   "devDependencies": {
     "@types/node": "22.18.6",

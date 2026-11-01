@@ -5,15 +5,17 @@ import {loadInstalledPlugins,installModuleAssets} from "../dist/module-host.js";
 
 test("Core Host mounts CRM from an installed package descriptor, not hardcoded CRM routes",async()=>{
   const plugins=await loadInstalledPlugins();
-  assert.deepEqual(plugins.map(p=>p.definition.id),["crm"]);
+  assert.deepEqual(plugins.map(p=>p.definition.id),["crm","inbox"]);
   assert.equal(plugins[0].publicOidcClientId,"syndes-crm-ui");
   const order=new ModuleRegistry([{id:"platform",version:"0.1.0"},...plugins.map(p=>p.definition)])
     .ordered().map(x=>x.id);
-  assert.deepEqual(order,["platform","crm"]);
+  assert.deepEqual(order,["platform","crm","inbox"]);
   assert.deepEqual(plugins[0].migrations.map(x=>x.id),[
     "001_crm_foundation","002_crm_tags_notes","003_crm_employees_channels"
   ]);
   assert.ok(plugins[0].permissions.some(x=>x.resource==="crm:people"));
+  assert.deepEqual(plugins[1].definition.dependencies,["crm"]);
+  assert.ok(plugins[1].permissions.some(x=>x.resource==="inbox:messages"));
 });
 
 test("generic asset middleware responds only to exact declared routes",async()=>{
