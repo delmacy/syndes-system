@@ -38,3 +38,7 @@ For production, provision and rotate per-tenant OpenBao KV records as part of th
 ## Installed package modules
 
 Business API controllers and UI files are **not part of Core Host**. The generic loader reads `apps/core-host/config/modules.json`, imports the approved packages' `./plugin` entry points, validates dependencies and registers their Nest API modules and exact static assets. The Core CRM is the first installed reference module. `/modules/:moduleId/config` exposes only public OIDC client metadata declared by each package. All business routes remain protected by CoreKernel membership and OpenFGA permission checks. See `docs/engineering/CORE-MODULE-MOUNTING.md`.
+
+## Verified connector service identity (Inbox)
+
+Keycloak browser access tokens remain `kind=user`. The Inbox inbound API requires `kind=service`, determined **only after JWT signature/issuer/audience verification** when the Keycloak `azp` is in `CORE_TRUSTED_SERVICE_CLIENT_IDS` and `preferred_username` equals `service-account-<azp>`. By default the allowlist is empty, so ingress is disabled. A trusted service client MUST be configured in Keycloak as confidential/service-account only and receive tenant membership and narrow OpenFGA `inbox:ingest` permission; otherwise it fails closed. No client-supplied headers select actor.kind or tenant. The JWT must be scoped to the correct audience.
