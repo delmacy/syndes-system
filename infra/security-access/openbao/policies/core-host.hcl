@@ -8,3 +8,9 @@ path "kv/data/production/core-host/*" {
 path "kv/metadata/production/core-host/*" {
   capabilities = ["list"]
 }
+
+# Allow this short-lived AppRole token to revoke itself after reading startup secrets.
+# This grants no ability to revoke another identity's token.
+path "auth/token/revoke-self" {
+  capabilities = ["update"]
+}
