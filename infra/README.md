@@ -1,12 +1,32 @@
-# Syndes infrastructure: three independently managed stacks
+# Syndes Infrastructure — PostgreSQL + Security and Access + Core Host
 
-Deploy order is **PostgreSQL → Security and Access (Keycloak + OpenFGA + OpenBao) → Core Host** (even though the implementation follows Core Host first).
+There are **three independent Compose projects**, not one container per module:
+- `syndes-postgres`: one PostgreSQL server, databases `syndes_control`, `syndes_keycloak`, `syndes_openfga`, plus independently provisioned `syndes_tenant_<uuid>` databases.
+- `syndes-security-access`: OpenBao (its own Raft volume), Keycloak, OpenFGA.
+- Core Host (NestJS): one process for the business modules, built on `@syndes/core-kernel`.
 
-1. Copy `infra/.env.example` to `infra/.env`; replace every placeholder with unique random credentials. Do not commit secrets.
-2. PostgreSQL: `docker compose --env-file infra/.env -f infra/postgres/compose.yaml up -d`. This creates **syndes_control**, **syndes_keycloak**, **syndes_openfga** on the first initialization only.
-3. Security and Access: provision an internal TLS certificate for `openbao` as documented in `infra/security-access/openbao/README.md`, then run `docker compose --env-file infra/.env -f infra/security-access/compose.yaml up -d`. **Initialize and unseal OpenBao separately**; never run it in development mode. The OpenFGA migration job runs before its API. Keycloak requires trusted Traefik HTTPS ingress for `KEYCLOAK_PUBLIC_URL`.
-4. Configure a Keycloak `syndes` realm, token audience `syndes-core`, OIDC clients and roles. Create an OpenFGA store and publish the versioned model, then set `CORE_OPENFGA_STORE_ID`. **None are created automatically by Compose**.
-5. Core Host: `docker compose --env-file infra/.env -f apps/core-host/compose.yaml up -d --build` after the above configuration.
+## Bootstrap without persistent password environment files
+
+OpenBao must be **started alone and unsealed before** any service that requires a password is launched. This avoids a database/secret-manager startup cycle.
+
+1. On the authorized Linux host, provision private TLS cert/key with DNS SAN `openbao`, under `infra/security-access/openbao/tls/` (gitignored).
+2. Ensure the private PostgreSQL Docker network exists, even though the database is not started yet: `docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data`. The stack itself owns that named network when brought up.
+3. Start **only OpenBao**: `docker compose --env-file infra/.env -f infra/security-access/compose.yaml up -d openbao`. The `.env` file contains only non-sensitive hostnames/audience/store identifiers; secrets are not read from it.
+4. Initialize/unseal OpenBao through the approved operator procedure; never use a 1-of-1 unseal key or log the recovery material in production. Enable KV v2 and AppRole. Use `infra/security-access/openbao/policies/runtime-delivery.hcl` for a dedicated **runtime-delivery** identity, provision its role-id and secret-id out of band to protected `/run/syndes/approle/runtime-delivery/` files. The CI smoke test exercises this actual API and policy.
+5. Populate the following OpenBao KV v2 paths using a privileged operator with unique randomly generated strong credentials:
+   - `kv/production/postgres`: `admin_password`, `keycloak_password`, `openfga_password`, `core_password`.
+   - `kv/production/keycloak`: `bootstrap_admin_username`, `bootstrap_admin_password`.
+   - `kv/production/openfga`: `preshared_key`.
+   - `kv/production/core-host`: `control_db_url`, `openfga_token` (the latter must match the OpenFGA service key and be rotated together).
+6. Call `bash infra/security-access/openbao/run-renderer.sh` from the protected operator host; it verifies TLS, authenticates to OpenBao with the limited AppRole, renders six read-only Docker Secrets in `/run/syndes/runtime` (tmpfs), and revokes its temporary token. It **does not** log secret values or put them in Compose environment variables.
+7. Start PostgreSQL: `docker compose --env-file infra/.env -f infra/postgres/compose.yaml up -d`. It consumes `POSTGRES_PASSWORD_FILE` and the three role bootstrap secrets directly as Docker-mounted files. Fresh volumes initialize the three independent system databases.
+8. Start remaining Security and Access services: `docker compose --env-file infra/.env -f infra/security-access/compose.yaml up -d openfga-migrate openfga keycloak`. OpenFGA reads `/etc/openfga/config.yaml`; Keycloak reads `/run/secrets/keycloak_config`. Neither secret is an environment variable.
+9. Configure a Keycloak `syndes` realm with clients and audience `syndes-core`; provision an OpenFGA store and its model. Set non-sensitive `CORE_OPENFGA_STORE_ID` in `.env` and initialize tenant membership tuples. **These are separate authorized onboarding actions, not automatic side effects of Compose**.
+10. Provision the Core Host AppRole credentials to `/run/syndes/approle/core-host/`, then start Core Host: `docker compose --env-file infra/.env -f apps/core-host/compose.yaml up -d --build`.
+
+`/run` is typically tmpfs on Linux; `run-renderer.sh` rejects non-tmpfs paths. Reboot requires the approved unseal/re-render/restart sequence. For automated recovery, establish a separately governed KMS/workload identity first. File secrets stay readable by the target container (per-container Docker secret mount) but the **host directory itself is root-only**. A compromised Docker daemon remains privileged over all secrets; only trusted operators can administer Docker/Komodo.
+
+CI may use the committed `infra/.env.ci` throwaway test credentials to synthesize disposable files. This is solely a CI fixture, never a production fallback.
 
 ## Data isolation
 
@@ -42,4 +62,4 @@ The Core Host maps (tenant UUID, domain resource name) to a stable SHA-256 hex k
 
 ## Secrets migration status
 
-The OpenBao service is added without root tokens, unseal shares or database credentials in its Compose environment. **Core Host now loads its two sensitive runtime credentials directly from OpenBao** using a tightly scoped AppRole file secret and verified TLS. PostgreSQL, Keycloak and OpenFGA still receive their own startup passwords through temporary Compose environment variables from the existing `.env` workflow. Do not deploy those placeholders into production; complete the remaining three services' file/Agent delivery with per-service policies and workload identities. Never place unseal keys or OpenBao root tokens in `.env`, source control, GitHub Actions artifacts, container environment or Komodo configuration.
+The OpenBao service is added without root tokens, unseal shares or database credentials in its Compose environment. **Core Host, PostgreSQL, Keycloak and OpenFGA now have file-backed secrets paths.** The runtime provisioner renders their secrets from OpenBao over verified TLS, while Core Host fetches its own two sensitive credentials directly using a scoped AppRole. Production still requires proper provisioning of real AppRoles, recovery material, Keycloak realm, FGA store and clients. Do not deploy those placeholders into production; confirm least-privilege runtime delivery, rotate startup secrets on controlled restarts and test all full-stack startup/failure paths. Never place unseal keys or OpenBao root tokens in `.env`, source control, GitHub Actions artifacts, container environment or Komodo configuration.
