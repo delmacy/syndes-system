@@ -39,7 +39,9 @@ jobs:
         run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
       - name: Build Inbox
         run: cd modules/inbox && npm ci --no-audit --no-fund && npm run build
-      - name: Install PostgreSQL JS driver from frozen Host lockfile
-        run: cd apps/core-host && npm ci --no-audit --no-fund
-      - name: Apply disposable PostgreSQL migrations and exercise isolation
+      - name: Build CRM plugin and install Host dependencies
+        run: |
+          cd modules/core-crm && npm ci --no-audit --no-fund && npm run build
+          cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run link-peers && npm run build
+      - name: Exercise PostgreSQL isolation and mounted Inbox HTTP endpoints
         run: bash modules/inbox/test/postgres-integration.sh

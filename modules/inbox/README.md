@@ -38,3 +38,7 @@ The provider simulator is intentionally not a public unauthenticated webhook. Wh
 ## Browserless UI regression
 
 Run `npm run test:ui` to execute the actual `public/app.js` in a minimal DOM model under Node.js `vm` (no Playwright/Chromium). The tests activate UI handlers, stub PKCE token exchange and tenant HTTP responses, and print sanitized `INBOX_FRONTEND_TRACE` and `INBOX_FRONTEND_DENIAL_TRACE` records to CI logs. This validates UI-to-API wiring and state transitions but **does not** validate CSS layout, real browser security behavior, WebSocket, or a real Keycloak login. The regular `npm test` also includes these tests.
+
+## Core Host + PostgreSQL HTTP integration
+
+`modules/inbox/test/postgres-integration.sh` provisions a disposable PostgreSQL container, applies CRM/Inbox migrations twice (idempotency), runs the Inbox repository integration and then `node --test apps/core-host/test/inbox-pg-http.integration.mjs`. This boots an **actual NestJS application** using installed Host plugin descriptors and the real PostgreSQL repository behind a test-only verifier/membership/FGA port; no production credentials, servers or graphical browsers. The HTTP suite asserts mounted assets/routes, input limits, missing records, auth, cross-tenant denials before DB leasing, CRM tenant-qualified FK, append retry/409, assignment/reply/handoff/status, metrics and audit. Production Keycloak/OpenFGA adapter end-to-end remains a separate gate.

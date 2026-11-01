@@ -12,4 +12,5 @@ for migration in modules/core-crm/sql/001_crm_foundation.sql modules/inbox/sql/0
  docker exec -i syndes-inbox-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres < "$migration" >/dev/null
 done
 node modules/inbox/test/pg-integration.mjs
-echo "Inbox PostgreSQL migration and cross-tenant regression: PASS"
+node --test apps/core-host/test/inbox-pg-http.integration.mjs
+echo "Inbox PostgreSQL + installed Core Host HTTP contract: PASS"
