@@ -11,7 +11,7 @@ A **business module**, not a framework dependency. The CRM is the canonical sour
 - Tests for permissions, data normalization and tenant routing.
 
 ## Intentional constraints
-**This first vertical slice is not the full PRD-001 Product Gate.** Remaining work: Employee and ChannelIdentity, CSV validation/import/export, duplicate alert, UI/HTTP API, onboarding-backed tenant database credentials, migration orchestration and realistic multi-tenant E2E. The module is now **registered** in the NestJS Core Host composition root. No production CRM routes are enabled until a trusted tenant DB provider is wired and tested.
+**This first vertical slice is not the full PRD-001 Product Gate.** Remaining work: HTTP/UI integration, onboarding-backed tenant database credentials, automated migration orchestration and realistic multi-tenant E2E. Employee, ChannelIdentity, CSV import/export and duplicate alerts are implemented and covered by domain/SQL tests. The module is now **registered** in the NestJS Core Host composition root. No production CRM routes are enabled until a trusted tenant DB provider is wired and tested.
 
 Use `npm ci && npm test` in this package after building `packages/core-kernel`.
 

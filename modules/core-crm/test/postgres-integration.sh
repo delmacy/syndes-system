@@ -9,9 +9,11 @@ for attempt in $(seq 1 40); do
 done
 docker exec -i syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres < modules/core-crm/sql/001_crm_foundation.sql >/dev/null
 docker exec -i syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres < modules/core-crm/sql/002_crm_tags_notes.sql >/dev/null
+docker exec -i syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres < modules/core-crm/sql/003_crm_employees_channels.sql >/dev/null
 # Migrations must also be safe on a tenant with existing data.
 docker exec -i syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres < modules/core-crm/sql/001_crm_foundation.sql >/dev/null
 docker exec -i syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres < modules/core-crm/sql/002_crm_tags_notes.sql >/dev/null
+docker exec -i syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres < modules/core-crm/sql/003_crm_employees_channels.sql >/dev/null
 
 docker exec -i syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres <<'SQL'
 INSERT INTO crm_organizations (id,tenant_id,legal_name)

@@ -7,3 +7,6 @@ export type {
   Person, PersonOrganization, CreateOrganization, CreatePerson, CrmContext,
   Tag, PersonTag, Note, TimelineEntry,
 } from "./contracts.js";
+export {CrmExtras,PgCrmExtras,PgCrmExtrasFactory} from "./extra.js";
+export {parseContactsCsv,contactsToCsv} from "./csv.js";
+export type {Employee,ChannelIdentity,DuplicateCandidate,ImportResult,ExtraRepository} from "./extra.js";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pg from "../../../apps/core-host/node_modules/pg/lib/index.js";
-import { PgCrmRepository } from "../dist/index.js";
+import { PgCrmRepository,PgCrmExtras,parseContactsCsv,contactsToCsv } from "../dist/index.js";
 
 const A="4ab44379-d557-4df6-a2be-d44e121a8077";
 const B="d21930aa-f4f6-40c0-bb1a-e71d7bb92caa";
@@ -16,6 +16,8 @@ const db=tenantId=>({
 try {
   const a=new PgCrmRepository(db(A));
   const b=new PgCrmRepository(db(B));
+  const ex=new PgCrmExtras(db(A));
+  const bx=new PgCrmExtras(db(B));
   const organization=await a.createOrganization(A,"alice",randomUUID(),{
     legalName:"Acme Serviços",tradeName:null,taxId:"12345678000190"
   });
@@ -49,10 +51,36 @@ try {
   assert.equal(await a.archivePerson(A,"alice",created.id),true);
   assert.equal(await a.getPerson(A,created.id),null);
   assert.equal(await a.archivePerson(A,"alice",created.id),false);
+  const second=await a.createPerson(A,"alice",randomUUID(),{name:"Carlos",email:"carlos@example.com",phone:null});
+  const updated=await ex.updatePerson(A,"alice",second.id,{name:"Carlos Silva",email:second.email,phone:null});
+  assert.equal(updated.name,"Carlos Silva");
+  assert.equal(await bx.updatePerson(B,"bob",second.id,{name:"Wrong",email:null,phone:null}),null);
+  assert.equal((await ex.getOrganization(A,organization.id)).legalName,"Acme Serviços");
+  assert.equal((await ex.listOrganizations(A,"Acme",10)).length,1);
+  const changedOrg=await ex.updateOrganization(A,"alice",organization.id,
+    {legalName:"Acme Serviços Ltda",tradeName:"Acme",taxId:"12345678000190"});
+  assert.equal(changedOrg.tradeName,"Acme");
+  assert.equal((await ex.duplicates(A,"carlos@example.com",null,null)).length,1);
+  assert.deepEqual(await bx.duplicates(B,"carlos@example.com",null,null),[]);
+  const employee=await ex.createEmployee(A,"alice",randomUUID(),second.id,"Atendente");
+  assert.equal(employee.jobTitle,"Atendente");
+  await assert.rejects(bx.createEmployee(B,"bob",randomUUID(),second.id,"Invasor"));
+  const channel=await ex.linkChannel(A,"alice",randomUUID(),second.id,"whatsapp","551199998888","Nome externo");
+  assert.equal(channel.personId,second.id);
+  assert.equal((await a.getPerson(A,second.id)).name,"Carlos Silva","Channel push name cannot overwrite CRM name");
+  await assert.rejects(bx.linkChannel(B,"bob",randomUUID(),second.id,"whatsapp","other",null));
+  const imported=parseContactsCsv('name,email,phone\\n"Pessoa, Importada",importada@example.com,551199991111\\n');
+  assert.equal(await ex.importPeople(A,"alice",imported.map(x=>({...x,id:randomUUID()}))),1);
+  const exported=contactsToCsv(await ex.listExportPeople(A,1000));
+  assert.match(exported,/Pessoa, Importada/);
+  assert.equal(await ex.archiveOrganization(A,"alice",organization.id),true);
+  assert.equal(await ex.getOrganization(A,organization.id),null);
+  assert.equal(await ex.archiveOrganization(A,"alice",organization.id),false);
   const audit=await pool.query(
     "SELECT action, actor_id FROM crm_audit WHERE tenant_id=$1 ORDER BY id", [A]);
   assert.deepEqual(audit.rows.map(x=>x.action),[
-    "created","created","linked_organization","created","tagged","noted","archived"
+    "created","created","linked_organization","created","tagged","noted","archived",
+    "created","updated","updated","employee_created","channel_linked","imported","archived"
   ]);
   assert.ok(audit.rows.every(x=>x.actor_id==="alice"));
   console.log("CRM real PostgreSQL CRUD, audit and cross-tenant predicates: PASS");
