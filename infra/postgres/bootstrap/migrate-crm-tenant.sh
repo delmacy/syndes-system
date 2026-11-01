@@ -11,7 +11,7 @@ db="syndes_tenant_${TENANT_ID//-/}"
 compose=(docker compose --env-file infra/.env -f infra/postgres/compose.yaml)
 # The registry is queried inside the trusted DB, not from an untrusted HTTP request.
 approved=$("${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control -At \
-  -v tenant_id="$TENANT_ID" -c "SELECT database_name FROM tenant_registry WHERE tenant_id=:'tenant_id'::uuid AND state IN ('provisioned','active')" || true)
+  -c "SELECT database_name FROM tenant_registry WHERE tenant_id='$TENANT_ID'::uuid AND state IN ('provisioned','active')" || true)
 if [[ "$approved" != "$db" ]];then
   echo "Tenant not provisioned in canonical Control DB" >&2;exit 3
 fi
