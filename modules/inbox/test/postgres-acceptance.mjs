@@ -39,6 +39,7 @@ try{
  assert.equal((await inbox.messages(user,cid))[0].body,"Bom dia");
  const reply=await inbox.reply(user,cid,"Já vou ajudar");
  assert.equal(reply.delivery,"queued");
+ assert.deepEqual((await inbox.messages(user,cid)).map(x=>x.direction),["inbound","outbound"],"Message ordering must follow insertion sequence");
  const out=await pa.query("SELECT count(*)::int AS count FROM inbox_outbox WHERE tenant_id=$1",[A]);
  assert.equal(out.rows[0].count,1,"Reply must queue, not directly dispatch");
  assert.equal((await inbox.assign(user,cid,"alice")).assignedTo,"alice");
