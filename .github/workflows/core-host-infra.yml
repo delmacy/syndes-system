@@ -58,6 +58,13 @@ jobs:
     timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build Core Host OpenBao client for real AppRole integration
+        run: |
+          cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+          cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run build
       - name: Start isolated PostgreSQL
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
       - name: Generate disposable OpenBao TLS certificate
