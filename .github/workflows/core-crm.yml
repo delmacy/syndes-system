@@ -32,5 +32,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build Core Kernel
+        run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Build independent CRM package
+        run: cd modules/core-crm && npm ci --no-audit --no-fund && npm run build
+      - name: Install pg client from frozen Core Host lockfile
+        run: cd apps/core-host && npm ci --no-audit --no-fund
       - name: Apply migrations twice and exercise cross-tenant SQL isolation
         run: bash modules/core-crm/test/postgres-integration.sh
