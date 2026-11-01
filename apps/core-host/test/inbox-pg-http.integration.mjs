@@ -29,6 +29,8 @@ const auth={
 };
 const memberships={alice:A,bob:B,readonly:A};
 const tenantDatabaseResolutions=[];
+// Deterministic fault injection, reset in each test and never used in production.
+const faults={fga:false,resolve:false,mismatchedLease:false,query:false};
 async function startHost(){
  const installed=await loadInstalledPlugins();
  assert.deepEqual(installed.map(p=>p.definition.id),["crm","inbox"],
@@ -36,13 +38,17 @@ async function startHost(){
  const kernel=new CoreKernel({
   modules:[{id:"platform",version:"0.1.0"},...installed.map(p=>p.definition)],
   tenancy:{canAccessTenant:async({actor,tenantId})=>memberships[actor.id]===tenantId},
-  authorization:{canAccess:async({actor,resource,action})=>
-   resource.startsWith("inbox:")&&(actor.id!=="readonly"||action==="read")}
+  authorization:{canAccess:async({actor,resource,action})=>{
+   if(faults.fga)throw Error("Injected OpenFGA connectivity failure: private details");
+   return resource.startsWith("inbox:")&&(actor.id!=="readonly"||action==="read");
+  }}
  });
  await kernel.start();
  const provider={resolve:async tenantId=>{
   tenantDatabaseResolutions.push(tenantId);
-  return {tenantId,query:async(sql,values)=>{
+  if(faults.resolve)throw Error("Injected OpenBao/tenant registry failure: private details");
+  return {tenantId:faults.mismatchedLease?B:tenantId,query:async(sql,values)=>{
+   if(faults.query)throw Error("Injected PostgreSQL query failure: private details");
    const data=await pool.query(sql,values);
    return {rows:data.rows,rowCount:data.rowCount};
   }};
@@ -208,6 +214,89 @@ test("Core Host loads Inbox plugin and runs its HTTP contract against real tenan
    assert.deepEqual(audit.rows.map(r=>r.action),[
     "created","assigned","reply","note","inbound","pending","resolved","inbound","handoff","handoff","assigned"
    ]);
+  });
+
+
+  await t.test("HTTP failure injection: FGA, tenant leasing, mismatched tenant and SQL errors fail closed as 503",async()=>{
+   const before=tenantDatabaseResolutions.length;
+   const cases=[
+    ["fga",0],
+    ["resolve",1],
+    ["mismatchedLease",1],
+    ["query",1],
+   ];
+   for(const [fault,expectedLeases] of cases){
+    const baseline=tenantDatabaseResolutions.length;
+    try{
+     faults[fault]=true;
+     const response=await request(base,A,"/conversations");
+     expect(response,503);
+     assert.equal(response.body.message.includes("private details"),false,
+       "internal infrastructure errors must not leak into HTTP responses");
+     assert.equal(tenantDatabaseResolutions.length-baseline,expectedLeases,
+       "unexpected DB lease before fail-closed response for "+fault);
+    }finally{faults[fault]=false;}
+    await call(base,A,"/conversations?limit=1",{},200);
+   }
+   assert.ok(tenantDatabaseResolutions.length>before,"recovery requests must select a tenant DB");
+  });
+
+  await t.test("HTTP pagination boundaries and latest-first message window",async()=>{
+   const root="/conversations";
+   for(let i=0;i<3;i++){
+    await call(base,A,root,{method:"POST",body:{subject:"Page window "+i+" "+randomUUID()}},201);
+   }
+   const page1=await call(base,A,root+"?limit=1",{},200);
+   const page2=await call(base,A,root+"?limit=2",{},200);
+   const page100=await call(base,A,root+"?limit=100",{},200);
+   assert.equal(page1.length,1);
+   assert.equal(page2.length,2);
+   assert.ok(page100.length>=3);
+   assert.deepEqual(page2.slice(0,1),page1);
+   assert.equal(new Set(page100.map(c=>c.id)).size,page100.length);
+   for(const invalid of ["0","101","-1","NaN","1.5",""]){
+    await call(base,A,root+"?limit="+invalid,{},400);
+   }
+   const c=await call(base,A,root,{method:"POST",body:{subject:"Message page "+randomUUID()}},201);
+   const mpath=root+"/"+c.id;
+   const messages=["primeira","segunda","terceira"];
+   for(const value of messages){
+    await call(base,A,mpath+"/simulator/inbound",{method:"POST",
+     body:{body:value,externalMessageId:"page-"+randomUUID()}},201);
+   }
+   const last=await call(base,A,mpath+"/messages?limit=1",{},200);
+   assert.deepEqual(last.map(m=>m.body),["terceira"]);
+   const latestTwo=await call(base,A,mpath+"/messages?limit=2",{},200);
+   assert.deepEqual(latestTwo.map(m=>m.body),["segunda","terceira"]);
+   const full=await call(base,A,mpath+"/messages?limit=100",{},200);
+   assert.deepEqual(full.map(m=>m.body),messages);
+   for(const invalid of ["0","101","-1","NaN","2.1",""]){
+    await call(base,A,mpath+"/messages?limit="+invalid,{},400);
+   }
+  });
+
+  await t.test("HTTP parallel retries use one inbound message, distinct IDs keep distinct events",async()=>{
+   const conversation=await call(base,A,"/conversations",{method:"POST",
+    body:{subject:"Parallel idempotency "+randomUUID()}},201);
+   const path="/conversations/"+conversation.id+"/simulator/inbound";
+   const externalMessageId="parallel-"+randomUUID();
+   const duplicated={body:"Mesma mensagem",externalMessageId};
+   const parallel=await Promise.all(Array.from({length:12},()=>
+    request(base,A,path,{method:"POST",body:duplicated})));
+   for(const result of parallel)expect(result,201);
+   assert.equal(new Set(parallel.map(x=>x.body.id)).size,1,
+     "parallel retries must return the same persisted message");
+   const distinct=await Promise.all(Array.from({length:8},(_,i)=>
+    request(base,A,path,{method:"POST",
+     body:{body:"Unique "+i,externalMessageId:"parallel-"+randomUUID()}})));
+   for(const result of distinct)expect(result,201);
+   const history=await call(base,A,"/conversations/"+conversation.id+"/messages?limit=100",{},200);
+   assert.equal(history.length,9);
+   assert.equal(new Set(history.map(m=>m.externalMessageId)).size,9);
+   const events=await pool.query(
+    "SELECT count(*)::int AS count FROM inbox_events WHERE tenant_id=$1 AND conversation_id=$2 AND action='inbound'",
+    [A,conversation.id]);
+   assert.equal(events.rows[0].count,9,"replayed external messages must not duplicate audit events");
   });
  }finally{
   if(app)await app.close();
