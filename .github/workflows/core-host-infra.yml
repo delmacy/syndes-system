@@ -31,6 +31,8 @@ jobs:
         run: cd apps/core-host && npm run check
       - name: Authorization and adapter regressions
         run: cd apps/core-host && npm test
+      - name: Build deployable Core Host image
+        run: docker build --file apps/core-host/Dockerfile --tag syndes-core-host:ci .
   infrastructure:
     runs-on: ubuntu-latest
     steps:
@@ -41,6 +43,19 @@ jobs:
           docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml config --quiet
           docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml config --quiet
           docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml config --quiet
+          docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml config --format json > /tmp/syndes-core-host-compose.json
+          python3 - <<'PY'
+          import json
+          with open("/tmp/syndes-core-host-compose.json", encoding="utf-8") as file:
+              cfg=json.load(file)
+          service=cfg["services"]["core-host"]
+          env=service.get("environment", {})
+          forbidden={"CORE_CONTROL_DB_URL", "CORE_OPENFGA_TOKEN", "OPENFGA_PRESHARED_KEY"}
+          assert not (forbidden & set(env)), "Sensitive Core Host credentials must not be Compose environment variables"
+          names={x.get("source") for x in service.get("secrets", [])}
+          assert {"core_host_role_id","core_host_secret_id"}.issubset(names), "Core Host AppRole files not mounted"
+          print("Core Host Compose credential isolation: PASS")
+          PY
           python3 -m json.tool infra/security-access/fga-model.json >/dev/null
       - name: Start isolated PostgreSQL
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
