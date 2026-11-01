@@ -167,6 +167,9 @@ async function details(kind,item){
  const notes=await api("/people/"+item.id+"/notes");
  const notesHost=el("div");append(body,el("h2","Notas"),notesHost);
  for(const n of notes)notesHost.append(el("p",n.body+" · "+new Date(n.createdAt).toLocaleString("pt-BR"),"muted"));
+ const employees=await api("/employees");
+ const ownEmployee=employees.find(x=>x.personId===item.id);
+ if(ownEmployee)body.append(el("p","Funcionário: "+ownEmployee.jobTitle+(ownEmployee.active?" · Ativo":" · Inativo"),"pill"));
  const channels=await api("/people/"+item.id+"/channels");
  const channelHost=el("div");append(body,el("h2","Identidades de canais"),channelHost);
  for(const ch of channels)channelHost.append(el("p",ch.channel+" · "+ch.externalId+" · "+(ch.displayName??""),"muted"));
