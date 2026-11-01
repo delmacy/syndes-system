@@ -47,3 +47,18 @@ Leia `AGENTS.md`, `modules/inbox/AGENTS.md`, `docs/product/PRD-002-INBOX-ACCEPTA
 A interface do Workspace em desenvolvimento é servida dos artefatos Vite compilados em `/srv/syndes-lab/system/apps/workspace-web/dist`, montados como read-only no Nginx estático. O arquivo público de runtime é montado **separadamente** do dist. Antes de publicação para clientes reais, substituir esse mecanismo por release imutável e testes integrados de autenticação/autorização.
 
 **Documentação operacional:** `docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md`.
+
+## Incremento de UX: filas por responsável e contexto CRM (2026-11-01)
+
+**Status:** implementado em branch de desenvolvimento, com aceitação de produção ainda pendente.
+
+- Fila com seleção **Minhas / Não atribuídas / Todas** combinável com status. O filtro ``queue`` é aplicado **no backend PostgreSQL antes de LIMIT 100**, dentro do tenant ativo; ``mine`` usa ``ctx.actor.id`` verificado pelo Core Host, nunca um ID de atendente fornecido pelo browser.
+- Painel contextual da pessoa vinculada à conversa. Apresenta nome, e-mail, telefone, últimas quatro notas e até cinco eventos do histórico, consultados nas rotas já existentes de CRM. Leitura parcial ou negada **não** libera dados alternativos nem evita a autorização do servidor.
+- Layout com três painéis em desktop amplo: fila, conversa e contexto CRM. Em telas estreitas, o contexto abre por painel lateral; sem duplicar Nginx, ingress ou criar banco.
+- Link **Abrir módulo CRM** leva à tela geral do CRM. Não há ainda deep-link para pessoa específica no CRM do Workspace.
+- Contatos não vinculados mostram estado vazio explícito. Empresas, tags e atualização de vínculo não aparecem no contexto porque não temos ainda endpoints de leitura detalhada aprovados para eles; não simulamos dados.
+- O backend Inbox foi ampliado apenas com parâmetro opcional ``queue=all|mine|unassigned`` na rota de listagem existente. Nenhuma mudança de schema ou migração SQL, apenas filtro de consulta autorizado.
+- Testes: TypeScript/Vite, testes unitários de isolamento no Inbox Core e cliente HTTP, Playwright com API/identidade simuladas para filtragem e dados CRM, e testes de layout mobile.
+- **Pendências:** autenticar o novo fluxo com Keycloak/OpenFGA e PostgreSQL reais, concluir o Product Gate CRM, paginação real acima de 100 conversas, filtros de busca no servidor, permissões por ação na interface, notas/organizações/tags profundas e realtime/anexos já planejados.
+
+A implantação no DevServer01 somente é válida após **atualizar também o Core Host** com a implementação do filtro; publicar apenas o bundle Vite sobre o backend antigo faria as filas ficarem incorretas. Sempre validar ``queue`` pela rota autenticada e confirmar que outro tenant não aparece. Não usar resultados de testes mockados como prova de autorização real.

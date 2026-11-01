@@ -4,7 +4,7 @@ import {InboxService} from "./service.js";
 import {SimulatedChannelAdapter} from "./channels.js";
 import {InboxConflictError,PgInboxRepositoryFactory} from "./postgres.js";
 import {InboxTenantMismatchError,InboxValidationError} from "./contracts.js";
-import type {ConversationStatus,HandoffMode,InboxContext,CreateConversation} from "./contracts.js";
+import type {ConversationStatus,ConversationQueue,HandoffMode,InboxContext,CreateConversation} from "./contracts.js";
 import {id} from "./validation.js";
 import {CORE_RUNTIME,TENANT_DATABASES,type InboxHostRuntime} from "./runtime.js";
 import type {TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
@@ -53,8 +53,10 @@ export class InboxController{
  }
  @Get("conversations")
  list(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
-      @Query("status")s:string|undefined,@Query("limit")l:string|undefined){
-  return this.run(t,h,c=>this.host.inbox.list(c,(s||null) as ConversationStatus|null,l===undefined?30:Number(l)));
+      @Query("status")s:string|undefined,@Query("limit")l:string|undefined,
+      @Query("queue")queue:string|undefined){
+  return this.run(t,h,c=>this.host.inbox.list(c,(s||null) as ConversationStatus|null,
+    l===undefined?30:Number(l),(queue||"all") as ConversationQueue));
  }
  @Post("conversations")
  create(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,

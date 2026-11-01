@@ -1,6 +1,6 @@
 import {randomUUID} from "node:crypto";
 import type {CoreKernel,ModuleDefinition} from "@syndes/core-kernel";
-import type {InboxContext,InboxRepository,Conversation,ConversationStatus,CreateConversation,HandoffMode,Message,InboxMetrics} from "./contracts.js";
+import type {InboxContext,InboxRepository,Conversation,ConversationStatus,ConversationQueue,CreateConversation,HandoffMode,Message,InboxMetrics} from "./contracts.js";
 import {InboxValidationError} from "./contracts.js";
 import {id,text,optionalExternal,limit,assignee} from "./validation.js";
 
@@ -23,11 +23,13 @@ export class InboxService {
    };
    return this.execute(ctx,"write","inbox:conversations",repo=>repo.create(ctx.tenantId,ctx.actor.id,record));
  }
- list(ctx:InboxContext,status:ConversationStatus|null=null,pageSize=30):Promise<readonly Conversation[]>{
+ list(ctx:InboxContext,status:ConversationStatus|null=null,pageSize=30,queue:ConversationQueue="all"):Promise<readonly Conversation[]>{
    if(status!==null&&!["open","pending","resolved"].includes(status))
      throw new InboxValidationError("Invalid status");
+   if(!["all","mine","unassigned"].includes(queue))throw new InboxValidationError("Invalid queue");
    const size=limit(pageSize);
-   return this.execute(ctx,"read","inbox:conversations",repo=>repo.list(ctx.tenantId,status,size));
+   // "mine" derives assignee exclusively from the verified actor, never a user-supplied ID.
+   return this.execute(ctx,"read","inbox:conversations",repo=>repo.list(ctx.tenantId,status,size,queue,ctx.actor.id));
  }
  get(ctx:InboxContext,conversationId:string):Promise<Conversation|null>{
    const key=id(conversationId);

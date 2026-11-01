@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft, Bot, CircleCheck, Clock3, Inbox, LoaderCircle,
   MessageCircle, Plus, RefreshCw, Search, Send, UserMinus, UserRoundCheck,
-  UsersRound, StickyNote, FlaskConical,
+  UsersRound, StickyNote, FlaskConical, ContactRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +11,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { CustomerContextPanel } from "@/features/inbox-context";
 import { isMine, replyBlockReason } from "@/features/inbox-rules";
-import type { Conversation, Message, Person, TenantApi } from "@/lib/api";
+import type { Conversation, Message, Person, TenantApi, QueueFilter } from "@/lib/api";
 
 type Status = Conversation["status"];
 type ComposerMode = "replies" | "notes" | "simulator/inbound";
@@ -37,11 +39,13 @@ function timeLabel(date: string | undefined): string {
   return value.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-export function InboxFeature({ api, actorId }: { api: TenantApi; actorId: string }) {
+export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; actorId: string; onOpenCrm: () => void }) {
   const [records, setRecords] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [thread, setThread] = useState<Message[]>([]);
   const [filter, setFilter] = useState<"" | Status>("");
+  const [queue, setQueue] = useState<QueueFilter>("all");
+  const [contextOpen, setContextOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState(false);
@@ -63,7 +67,7 @@ export function InboxFeature({ api, actorId }: { api: TenantApi; actorId: string
     const requestId = ++listRequest.current;
     if (showLoading) setLoading(true);
     try {
-      const result = await api.conversations(filter);
+      const result = await api.conversations(filter, queue);
       if (requestId !== listRequest.current) return;
       setRecords(result);
       setListError(false);
@@ -76,7 +80,7 @@ export function InboxFeature({ api, actorId }: { api: TenantApi; actorId: string
     } finally {
       if (requestId === listRequest.current) setLoading(false);
     }
-  }, [api, filter]);
+  }, [api, filter, queue]);
 
   const readThread = useCallback(async (id: string, showLoading = false) => {
     const requestId = ++threadRequest.current;
@@ -118,6 +122,7 @@ export function InboxFeature({ api, actorId }: { api: TenantApi; actorId: string
     setThreadError(false);
     setComposer("");
     setComposerMode("replies");
+    setContextOpen(false);
     void readThread(conversation.id, true);
   };
   const closeMobileThread = () => {
@@ -127,6 +132,7 @@ export function InboxFeature({ api, actorId }: { api: TenantApi; actorId: string
     setThread([]);
     setReading(false);
     setComposer("");
+    setContextOpen(false);
   };
 
   const mutate = async (action: () => Promise<Conversation>, success: string) => {
@@ -176,9 +182,10 @@ export function InboxFeature({ api, actorId }: { api: TenantApi; actorId: string
       setSubject("");
       setLinkedPersonId("");
       setFilter("");
+      setQueue("all");
       setRecords(previous => [record, ...previous.filter(item => item.id !== record.id)]);
       choose(record);
-      if (!filter) void refresh(); // A new status filter triggers its own reload effect.
+      if (!filter && queue === "all") void refresh();
       toast.success("Conversa criada.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível criar a conversa.");
@@ -214,7 +221,7 @@ export function InboxFeature({ api, actorId }: { api: TenantApi; actorId: string
       </div>
     </div>
     <Card className="min-h-0 flex-1 overflow-hidden border-[#e6eaf1] py-0 shadow-[0_5px_28px_-12px_#29334f25]">
-      <CardContent className="grid h-full min-h-[560px] grid-cols-1 p-0 md:min-h-0 md:grid-cols-[330px_minmax(0,1fr)]">
+      <CardContent className="grid h-full min-h-[560px] grid-cols-1 p-0 md:min-h-0 md:grid-cols-[310px_minmax(0,1fr)] xl:grid-cols-[285px_minmax(0,1fr)_260px]">
         <div className={(showThread ? "hidden " : "flex ") + "min-h-0 flex-col border-border md:flex md:border-r"}>
           <div className="space-y-3 border-b border-border bg-card p-4">
             <div className="flex items-center justify-between">
@@ -223,6 +230,13 @@ export function InboxFeature({ api, actorId }: { api: TenantApi; actorId: string
             </div>
             <div className="relative"><Search className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground" />
               <Input aria-label="Pesquisar conversas" className="pl-9" placeholder="Pesquisar por assunto..." value={search} onChange={event => setSearch(event.target.value)} />
+            </div>
+            <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Filtrar conversas por responsável">
+              {([
+                ["mine", "Minhas"], ["unassigned", "Não atribuídas"], ["all", "Todas"],
+              ] as [QueueFilter, string][]).map(([value, label]) => <button type="button" key={value} aria-pressed={queue === value}
+                className={"min-w-0 rounded-lg px-1.5 py-2 text-[11px] font-semibold transition-colors " + (queue === value ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600 hover:text-indigo-700")}
+                onClick={() => setQueue(value)}>{label}</button>)}
             </div>
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar conversas por status">
               {filters.map(item => <button type="button" key={item.value} aria-pressed={filter === item.value}
@@ -249,7 +263,7 @@ export function InboxFeature({ api, actorId }: { api: TenantApi; actorId: string
               <Badge variant={statusVariant[record.status]} className="text-[10px]">{statusLabel[record.status]}</Badge>
             </button>)}
           </div>
-          <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">Canal atual: simulação · Máximo de 100 conversas por consulta</p>
+          <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">Canal: simulação · Até 100 desta fila por consulta</p>
         </div>
 
         <div className={(showThread ? "flex " : "hidden ") + "min-h-0 min-w-0 flex-col bg-[#fcfdff] md:flex"}>
@@ -264,6 +278,9 @@ export function InboxFeature({ api, actorId }: { api: TenantApi; actorId: string
                 <Button variant="ghost" size="icon-sm" className="md:hidden" aria-label="Voltar para conversas" onClick={closeMobileThread}><ArrowLeft className="size-4" /></Button>
                 <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-bold">{selected.subject}</h2>
                   <p className="text-xs text-muted-foreground">{selected.crmPersonId ? "Vinculada a contato CRM" : "Sem contato CRM"} · {selected.channel}</p></div>
+                <Button size="sm" variant="outline" className="gap-1.5 xl:hidden" onClick={() => setContextOpen(true)} aria-label="Ver contexto CRM">
+                  <ContactRound className="size-4"/> Contato CRM
+                </Button>
                 <Badge variant={statusVariant[selected.status]}>{statusLabel[selected.status]}</Badge>
                 <Badge variant="outline" className="gap-1">{selected.handoff === "bot" ? <Bot className="size-3.5" /> : <UsersRound className="size-3.5" />}{selected.handoff === "bot" ? "Bot" : "Humano"}</Badge>
               </div>
@@ -328,9 +345,21 @@ export function InboxFeature({ api, actorId }: { api: TenantApi; actorId: string
             </div>
           </>}
         </div>
+        <div className="hidden min-h-0 border-l border-border xl:flex xl:flex-col">
+          {selected ? <CustomerContextPanel key={selected.crmPersonId ?? "unlinked"} api={api} personId={selected.crmPersonId} onOpenCrm={onOpenCrm}/> :
+            <div className="p-5 text-sm text-muted-foreground">Selecione uma conversa para ver o contexto CRM.</div>}
+        </div>
       </CardContent>
     </Card>
 
+    <Sheet open={contextOpen && Boolean(selected)} onOpenChange={setContextOpen}>
+      <SheetContent side="right" className="gap-0 p-0">
+        <SheetHeader className="sr-only"><SheetTitle>Contexto do contato CRM</SheetTitle>
+          <SheetDescription>Dados e histórico de contato autorizados pelo Core Host</SheetDescription></SheetHeader>
+        {selected && <CustomerContextPanel key={selected.crmPersonId ?? "unlinked"} api={api} personId={selected.crmPersonId}
+          onOpenCrm={() => { setContextOpen(false); onOpenCrm(); }}/>}
+      </SheetContent>
+    </Sheet>
     <Dialog open={dialog} onOpenChange={setDialog}><DialogContent>
       <DialogHeader><DialogTitle>Nova conversa</DialogTitle>
         <DialogDescription>Crie uma conversa de demonstração no tenant atual. Nenhuma mensagem será enviada ao WhatsApp.</DialogDescription></DialogHeader>

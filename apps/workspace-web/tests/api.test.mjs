@@ -72,3 +72,27 @@ test("handoff and detail use tenant-scoped Inbox routes", async () => {
   assert.equal(requests[1].options.method, "PATCH");
   assert.deepEqual(JSON.parse(requests[1].options.body), { mode: "bot" });
 });
+
+test("owner queue filters are sent to the tenant-scoped API, never chosen via actor input",async()=>{
+  const seen=[];
+  globalThis.fetch=async(url,options)=>{seen.push({url,options});return Response.json([])};
+  const api=new TenantApi("tenant-a","signed-token",()=>assert.fail("Unexpected logout"));
+  await api.conversations("pending","mine");
+  await api.conversations("","unassigned");
+  assert.equal(seen[0].url,"/v1/tenants/tenant-a/inbox/conversations?limit=100&status=pending&queue=mine");
+  assert.equal(seen[1].url,"/v1/tenants/tenant-a/inbox/conversations?limit=100&queue=unassigned");
+  assert.equal(seen[0].options.headers.Authorization,"Bearer signed-token");
+  assert.ok(!seen[0].url.includes("assigneeId"));
+});
+
+test("CRM context reads only the current tenant person detail, notes and timeline",async()=>{
+  const seen=[];
+  globalThis.fetch=async url=>{seen.push(url);return Response.json([])};
+  const api=new TenantApi("tenant-a","token",()=>assert.fail("Unexpected logout"));
+  await Promise.all([api.person("person-id"),api.personNotes("person-id"),api.personTimeline("person-id")]);
+  assert.deepEqual(seen.sort(),[
+    "/v1/tenants/tenant-a/crm/people/person-id",
+    "/v1/tenants/tenant-a/crm/people/person-id/notes",
+    "/v1/tenants/tenant-a/crm/people/person-id/timeline",
+  ].sort());
+});

@@ -6,7 +6,7 @@ Interface operacional do tenant, construída com **React 19, TypeScript, Vite 8,
 
 - Application Shell responsivo, sidebar colapsável, navegação, configurações e indicadores.
 - CRM: consulta/pesquisa de pessoas e organizações; cadastro; visualização de detalhes.
-- Inbox: fila, busca/filtros, histórico, abertura, atribuição/liberação, resposta/nota/simulação, status aberto/pendente/resolvido e handoff humano/bot. UI mobile lista/detalhe e atualização HTTP a cada 10 segundos enquanto visível (**ainda não é realtime push**).
+- Inbox: fila por responsável (Minhas/Não atribuídas/Todas) e status com filtros combináveis no backend, histórico, abertura, atribuição/liberação, resposta/nota/simulação e handoff humano/bot. Painel contextual CRM com pessoa, notas e timeline, em terceira coluna no desktop ou painel lateral mobile. HTTP polling de 10 segundos (**ainda não é realtime push**).
 - OIDC Keycloak Authorization Code **PKCE S256**, cliente público separado `syndes-workspace-ui`.
 - API `/v1/tenants/:tenantId/crm/*` e `/v1/tenants/:tenantId/inbox/*`, autenticadas com Bearer.
 - O Core Host valida autenticação/autorização com Keycloak/OpenFGA e resolve o banco do tenant do lado do servidor.
@@ -80,3 +80,8 @@ O `README` desta aplicação descreve o estado atual do código. O deploy de des
 ## Pendências de Inbox
 
 A interface desabilita a resposta conforme status, humano/bot e atribuição, mas **não substitui a autorização do backend**. Ainda faltam realtime push seguro, anexos, testes reais de login/ações com vários atendentes e Product Gate. O CRM, especialmente sua UI, **também permanece incompleto**.
+
+
+## Contexto CRM e filas da Inbox
+
+``src/features/inbox-context.tsx`` exibe somente os dados obtidos das APIs CRM autorizadas. Não é uma cópia dos registros do tenant nem tenta buscar dados de outro tenant. A lista de conversas passa ``queue=mine|unassigned|all`` no backend; ``mine`` resolve o atendente a partir da identidade validada. O limite atual é de 100 conversas **por fila/status**, sem paginação. Empresas, tags, deep-link para contato específico e buscas com paginação ficam pendentes.
