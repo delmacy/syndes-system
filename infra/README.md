@@ -1,0 +1,36 @@
+# Syndes infrastructure: three independently managed stacks
+
+Deploy order is **PostgreSQL → Keycloak/OpenFGA → Core Host** (even though the implementation follows Core Host first).
+
+1. Copy `infra/.env.example` to `infra/.env`; replace every placeholder with unique random credentials. Do not commit secrets.
+2. PostgreSQL: `docker compose --env-file infra/.env -f infra/postgres/compose.yaml up -d`. This creates **syndes_control**, **syndes_keycloak**, **syndes_openfga** on the first initialization only.
+3. Identity: `docker compose --env-file infra/.env -f infra/identity/compose.yaml up -d`. The OpenFGA migration job runs before its API. Keycloak requires a trusted Traefik HTTPS route for `KEYCLOAK_PUBLIC_URL`, not a public HTTP port.
+4. Configure a Keycloak `syndes` realm, token audience `syndes-core`, OIDC clients and roles. Create an OpenFGA store and publish the versioned model, then set `CORE_OPENFGA_STORE_ID`. **None are created automatically by Compose**.
+5. Core Host: `docker compose --env-file infra/.env -f apps/core-host/compose.yaml up -d --build` after the above configuration.
+
+## Data isolation
+
+The single PostgreSQL **server** has separate **databases** for the control plane, Keycloak, OpenFGA and every tenant. No schema per tenant and no tenant database in the identity stack. `syndes_core` only receives SELECT access to the control registry and memberships; no tenant database superuser credential is given to Core Host.
+
+Tenant DB creation is an explicit privileged operation:
+```sh
+# Run from repository root with a verified tenant UUID and a UNIQUE strong secret.
+# Environment variables inside the PostgreSQL container must be supplied securely
+# by an authorized operator (not through an external API).
+docker compose --env-file infra/.env -f infra/postgres/compose.yaml exec -T \
+  -e TENANT_ID=4ab44379-d557-4df6-a2be-d44e121a8077 \
+  -e TENANT_DB_PASSWORD postgres bash /opt/syndes/provision-tenant.sh
+```
+The value after `-e TENANT_DB_PASSWORD` must be a **real unique secret sourced from a secure secret store**; the shell example is only illustrative. Do not paste secrets in shell history. The script creates a restricted tenant owner role and `syndes_tenant_<uuid-without-hyphens>`, records the mapping as `provisioned` in `syndes_control`, and is idempotent for identical identifiers.
+
+No tenant is activated or granted membership automatically. Activation and FGA tuple assignments must occur only through a separately audited onboarding workflow. Control DB IDs are canonical: never choose a tenant database using client-input strings.
+
+## Operations
+
+- Avoid publishing PostgreSQL, OpenFGA APIs, Keycloak admin port or Core Host directly to the internet.
+- PostgreSQL runs on the dedicated private `syndes-data` Docker network; Keycloak and OpenFGA share an `syndes-identity` service network.
+- Pin version tags, avoid `latest`, and review security updates periodically.
+- Back up ALL databases using consistent `pg_dump` snapshots, including roles, and test restoration; one database per tenant does not mean one PostgreSQL server failure cannot affect everyone.
+- Set conservative memory pools; monitor actual RSS under realistic load before setting replica counts.
+- Docker initialization scripts run only with a new volume. Do not rely on them as a migrations engine for an existing PostgreSQL volume.
+- GitHub Actions validates syntax and a disposable PostgreSQL instance; production auth bootstrap and external Keycloak HTTPS integration remain separate acceptance gates.
