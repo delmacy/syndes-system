@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS inbox_conversations(
 );
 CREATE INDEX IF NOT EXISTS inbox_conv_latest ON inbox_conversations(tenant_id,updated_at DESC);
 CREATE TABLE IF NOT EXISTS inbox_messages(
+ seq bigint GENERATED ALWAYS AS IDENTITY,
  tenant_id uuid NOT NULL,
  id uuid NOT NULL,
  conversation_id uuid NOT NULL,
@@ -33,7 +34,7 @@ CREATE TABLE IF NOT EXISTS inbox_messages(
 );
 CREATE UNIQUE INDEX IF NOT EXISTS inbox_inbound_dedupe ON inbox_messages(tenant_id,source,external_message_id)
  WHERE direction='inbound' AND external_message_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS inbox_message_order ON inbox_messages(tenant_id,conversation_id,created_at,id);
+CREATE INDEX IF NOT EXISTS inbox_message_order ON inbox_messages(tenant_id,conversation_id,seq);
 CREATE TABLE IF NOT EXISTS inbox_outbox(
  tenant_id uuid NOT NULL,
  message_id uuid NOT NULL,
