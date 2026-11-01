@@ -1,4 +1,4 @@
-name: syndes-identity
+name: syndes-security-access
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.1
@@ -15,7 +15,7 @@ services:
       KC_DB_POOL_MAX_SIZE: "10"
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME:?}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD:?}
-    networks: [syndes-data,syndes-identity]
+    networks: [syndes-data,syndes-security-access,syndes-secrets]
     mem_limit: 1024m
     security_opt: [no-new-privileges:true]
     # Attach to trusted Traefik HTTPS ingress separately; no public host port.
@@ -40,11 +40,34 @@ services:
       OPENFGA_AUTHN_PRESHARED_KEYS: ${OPENFGA_PRESHARED_KEY:?}
       OPENFGA_PLAYGROUND_ENABLED: "false"
       OPENFGA_LOG_FORMAT: json
-    networks: [syndes-data,syndes-identity]
+    networks: [syndes-data,syndes-security-access]
     security_opt: [no-new-privileges:true]
     # REST, gRPC, playground and metrics are NOT exposed on the host.
+  openbao:
+    image: openbao/openbao:2.7.0
+    command: ["server", "-config=/openbao/config/openbao.hcl"]
+    restart: unless-stopped
+    environment:
+      BAO_ADDR: https://openbao:8200
+      BAO_CACERT: /openbao/tls/server.crt
+    volumes:
+      - openbao_raft:/openbao/data
+      - ./openbao/config.hcl:/openbao/config/openbao.hcl:ro
+      - ./openbao/tls:/openbao/tls:ro
+    networks: [syndes-secrets]
+    mem_limit: 512m
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    # Bootstrap init/unseal is deliberately an operator action; never run -dev.
+    # No published port; API restricted to the internal secrets network.
 networks:
   syndes-data: {external: true}
-  syndes-identity:
-    name: syndes-identity
+  syndes-security-access:
+    name: syndes-security-access
     driver: bridge
+  syndes-secrets:
+    name: syndes-secrets
+    driver: bridge
+    internal: true
+volumes:
+  openbao_raft:
