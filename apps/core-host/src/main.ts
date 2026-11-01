@@ -1,21 +1,30 @@
 import "reflect-metadata";
-import {Controller,Get,Post,Param,Headers,Body,Module,Injectable,HttpException,HttpStatus,OnModuleDestroy} from "@nestjs/common";
+import {Controller,Get,Post,Param,Headers,Body,Module,Injectable,Inject,HttpException,HttpStatus,OnModuleDestroy} from "@nestjs/common";
 import {NestFactory} from "@nestjs/core";
 import {Pool} from "pg";
 import {CoreKernel,AccessDeniedError} from "@syndes/core-kernel";
 import {ActorVerifier,PgMembership,FgaPermission,tenantUUID} from "./adapters.js";
+import {loadCoreSecrets,openBaoSourceFromEnv,type CoreRuntimeSecrets} from "./secrets.js";
 
 function env(k:string):string{const v=process.env[k];if(!v?.trim())throw new Error("Missing "+k);return v}
+const RUNTIME_SECRETS = "SYNDES_CORE_RUNTIME_SECRETS";
+
 @Injectable()
 class CoreService implements OnModuleDestroy{
- readonly db=new Pool({connectionString:env("CORE_CONTROL_DB_URL"),max:5,connectionTimeoutMillis:3000,idleTimeoutMillis:10000});
- readonly verifier=new ActorVerifier(env("CORE_KEYCLOAK_ISSUER"),env("CORE_KEYCLOAK_AUDIENCE"),env("CORE_KEYCLOAK_JWKS_URL"));
- readonly kernel=new CoreKernel({modules:[{id:"platform",version:"0.1.0"}],
-  tenancy:new PgMembership(this.db),
-  authorization:new FgaPermission(env("CORE_OPENFGA_URL"),env("CORE_OPENFGA_STORE_ID"),env("CORE_OPENFGA_TOKEN"))});
+ readonly db:Pool;
+ readonly verifier:ActorVerifier;
+ readonly kernel:CoreKernel;
+ constructor(@Inject(RUNTIME_SECRETS) credentials:CoreRuntimeSecrets) {
+  this.db=new Pool({connectionString:credentials.controlDbUrl,max:5,connectionTimeoutMillis:3000,idleTimeoutMillis:10000});
+  this.verifier=new ActorVerifier(env("CORE_KEYCLOAK_ISSUER"),env("CORE_KEYCLOAK_AUDIENCE"),env("CORE_KEYCLOAK_JWKS_URL"));
+  this.kernel=new CoreKernel({modules:[{id:"platform",version:"0.1.0"}],
+   tenancy:new PgMembership(this.db),
+   authorization:new FgaPermission(env("CORE_OPENFGA_URL"),env("CORE_OPENFGA_STORE_ID"),credentials.openfgaToken)});
+ }
  async ready():Promise<void>{await this.db.query("SELECT 1");await this.kernel.start()}
  async onModuleDestroy():Promise<void>{await this.db.end()}
 }
+
 @Controller()
 class CoreController{
  constructor(private readonly service:CoreService){}
@@ -36,7 +45,10 @@ class CoreController{
   }
  }
 }
-@Module({controllers:[CoreController],providers:[CoreService]})class AppModule{}
+@Module({controllers:[CoreController],providers:[
+  {provide:RUNTIME_SECRETS,useFactory:async()=>loadCoreSecrets(openBaoSourceFromEnv())},
+  CoreService
+]})class AppModule{}
 async function bootstrap(){
  const port=Number(process.env.CORE_PORT??"8082");
  if(!Number.isInteger(port)||port<1||port>65535)throw new Error("invalid CORE_PORT");
@@ -45,4 +57,4 @@ async function bootstrap(){
  await app.get(CoreService).ready();
  await app.listen(port,"0.0.0.0");
 }
-bootstrap().catch(e=>{process.stderr.write("Core Host startup failed: "+String(e)+"\n");process.exitCode=1});
+bootstrap().catch(()=>{process.stderr.write("Core Host startup failed; verify OpenBao, PostgreSQL and identity configuration\n");process.exitCode=1});
