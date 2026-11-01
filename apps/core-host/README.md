@@ -34,3 +34,7 @@ The tenant pool provider checks the canonical active tenant mapping in `syndes_c
 For production, provision and rotate per-tenant OpenBao KV records as part of the audited onboarding transaction. Mount `/run/syndes/approle/core-tenant-db/{role-id,secret-id}` as protected files (root:10001, mode 0440), separate from the Core Host AppRole. No DB superuser password is present in the application. The Core Host application cannot start normally without the original Core Host OpenBao credentials, but the tenant-specific AppRole is accessed only on first CRM operation and fails closed when absent.
 
 **Warning:** This implementation enforces access at request boundaries; the OpenFGA relationship assignments and user memberships are still provided by the separate onboarding administrative workflow. Do not activate real customers before those are provisioned and verified.
+
+## Installed package modules
+
+Business API controllers and UI files are **not part of Core Host**. The generic loader reads `apps/core-host/config/modules.json`, imports the approved packages' `./plugin` entry points, validates dependencies and registers their Nest API modules and exact static assets. The Core CRM is the first installed reference module. `/modules/:moduleId/config` exposes only public OIDC client metadata declared by each package. All business routes remain protected by CoreKernel membership and OpenFGA permission checks. See `docs/engineering/CORE-MODULE-MOUNTING.md`.
