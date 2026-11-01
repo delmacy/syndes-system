@@ -85,3 +85,8 @@ A interface desabilita a resposta conforme status, humano/bot e atribuição, ma
 ## Contexto CRM e filas da Inbox
 
 ``src/features/inbox-context.tsx`` exibe somente os dados obtidos das APIs CRM autorizadas. Não é uma cópia dos registros do tenant nem tenta buscar dados de outro tenant. A lista de conversas passa ``queue=mine|unassigned|all`` no backend; ``mine`` resolve o atendente a partir da identidade validada. O limite atual é de 100 conversas **por fila/status**, sem paginação. Empresas, tags, deep-link para contato específico e buscas com paginação ficam pendentes.
+
+
+## Editor da Inbox e ficha de contato
+
+A ficha contextual apresenta organizações e tags da pessoa vinculada por endpoints CRM com autorização independente no backend. A resposta, a nota interna e a entrada simulada têm rascunhos **por conversa e modo** em memória React. `Ctrl+Enter` / `Cmd+Enter` envia, e uma falha de rede mantém o rascunho para nova tentativa. Os rascunhos não são persistidos e desaparecem ao recarregar ou finalizar a sessão.

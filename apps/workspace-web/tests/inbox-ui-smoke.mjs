@@ -41,6 +41,8 @@ async function mockWorkspace(page) {
     if (path === "/crm/people/" + crmId) return respond({ id: crmId, name: "Ana Exemplo", email: "ana@example.org", phone: "+5551999999999" });
     if (path === "/crm/people/" + crmId + "/notes") return respond([{ id: "crm-note-1", body: "Prefere contato pela manhã", createdAt: "2026-11-01T09:00:00Z", createdBy: actor }]);
     if (path === "/crm/people/" + crmId + "/timeline") return respond([{ id: 12, action: "linked_organization", recordedAt: "2026-11-01T09:15:00Z", actorId: actor }]);
+    if (path === "/crm/people/" + crmId + "/organizations") return respond([{ id: "org-1", legalName: "Empresa Exemplo Ltda", tradeName: "Empresa Exemplo" }]);
+    if (path === "/crm/people/" + crmId + "/tags") return respond([{ id: "tag-1", label: "VIP" }]);
     if (path === "/inbox/metrics") return respond({ open: 1, pending: 0, resolved: 1, unassigned: 1 });
     if (path === "/inbox/conversations" && method === "GET") {
       const status = url.searchParams.get("status");
@@ -107,9 +109,39 @@ try {
   await desktop.getByText("Olá, preciso de ajuda").waitFor();
   await desktop.getByRole("heading", { name: "Ana Exemplo" }).waitFor();
   await desktop.getByText("Prefere contato pela manhã").waitFor();
+  await desktop.getByText("Empresa Exemplo", { exact: true }).waitFor();
+  await desktop.getByText("VIP", { exact: true }).waitFor();
   console.log("PASS: server-filtered Mine/Unassigned/All queues and authorized CRM notes/context");
   assert.equal(await desktop.locator("#inbox-composer").isDisabled(), false);
   console.log("PASS: Desktop Inbox opens thread with authorized agent composer");
+
+  await desktop.locator("#inbox-composer").fill("Resposta em rascunho");
+  await desktop.getByRole("button", { name: "Nota interna" }).click();
+  assert.equal(await desktop.locator("#inbox-composer").inputValue(), "", "Each mode has its own draft");
+  await desktop.locator("#inbox-composer").fill("Nota em rascunho");
+  await desktop.getByRole("button", { name: "Resposta" }).click();
+  assert.equal(await desktop.locator("#inbox-composer").inputValue(), "Resposta em rascunho");
+  await desktop.getByRole("button", { name: /Conversa resolvida/ }).click();
+  await desktop.getByRole("button", { name: /Pedido inicial/ }).click();
+  assert.equal(await desktop.locator("#inbox-composer").inputValue(), "Resposta em rascunho");
+  await desktop.locator("#inbox-composer").press("Control+Enter");
+  await desktop.getByText("Resposta em rascunho", { exact: true }).waitFor();
+  await desktop.waitForFunction(() => document.querySelector("#inbox-composer")?.value === "");
+  await desktop.getByRole("button", { name: "Nota interna" }).click();
+  assert.equal(await desktop.locator("#inbox-composer").inputValue(), "Nota em rascunho");
+  await desktop.getByRole("button", { name: "Resposta" }).click();
+  console.log("PASS: per-conversation, per-mode ephemeral drafts and Ctrl+Enter send");
+  await desktop.route("**/v1/tenants/**/inbox/conversations/*/replies", route =>
+    route.fulfill({status:503, contentType:"application/json", body:JSON.stringify({message:"Falha temporária, tente novamente"})}), {times:1});
+  await desktop.locator("#inbox-composer").fill("Rascunho não pode sumir");
+  await desktop.locator("#inbox-composer").press("Control+Enter");
+  await desktop.getByText("Falha temporária, tente novamente").waitFor();
+  assert.equal(await desktop.locator("#inbox-composer").inputValue(),"Rascunho não pode sumir");
+  await desktop.locator("#inbox-composer").press("Control+Enter");
+  await desktop.getByText("Rascunho não pode sumir", {exact:true}).waitFor();
+  await desktop.waitForFunction(() => document.querySelector("#inbox-composer")?.value === "");
+  console.log("PASS: failed API send preserves draft; retry clears only after success");
+
 
   await desktop.getByRole("button", { name: "Liberar" }).click();
   await desktop.getByText(/Assuma a conversa antes de responder/).waitFor();

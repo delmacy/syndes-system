@@ -62,3 +62,15 @@ A interface do Workspace em desenvolvimento é servida dos artefatos Vite compil
 - **Pendências:** autenticar o novo fluxo com Keycloak/OpenFGA e PostgreSQL reais, concluir o Product Gate CRM, paginação real acima de 100 conversas, filtros de busca no servidor, permissões por ação na interface, notas/organizações/tags profundas e realtime/anexos já planejados.
 
 A implantação no DevServer01 somente é válida após **atualizar também o Core Host** com a implementação do filtro; publicar apenas o bundle Vite sobre o backend antigo faria as filas ficarem incorretas. Sempre validar ``queue`` pela rota autenticada e confirmar que outro tenant não aparece. Não usar resultados de testes mockados como prova de autorização real.
+
+## Incremento: ficha CRM e editor de mensagens (2026-11-01)
+
+**Foco exclusivo:** experiência de atendimento já prevista no PRD-002. O Core CRM continua **incompleto** como produto; esta alteração apenas disponibiliza dados CRM existentes para a Inbox.
+
+- Criadas leituras `GET /v1/tenants/:tenantId/crm/people/:id/organizations` e `/tags`. Ambas usam o contexto autenticado do Core Host e permissões **independentes**: `crm:organizations/read` e `crm:tags/read`; vinculam pessoa, organização/tag e `tenant_id` por JOIN no PostgreSQL do tenant, sem consulta global nem migração.
+- O painel de contato na Inbox agora apresenta **pessoa, e-mail, telefone, organizações vinculadas, tags, notas e timeline**. Cada seção que receber 403/erro é exibida como indisponível, sem fallback entre tenants nem suposição de dados.
+- O editor guarda **rascunhos temporários em memória React**, por conversa e por modo (resposta/nota/entrada simulada). Não usa `localStorage`, `sessionStorage` nem persistência no backend. Após recarregar a página ou sair, os rascunhos são perdidos.
+- Atalho `Ctrl+Enter` ou `Cmd+Enter` confirma o envio; `Enter` isolado preserva nova linha. Rascunhos sobrevivem à troca de conversas e falhas HTTP; são removidos **somente após sucesso do envio**. Se houver edição enquanto uma resposta estiver pendente, a edição nova não é apagada.
+- Não foram criados templates, mensagens automáticas, novos canais, serviços, bancos, tabelas ou novas permissões administrativas.
+- Cobertura: testes unitários de acesso isolado por tenant, PostgreSQL temporário com organizações/tags e negativas cross-tenant, e smoke Chrome com APIs mockadas para rascunhos, atalho e reenvio depois de falha 503.
+- **Não concluído:** acessibilidade completa, histórico mais abrangente, edição profunda de CRM, várias pessoas no mesmo cliente, realtime seguro, anexos e aceite E2E desta UI com JWT real de múltiplos atendentes.

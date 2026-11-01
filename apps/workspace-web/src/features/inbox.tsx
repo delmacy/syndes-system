@@ -14,10 +14,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { CustomerContextPanel } from "@/features/inbox-context";
 import { isMine, replyBlockReason } from "@/features/inbox-rules";
+import { clearSentDraft, draftKey, setDraft, type ComposerMode } from "@/features/inbox-drafts";
 import type { Conversation, Message, Person, TenantApi, QueueFilter } from "@/lib/api";
 
 type Status = Conversation["status"];
-type ComposerMode = "replies" | "notes" | "simulator/inbound";
 const POLL_INTERVAL_MS = 10_000;
 const statusLabel: Record<Status, string> = { open: "Aberta", pending: "Pendente", resolved: "Resolvida" };
 const statusVariant: Record<Status, "secondary" | "outline" | "default"> = {
@@ -52,7 +52,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   const [listError, setListError] = useState(false);
   const [threadError, setThreadError] = useState(false);
   const [sending, setSending] = useState(false);
-  const [composer, setComposer] = useState("");
+  const [drafts, setDrafts] = useState<Record<string,string>>({});
   const [composerMode, setComposerMode] = useState<ComposerMode>("replies");
   const [dialog, setDialog] = useState(false);
   const [subject, setSubject] = useState("");
@@ -120,7 +120,6 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     setSelected(conversation);
     setThread([]);
     setThreadError(false);
-    setComposer("");
     setComposerMode("replies");
     setContextOpen(false);
     void readThread(conversation.id, true);
@@ -131,7 +130,6 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     setSelected(null);
     setThread([]);
     setReading(false);
-    setComposer("");
     setContextOpen(false);
   };
 
@@ -152,20 +150,27 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     }
   };
   const send = async () => {
-    if (!selected || !composer.trim() || busy.current) return;
-    if (composer.length > 5000) { toast.error("Limite de 5.000 caracteres por mensagem."); return; }
-    if (composerMode !== "simulator/inbound" && replyBlockReason(selected, actorId)) return;
+    if (!selected || busy.current) return;
+    const conversationId = selected.id;
+    const mode = composerMode;
+    const key = draftKey(conversationId, mode);
+    const originalDraft = drafts[key] ?? "";
+    const body = originalDraft.trim();
+    if (!body) return;
+    if (originalDraft.length > 5000) { toast.error("Limite de 5.000 caracteres por mensagem."); return; }
+    if (mode !== "simulator/inbound" && replyBlockReason(selected, actorId)) return;
     busy.current = true;
     setSending(true);
     try {
-      await api.message(selected.id, composerMode, {
-        body: composer.trim(),
-        ...(composerMode === "simulator/inbound" ? { externalMessageId: crypto.randomUUID() } : {}),
+      await api.message(conversationId, mode, {
+        body,
+        ...(mode === "simulator/inbound" ? { externalMessageId: crypto.randomUUID() } : {}),
       });
-      setComposer("");
-      await Promise.all([readThread(selected.id), refresh()]);
-      toast.success(composerMode === "notes" ? "Nota interna registrada." : composerMode === "simulator/inbound" ? "Mensagem simulada recebida." : "Resposta registrada.");
+      setDrafts(previous => clearSentDraft(previous, key, originalDraft));
+      await Promise.all([readThread(conversationId), refresh()]);
+      toast.success(mode === "notes" ? "Nota interna registrada." : mode === "simulator/inbound" ? "Mensagem simulada recebida." : "Resposta registrada.");
     } catch (error) {
+      // Preserve draft on network errors, forbidden access or validation failures.
       toast.error(error instanceof Error ? error.message : "Não foi possível enviar a mensagem.");
     } finally {
       busy.current = false;
@@ -195,6 +200,9 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     }
   };
 
+  const currentDraftKey = selected ? draftKey(selected.id, composerMode) : "";
+  const composer = drafts[currentDraftKey] ?? "";
+  const updateComposer = (text: string) => setDrafts(previous => setDraft(previous, currentDraftKey, text));
   const matching = records.filter(item => item.subject.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")));
   const replyReason = replyBlockReason(selected, actorId);
   const replyDisabled = composerMode !== "simulator/inbound" && Boolean(replyReason);
@@ -334,9 +342,16 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
                 <label htmlFor="inbox-composer" className="sr-only">{composerMode === "notes" ? "Nota interna" : "Mensagem"}</label>
                 <Textarea id="inbox-composer" rows={2} maxLength={5000} value={composer} disabled={sending || replyDisabled}
                   placeholder={composerMode === "notes" ? "Nota visível apenas à equipe..." : composerMode === "simulator/inbound" ? "Simular mensagem recebida..." : "Digite sua resposta..."}
-                  onChange={event => setComposer(event.target.value)} className="min-h-18 resize-y" />
+                  onChange={event => updateComposer(event.target.value)}
+                  onKeyDown={event => {
+                    if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && !event.nativeEvent.isComposing) {
+                      event.preventDefault();
+                      if (!sending && !replyDisabled && composer.trim()) void send();
+                    }
+                  }}
+                  className="min-h-18 resize-y" />
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-muted-foreground">{composer.length}/5000 caracteres</span>
+                  <span className="text-xs text-muted-foreground">{composer.length}/5000 · Ctrl/⌘ + Enter envia</span>
                   <Button type="submit" disabled={sending || replyDisabled || !composer.trim()}><Send className="size-4" />
                     {sending ? "Processando..." : composerMode === "notes" ? "Registrar nota" : composerMode === "simulator/inbound" ? "Simular entrada" : "Enviar resposta"}
                   </Button>

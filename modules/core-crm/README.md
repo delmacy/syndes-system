@@ -32,3 +32,8 @@ await crm.createPerson({actor:verifiedActor,tenantId:verifiedTenantId},{name:"An
 ```
 
 Tenant database credentials **must** be selected by the trusted provider using the verified control-plane registry, never via a user-supplied database name. The generic Core Host mounts the exported `@syndes/core-crm/plugin` descriptor; actual per-tenant production credentials are supplied during audited onboarding.
+
+
+## Leitura de vínculos CRM no contexto da Inbox
+
+Os endpoints `GET /v1/tenants/:tenantId/crm/people/:id/organizations` e `/tags` expõem somente os relacionamentos existentes **da pessoa no tenant autenticado**, sem modificar dados. O primeiro exige `crm:organizations/read` e o segundo `crm:tags/read` antes da seleção do banco. Os JOINs incluem `tenant_id` e excluem pessoa arquivada e organizações arquivadas. Sem alterações de schema, migração ou autorização implícita a partir de leitura de Inbox.

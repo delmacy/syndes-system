@@ -96,3 +96,14 @@ test("CRM context reads only the current tenant person detail, notes and timelin
     "/v1/tenants/tenant-a/crm/people/person-id/timeline",
   ].sort());
 });
+
+test("relationship and tag context reads stay within authenticated CRM tenant",async()=>{
+ const calls=[];
+ globalThis.fetch=async url=>{calls.push(url);return Response.json([])};
+ const api=new TenantApi("tenant-a","access-token",()=>assert.fail("Unexpected logout"));
+ await Promise.all([api.personOrganizations("person-id"),api.personTags("person-id")]);
+ assert.deepEqual(calls.sort(),[
+  "/v1/tenants/tenant-a/crm/people/person-id/organizations",
+  "/v1/tenants/tenant-a/crm/people/person-id/tags",
+ ].sort());
+});

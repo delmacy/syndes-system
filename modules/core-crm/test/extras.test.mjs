@@ -54,3 +54,27 @@ test("repository factory refuses a tenant database with a mismatched identity",a
  })});
  await assert.rejects(factory.forTenant(A),/mismatch/i);
 });
+
+test("person organizations and tags honor independent CRM FGA permissions before DB selection",async()=>{
+ let selected=0, allowed="crm:organizations";
+ const kernel=new CoreKernel({
+   modules:[{id:"platform",version:"0.1.0"},{id:"crm",version:"0.1.0",dependencies:["platform"]}],
+   tenancy:{canAccessTenant:async({tenantId})=>tenantId===A},
+   authorization:{canAccess:async({resource})=>resource===allowed},
+ });
+ await kernel.start();
+ const svc=new CrmExtras(kernel,async()=>{selected++;return {
+   listPersonOrganizations:async()=>[{id:"org",legalName:"Example"}],
+   listPersonTags:async()=>[{id:"tag",label:"VIP"}],
+ }});
+ const id="b341ae20-8215-4796-8ab3-3997abb3d575";
+ assert.equal((await svc.listPersonOrganizations(ctx,id))[0].legalName,"Example");
+ assert.equal(selected,1);
+ await assert.rejects(svc.listPersonTags(ctx,id),AccessDeniedError);
+ assert.equal(selected,1,"FGA must reject before selecting a tenant DB");
+ allowed="crm:tags";
+ assert.equal((await svc.listPersonTags(ctx,id))[0].label,"VIP");
+ assert.equal(selected,2);
+ await assert.rejects(svc.listPersonTags({...ctx,tenantId:B},id),AccessDeniedError);
+ assert.equal(selected,2);
+});

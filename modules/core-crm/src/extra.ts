@@ -25,6 +25,8 @@ export interface ExtraRepository {
   listExportPeople(tenant:string,limit:number):Promise<readonly Person[]>;
   listEmployees(tenant:string,limit:number):Promise<readonly Employee[]>;
   listChannels(tenant:string,personId:string,limit:number):Promise<readonly ChannelIdentity[]>;
+  listPersonOrganizations(tenant:string,personId:string,limit:number):Promise<readonly Organization[]>;
+  listPersonTags(tenant:string,personId:string,limit:number):Promise<readonly {id:string;label:string}[]>;
 }
 
 export class CrmExtras {
@@ -85,6 +87,16 @@ export class CrmExtras {
   listEmployees(ctx:CrmContext,limit=100):Promise<readonly Employee[]>{
     if(!Number.isInteger(limit)||limit<1||limit>100)throw new CrmValidationError("Invalid employee page size");
     return this.run(ctx,"read","crm:employees",db=>db.listEmployees(ctx.tenantId,limit));
+  }
+  listPersonOrganizations(ctx:CrmContext,personId:string):Promise<readonly Organization[]>{
+    const person=id(personId,"person ID");
+    return this.run(ctx,"read","crm:organizations",
+      db=>db.listPersonOrganizations(ctx.tenantId,person,25));
+  }
+  listPersonTags(ctx:CrmContext,personId:string):Promise<readonly {id:string;label:string}[]>{
+    const person=id(personId,"person ID");
+    return this.run(ctx,"read","crm:tags",
+      db=>db.listPersonTags(ctx.tenantId,person,25));
   }
   listChannels(ctx:CrmContext,personId:string):Promise<readonly ChannelIdentity[]>{
     const person=id(personId,"person ID");
@@ -229,6 +241,31 @@ export class PgCrmExtras implements ExtraRepository {
     return r.rows.map(row=>({id:String(row.id),tenantId:t,personId,
       channel:String(row.channel),externalId:String(row.external_id),
       displayName:row.display_name===null?null:String(row.display_name)}));
+  }
+  async listPersonOrganizations(t:string,personId:string,limit:number):Promise<readonly Organization[]>{
+    this.check(t);
+    const r=await this.db.query(`
+      SELECT o.id,o.tenant_id,o.legal_name,o.trade_name,o.tax_id,o.archived_at
+      FROM crm_person_organizations rel
+      JOIN crm_organizations o ON o.tenant_id=rel.tenant_id AND o.id=rel.organization_id
+      JOIN crm_people p ON p.tenant_id=rel.tenant_id AND p.id=rel.person_id
+      WHERE rel.tenant_id=$1::uuid AND rel.person_id=$2::uuid
+        AND p.archived_at IS NULL AND o.archived_at IS NULL
+      ORDER BY o.legal_name,o.id LIMIT $3
+    `,[t,personId,limit]);
+    return r.rows.map(asOrganization);
+  }
+  async listPersonTags(t:string,personId:string,limit:number):Promise<readonly {id:string;label:string}[]>{
+    this.check(t);
+    const r=await this.db.query(`
+      SELECT tag.id,tag.label
+      FROM crm_person_tags rel
+      JOIN crm_tags tag ON tag.tenant_id=rel.tenant_id AND tag.id=rel.tag_id
+      JOIN crm_people p ON p.tenant_id=rel.tenant_id AND p.id=rel.person_id
+      WHERE rel.tenant_id=$1::uuid AND rel.person_id=$2::uuid AND p.archived_at IS NULL
+      ORDER BY tag.label,tag.id LIMIT $3
+    `,[t,personId,limit]);
+    return r.rows.map(row=>({id:String(row.id),label:String(row.label)}));
   }
   async listExportPeople(t:string,limit:number):Promise<readonly Person[]>{
     this.check(t);
