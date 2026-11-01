@@ -37,6 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Create private Docker data network
+        run: docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data
       - name: Prepare throwaway Docker Secret files on CI runner
         run: |
           sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/syndes /run/syndes/runtime
@@ -98,6 +100,8 @@ jobs:
         run: |
           cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
           cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run build
+      - name: Create private Docker data network
+        run: docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data
       - name: Prepare throwaway Docker Secret files on CI runner
         run: |
           sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/syndes /run/syndes/runtime
