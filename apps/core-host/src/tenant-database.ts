@@ -1,7 +1,7 @@
 import {readFile} from "node:fs/promises";
 import {Inject,Injectable,OnModuleDestroy} from "@nestjs/common";
 import {Pool} from "pg";
-import type {TrustedTenantDatabaseProvider,TenantDatabase} from "@syndes/core-crm";
+import type {TrustedTenantDatabaseProvider,TenantDatabase} from "@syndes/core-kernel";
 import {tenantUUID} from "./adapters.js";
 
 export type ControlQuery=Pick<Pool,"query">;

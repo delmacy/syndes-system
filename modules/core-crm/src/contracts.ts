@@ -1,4 +1,5 @@
-import type { Actor } from "@syndes/core-kernel";
+import type { Actor, TenantDatabase, TrustedTenantDatabaseProvider } from "@syndes/core-kernel";
+export type {TenantDatabase,TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 
 export type Organization = Readonly<{
   id: string;
@@ -60,16 +61,6 @@ export interface CrmRepository {
   listTimeline(tenantId:string,personId:string,limit:number):Promise<readonly TimelineEntry[]>;
   listNotes(tenantId:string,personId:string,limit:number):Promise<readonly Note[]>;
 
-}
-
-/** Only the host controls this mapping. A tenant database never comes from a client supplied DSN. */
-export type TenantDatabase = Readonly<{
-  tenantId:string;
-  query(sql:string,values:readonly unknown[]):Promise<{rows:Record<string,unknown>[];rowCount:number|null}>;
-}>;
-
-export interface TrustedTenantDatabaseProvider {
-  resolve(tenantId:string):Promise<TenantDatabase>;
 }
 
 export class CrmValidationError extends Error {
