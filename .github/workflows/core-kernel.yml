@@ -23,9 +23,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: packages/core-kernel/package-lock.json
-      - name: Frozen dependency install
+      - name: Bootstrap dependency lock for initial release
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install from generated lockfile
         run: npm ci --no-audit --no-fund
       - name: Strict typecheck
         run: npm run check
@@ -33,3 +33,9 @@ jobs:
         run: npm test
       - name: Inspect publishable contents
         run: npm pack --dry-run
+      - name: Initial lockfile capture
+        run: |
+          echo SYNDES_CORE_LOCKFILE_BEGIN
+          base64 -w0 package-lock.json
+          echo
+          echo SYNDES_CORE_LOCKFILE_END
