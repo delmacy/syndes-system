@@ -51,4 +51,24 @@ BEGIN
 END $$;
 SQL
 node modules/core-crm/test/pg-repo-integration.mjs
+# Create two real isolated tenant databases and dedicated login roles.
+# These are disposable CI credentials, never production values.
+for id in 4ab44379-d557-4df6-a2be-d44e121a8077 d21930aa-f4f6-40c0-bb1a-e71d7bb92caa;do
+  suffix="${id//-/}"
+  role="syndes_t_$suffix"
+  db="syndes_tenant_$suffix"
+  docker exec syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c \
+    "CREATE ROLE $role LOGIN PASSWORD 'ci-tenant-only-credential-123'" >/dev/null
+  docker exec syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c \
+    "CREATE DATABASE $db OWNER $role" >/dev/null
+  docker exec syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c \
+    "REVOKE CONNECT ON DATABASE $db FROM PUBLIC" >/dev/null
+  docker exec syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c \
+    "GRANT CONNECT ON DATABASE $db TO $role" >/dev/null
+  for migration in 001_crm_foundation.sql 002_crm_tags_notes.sql 003_crm_employees_channels.sql;do
+    docker exec -i syndes-crm-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d "$db" \
+      < "modules/core-crm/sql/$migration" >/dev/null
+  done
+done
+node modules/core-crm/test/acceptance-journey.mjs
 echo "CRM PostgreSQL migrations and tenant-scoped composite FKs: PASS"
