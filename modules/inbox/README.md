@@ -34,3 +34,7 @@ The provider simulator is intentionally not a public unauthenticated webhook. Wh
 ## Channel boundary
 
 `InboundChannelAdapter` accepts an `InboundChannelEvent` independent of protocol. `SimulatedChannelAdapter` is the only registered provider in this PR and validates its channel before calling tenant-authorized Inbox operations. Future WhatsApp adapter and delivery acknowledgements require their own scoped PR; the simulation route is not an anonymous webhook.
+
+## Browserless UI regression
+
+Run `npm run test:ui` to execute the actual `public/app.js` in a minimal DOM model under Node.js `vm` (no Playwright/Chromium). The tests activate UI handlers, stub PKCE token exchange and tenant HTTP responses, and print sanitized `INBOX_FRONTEND_TRACE` and `INBOX_FRONTEND_DENIAL_TRACE` records to CI logs. This validates UI-to-API wiring and state transitions but **does not** validate CSS layout, real browser security behavior, WebSocket, or a real Keycloak login. The regular `npm test` also includes these tests.
