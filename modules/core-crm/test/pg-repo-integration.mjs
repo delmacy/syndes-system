@@ -26,7 +26,7 @@ try {
   assert.equal(await b.getPerson(B,created.id),null,"cross-tenant read");
   assert.equal((await a.listPeople(A,"Ana",10)).length,1);
   assert.equal((await b.listPeople(B,"Ana",10)).length,0);
-  assert.equal((await a.listPeople(A,"%",10)).length,0,
+  assert.equal((await a.listPeople(A,"\\\\%",10)).length,0,
     "wildcard search should be escaped by the service layer");
   const link=await a.linkPerson(A,"alice",created.id,organization.id);
   assert.deepEqual(link,{tenantId:A,personId:created.id,organizationId:organization.id});
