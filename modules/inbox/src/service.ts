@@ -1,5 +1,5 @@
 import {randomUUID} from "node:crypto";
-import type {CoreKernel,ModuleDefinition} from "@syndes/core-kernel";
+import {AccessDeniedError,type CoreKernel,type ModuleDefinition} from "@syndes/core-kernel";
 import type {InboxContext,InboxRepository,Inbound,ConversationStatus,Conversation,InboxMessage,InboxEvent} from "./contracts.js";
 import {InboxValidationError} from "./contracts.js";
 import {bounded,channel,uuid,pageSize,cursor} from "./validation.js";
@@ -14,7 +14,7 @@ export class InboxService {
     async()=>fn(await this.resolve(ctx.tenantId)));
  }
  receive(ctx:InboxContext,input:Inbound):Promise<{conversation:Conversation;message:InboxMessage;created:boolean}>{
-  if(ctx.actor.kind!=="service")throw new InboxValidationError("Inbound ingestion requires a service identity");
+  if(ctx.actor.kind!=="service")throw new AccessDeniedError();
   const value:Inbound={source:channel(input?.source),externalRef:bounded(input?.externalRef,"external reference",256),
    externalMessageId:bounded(input?.externalMessageId,"external message ID",256),
    body:bounded(input?.body,"message body",4096),
@@ -34,7 +34,7 @@ export class InboxService {
   return this.execute(ctx,"read","inbox:messages",db=>db.listMessages(ctx.tenantId,conversationId,count));
  }
  reply(ctx:InboxContext,id:string,body:unknown):Promise<InboxMessage>{
-  if(ctx.actor.kind!=="user")throw new InboxValidationError("Human reply requires a user");
+  if(ctx.actor.kind!=="user")throw new AccessDeniedError();
   const conversationId=uuid(id,"conversation ID"),value=bounded(body,"message body",4096);
   return this.execute(ctx,"write","inbox:messages",db=>db.send(ctx.tenantId,ctx.actor.id,randomUUID(),conversationId,{body:value}));
  }
@@ -44,7 +44,7 @@ export class InboxService {
   // MVP: users may claim or release only their own assignment. No unverified
   // arbitrary Keycloak ID may be inserted as a foreign tenant operator.
   if(ctx.actor.kind!=="user"||(userId!==null&&userId!==ctx.actor.id))
-    throw new InboxValidationError("Only self-assignment is supported");
+    throw new AccessDeniedError();
   return this.execute(ctx,"write","inbox:assignments",
     db=>db.assign(ctx.tenantId,ctx.actor.id,conversationId,userId as string|null));
  }
