@@ -65,3 +65,12 @@ Tokens vivem apenas em memória, sem `localStorage`. Atualizar a página exige n
 - O Admin Master e o Customer Portal terão aplicações, OIDC clients, e gateways separados, em suas próprias fases.
 - Este MVP não inclui envio real por WhatsApp nem comunicação em tempo real; a Inbox atual usa backend persistente e canal de simulação.
 - O ambiente foi validado em Chrome headless e via testes HTTP; testes de carga, backup/restore e deploy de produção ainda são necessários.
+
+
+## Documentação de arquitetura e continuidade
+
+- [Arquitetura, autenticação e limites de acesso](../../docs/engineering/WORKSPACE-SHELL-ARCHITECTURE.md)
+- [Runbook do DevServer01 (login único, smoke e rollback)](../../docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md)
+- [Handoff e próximos gates do MVP](../../docs/product/WORKSPACE-MVP-HANDOFF.md)
+
+O `README` desta aplicação descreve o estado atual do código. O deploy de desenvolvimento usa também manifests operacionais **não versionados** em `/srv/syndes-lab`; não confundir exemplos de configuração pública com credenciais.
