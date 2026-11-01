@@ -1,6 +1,7 @@
 import type {
   CrmRepository, CreateOrganization, CreatePerson, Organization, Person,
   PersonOrganization, TrustedTenantDatabaseProvider, TenantDatabase,
+  Tag, PersonTag, Note, TimelineEntry,
 } from "./contracts.js";
 import { TenantDatabaseMismatchError } from "./contracts.js";
 import { isUuid } from "./validation.js";
@@ -106,7 +107,24 @@ export class PgCrmRepository implements CrmRepository {
       WHERE tenant_id=$1::uuid AND archived_at IS NULL
       AND ($2::text IS NULL OR name ILIKE '%' || $2::text || '%' ESCAPE '\\'
          OR email ILIKE '%' || $2::text || '%' ESCAPE '\\'
-         OR phone ILIKE '%' || $2::text || '%' ESCAPE '\\')
+         OR phone ILIKE '%' || $2::text || '%' ESCAPE '\\'
+         OR EXISTS (
+           SELECT 1 FROM crm_person_tags pt
+           JOIN crm_tags t ON t.tenant_id=pt.tenant_id AND t.id=pt.tag_id
+           WHERE pt.tenant_id=crm_people.tenant_id
+             AND pt.person_id=crm_people.id
+             AND t.label ILIKE '%' || $2::text || '%' ESCAPE '\\'
+         )
+         OR EXISTS (
+           SELECT 1 FROM crm_person_organizations po
+           JOIN crm_organizations o ON o.tenant_id=po.tenant_id
+                                  AND o.id=po.organization_id
+           WHERE po.tenant_id=crm_people.tenant_id
+             AND po.person_id=crm_people.id AND o.archived_at IS NULL
+             AND (o.legal_name ILIKE '%' || $2::text || '%' ESCAPE '\\'
+               OR o.trade_name ILIKE '%' || $2::text || '%' ESCAPE '\\'
+               OR o.tax_id ILIKE '%' || $2::text || '%' ESCAPE '\\')
+         ))
       ORDER BY name,id LIMIT $3`,[tenantId,query,limit]);
     return result.rows.map(person);
   }
@@ -124,6 +142,82 @@ export class PgCrmRepository implements CrmRepository {
       )
       SELECT changed.id FROM changed CROSS JOIN audit`,[tenantId,id,actorId]);
     return result.rows.length>0;
+  }
+
+  async createTag(tenantId:string,actorId:string,id:string,label:string):Promise<Tag>{
+    const result=await this.db.query(`
+      WITH created AS (
+        INSERT INTO crm_tags (id,tenant_id,label,label_key)
+        VALUES ($1::uuid,$2::uuid,$3,lower($3))
+        RETURNING id,tenant_id,label
+      ), audit AS (
+        INSERT INTO crm_audit(tenant_id,actor_id,entity_type,entity_id,action)
+        SELECT tenant_id,$4,'tag',id,'created' FROM created
+        RETURNING id
+      )
+      SELECT c.* FROM created c CROSS JOIN audit`,[id,tenantId,label,actorId]);
+    const row=result.rows[0];
+    if(!row)throw new Error("CRM tag already exists");
+    return {id:String(row.id),tenantId:String(row.tenant_id),label:String(row.label)};
+  }
+
+  async tagPerson(tenantId:string,actorId:string,personId:string,tagId:string):Promise<PersonTag>{
+    const result=await this.db.query(`
+      WITH tagged AS (
+        INSERT INTO crm_person_tags(tenant_id,person_id,tag_id)
+        SELECT $1::uuid,$2::uuid,$3::uuid
+        WHERE EXISTS (SELECT 1 FROM crm_people
+          WHERE tenant_id=$1::uuid AND id=$2::uuid AND archived_at IS NULL)
+        AND EXISTS (SELECT 1 FROM crm_tags
+          WHERE tenant_id=$1::uuid AND id=$3::uuid)
+        ON CONFLICT DO NOTHING
+        RETURNING tenant_id,person_id,tag_id
+      ), audit AS (
+        INSERT INTO crm_audit(tenant_id,actor_id,entity_type,entity_id,action)
+        SELECT tenant_id,$4,'person',person_id,'tagged' FROM tagged
+        RETURNING id
+      )
+      SELECT t.* FROM tagged t CROSS JOIN audit`,[tenantId,personId,tagId,actorId]);
+    if(!result.rows[0])throw new Error("CRM tag relation not created");
+    return {tenantId,personId,tagId};
+  }
+
+  async createNote(tenantId:string,actorId:string,id:string,personId:string,body:string):Promise<Note>{
+    const result=await this.db.query(`
+      WITH created AS (
+        INSERT INTO crm_notes(id,tenant_id,person_id,body,created_by)
+        SELECT $1::uuid,$2::uuid,$3::uuid,$4,$5
+        WHERE EXISTS (SELECT 1 FROM crm_people
+          WHERE tenant_id=$2::uuid AND id=$3::uuid AND archived_at IS NULL)
+        RETURNING id,tenant_id,person_id,body,created_by,created_at
+      ), audit AS (
+        INSERT INTO crm_audit(tenant_id,actor_id,entity_type,entity_id,action)
+        SELECT tenant_id,$5,'person',person_id,'noted' FROM created
+        RETURNING id
+      )
+      SELECT c.* FROM created c CROSS JOIN audit`,[id,tenantId,personId,body,actorId]);
+    const row=result.rows[0];
+    if(!row)throw new Error("CRM note target not found");
+    return {
+      id:String(row.id),tenantId:String(row.tenant_id),
+      personId:String(row.person_id),body:String(row.body),
+      createdBy:String(row.created_by),
+      createdAt:row.created_at instanceof Date?row.created_at.toISOString():String(row.created_at)
+    };
+  }
+
+  async listTimeline(tenantId:string,personId:string,limit:number):Promise<readonly TimelineEntry[]>{
+    const result=await this.db.query(`
+      SELECT id,tenant_id,actor_id,action,recorded_at
+      FROM crm_audit
+      WHERE tenant_id=$1::uuid AND entity_type='person' AND entity_id=$2::uuid
+      ORDER BY id DESC LIMIT $3`,[tenantId,personId,limit]);
+    return result.rows.map(row=>({
+      id:Number(row.id),tenantId:String(row.tenant_id),
+      personId,actorId:String(row.actor_id),action:String(row.action),
+      recordedAt:row.recorded_at instanceof Date?
+        row.recorded_at.toISOString():String(row.recorded_at)
+    }));
   }
 }
 

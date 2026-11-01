@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { CoreKernel, ModuleDefinition } from "@syndes/core-kernel";
 import type {
   CrmContext, CrmRepository, CreateOrganization, CreatePerson,
-  Organization, Person, PersonOrganization,
+  Organization, Person, PersonOrganization, Tag, PersonTag, Note, TimelineEntry,
 } from "./contracts.js";
 import { CrmValidationError } from "./contracts.js";
 import { email, id, phone, requiredName, searchQuery, taxId, optionalText } from "./validation.js";
@@ -74,5 +74,36 @@ export class CrmService {
     const p=id(personId,"person ID");
     return this.execute(context,"write","crm:people",
       repo=>repo.archivePerson(context.tenantId,context.actor.id,p));
+  }
+
+  createTag(context:CrmContext,label:unknown):Promise<Tag>{
+    const normalized=requiredName(label,"tag");
+    if(normalized.length>64)throw new CrmValidationError("Tag too long");
+    return this.execute(context,"write","crm:tags",
+      repo=>repo.createTag(context.tenantId,context.actor.id,randomUUID(),normalized));
+  }
+
+  tagPerson(context:CrmContext,personId:string,tagId:string):Promise<PersonTag>{
+    const person=id(personId,"person ID"),tag=id(tagId,"tag ID");
+    return this.execute(context,"write","crm:tags",
+      repo=>repo.tagPerson(context.tenantId,context.actor.id,person,tag));
+  }
+
+  createNote(context:CrmContext,personId:string,body:unknown):Promise<Note>{
+    const person=id(personId,"person ID");
+    if(typeof body!=="string")throw new CrmValidationError("Invalid note body");
+    const normalized=body.replace(/\r\n?/g,"\n").trim();
+    if(!normalized||normalized.length>5000||/[\x00-\x08\x0b-\x1f\x7f]/.test(normalized)){
+      throw new CrmValidationError("Invalid note body");
+    }
+    return this.execute(context,"write","crm:notes",
+      repo=>repo.createNote(context.tenantId,context.actor.id,randomUUID(),person,normalized));
+  }
+
+  listTimeline(context:CrmContext,personId:string,limit=50):Promise<readonly TimelineEntry[]>{
+    const person=id(personId,"person ID");
+    if(!Number.isInteger(limit)||limit<1||limit>100)throw new CrmValidationError("Invalid timeline size");
+    return this.execute(context,"read","crm:people",
+      repo=>repo.listTimeline(context.tenantId,person,limit));
   }
 }
