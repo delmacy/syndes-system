@@ -14,12 +14,8 @@ COPY apps/core-host/package*.json apps/core-host/
 COPY apps/core-host/tsconfig.json apps/core-host/
 COPY apps/core-host/src apps/core-host/src
 COPY apps/core-host/config apps/core-host/config
-RUN cd apps/core-host && npm ci --no-audit --no-fund && npm run build
-# Unify Nest injection and HttpException type identity across installed modules.
-RUN rm -rf /workspace/modules/core-crm/node_modules/@nestjs/common /workspace/modules/core-crm/node_modules/@nestjs/core \
- && mkdir -p /workspace/modules/core-crm/node_modules/@nestjs \
- && ln -s /workspace/apps/core-host/node_modules/@nestjs/common /workspace/modules/core-crm/node_modules/@nestjs/common \
- && ln -s /workspace/apps/core-host/node_modules/@nestjs/core /workspace/modules/core-crm/node_modules/@nestjs/core
+COPY apps/core-host/scripts apps/core-host/scripts
+RUN cd apps/core-host && npm ci --no-audit --no-fund && npm run link-peers && npm run build
 FROM node:22-bookworm-slim
 WORKDIR /workspace/apps/core-host
 ENV NODE_ENV=production
