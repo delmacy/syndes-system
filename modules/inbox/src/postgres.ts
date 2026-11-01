@@ -73,9 +73,9 @@ export class PgInboxRepository implements InboxRepository {
  async listMessages(t:string,id:string,limit:number):Promise<readonly InboxMessage[]>{
   this.verify(t);
   const r=await this.db.query(`SELECT ${M} FROM (
-    SELECT ${M} FROM inbox_messages WHERE tenant_id=$1::uuid AND conversation_id=$2::uuid
-    ORDER BY created_at DESC,id DESC LIMIT $3
-  ) latest ORDER BY created_at ASC,id ASC`,[t,id,limit]);
+    SELECT ${M},seq FROM inbox_messages WHERE tenant_id=$1::uuid AND conversation_id=$2::uuid
+    ORDER BY seq DESC LIMIT $3
+  ) latest ORDER BY seq ASC`,[t,id,limit]);
   return r.rows.map(msg);
  }
  async send(t:string,actor:string,id:string,conversationId:string,input:Outbound):Promise<InboxMessage>{
