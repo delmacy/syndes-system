@@ -100,6 +100,10 @@ async function edit(kind,item=null){
  const submit=el("button","Salvar");submit.type="submit";form.append(submit);
  form.onsubmit=e=>{e.preventDefault();safe(async()=>{
    const data=Object.fromEntries(new FormData(form));
+   if(kind==="people"&&!item&&(data.email||data.phone)){
+     const matches=await api("/duplicates","POST",{email:data.email||null,phone:data.phone||null});
+     if(matches.length&&!confirm("Possível duplicidade: "+matches.map(x=>x.name).join(", ")+". Criar mesmo assim?"))return;
+   }
    await api("/"+(kind==="people"?"people":"organizations")+(item?"/"+item.id:""),
      item?"PATCH":"POST",data);
    notify("Cadastro salvo.");$("detail").hidden=true;await refresh();
@@ -122,6 +126,32 @@ async function details(kind,item){
  const row=el("div",undefined,"two");
  const note=el("textarea");note.placeholder="Adicionar nota de atendimento";note.rows=3;
  const tag=el("input");tag.placeholder="Nova tag";append(row,note,tag);body.append(row);
+ const orgButton=el("button","Vincular organização","secondary");
+ orgButton.onclick=()=>safe(async()=>{
+   const orgs=await api("/organizations?limit=100");
+   if(!orgs.length)throw Error("Crie uma organização antes de vinculá-la.");
+   const code=prompt("UUID da organização:\n"+orgs.map(x=>x.legalName+" — "+x.id).join("\n"));
+   if(!code)return;
+   await api("/people/"+item.id+"/organizations","POST",{organizationId:code.trim()});
+   notify("Organização vinculada.");await details("people",item);
+ });actions.append(orgButton);
+ const empButton=el("button","Cadastrar funcionário","secondary");
+ empButton.onclick=()=>safe(async()=>{
+   const jobTitle=prompt("Função do funcionário:");
+   if(!jobTitle)return;
+   await api("/people/"+item.id+"/employee","POST",{jobTitle});
+   notify("Funcionário associado à pessoa.");
+ });actions.append(empButton);
+ const chanButton=el("button","Vincular canal","secondary");
+ chanButton.onclick=()=>safe(async()=>{
+   const channel=prompt("Canal (whatsapp, instagram ou email):","whatsapp");
+   if(!channel)return;
+   const externalId=prompt("Identificador externo da conta:");
+   if(!externalId)return;
+   const displayName=prompt("Nome exibido no canal (não substitui nome do CRM):")||null;
+   await api("/people/"+item.id+"/channels","POST",{channel,externalId,displayName});
+   notify("Canal vinculado.");await details("people",item);
+ });actions.append(chanButton);
  const noteButton=el("button","Adicionar nota","secondary");
  noteButton.onclick=()=>safe(async()=>{
    await api("/people/"+item.id+"/notes","POST",{body:note.value});
