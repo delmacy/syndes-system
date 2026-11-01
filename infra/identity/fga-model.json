@@ -49,7 +49,10 @@
           "union": {
             "child": [
               {
-                "this": {}
+                "computedUserset": {
+                  "object": "",
+                  "relation": "viewer"
+                }
               },
               {
                 "tupleToUserset": {
