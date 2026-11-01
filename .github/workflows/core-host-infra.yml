@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate compose and bash configuration
         run: |
-          bash -n infra/postgres/bootstrap/00-init.sh infra/postgres/bootstrap/provision-tenant.sh tests/platform/postgres-smoke.sh
+          bash -n infra/postgres/bootstrap/00-init.sh infra/postgres/bootstrap/provision-tenant.sh tests/platform/postgres-smoke.sh tests/platform/openfga-smoke.sh
           docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml config --quiet
           docker compose --env-file infra/.env.ci -f infra/identity/compose.yaml config --quiet
           docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml config --quiet
@@ -84,6 +84,8 @@ jobs:
             if [ "$attempt" = 40 ]; then echo "OpenFGA failed to become ready" >&2; exit 1; fi
             sleep 2
           done
+      - name: OpenFGA relationship model and cross-tenant verification
+        run: bash tests/platform/openfga-smoke.sh
       - name: Identity logs on failure
         if: failure()
         run: |
