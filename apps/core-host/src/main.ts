@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import {Controller,Get,Post,Param,Headers,Body,Module,Global,Injectable,Inject,HttpException,HttpStatus,OnModuleDestroy} from "@nestjs/common";
+import {Controller,Get,Post,Param,Headers,Body,Module,Global,Injectable,Inject,Type,HttpException,HttpStatus,OnModuleDestroy} from "@nestjs/common";
 import {NestFactory} from "@nestjs/core";
 import {Pool} from "pg";
 import {CoreKernel,AccessDeniedError,type ModuleDefinition,type SyndesPlugin} from "@syndes/core-kernel";
@@ -31,7 +31,7 @@ class CoreService implements OnModuleDestroy{
 @Controller()
 class CoreController{
  constructor(private readonly service:CoreService,
-             @Inject("SYNDES_PLUGINS") private readonly plugins:readonly SyndesPlugin[]){}
+             @Inject("SYNDES_PLUGINS") private readonly plugins:readonly SyndesPlugin<Type<unknown>>[]){}
  @Get("healthz")health(){return {status:"ok"}}
  @Get("modules/:moduleId/config")
  moduleConfig(@Param("moduleId") id:string){
@@ -57,7 +57,7 @@ class CoreController{
 }
 /** Infrastructure is global and exports only the narrowly scoped host ports.
  * Business Nest modules are contributed by trusted, installed packages. */
-function createHostModule(plugins:readonly SyndesPlugin[]){
+function createHostModule(plugins:readonly SyndesPlugin<Type<unknown>>[]){
   const definitions:readonly ModuleDefinition[]=Object.freeze([
     {id:"platform",version:"0.1.0"},
     ...plugins.map(p=>p.definition),
