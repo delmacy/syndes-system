@@ -6,7 +6,7 @@ Interface operacional do tenant, construída com **React 19, TypeScript, Vite 8,
 
 - Application Shell responsivo, sidebar colapsável, navegação, configurações e indicadores.
 - CRM: consulta/pesquisa de pessoas e organizações; cadastro; visualização de detalhes.
-- Inbox: consulta/filtro de conversas, leitura de mensagens, abertura de conversas, respostas, notas, simulação de mensagem de entrada, alteração de status e atribuição.
+- Inbox: fila, busca/filtros, histórico, abertura, atribuição/liberação, resposta/nota/simulação, status aberto/pendente/resolvido e handoff humano/bot. UI mobile lista/detalhe e atualização HTTP a cada 10 segundos enquanto visível (**ainda não é realtime push**).
 - OIDC Keycloak Authorization Code **PKCE S256**, cliente público separado `syndes-workspace-ui`.
 - API `/v1/tenants/:tenantId/crm/*` e `/v1/tenants/:tenantId/inbox/*`, autenticadas com Bearer.
 - O Core Host valida autenticação/autorização com Keycloak/OpenFGA e resolve o banco do tenant do lado do servidor.
@@ -41,6 +41,7 @@ npm ci
 npm run build
 npm test
 npm run lint
+npm run test:inbox-ui     # Playwright mockado sem segredos ou gravação real
 ```
 
 Para o smoke no navegador, configure a variável `SYNDES_PREVIEW_PASSWORD` **somente na sessão local autorizada** e execute `npm run test:smoke`. O teste exige que o servidor da Tailnet esteja acessível e usa a instalação local de Chrome. **Não coloque senhas no repositório ou em logs.**
@@ -74,3 +75,8 @@ Tokens vivem apenas em memória, sem `localStorage`. Atualizar a página exige n
 - [Handoff e próximos gates do MVP](../../docs/product/WORKSPACE-MVP-HANDOFF.md)
 
 O `README` desta aplicação descreve o estado atual do código. O deploy de desenvolvimento usa também manifests operacionais **não versionados** em `/srv/syndes-lab`; não confundir exemplos de configuração pública com credenciais.
+
+
+## Pendências de Inbox
+
+A interface desabilita a resposta conforme status, humano/bot e atribuição, mas **não substitui a autorização do backend**. Ainda faltam realtime push seguro, anexos, testes reais de login/ações com vários atendentes e Product Gate. O CRM, especialmente sua UI, **também permanece incompleto**.

@@ -1,5 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
-import { ArrowUpRight, CircleCheck, Inbox, LoaderCircle, MessageCircle, Plus, RefreshCw, Search, Send, UserRoundCheck } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ArrowLeft, Bot, CircleCheck, Clock3, Inbox, LoaderCircle,
+  MessageCircle, Plus, RefreshCw, Search, Send, UserMinus, UserRoundCheck,
+  UsersRound, StickyNote, FlaskConical,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,121 +11,339 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { isMine, replyBlockReason } from "@/features/inbox-rules";
 import type { Conversation, Message, Person, TenantApi } from "@/lib/api";
 
-const statusLabel: Record<Conversation["status"], string> = { open: "Aberta", pending: "Pendente", resolved: "Resolvida" };
-const statusVariant: Record<Conversation["status"], "secondary" | "outline" | "default"> = { open: "secondary", pending: "outline", resolved: "default" };
+type Status = Conversation["status"];
+type ComposerMode = "replies" | "notes" | "simulator/inbound";
+const POLL_INTERVAL_MS = 10_000;
+const statusLabel: Record<Status, string> = { open: "Aberta", pending: "Pendente", resolved: "Resolvida" };
+const statusVariant: Record<Status, "secondary" | "outline" | "default"> = {
+  open: "secondary", pending: "outline", resolved: "default",
+};
+const filters: { value: "" | Status; label: string }[] = [
+  { value: "", label: "Todas" }, { value: "open", label: "Abertas" },
+  { value: "pending", label: "Pendentes" }, { value: "resolved", label: "Resolvidas" },
+];
+const composerModes: { value: ComposerMode; label: string; icon: typeof Send }[] = [
+  { value: "replies", label: "Resposta", icon: Send },
+  { value: "notes", label: "Nota interna", icon: StickyNote },
+  { value: "simulator/inbound", label: "Simular entrada", icon: FlaskConical },
+];
+function timeLabel(date: string | undefined): string {
+  if (!date) return "";
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return "";
+  return value.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
 
 export function InboxFeature({ api, actorId }: { api: TenantApi; actorId: string }) {
   const [records, setRecords] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [thread, setThread] = useState<Message[]>([]);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState<"" | Status>("");
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [reading, setReading] = useState(false);
+  const [listError, setListError] = useState(false);
+  const [threadError, setThreadError] = useState(false);
   const [sending, setSending] = useState(false);
   const [composer, setComposer] = useState("");
+  const [composerMode, setComposerMode] = useState<ComposerMode>("replies");
   const [dialog, setDialog] = useState(false);
   const [subject, setSubject] = useState("");
   const [linkedPersonId, setLinkedPersonId] = useState("");
   const [people, setPeople] = useState<Person[]>([]);
+  const activeId = useRef<string | null>(null);
+  const listRequest = useRef(0);
+  const threadRequest = useRef(0);
+  const busy = useRef(false);
 
-  const refresh = useCallback(async (status: string) => {
-    setLoading(true);
-    try { setRecords(await api.conversations(status)); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Falha ao carregar conversas."); }
-    finally { setLoading(false); }
-  }, [api]);
-  useEffect(() => { void refresh(filter); }, [refresh, filter]);
-  const open = async (record: Conversation) => {
-    setSelected(record);
-    try { setThread(await api.messages(record.id)); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível ler mensagens."); }
-  };
-  const update = async (task: () => Promise<unknown>) => {
+  const refresh = useCallback(async (showLoading = false) => {
+    const requestId = ++listRequest.current;
+    if (showLoading) setLoading(true);
     try {
-      await task();
-      await refresh(filter);
-      if (selected) setThread(await api.messages(selected.id));
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível atualizar a conversa."); }
+      const result = await api.conversations(filter);
+      if (requestId !== listRequest.current) return;
+      setRecords(result);
+      setListError(false);
+      const current = result.find(item => item.id === activeId.current);
+      if (current) setSelected(current);
+    } catch (error) {
+      if (requestId !== listRequest.current) return;
+      setListError(true);
+      if (showLoading) toast.error(error instanceof Error ? error.message : "Não foi possível consultar a fila.");
+    } finally {
+      if (requestId === listRequest.current) setLoading(false);
+    }
+  }, [api, filter]);
+
+  const readThread = useCallback(async (id: string, showLoading = false) => {
+    const requestId = ++threadRequest.current;
+    if (showLoading) setReading(true);
+    try {
+      const [conversation, messages] = await Promise.all([api.conversation(id), api.messages(id)]);
+      if (requestId !== threadRequest.current || activeId.current !== id) return;
+      setSelected(conversation);
+      setThread(messages);
+      setThreadError(false);
+    } catch (error) {
+      if (requestId !== threadRequest.current || activeId.current !== id) return;
+      setThreadError(true);
+      if (showLoading) toast.error(error instanceof Error ? error.message : "Não foi possível abrir a conversa.");
+    } finally {
+      if (requestId === threadRequest.current && activeId.current === id) setReading(false);
+    }
+  }, [api]);
+
+  useEffect(() => { void refresh(true); }, [refresh]);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible" || busy.current) return;
+      void refresh();
+      if (activeId.current) void readThread(activeId.current);
+    }, POLL_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [refresh, readThread]);
+  useEffect(() => () => {
+    listRequest.current += 1;
+    threadRequest.current += 1;
+    activeId.current = null;
+  }, [api]);
+
+  const choose = (conversation: Conversation) => {
+    activeId.current = conversation.id;
+    setSelected(conversation);
+    setThread([]);
+    setThreadError(false);
+    setComposer("");
+    setComposerMode("replies");
+    void readThread(conversation.id, true);
   };
-  const send = async (type: "replies" | "notes" | "simulator/inbound") => {
-    if (!selected || !composer.trim()) return;
+  const closeMobileThread = () => {
+    activeId.current = null;
+    threadRequest.current += 1;
+    setSelected(null);
+    setThread([]);
+    setReading(false);
+    setComposer("");
+  };
+
+  const mutate = async (action: () => Promise<Conversation>, success: string) => {
+    if (busy.current) return;
+    busy.current = true;
     setSending(true);
     try {
-      await api.message(selected.id, type, { body: composer.trim(), ...(type === "simulator/inbound" ? { externalMessageId: crypto.randomUUID() } : {}) });
+      const result = await action();
+      if (activeId.current === result.id) setSelected(result);
+      await Promise.all([refresh(), readThread(result.id)]);
+      toast.success(success);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar a conversa.");
+    } finally {
+      busy.current = false;
+      setSending(false);
+    }
+  };
+  const send = async () => {
+    if (!selected || !composer.trim() || busy.current) return;
+    if (composer.length > 5000) { toast.error("Limite de 5.000 caracteres por mensagem."); return; }
+    if (composerMode !== "simulator/inbound" && replyBlockReason(selected, actorId)) return;
+    busy.current = true;
+    setSending(true);
+    try {
+      await api.message(selected.id, composerMode, {
+        body: composer.trim(),
+        ...(composerMode === "simulator/inbound" ? { externalMessageId: crypto.randomUUID() } : {}),
+      });
       setComposer("");
-      await open(selected);
-      await refresh(filter);
-      toast.success(type === "notes" ? "Nota interna registrada." : "Mensagem registrada.");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Falha ao enviar."); }
-    finally { setSending(false); }
+      await Promise.all([readThread(selected.id), refresh()]);
+      toast.success(composerMode === "notes" ? "Nota interna registrada." : composerMode === "simulator/inbound" ? "Mensagem simulada recebida." : "Resposta registrada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar a mensagem.");
+    } finally {
+      busy.current = false;
+      setSending(false);
+    }
   };
   const create = async () => {
-    if (!subject.trim()) return;
+    if (!subject.trim() || busy.current) return;
+    busy.current = true;
     setSending(true);
     try {
       const record = await api.createConversation({ subject: subject.trim(), crmPersonId: linkedPersonId || null });
-      setDialog(false); setSubject(""); setLinkedPersonId("");
-      await refresh(filter);
-      await open(record);
-      toast.success("Conversa aberta.");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível criar a conversa."); }
-    finally { setSending(false); }
+      setDialog(false);
+      setSubject("");
+      setLinkedPersonId("");
+      setFilter("");
+      setRecords(previous => [record, ...previous.filter(item => item.id !== record.id)]);
+      choose(record);
+      if (!filter) void refresh(); // A new status filter triggers its own reload effect.
+      toast.success("Conversa criada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível criar a conversa.");
+    } finally {
+      busy.current = false;
+      setSending(false);
+    }
   };
-  const matching = records.filter(r => r.subject.toLowerCase().includes(search.toLowerCase()));
 
-  return <section className="flex h-[calc(100vh-245px)] min-h-[580px] flex-col gap-5">
+  const matching = records.filter(item => item.subject.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")));
+  const replyReason = replyBlockReason(selected, actorId);
+  const replyDisabled = composerMode !== "simulator/inbound" && Boolean(replyReason);
+  const mine = isMine(selected, actorId);
+  const showThread = Boolean(selected);
+  const newConversation = () => {
+    setSubject("");
+    setLinkedPersonId("");
+    setPeople([]);
+    setDialog(true);
+    void api.people().then(setPeople).catch(() => {
+      toast.info("Contatos do CRM indisponíveis. Você pode criar uma conversa sem vínculo.");
+    });
+  };
+
+  return <section className="flex min-h-0 flex-col gap-4 md:h-[calc(100dvh-205px)] md:min-h-[620px]">
     <div className="flex flex-wrap items-end justify-between gap-3">
-      <div><p className="eyebrow">Atendimento</p><h1 className="page-title">Inbox</h1><p className="page-subtitle">Todas as conversas da sua empresa em um lugar.</p></div>
-      <Button size="lg" className="gap-2" onClick={() => { setDialog(true); void api.people().then(setPeople).catch(() => setPeople([])); }}><Plus className="size-4" /> Nova conversa</Button>
+      <div><p className="eyebrow">Central de atendimento</p><h1 className="page-title">Inbox</h1>
+        <p className="page-subtitle">Acompanhe, atribua e responda conversas em um único espaço.</p></div>
+      <div className="flex items-center gap-2">
+        <span className="hidden text-xs text-muted-foreground sm:inline">Sincronização a cada 10 s</span>
+        <Button variant="outline" size="icon-lg" aria-label="Atualizar fila" title="Atualizar fila" onClick={() => void refresh(true)}><RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} /></Button>
+        <Button size="lg" onClick={newConversation}><Plus className="size-4" /> Nova conversa</Button>
+      </div>
     </div>
     <Card className="min-h-0 flex-1 overflow-hidden border-[#e6eaf1] py-0 shadow-[0_5px_28px_-12px_#29334f25]">
-      <CardContent className="grid h-full min-h-0 grid-cols-1 gap-0 p-0 md:grid-cols-[340px_minmax(0,1fr)]">
-        <div className="flex min-h-0 flex-col border-b border-border md:border-r md:border-b-0">
-          <div className="space-y-3 border-b border-border p-4">
-            <div className="flex items-center justify-between"><h2 className="text-sm font-semibold">Conversas</h2><Button variant="ghost" size="icon-sm" aria-label="Recarregar conversas" onClick={() => void refresh(filter)}><RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /></Button></div>
-            <div className="relative"><Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" /><Input className="pl-9" placeholder="Pesquisar conversas..." value={search} onChange={e => setSearch(e.target.value)} /></div>
-            <div className="flex flex-wrap gap-1.5">{[["", "Todas"],["open","Abertas"],["pending","Pendentes"],["resolved","Resolvidas"]].map(([status,label]) => <button key={status} className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${filter === status ? "bg-[#e8efff] text-[#345bd2]" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`} onClick={() => setFilter(status)}>{label}</button>)}</div>
+      <CardContent className="grid h-full min-h-[560px] grid-cols-1 p-0 md:min-h-0 md:grid-cols-[330px_minmax(0,1fr)]">
+        <div className={(showThread ? "hidden " : "flex ") + "min-h-0 flex-col border-border md:flex md:border-r"}>
+          <div className="space-y-3 border-b border-border bg-card p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold">Fila de conversas</h2>
+              <Badge variant="secondary">{records.length} conversas</Badge>
+            </div>
+            <div className="relative"><Search className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground" />
+              <Input aria-label="Pesquisar conversas" className="pl-9" placeholder="Pesquisar por assunto..." value={search} onChange={event => setSearch(event.target.value)} />
+            </div>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar conversas por status">
+              {filters.map(item => <button type="button" key={item.value} aria-pressed={filter === item.value}
+                className={"rounded-full px-3 py-1.5 text-xs font-medium transition " + (filter === item.value ? "bg-[#e8efff] text-[#345bd2]" : "bg-muted/50 text-muted-foreground hover:bg-muted")}
+                onClick={() => setFilter(item.value)}>{item.label}</button>)}
+            </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {loading && <div className="flex items-center gap-2 p-5 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Atualizando...</div>}
-            {!loading && matching.length === 0 && <div className="flex flex-col items-center gap-2 p-10 text-center"><Inbox className="size-8 text-muted-foreground/40" /><p className="text-sm font-medium">Nenhuma conversa encontrada</p><p className="text-xs text-muted-foreground">Crie uma conversa para iniciar.</p></div>}
-            {matching.map(record => <button key={record.id} onClick={() => void open(record)} className={`flex w-full items-start gap-3 border-b border-border px-4 py-4 text-left transition ${selected?.id === record.id ? "bg-[#eef3ff]" : "hover:bg-muted/40"}`}>
+          <div className="min-h-0 flex-1 overflow-y-auto" aria-label="Lista de conversas">
+            {listError && <div role="alert" className="border-b border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Não foi possível atualizar a fila. <button className="font-semibold underline" onClick={() => void refresh(true)}>Tentar novamente</button></div>}
+            {loading && records.length === 0 && <p className="flex items-center gap-2 p-5 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Carregando conversas...</p>}
+            {!loading && !listError && matching.length === 0 && <div className="flex flex-col items-center gap-2 p-10 text-center">
+              <Inbox className="size-8 text-muted-foreground/40" /><p className="text-sm font-semibold">Nenhuma conversa encontrada</p>
+              <p className="text-xs text-muted-foreground">Ajuste o filtro ou abra um novo atendimento.</p>
+            </div>}
+            {matching.map(record => <button type="button" key={record.id} aria-current={selected?.id === record.id ? "true" : undefined}
+              onClick={() => choose(record)}
+              className={"flex w-full items-start gap-3 border-b border-border px-4 py-4 text-left transition-colors " + (selected?.id === record.id ? "bg-[#eef3ff]" : "hover:bg-muted/40")}>
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e5ecff] text-[#476bd0]"><MessageCircle className="size-5" /></span>
-              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{record.subject}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{record.channel} · {record.assignedTo ? "Atribuída" : "Sem atendente"}</span></span>
+              <span className="min-w-0 flex-1">
+                <strong className="block truncate text-sm">{record.subject}</strong>
+                <span className="mt-1 block truncate text-xs text-muted-foreground">{record.assignedTo ? (record.assignedTo === actorId ? "Com você" : "Com outro atendente") : "Sem atendente"} · {record.handoff === "bot" ? "Bot" : "Humano"}</span>
+                <span className="mt-1 block text-[11px] text-muted-foreground">{timeLabel(record.updatedAt)}</span>
+              </span>
               <Badge variant={statusVariant[record.status]} className="text-[10px]">{statusLabel[record.status]}</Badge>
             </button>)}
           </div>
-          <div className="border-t border-border p-3 text-xs text-muted-foreground">{records.length} conversas nesta visualização</div>
+          <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">Canal atual: simulação · Máximo de 100 conversas por consulta</p>
         </div>
-        <div className="flex min-h-0 min-w-0 flex-col bg-[#fcfdff]">
-          {!selected && <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"><span className="mb-2 rounded-2xl bg-[#eaf0ff] p-5 text-[#4264c8]"><MessageCircle className="size-8" /></span><h3 className="font-semibold">Seu atendimento começa aqui</h3><p className="max-w-sm text-sm text-muted-foreground">Selecione uma conversa à esquerda ou abra um novo atendimento.</p></div>}
+
+        <div className={(showThread ? "flex " : "hidden ") + "min-h-0 min-w-0 flex-col bg-[#fcfdff] md:flex"}>
+          {!selected && <div className="flex h-full min-h-[480px] flex-col items-center justify-center gap-3 p-8 text-center">
+            <span className="rounded-2xl bg-[#eaf0ff] p-5 text-[#4264c8]"><MessageCircle className="size-8" /></span>
+            <h3 className="font-semibold">Selecione um atendimento</h3>
+            <p className="max-w-sm text-sm text-muted-foreground">Abra uma conversa na fila para ver o histórico, assumir o atendimento ou responder.</p>
+          </div>}
           {selected && <>
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-5 py-4">
-              <div className="min-w-0"><h3 className="truncate text-sm font-bold">{selected.subject}</h3><p className="text-xs text-muted-foreground">{selected.crmPersonId ? "Vinculada a contato CRM" : "Conversa independente"} · {selected.channel}</p></div>
-              <div className="flex gap-2"><Badge variant={statusVariant[selected.status]}>{statusLabel[selected.status]}</Badge><Button variant="outline" size="sm" onClick={() => void update(async () => { const next = selected.status === "resolved" ? "open" : "resolved"; const result = await api.setStatus(selected.id, next); setSelected(result); })}><CircleCheck className="size-4" /> {selected.status === "resolved" ? "Reabrir" : "Resolver"}</Button>
-                {actorId && <Button variant="outline" size="sm" onClick={() => void update(async () => { const result = await api.setAssignment(selected.id, actorId); setSelected(result); })}><UserRoundCheck className="size-4" /> Assumir</Button>}
+            <div className="space-y-3 border-b border-border bg-card px-4 py-4 lg:px-5">
+              <div className="flex flex-wrap items-start gap-2">
+                <Button variant="ghost" size="icon-sm" className="md:hidden" aria-label="Voltar para conversas" onClick={closeMobileThread}><ArrowLeft className="size-4" /></Button>
+                <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-bold">{selected.subject}</h2>
+                  <p className="text-xs text-muted-foreground">{selected.crmPersonId ? "Vinculada a contato CRM" : "Sem contato CRM"} · {selected.channel}</p></div>
+                <Badge variant={statusVariant[selected.status]}>{statusLabel[selected.status]}</Badge>
+                <Badge variant="outline" className="gap-1">{selected.handoff === "bot" ? <Bot className="size-3.5" /> : <UsersRound className="size-3.5" />}{selected.handoff === "bot" ? "Bot" : "Humano"}</Badge>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {(["open", "pending", "resolved"] as const).map(status =>
+                  <Button key={status} variant={selected.status === status ? "secondary" : "outline"} size="sm"
+                    disabled={sending || selected.status === status}
+                    onClick={() => void mutate(() => api.setStatus(selected.id, status), "Status atualizado.")}>
+                    {status === "open" ? <MessageCircle className="size-3.5" /> : status === "pending" ? <Clock3 className="size-3.5" /> : <CircleCheck className="size-3.5" />}
+                    {statusLabel[status]}
+                  </Button>)}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {actorId && <Button size="sm" variant="outline" disabled={sending}
+                  onClick={() => void mutate(() => api.setAssignment(selected.id, mine ? null : actorId), mine ? "Conversa liberada." : "Atendimento assumido.")}>
+                  {mine ? <UserMinus className="size-3.5" /> : <UserRoundCheck className="size-3.5" />}
+                  {mine ? "Liberar" : "Assumir"}
+                </Button>}
+                <Button size="sm" variant="outline" disabled={sending}
+                  onClick={() => void mutate(() => api.setHandoff(selected.id, selected.handoff === "human" ? "bot" : "human"), "Modo de atendimento atualizado.")}>
+                  {selected.handoff === "human" ? <Bot className="size-3.5" /> : <UsersRound className="size-3.5" />}
+                  {selected.handoff === "human" ? "Transferir ao bot" : "Transferir ao humano"}
+                </Button>
+                <span className="ml-auto text-xs text-muted-foreground">{mine ? "Atribuída a você" : selected.assignedTo ? "Atribuída a outro atendente" : "Não atribuída"}</span>
               </div>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-[#f7f9fd] p-5">
-              {thread.length === 0 && <div className="my-auto text-center text-sm text-muted-foreground">Esta conversa ainda não tem mensagens.</div>}
-              {thread.map((message, index) => <div key={message.id || index} className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm shadow-xs ${message.direction === "outbound" ? "ml-auto bg-[#3b61db] text-white" : message.direction === "internal" ? "border border-amber-200 bg-amber-50 text-amber-900" : "border border-border bg-white"}`}><p className="mb-1 text-[10px] font-semibold tracking-wide opacity-65">{message.direction === "internal" ? "NOTA INTERNA" : message.direction === "outbound" ? "EQUIPE" : "CLIENTE"}</p><p className="whitespace-pre-wrap">{message.body}</p></div>)}
+            <div className="flex min-h-[240px] flex-1 flex-col gap-3 overflow-y-auto bg-[#f7f9fd] p-4 lg:p-5" aria-label="Histórico de mensagens" aria-live="polite">
+              {reading && <p className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Carregando histórico...</p>}
+              {threadError && <p role="alert" className="text-sm text-amber-900">Falha ao ler o histórico. <button className="underline" onClick={() => void readThread(selected.id, true)}>Tentar novamente</button></p>}
+              {!reading && !threadError && thread.length === 0 && <p className="my-auto text-center text-sm text-muted-foreground">Esta conversa ainda não tem mensagens.</p>}
+              {thread.map(message => <div key={message.id} className={"max-w-[90%] rounded-2xl px-4 py-3 text-sm shadow-xs sm:max-w-[75%] " + (
+                message.direction === "outbound" ? "ml-auto bg-[#3b61db] text-white" :
+                  message.direction === "internal" ? "border border-amber-200 bg-amber-50 text-amber-950" : "border border-border bg-white"
+              )}>
+                <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide opacity-75">
+                  {message.direction === "internal" ? "Nota interna" : message.direction === "outbound" ? "Equipe" : "Cliente"}
+                  <time className="ml-auto font-normal normal-case">{timeLabel(message.createdAt)}</time>
+                </div>
+                <p className="whitespace-pre-wrap break-words">{message.body}</p>
+              </div>)}
             </div>
-            <form className="space-y-2 border-t border-border bg-card p-4" onSubmit={e => { e.preventDefault(); void send("replies"); }}>
-              <label htmlFor="message-composer" className="sr-only">Mensagem ou nota</label><Textarea id="message-composer" placeholder="Escreva uma mensagem..." rows={2} className="min-h-18 resize-none" value={composer} onChange={e => setComposer(e.target.value)} />
-              <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex gap-1.5"><Button size="sm" type="button" variant="outline" disabled={sending || !composer.trim()} onClick={() => void send("notes")}>Nota interna</Button><Button size="sm" type="button" variant="ghost" disabled={sending || !composer.trim()} onClick={() => void send("simulator/inbound")}><ArrowUpRight className="size-3.5" /> Simular entrada</Button></div><Button size="sm" type="submit" disabled={sending || !composer.trim()}><Send className="size-4" /> Enviar</Button></div>
-            </form>
+            <div className="space-y-3 border-t border-border bg-card p-4">
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tipo de mensagem">
+                {composerModes.map(mode => <button type="button" key={mode.value} aria-pressed={composerMode === mode.value}
+                  className={"flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors " + (composerMode === mode.value ? "bg-[#e8efff] text-[#345bd2]" : "bg-muted/50 text-muted-foreground hover:bg-muted")}
+                  onClick={() => setComposerMode(mode.value)}><mode.icon className="size-3.5" />{mode.label}</button>)}
+              </div>
+              {composerMode !== "simulator/inbound" && replyReason && <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{replyReason}</p>}
+              {composerMode === "simulator/inbound" && <p className="text-xs text-muted-foreground">Teste interno: não envia mensagens para um canal externo.</p>}
+              <form onSubmit={event => { event.preventDefault(); void send(); }} className="space-y-2">
+                <label htmlFor="inbox-composer" className="sr-only">{composerMode === "notes" ? "Nota interna" : "Mensagem"}</label>
+                <Textarea id="inbox-composer" rows={2} maxLength={5000} value={composer} disabled={sending || replyDisabled}
+                  placeholder={composerMode === "notes" ? "Nota visível apenas à equipe..." : composerMode === "simulator/inbound" ? "Simular mensagem recebida..." : "Digite sua resposta..."}
+                  onChange={event => setComposer(event.target.value)} className="min-h-18 resize-y" />
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">{composer.length}/5000 caracteres</span>
+                  <Button type="submit" disabled={sending || replyDisabled || !composer.trim()}><Send className="size-4" />
+                    {sending ? "Processando..." : composerMode === "notes" ? "Registrar nota" : composerMode === "simulator/inbound" ? "Simular entrada" : "Enviar resposta"}
+                  </Button>
+                </div>
+              </form>
+            </div>
           </>}
         </div>
       </CardContent>
     </Card>
+
     <Dialog open={dialog} onOpenChange={setDialog}><DialogContent>
-      <DialogHeader><DialogTitle>Nova conversa</DialogTitle><DialogDescription>Crie um atendimento simulado no tenant atual. Integrações reais de WhatsApp serão instaladas como módulos posteriormente.</DialogDescription></DialogHeader>
-      <form className="space-y-4" onSubmit={e => { e.preventDefault(); void create(); }}>
-        <div className="space-y-1.5"><label className="text-sm font-semibold" htmlFor="conversation-subject">Assunto</label><Input id="conversation-subject" required maxLength={160} value={subject} onChange={e => setSubject(e.target.value)} placeholder="Ex.: Solicitação de orçamento" /></div>
-        <div className="space-y-1.5"><label className="text-sm font-semibold" htmlFor="conversation-person">Contato CRM (opcional)</label><select id="conversation-person" className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm" value={linkedPersonId} onChange={e => setLinkedPersonId(e.target.value)}><option value="">Sem contato vinculado</option>{people.map(person => <option key={person.id} value={person.id}>{person.name}</option>)}</select></div>
-        <DialogFooter><Button variant="outline" type="button" onClick={() => setDialog(false)}>Cancelar</Button><Button type="submit" disabled={sending}>{sending ? "Abrindo..." : "Abrir conversa"}</Button></DialogFooter>
+      <DialogHeader><DialogTitle>Nova conversa</DialogTitle>
+        <DialogDescription>Crie uma conversa de demonstração no tenant atual. Nenhuma mensagem será enviada ao WhatsApp.</DialogDescription></DialogHeader>
+      <form className="space-y-4" onSubmit={event => { event.preventDefault(); void create(); }}>
+        <div className="space-y-1.5"><label htmlFor="inbox-subject" className="text-sm font-semibold">Assunto</label>
+          <Input id="inbox-subject" required maxLength={160} value={subject} onChange={event => setSubject(event.target.value)} placeholder="Ex.: Atendimento de novo cliente" /></div>
+        <div className="space-y-1.5"><label htmlFor="inbox-person" className="text-sm font-semibold">Contato CRM (opcional)</label>
+          <select id="inbox-person" className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm" value={linkedPersonId}
+            onChange={event => setLinkedPersonId(event.target.value)}>
+            <option value="">Sem vínculo com contato</option>{people.map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
+          </select></div>
+        <DialogFooter><Button variant="outline" type="button" onClick={() => setDialog(false)}>Cancelar</Button>
+          <Button type="submit" disabled={sending || !subject.trim()}>{sending ? "Criando..." : "Criar conversa"}</Button></DialogFooter>
       </form>
     </DialogContent></Dialog>
   </section>;

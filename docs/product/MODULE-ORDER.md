@@ -20,3 +20,8 @@ Cada módulo passa por:
 Product Requirements → Business Rules → UX/Security → Technical Breakdown → Construction → Integration → Tests → Security Review → Usability Review → Documentation & Enclosure.
 
 Não detalhar tecnicamente módulos posteriores enquanto o módulo corrente não tiver Product Gate suficiente para avançar.
+
+
+## Priorização operacional (exceção registrada em 2026-11-01)
+
+O responsável pelo produto determinou iniciar a implementação da **Inbox** mesmo com pendências abertas na **UI do Core CRM**. A sequência de lançamento e os critérios de conclusão permanecem válidos, mas as tarefas de CRM não bloqueiam o início da Inbox neste ciclo. Nenhum módulo é marcado DONE por ter somente backend/CI aprovado.
