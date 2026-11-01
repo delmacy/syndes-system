@@ -3,16 +3,46 @@ import {createHash} from "node:crypto";
 import type {Actor,TenancyPort,AuthorizationPort} from "@syndes/core-kernel";
 import type {Pool} from "pg";
 export const tenantUUID=(id:unknown):id is string=>typeof id==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-export class ActorVerifier{
+/** Classification is based ONLY on cryptographically verified Keycloak claims.
+ * Public/browser clients never become services by passing a request header. */
+export function actorFromVerifiedClaims(
+  payload:Readonly<Record<string,unknown>>,
+  trustedServiceClients:ReadonlySet<string>,
+):Actor {
+  const sub=payload.sub;
+  if(typeof sub!=="string"||!sub.trim())throw new Error("missing subject");
+  const azp=payload.azp;
+  const username=payload.preferred_username;
+  const serviceName=typeof azp==="string"?"service-account-"+azp:"";
+  if(typeof username==="string"&&username.startsWith("service-account-")){
+    if(typeof azp!=="string"||!trustedServiceClients.has(azp)||username!==serviceName)
+      throw new Error("Service identity not allowed");
+    return Object.freeze({id:sub,kind:"service" as const});
+  }
+  if(typeof azp==="string"&&trustedServiceClients.has(azp)){
+    // A trusted client ID must not be used to mint a human token here.
+    throw new Error("Unexpected human token for service-only client");
+  }
+  return Object.freeze({id:sub,kind:"user" as const});
+}
+export class ActorVerifier {
   private readonly keys;
-  constructor(private readonly issuer:string,private readonly audience:string,jwksUrl:string){
+  private readonly trustedServices:ReadonlySet<string>;
+  constructor(
+    private readonly issuer:string,
+    private readonly audience:string,
+    jwksUrl:string,
+    trustedServiceClients=process.env.CORE_TRUSTED_SERVICE_CLIENT_IDS??"",
+  ){
     this.keys=createRemoteJWKSet(new URL(jwksUrl));
+    this.trustedServices=new Set(trustedServiceClients.split(",").map(x=>x.trim()).filter(Boolean));
   }
   async verify(header:string|undefined):Promise<Actor>{
     if(!header?.startsWith("Bearer "))throw new Error("missing bearer");
-    const {payload}=await jwtVerify(header.slice(7),this.keys,{issuer:this.issuer,audience:this.audience,algorithms:["RS256"]});
-    if(!payload.sub?.trim())throw new Error("missing subject");
-    return Object.freeze({id:payload.sub,kind:"user" as const});
+    const {payload}=await jwtVerify(header.slice(7),this.keys,{
+      issuer:this.issuer,audience:this.audience,algorithms:["RS256"],
+    });
+    return actorFromVerifiedClaims(payload,this.trustedServices);
   }
 }
 export class PgMembership implements TenancyPort{
