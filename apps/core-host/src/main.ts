@@ -1,12 +1,9 @@
 import "reflect-metadata";
-import {readFile} from "node:fs/promises";
-import {join} from "node:path";
-import {Controller,Get,Header,Post,Param,Headers,Body,Module,Injectable,Inject,HttpException,HttpStatus,OnModuleDestroy} from "@nestjs/common";
+import {Controller,Get,Post,Param,Headers,Body,Module,Global,Injectable,Inject,HttpException,HttpStatus,OnModuleDestroy} from "@nestjs/common";
 import {NestFactory} from "@nestjs/core";
 import {Pool} from "pg";
-import {CoreKernel,AccessDeniedError} from "@syndes/core-kernel";
-import {registeredModules} from "./modules.js";
-import {CrmController,CrmHost} from "./crm.controller.js";
+import {CoreKernel,AccessDeniedError,type ModuleDefinition,type SyndesPlugin} from "@syndes/core-kernel";
+import {loadInstalledPlugins,installModuleAssets} from "./module-host.js";
 import {TenantPgProvider} from "./tenant-database.js";
 import {ActorVerifier,PgMembership,FgaPermission,tenantUUID} from "./adapters.js";
 import {loadCoreSecrets,openBaoSourceFromEnv,type CoreRuntimeSecrets} from "./secrets.js";
@@ -19,10 +16,11 @@ class CoreService implements OnModuleDestroy{
  readonly db:Pool;
  readonly verifier:ActorVerifier;
  readonly kernel:CoreKernel;
- constructor(@Inject(RUNTIME_SECRETS) credentials:CoreRuntimeSecrets) {
+ constructor(@Inject(RUNTIME_SECRETS) credentials:CoreRuntimeSecrets,
+             @Inject("SYNDES_MODULE_DEFINITIONS") modules:readonly ModuleDefinition[]) {
   this.db=new Pool({connectionString:credentials.controlDbUrl,max:5,connectionTimeoutMillis:3000,idleTimeoutMillis:10000});
   this.verifier=new ActorVerifier(env("CORE_KEYCLOAK_ISSUER"),env("CORE_KEYCLOAK_AUDIENCE"),env("CORE_KEYCLOAK_JWKS_URL"));
-  this.kernel=new CoreKernel({modules:registeredModules,
+  this.kernel=new CoreKernel({modules,
    tenancy:new PgMembership(this.db),
    authorization:new FgaPermission(env("CORE_OPENFGA_URL"),env("CORE_OPENFGA_STORE_ID"),credentials.openfgaToken)});
  }
@@ -32,23 +30,15 @@ class CoreService implements OnModuleDestroy{
 
 @Controller()
 class CoreController{
- constructor(private readonly service:CoreService){}
+ constructor(private readonly service:CoreService,
+             @Inject("SYNDES_PLUGINS") private readonly plugins:readonly SyndesPlugin[]){}
  @Get("healthz")health(){return {status:"ok"}}
- @Get("crm/config")
- crmConfig(){
-  return {issuer:env("CORE_KEYCLOAK_ISSUER"),clientId:process.env.CORE_CRM_PUBLIC_CLIENT_ID??"syndes-crm-ui"};
+ @Get("modules/:moduleId/config")
+ moduleConfig(@Param("moduleId") id:string){
+  const mod=this.plugins.find(x=>x.definition.id===id);
+  if(!mod?.publicOidcClientId)throw new HttpException("Unknown module",404);
+  return {issuer:env("CORE_KEYCLOAK_ISSUER"),clientId:mod.publicOidcClientId};
  }
- @Get("crm")
- @Header("Content-Type","text/html; charset=utf-8")
- @Header("Content-Security-Policy","default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https:; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
- async crmUi(){return readFile(join(process.cwd(),"public/crm.html"),"utf8")}
- @Get("crm/app.js")
- @Header("Content-Type","application/javascript; charset=utf-8")
- @Header("Cache-Control","no-store")
- async crmJs(){return readFile(join(process.cwd(),"public/app.js"),"utf8")}
- @Get("crm/styles.css")
- @Header("Content-Type","text/css; charset=utf-8")
- async crmCss(){return readFile(join(process.cwd(),"public/styles.css"),"utf8")}
  @Get("readyz")async ready(){await this.service.ready();return {status:"ready"}}
  @Post("v1/tenants/:tenantId/authorize")
  async check(@Param("tenantId") tenantId:string,@Headers("authorization") header:string|undefined,@Body() body:unknown){
@@ -65,18 +55,42 @@ class CoreController{
   }
  }
 }
-@Module({controllers:[CoreController,CrmController],providers:[
-  {provide:RUNTIME_SECRETS,useFactory:async()=>loadCoreSecrets(openBaoSourceFromEnv())},
-  CoreService,
-  {provide:"SYNDES_CORE_API",useExisting:CoreService},
-  TenantPgProvider,CrmHost,
-]})class AppModule{}
+/** Infrastructure is global and exports only the narrowly scoped host ports.
+ * Business Nest modules are contributed by trusted, installed packages. */
+function createHostModule(plugins:readonly SyndesPlugin[]){
+  const definitions:readonly ModuleDefinition[]=Object.freeze([
+    {id:"platform",version:"0.1.0"},
+    ...plugins.map(p=>p.definition),
+  ]);
+  @Global()
+  @Module({
+    providers:[
+      {provide:RUNTIME_SECRETS,useFactory:async()=>loadCoreSecrets(openBaoSourceFromEnv())},
+      {provide:"SYNDES_MODULE_DEFINITIONS",useValue:definitions},
+      {provide:"SYNDES_PLUGINS",useValue:plugins},
+      CoreService,
+      {provide:"SYNDES_CORE_API",useExisting:CoreService},
+      TenantPgProvider,
+      {provide:"SYNDES_TENANT_DB",useExisting:TenantPgProvider},
+    ],
+    exports:[CoreService,"SYNDES_CORE_API","SYNDES_TENANT_DB","SYNDES_PLUGINS"],
+  })
+  class HostRuntimeModule{}
+  @Module({
+    imports:[HostRuntimeModule,...plugins.map(p=>p.apiModule)],
+    controllers:[CoreController],
+  })
+  class HostApplicationModule{}
+  return HostApplicationModule;
+}
 async function bootstrap(){
  const port=Number(process.env.CORE_PORT??"8082");
  if(!Number.isInteger(port)||port<1||port>65535)throw new Error("invalid CORE_PORT");
- const app=await NestFactory.create(AppModule,{logger:["error","warn","log"]});
+ const plugins=await loadInstalledPlugins();
+ const app=await NestFactory.create(createHostModule(plugins),{logger:["error","warn","log"]});
  app.enableShutdownHooks();
  await app.get(CoreService).ready();
+ installModuleAssets(app,plugins);
  await app.listen(port,"0.0.0.0");
 }
 bootstrap().catch(()=>{process.stderr.write("Core Host startup failed; verify OpenBao, PostgreSQL and identity configuration\n");process.exitCode=1});
