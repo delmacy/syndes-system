@@ -4,7 +4,7 @@ api_addr = "https://openbao:8200"
 cluster_addr = "https://openbao:8201"
 
 storage "raft" {
-  path    = "/openbao/data"
+  path    = "/openbao/file/raft"
   node_id = "syndes-openbao-1"
 }
 
