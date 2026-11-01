@@ -10,3 +10,6 @@ export type { Actor, TenancyPort, TenantAccessQuery, AuthorizationPort,
   AuthorizationQuery, AuthorizationRequest } from "./contracts.js";
 export type { CoreKernelOptions } from "./kernel.js";
 export type { ModuleDefinition, ModuleInitializationContext } from "./module-registry.js";
+
+export {defineSyndesModule} from "./plugin.js";
+export type {SyndesPlugin} from "./plugin.js";
