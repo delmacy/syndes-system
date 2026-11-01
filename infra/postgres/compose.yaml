@@ -16,7 +16,9 @@ services:
       - ./bootstrap/00-init.sh:/docker-entrypoint-initdb.d/00-init.sh:ro
       - ./bootstrap/control.schema:/opt/syndes/control.schema:ro
       - ./bootstrap/provision-tenant.sh:/opt/syndes/provision-tenant.sh:ro
-    networks: [syndes-data]
+    networks:
+      syndes-data:
+        aliases: [syndes-postgres]
     healthcheck:
       test: ["CMD-SHELL","pg_isready -U postgres -d postgres"]
       interval: 10s
