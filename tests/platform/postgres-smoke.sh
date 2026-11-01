@@ -27,4 +27,11 @@ db="syndes_tenant_${TENANT_ID//-/}"
 if "${compose[@]}" exec -T postgres sh -c 'PGPASSWORD="$PG_CORE_PASSWORD" psql -h 127.0.0.1 -U syndes_core -d '"$db"' -Atc "SELECT 1"' >/dev/null 2>&1; then
   echo "Core service role can connect to a tenant database" >&2; exit 1
 fi
-echo "All PostgreSQL isolation and provisioning smoke tests passed."
+# Exercise backup and restore on a separate, disposable CI database.
+"${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "CREATE DATABASE syndes_restore_ci" >/dev/null
+"${compose[@]}" exec -T postgres pg_dump -U postgres -d syndes_control | \
+  "${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d syndes_restore_ci >/dev/null
+"${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d syndes_restore_ci -Atc \
+  "SELECT database_name FROM tenant_registry WHERE tenant_id='$TENANT_ID'" | grep -qx "$db"
+"${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "DROP DATABASE syndes_restore_ci" >/dev/null
+echo "All PostgreSQL isolation, provisioning, and restore smoke tests passed."
