@@ -4,6 +4,7 @@ on:
     paths:
       - "apps/core-host/**"
       - "modules/core-crm/**"
+      - "modules/inbox/**"
       - "packages/core-kernel/**"
       - "infra/**"
       - "tests/platform/**"
@@ -12,6 +13,7 @@ on:
     paths:
       - "apps/core-host/**"
       - "modules/core-crm/**"
+      - "modules/inbox/**"
       - "infra/**"
       - "tests/platform/**"
       - ".github/workflows/core-host-infra.yml"
@@ -29,6 +31,8 @@ jobs:
         run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
       - name: Build CRM business module
         run: cd modules/core-crm && npm ci --no-audit --no-fund && npm run build
+      - name: Build Inbox business module
+        run: cd modules/inbox && npm ci --no-audit --no-fund && npm run build
       - name: Install host dependencies
         run: cd apps/core-host && npm ci --no-audit --no-fund
       - name: Strict type checks
@@ -112,6 +116,7 @@ jobs:
         run: |
           cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
           cd ../../modules/core-crm && npm ci --no-audit --no-fund && npm run build
+          cd ../../modules/inbox && npm ci --no-audit --no-fund && npm run build
           cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run build
       - name: Create private Docker data network
         run: docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data

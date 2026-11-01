@@ -1,5 +1,6 @@
 {
   "modules": [
-    "@syndes/core-crm/plugin"
+    "@syndes/core-crm/plugin",
+    "@syndes/core-inbox/plugin"
   ]
 }
