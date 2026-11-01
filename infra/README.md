@@ -35,3 +35,7 @@ No tenant is activated or granted membership automatically. Activation and FGA t
 - Set conservative memory pools; monitor actual RSS under realistic load before setting replica counts.
 - Docker initialization scripts run only with a new volume. Do not rely on them as a migrations engine for an existing PostgreSQL volume.
 - GitHub Actions validates syntax and a disposable PostgreSQL instance; production auth bootstrap and external Keycloak HTTPS integration remain separate acceptance gates.
+
+## OpenFGA resource identities
+
+The Core Host maps (tenant UUID, domain resource name) to a stable SHA-256 hex key. An OpenFGA resource object is `resource:<sha256(tenantUUID + "|" + resource)>`, not a raw `resource:<tenant>:<domain>:<id>` tuple. This avoids invalid OpenFGA object IDs, prevents accidental resource collisions between tenants, and keeps identifiers opaque. Use the same mapping in onboarding tuple writers, and test it before releasing any module.
