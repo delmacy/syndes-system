@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Clock3, ContactRound, Mail, NotebookText, Phone, RefreshCw, UserRoundX } from "lucide-react";
+import { ArrowUpRight, Clock3, ContactRound, Mail, NotebookText, Phone, RefreshCw, UserRoundX, Building2, Tags } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { CrmNote, CrmTimelineEvent, Person, TenantApi } from "@/lib/api";
+import type { CrmNote, CrmTimelineEvent, CrmTag, Organization, Person, TenantApi } from "@/lib/api";
 
 type State = {
   person: Person | null;
   notes: CrmNote[] | null;
   timeline: CrmTimelineEvent[] | null;
+  organizations: Organization[] | null;
+  tags: CrmTag[] | null;
   error: string | null;
   loading: boolean;
 };
-const empty: State = { person: null, notes: null, timeline: null, error: null, loading: false };
+const empty: State = { person: null, notes: null, timeline: null, organizations: null, tags: null, error: null, loading: false };
 
 function displayDate(value: string): string {
   const date = new Date(value);
@@ -36,8 +38,9 @@ export function CustomerContextPanel({ api, personId, onOpenCrm }: {
   useEffect(() => {
     if (!personId) return;
     let cancelled = false;
-    void Promise.allSettled([api.person(personId), api.personNotes(personId), api.personTimeline(personId)])
-      .then(([person, notes, timeline]) => {
+    void Promise.allSettled([api.person(personId), api.personNotes(personId), api.personTimeline(personId),
+      api.personOrganizations(personId), api.personTags(personId)])
+      .then(([person, notes, timeline, organizations, tags]) => {
         if (cancelled) return;
         const value = person.status === "fulfilled" ? person.value : null;
         const error = person.status === "rejected"
@@ -47,6 +50,8 @@ export function CustomerContextPanel({ api, personId, onOpenCrm }: {
           person: value,
           notes: notes.status === "fulfilled" ? notes.value : null,
           timeline: timeline.status === "fulfilled" ? timeline.value : null,
+          organizations: organizations.status === "fulfilled" ? organizations.value : null,
+          tags: tags.status === "fulfilled" ? tags.value : null,
           error, loading: false,
         });
       });
@@ -85,6 +90,21 @@ export function CustomerContextPanel({ api, personId, onOpenCrm }: {
           </div>
           <Button variant="outline" size="sm" className="w-full" onClick={onOpenCrm}>Abrir módulo CRM <ArrowUpRight className="size-3.5"/></Button>
         </div>
+        <section className="space-y-2" aria-label="Organizações do contato">
+          <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-600"><Building2 className="size-4"/> Organizações</h4>
+          {data.organizations === null && <p className="text-xs text-muted-foreground">Organizações indisponíveis ou sem permissão.</p>}
+          {data.organizations?.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma organização vinculada.</p>}
+          {data.organizations?.map(org => <div key={org.id} className="rounded-lg border border-border p-2.5 text-xs">
+            <p className="font-semibold">{org.tradeName || org.legalName}</p>
+            {org.tradeName && <p className="mt-1 text-muted-foreground">{org.legalName}</p>}
+          </div>)}
+        </section>
+        <section className="space-y-2" aria-label="Tags do contato">
+          <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-600"><Tags className="size-4"/> Tags</h4>
+          {data.tags === null && <p className="text-xs text-muted-foreground">Tags indisponíveis ou sem permissão.</p>}
+          {data.tags?.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma tag.</p>}
+          {data.tags && data.tags.length > 0 && <div className="flex flex-wrap gap-1.5">{data.tags.map(tag => <Badge variant="outline" key={tag.id}>{tag.label}</Badge>)}</div>}
+        </section>
         <section className="space-y-2" aria-label="Notas do contato">
           <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-600"><NotebookText className="size-4"/> Notas CRM</h4>
           {data.notes === null && <p className="text-xs text-muted-foreground">Notas indisponíveis ou sem permissão.</p>}
@@ -104,7 +124,7 @@ export function CustomerContextPanel({ api, personId, onOpenCrm }: {
             <time className="text-[10px] text-muted-foreground">{displayDate(item.recordedAt)}</time>
           </div>)}
         </section>
-        <p className="border-t border-border pt-3 text-[11px] text-muted-foreground">Dados exibidos conforme a autorização do seu usuário. Organizações e tags serão integradas à ficha do CRM.</p>
+        <p className="border-t border-border pt-3 text-[11px] text-muted-foreground">Dados consultados diretamente no CRM, conforme as permissões do atendente.</p>
       </>}
     </div>
   </aside>;

@@ -9,6 +9,7 @@ export type Message = {
   id: string; body: string; direction: string; createdAt?: string; authorId?: string;
 };
 export type CrmNote = { id: string; body: string; createdAt: string; createdBy: string };
+export type CrmTag = { id: string; label: string };
 export type CrmTimelineEvent = { id: number; action: string; recordedAt: string; actorId: string };
 export type QueueFilter = "all" | "mine" | "unassigned";
 export type InboxMetrics = { open: number; pending: number; resolved: number; unassigned: number };
@@ -65,6 +66,12 @@ export class TenantApi {
   }
   personTimeline(id: string) {
     return this.request<CrmTimelineEvent[]>("crm", "/people/" + encodeURIComponent(id) + "/timeline");
+  }
+  personOrganizations(id: string) {
+    return this.request<Organization[]>("crm", "/people/" + encodeURIComponent(id) + "/organizations");
+  }
+  personTags(id: string) {
+    return this.request<CrmTag[]>("crm", "/people/" + encodeURIComponent(id) + "/tags");
   }
   createPerson(body: { name: string; email?: string; phone?: string }) {
     return this.request<Person>("crm", "/people", "POST", body);

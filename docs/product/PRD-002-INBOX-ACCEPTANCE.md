@@ -52,3 +52,12 @@ Não confundir testes mockados de UI com aceite de segurança real. O backend at
 - [x] Layout desktop de três painéis e painel lateral mobile, testados no Chrome com dados mockados.
 - [ ] Testes de aceite positivo/negativo do filtro por responsável com Keycloak real, múltiplos atendentes e FGA.
 - [ ] Organizações/tags no contexto somente quando existirem endpoints autorizados aprovados para elas.
+
+## Ficha CRM e experiência de composição (2026-11-01)
+
+- [x] Exibir organizações e tags da pessoa por endpoints de leitura individualmente autorizados no CRM e com filtro de tenant no repositório.
+- [x] Rascunhos apenas em memória, separados por conversa e tipo de mensagem, sem armazenamento no navegador.
+- [x] Atalho Ctrl/Cmd+Enter para enviar; texto preservado após erro e limpeza só após sucesso (smoke Chrome com mock).
+- [x] Consultas testadas em PostgreSQL temporário; acesso de tenant diferente não retorna vínculos.
+- [ ] Teste com identidades Keycloak, OpenFGA e dados reais em diferentes perfis, e auditoria de UX.
+- [ ] Fechar critérios de produto do CRM e Inbox antes do lançamento. Não marcar como entregue para produção.

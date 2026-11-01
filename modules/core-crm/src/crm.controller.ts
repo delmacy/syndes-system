@@ -117,6 +117,16 @@ export class CrmController{
  @Get("people/:id/notes")
  notes(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
    @Param("id")id:string){return this.run(t,b,c=>this.host.crm.listNotes(c,id))}
+ @Get("people/:id/organizations")
+ personOrganizations(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
+   @Param("id")personId:string){
+   return this.run(t,b,c=>this.host.extra.listPersonOrganizations(c,personId));
+ }
+ @Get("people/:id/tags")
+ personTags(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
+   @Param("id")personId:string){
+   return this.run(t,b,c=>this.host.extra.listPersonTags(c,personId));
+ }
  @Get("people/:id/channels")
  channels(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
    @Param("id")id:string){return this.run(t,b,c=>this.host.extra.listChannels(c,id))}

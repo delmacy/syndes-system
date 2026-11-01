@@ -41,6 +41,10 @@ try {
   assert.equal((await a.listPeople(A,"VIP",10)).length,1);
   assert.equal((await a.listPeople(A,"Acme",10)).length,1);
   assert.equal((await a.listPeople(A,"12345678000190",10)).length,1);
+  assert.deepEqual((await ex.listPersonOrganizations(A,created.id,25)).map(x=>x.id),[organization.id]);
+  assert.deepEqual((await ex.listPersonTags(A,created.id,25)).map(x=>x.label),["VIP"]);
+  assert.deepEqual(await bx.listPersonOrganizations(B,created.id,25),[]);
+  assert.deepEqual(await bx.listPersonTags(B,created.id,25),[]);
   const note=await a.createNote(A,"alice",randomUUID(),created.id,"Cliente pediu retorno");
   assert.equal(note.personId,created.id);
   assert.equal((await a.listTimeline(A,created.id,10))[0].action,"noted");
