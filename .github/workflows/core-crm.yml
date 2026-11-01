@@ -1,0 +1,42 @@
+name: Core CRM CI
+on:
+  push:
+    paths:
+      - "modules/core-crm/**"
+      - "packages/core-kernel/**"
+      - ".github/workflows/core-crm.yml"
+  pull_request:
+    paths:
+      - "modules/core-crm/**"
+      - "packages/core-kernel/**"
+      - ".github/workflows/core-crm.yml"
+permissions:
+  contents: read
+jobs:
+  crm-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build Core Kernel
+        run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Bootstrap CRM lockfile
+        run: cd modules/core-crm && npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install CRM dependencies
+        run: cd modules/core-crm && npm ci --no-audit --no-fund
+      - name: Typecheck and domain isolation tests
+        run: cd modules/core-crm && npm run check && npm test
+      - name: Capture CRM lockfile
+        run: |
+          echo SYNDES_CRM_LOCK_BEGIN
+          base64 -w0 modules/core-crm/package-lock.json
+          echo
+          echo SYNDES_CRM_LOCK_END
+  crm-postgres:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply migrations twice and exercise cross-tenant SQL isolation
+        run: bash modules/core-crm/test/postgres-integration.sh
