@@ -1,0 +1,6 @@
+{
+  "issuer": "https://<keycloak-public-host>/realms/syndes",
+  "clientId": "syndes-workspace-ui",
+  "tenantId": "00000000-0000-4000-8000-000000000001",
+  "tenantLabel": "Empresa de demonstração"
+}

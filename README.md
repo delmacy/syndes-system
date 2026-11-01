@@ -29,7 +29,7 @@ Instagram, Google Calendar, Automation Platform, AI Advanced, ERP, estoque, fina
 
 ## Organização atual
 
-Este repositório começa pela governança de produto e engenharia. O breakdown técnico do monólito ainda não foi congelado; portanto, a estrutura de código será criada somente no handoff técnico do PRD-001.
+O repositório contém o Core Host modular, os pacotes aprovados (incluindo CRM e Inbox), infraestrutura reprodutível e o Workspace React para tenants. A implantação atual no DevServer01 é de desenvolvimento, **não de produção**.
 
 - `AGENTS.md`: regras globais para agentes e contribuidores
 - `modules/*/AGENTS.md`: contrato de trabalho de cada módulo
@@ -39,3 +39,21 @@ Este repositório começa pela governança de produto e engenharia. O breakdown 
 - `.github/workflows/`: gates automatizados de CI
 
 Leia o `AGENTS.md` raiz antes de alterar qualquer parte do repositório.
+
+
+## Workspace dos tenants — entrega em desenvolvimento
+
+- `apps/workspace-web/`: Shell React/TypeScript + Tailwind CSS + shadcn/ui com dashboard, CRM, Inbox e configurações.
+- **Um único login Keycloak** (OIDC com PKCE S256); a janela HTTP Basic foi removida do Workspace. O Core Host segue protegendo todas as APIs com token e autorização server-side OpenFGA.
+- Ingress de desenvolvimento via Tailscale Serve/Traefik; Nginx interno apenas serve os arquivos estáticos.
+- PR #9 (`feat/workspace-shell-v1`, **draft**) depende da base `feat/core-inbox-foundation`/PR #8. **Nenhum merge ou release de produção foi declarado.**
+- Registro das stacks Komodo propositalmente adiado, sem bloquear a evolução funcional do MVP.
+
+**Documentação de continuidade:**
+
+- [Arquitetura do Workspace e decisões de autenticação](docs/engineering/WORKSPACE-SHELL-ARCHITECTURE.md)
+- [Runbook DevServer01: verificação, publicação e rollback](docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md)
+- [Handoff do Workspace e gate para o próximo módulo](docs/product/WORKSPACE-MVP-HANDOFF.md)
+- [README da aplicação Workspace](apps/workspace-web/README.md)
+
+**Próxima fase:** a sequência do MVP não mudou. Validar/encerrar os critérios de aceite do **Core CRM** antes de formalizar o avanço ao **PRD-002 Inbox**.
