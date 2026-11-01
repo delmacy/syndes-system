@@ -1,0 +1,36 @@
+name: Syndes Workspace UI CI
+
+on:
+  push:
+    paths:
+      - "apps/workspace-web/**"
+      - ".github/workflows/workspace-web.yml"
+  pull_request:
+    paths:
+      - "apps/workspace-web/**"
+      - ".github/workflows/workspace-web.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/workspace-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/workspace-web/package-lock.json
+      - name: Frozen dependency install
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript and Vite production build
+        run: npm run build
+      - name: API tenant boundary and PKCE callback tests
+        run: npm test
+      - name: Lint
+        run: npm run lint
