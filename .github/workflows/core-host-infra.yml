@@ -37,6 +37,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare throwaway Docker Secret files on CI runner
+        run: |
+          sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/syndes /run/syndes/runtime
+          python3 tests/platform/ci-secret-fixtures.py
       - name: Validate compose and bash configuration
         run: |
           bash -n infra/postgres/bootstrap/00-init.sh infra/postgres/bootstrap/provision-tenant.sh tests/platform/postgres-smoke.sh tests/platform/openfga-smoke.sh tests/platform/openbao-smoke.sh
@@ -57,6 +61,20 @@ jobs:
           print("Core Host Compose credential isolation: PASS")
           PY
           python3 -m json.tool infra/security-access/fga-model.json >/dev/null
+          docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml config --format json > /tmp/syndes-pg-compose.json
+          docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml config --format json > /tmp/syndes-security-compose.json
+          python3 - <<'PY'
+          import json
+          forbidden={"POSTGRES_PASSWORD","PG_KEYCLOAK_PASSWORD","PG_OPENFGA_PASSWORD","PG_CORE_PASSWORD",
+                     "KC_DB_PASSWORD","KC_BOOTSTRAP_ADMIN_PASSWORD","OPENFGA_DATASTORE_URI",
+                     "OPENFGA_AUTHN_PRESHARED_KEYS"}
+          for path in ("/tmp/syndes-pg-compose.json","/tmp/syndes-security-compose.json"):
+              with open(path,encoding="utf-8") as file:
+                  data=json.load(file)
+              for name,service in data["services"].items():
+                  assert not forbidden.intersection(service.get("environment",{})), f"Secret in environment: {name}"
+          print("PostgreSQL/Keycloak/OpenFGA: no sensitive env in Compose")
+          PY
       - name: Start isolated PostgreSQL
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
       - name: Verify service database and tenant provisioning
@@ -80,6 +98,10 @@ jobs:
         run: |
           cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
           cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run build
+      - name: Prepare throwaway Docker Secret files on CI runner
+        run: |
+          sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/syndes /run/syndes/runtime
+          python3 tests/platform/ci-secret-fixtures.py
       - name: Start isolated PostgreSQL
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
       - name: Generate disposable OpenBao TLS certificate
