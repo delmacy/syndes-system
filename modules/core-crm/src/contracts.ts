@@ -53,7 +53,7 @@ export interface CrmRepository {
   createPerson(tenantId:string,actorId:string,id:string,input:CreatePerson):Promise<Person>;
   linkPerson(tenantId:string,actorId:string,personId:string,organizationId:string):Promise<PersonOrganization>;
   getPerson(tenantId:string,id:string):Promise<Person|null>;
-  listPeople(tenantId:string,query:string|null,limit:number):Promise<readonly Person[]>;
+  listPeople(tenantId:string,query:string|null,limit:number,offset?:number):Promise<readonly Person[]>;
   archivePerson(tenantId:string,actorId:string,id:string):Promise<boolean>;
   createTag(tenantId:string,actorId:string,id:string,label:string):Promise<Tag>;
   tagPerson(tenantId:string,actorId:string,personId:string,tagId:string):Promise<PersonTag>;

@@ -90,3 +90,9 @@ A interface desabilita a resposta conforme status, humano/bot e atribuição, ma
 ## Editor da Inbox e ficha de contato
 
 A ficha contextual apresenta organizações e tags da pessoa vinculada por endpoints CRM com autorização independente no backend. A resposta, a nota interna e a entrada simulada têm rascunhos **por conversa e modo** em memória React. `Ctrl+Enter` / `Cmd+Enter` envia, e uma falha de rede mantém o rascunho para nova tentativa. Os rascunhos não são persistidos e desaparecem ao recarregar ou finalizar a sessão.
+
+## Core CRM — experiência completa de registros (em desenvolvimento)
+
+``src/features/crm.tsx`` gerencia lista, busca, paginação, criação/edição, arquivamento, confirmação de duplicados e importação/exportação CSV. ``src/features/crm-person-detail.tsx`` apresenta ficha de contato com empresas, tags, notas, canais, funcionário e timeline. A interface consulta ``GET /crm/capabilities`` e usa ``can(resource.action)``, sem flags de papel ``isAdmin``. O Core Host segue verificando JWT, membership e OpenFGA em **cada operação**.
+
+Testes de browser sem segredo: ``npm run test:crm-ui`` (API/identidade simuladas). Para escopo, limites e critérios de aceite reais, leia [checkpoint CRM](../../docs/product/CORE-CRM-FRONTEND-COMPLETION.md).

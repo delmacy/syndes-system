@@ -2,6 +2,8 @@
 
 > **Estado do produto (2026-11-01): INCOMPLETO.** Esta página registra principalmente aceitação técnica de domínio, API, persistência e UI legada. **Não** representa conclusão da experiência CRM no novo Workspace, cujos formulários, relacionamentos, ações por capacidade, usabilidade e testes com perfis diversos ainda precisam de trabalho. Por decisão do responsável pelo produto, a Inbox passou a ser o foco de desenvolvimento, mantendo esse débito de CRM aberto. Ver `docs/product/WORKSPACE-MVP-HANDOFF.md`.
 
+> **Atualização 2026-11-01 — frontend em implementação:** o responsável pelo produto autorizou concluir o Core CRM no Workspace. A branch `feat/crm-workspace-completion` acrescenta ficha completa, formulários, relacionamento bidirecional, import/export CSV, paginação e capacidades obtidas do OpenFGA. Testes unitários/SQL/UI mockada não substituem homologação real e não permitem marcar Product Gate DONE. Veja [checkpoint](CORE-CRM-FRONTEND-COMPLETION.md).
+
 The Core CRM is a standalone business module of the reusable TypeScript `@syndes/core-kernel`; the NestJS Core Host is its composition root. It does not require one server process per CRM module.
 
 ## Completed MVP capabilities

@@ -9,6 +9,15 @@ export type Message = {
   id: string; body: string; direction: string; createdAt?: string; authorId?: string;
 };
 export type CrmNote = { id: string; body: string; createdAt: string; createdBy: string };
+export type CrmCapability =
+  | "people.read" | "people.write" | "organizations.read" | "organizations.write"
+  | "relationships.write" | "tags.read" | "tags.write" | "notes.read" | "notes.write"
+  | "employees.read" | "employees.write" | "channels.read" | "channels.write";
+export type CrmCapabilities = Partial<Record<CrmCapability, boolean>>;
+export type CrmEmployee = { id: string; personId: string; jobTitle: string; active: boolean };
+export type CrmChannel = { id: string; channel: string; externalId: string; displayName: string | null };
+export type CrmDuplicate = { id: string; name: string; reason: string };
+export type CrmImportResult = { imported: number };
 export type CrmTag = { id: string; label: string };
 export type CrmTimelineEvent = { id: number; action: string; recordedAt: string; actorId: string };
 export type QueueFilter = "all" | "mine" | "unassigned";
@@ -52,11 +61,11 @@ export class TenantApi {
     return (await response.json()) as T;
   }
 
-  people(query = "") {
-    return this.request<Person[]>("crm", "/people?limit=100&q=" + encodeURIComponent(query));
+  people(query = "", offset = 0, limit = 100) {
+    return this.request<Person[]>("crm", "/people?limit=" + limit + "&q=" + encodeURIComponent(query) + (offset ? "&offset=" + offset : ""));
   }
-  organizations(query = "") {
-    return this.request<Organization[]>("crm", "/organizations?limit=100&q=" + encodeURIComponent(query));
+  organizations(query = "", offset = 0, limit = 100) {
+    return this.request<Organization[]>("crm", "/organizations?limit=" + limit + "&q=" + encodeURIComponent(query) + (offset ? "&offset=" + offset : ""));
   }
   person(id: string) {
     return this.request<Person>("crm", "/people/" + encodeURIComponent(id));
@@ -73,10 +82,65 @@ export class TenantApi {
   personTags(id: string) {
     return this.request<CrmTag[]>("crm", "/people/" + encodeURIComponent(id) + "/tags");
   }
+  crmCapabilities() { return this.request<CrmCapabilities>("crm", "/capabilities"); }
+  updatePerson(id: string, body: { name: string; email?: string | null; phone?: string | null }) {
+    return this.request<Person>("crm", "/people/" + encodeURIComponent(id), "PATCH", body);
+  }
+  archivePerson(id: string) {
+    return this.request<boolean>("crm", "/people/" + encodeURIComponent(id), "DELETE");
+  }
+  organization(id: string) { return this.request<Organization>("crm", "/organizations/" + encodeURIComponent(id)); }
+  updateOrganization(id: string, body: { legalName: string; tradeName?: string | null; taxId?: string | null }) {
+    return this.request<Organization>("crm", "/organizations/" + encodeURIComponent(id), "PATCH", body);
+  }
+  archiveOrganization(id: string) {
+    return this.request<boolean>("crm", "/organizations/" + encodeURIComponent(id), "DELETE");
+  }
+  linkPersonOrganization(personId: string, organizationId: string) {
+    return this.request<object>("crm", "/people/" + encodeURIComponent(personId) + "/organizations", "POST", { organizationId });
+  }
+  createCrmNote(personId: string, body: string) {
+    return this.request<CrmNote>("crm", "/people/" + encodeURIComponent(personId) + "/notes", "POST", { body });
+  }
+  crmAllTags() { return this.request<CrmTag[]>("crm", "/tags"); }
+  unlinkPersonOrganization(personId: string, orgId: string) {
+    return this.request<boolean>("crm", "/people/" + encodeURIComponent(personId) + "/organizations/" + encodeURIComponent(orgId), "DELETE");
+  }
+  unlinkPersonTag(personId: string, tagId: string) {
+    return this.request<boolean>("crm", "/people/" + encodeURIComponent(personId) + "/tags/" + encodeURIComponent(tagId), "DELETE");
+  }
+  createTag(label: string) { return this.request<CrmTag>("crm", "/tags", "POST", { label }); }
+  tagPerson(personId: string, tagId: string) {
+    return this.request<object>("crm", "/people/" + encodeURIComponent(personId) + "/tags", "POST", { tagId });
+  }
+  crmChannels(personId: string) { return this.request<CrmChannel[]>("crm", "/people/" + encodeURIComponent(personId) + "/channels"); }
+  linkCrmChannel(personId: string, body: { channel: string; externalId: string; displayName?: string }) {
+    return this.request<CrmChannel>("crm", "/people/" + encodeURIComponent(personId) + "/channels", "POST", body);
+  }
+  crmPersonEmployee(personId: string) {
+    return this.request<CrmEmployee | null>("crm", "/people/" + encodeURIComponent(personId) + "/employee");
+  }
+  crmEmployees() { return this.request<CrmEmployee[]>("crm", "/employees"); }
+  createEmployee(personId: string, jobTitle: string) {
+    return this.request<CrmEmployee>("crm", "/people/" + encodeURIComponent(personId) + "/employee", "POST", { jobTitle });
+  }
+  crmDuplicates(body: { email?: string; phone?: string; excludeId?: string }) {
+    return this.request<CrmDuplicate[]>("crm", "/duplicates", "POST", body);
+  }
+  importPeopleCsv(csv: string) { return this.request<CrmImportResult>("crm", "/imports/csv", "POST", { csv }); }
+  async exportPeopleCsv(): Promise<string> {
+    const response=await fetch("/v1/tenants/" + encodeURIComponent(this.tenantId) + "/crm/exports/csv", {
+      headers:{Authorization:"Bearer " + this.token}, cache:"no-store",
+    });
+    if(response.status===401)this.unauthorized();
+    if(!response.ok)throw new ApiError(response.status,
+      response.status===403?"Você não tem permissão para exportar.":"Falha na exportação ("+response.status+").");
+    return response.text();
+  }
   createPerson(body: { name: string; email?: string; phone?: string }) {
     return this.request<Person>("crm", "/people", "POST", body);
   }
-  createOrganization(body: { legalName: string; tradeName?: string }) {
+  createOrganization(body: { legalName: string; tradeName?: string; taxId?: string }) {
     return this.request<Organization>("crm", "/organizations", "POST", body);
   }
   conversations(status = "", queue: QueueFilter = "all") {

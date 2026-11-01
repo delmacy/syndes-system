@@ -107,3 +107,22 @@ test("relationship and tag context reads stay within authenticated CRM tenant",a
   "/v1/tenants/tenant-a/crm/people/person-id/tags",
  ].sort());
 });
+
+test("CRM pagination and relation unlink endpoints stay inside the active tenant",async()=>{
+ const calls=[];
+ globalThis.fetch=async (url,opts)=>{calls.push({url,opts});return Response.json(true)};
+ const api=new TenantApi("tenant-main","token",()=>assert.fail("Unexpected logout"));
+ await api.people("Ana",25,25);
+ await api.organizations("Empresa",50,25);
+ await api.unlinkPersonOrganization("person-id","org-id");
+ await api.unlinkPersonTag("person-id","tag-id");
+ await api.crmCapabilities();
+ await api.crmAllTags();
+ assert.equal(calls[0].url,"/v1/tenants/tenant-main/crm/people?limit=25&q=Ana&offset=25");
+ assert.equal(calls[1].url,"/v1/tenants/tenant-main/crm/organizations?limit=25&q=Empresa&offset=50");
+ assert.equal(calls[2].url,"/v1/tenants/tenant-main/crm/people/person-id/organizations/org-id");
+ assert.equal(calls[2].opts.method,"DELETE");
+ assert.equal(calls[3].url,"/v1/tenants/tenant-main/crm/people/person-id/tags/tag-id");
+ assert.equal(calls[4].url,"/v1/tenants/tenant-main/crm/capabilities");
+ assert.equal(calls[5].url,"/v1/tenants/tenant-main/crm/tags");
+});
