@@ -1,0 +1,42 @@
+name: Core Inbox CI
+on:
+  push:
+    paths:
+      - "modules/inbox/**"
+      - "packages/core-kernel/**"
+      - ".github/workflows/core-inbox.yml"
+  pull_request:
+    paths:
+      - "modules/inbox/**"
+      - "packages/core-kernel/**"
+      - ".github/workflows/core-inbox.yml"
+permissions:
+  contents: read
+jobs:
+  inbox-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: modules/inbox/package-lock.json
+      - name: Build Core Kernel
+        run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Validate Inbox package
+        run: cd modules/inbox && npm ci --no-audit --no-fund && npm run check && npm test
+  inbox-postgres:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build Kernel and Inbox
+        run: |
+          cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+          cd ../../modules/inbox && npm ci --no-audit --no-fund && npm run build
+          cd ../../apps/core-host && npm ci --no-audit --no-fund
+      - name: Verify isolated PostgreSQL inbox
+        run: bash modules/inbox/test/postgres-integration.sh
