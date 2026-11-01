@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {tenantUUID,PgMembership,FgaPermission} from "../dist/adapters.js";
+import {tenantUUID,PgMembership,FgaPermission,fgaResourceObject} from "../dist/adapters.js";
 const id="4ab44379-d557-4df6-a2be-d44e121a8077";
 const actor={id:"user-1",kind:"user"};
 test("rejects client-selected or malformed database identifiers",()=>{assert.equal(tenantUUID(id),true);assert.equal(tenantUUID("tenant-a;DROP"),false)});
@@ -16,7 +16,7 @@ test("OpenFGA query is scoped to tenant and action",async()=>{
   key=JSON.parse(opts.body).tuple_key;return new Response(JSON.stringify({allowed:true}),{status:200});
  });
  assert.equal(await f.canAccess({actor,tenantId:id,action:"read",resource:"person:42"}),true);
- assert.equal(key.object,`resource:${id}:person:42`);assert.equal(key.relation,"can_read");
+ assert.equal(key.object,fgaResourceObject(id,"person:42"));assert.equal(key.relation,"can_read");assert.match(key.object,/^resource:[a-f0-9]{64}$/);
  assert.equal(await f.canAccess({actor,tenantId:id,action:"admin",resource:"person:42"}),false);
 });
 test("OpenFGA failures fail closed",async()=>{
