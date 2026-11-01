@@ -41,7 +41,12 @@ export class InboxService {
  assign(ctx:InboxContext,id:string,userId:unknown):Promise<Conversation|null>{
   const conversationId=uuid(id,"conversation ID");
   if(userId!==null&&(typeof userId!=="string"||!userId.trim()||userId.length>160))throw new InboxValidationError("Invalid assignee");
-  // MVP: users may claim or release only their own assignment. No unverified\n  // arbitrary Keycloak ID may be inserted as a foreign tenant operator.\n  if(ctx.actor.kind!=="user"||(userId!==null&&userId!==ctx.actor.id))\n    throw new InboxValidationError("Only self-assignment is supported");\n  return this.execute(ctx,"write","inbox:assignments",\n    db=>db.assign(ctx.tenantId,ctx.actor.id,conversationId,userId as string|null));
+  // MVP: users may claim or release only their own assignment. No unverified
+  // arbitrary Keycloak ID may be inserted as a foreign tenant operator.
+  if(ctx.actor.kind!=="user"||(userId!==null&&userId!==ctx.actor.id))
+    throw new InboxValidationError("Only self-assignment is supported");
+  return this.execute(ctx,"write","inbox:assignments",
+    db=>db.assign(ctx.tenantId,ctx.actor.id,conversationId,userId as string|null));
  }
  status(ctx:InboxContext,id:string,status:unknown):Promise<Conversation|null>{
   const conversationId=uuid(id,"conversation ID");
