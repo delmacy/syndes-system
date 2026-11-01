@@ -1,0 +1,20 @@
+services:
+  core-host:
+    build: {context: ../.., dockerfile: apps/core-host/Dockerfile}
+    restart: unless-stopped
+    environment:
+      CORE_PORT: "8082"
+      CORE_CONTROL_DB_URL: ${CORE_CONTROL_DB_URL:?}
+      CORE_KEYCLOAK_ISSUER: ${CORE_KEYCLOAK_ISSUER:?}
+      CORE_KEYCLOAK_AUDIENCE: ${CORE_KEYCLOAK_AUDIENCE:?}
+      CORE_KEYCLOAK_JWKS_URL: ${CORE_KEYCLOAK_JWKS_URL:?}
+      CORE_OPENFGA_URL: http://syndes-openfga:8080
+      CORE_OPENFGA_STORE_ID: ${CORE_OPENFGA_STORE_ID:?}
+      CORE_OPENFGA_TOKEN: ${OPENFGA_PRESHARED_KEY:?}
+    networks: [syndes-data, syndes-identity]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    # No ports published; route only via trusted internal services.
+networks:
+  syndes-data: {external: true}
+  syndes-identity: {external: true}
