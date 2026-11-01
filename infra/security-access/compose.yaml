@@ -32,10 +32,6 @@ services:
     restart: unless-stopped
     depends_on:
       openfga-migrate: {condition: service_completed_successfully}
-      OPENFGA_AUTHN_METHOD: preshared
-      OPENFGA_AUTHN_PRESHARED_KEYS: ${OPENFGA_PRESHARED_KEY:?}
-      OPENFGA_PLAYGROUND_ENABLED: "false"
-      OPENFGA_LOG_FORMAT: json
     networks: [syndes-data,syndes-security-access,syndes-secrets]
     security_opt: [no-new-privileges:true]
     # REST, gRPC, playground and metrics are NOT exposed on the host.
