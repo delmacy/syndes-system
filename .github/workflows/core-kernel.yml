@@ -1,0 +1,35 @@
+name: Core Framework CI
+on:
+  push:
+    paths:
+      - 'packages/core-kernel/**'
+      - '.github/workflows/core-kernel.yml'
+      - 'docs/engineering/CORE-FRAMEWORK-ARCHITECTURE.md'
+  pull_request:
+    paths:
+      - 'packages/core-kernel/**'
+      - '.github/workflows/core-kernel.yml'
+      - 'docs/engineering/CORE-FRAMEWORK-ARCHITECTURE.md'
+permissions:
+  contents: read
+jobs:
+  test-and-pack:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/core-kernel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: packages/core-kernel/package-lock.json
+      - name: Frozen dependency install
+        run: npm ci --no-audit --no-fund
+      - name: Strict typecheck
+        run: npm run check
+      - name: Build and regression tests
+        run: npm test
+      - name: Inspect publishable contents
+        run: npm pack --dry-run
