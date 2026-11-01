@@ -51,5 +51,50 @@ for attempt in $(seq 1 40); do
 done
 unseal
 read_sentinel
+
+# Smoke-test a restricted workload identity using a real AppRole and the
+# compiled Core Host OpenBao client. Credentials are disposable CI-only.
+bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+  --data '{"type":"approle"}' https://openbao:8200/v1/sys/auth/approle >/dev/null
+jq -Rs '{policy:.}' < infra/security-access/openbao/policies/core-host.hcl |
+  bao_http --fail -X PUT -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+    --data-binary @- https://openbao:8200/v1/sys/policies/acl/core-host >/dev/null
+bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+  --data '{"token_policies":["core-host"],"token_ttl":"15m","token_max_ttl":"30m","token_no_default_policy":true}' \
+  https://openbao:8200/v1/auth/approle/role/core-host >/dev/null
+bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+  --data '{"data":{"control_db_url":"ci-only-core-db-url","openfga_token":"ci-only-fga-key"}}' \
+  https://openbao:8200/v1/kv/data/production/core-host >/dev/null
+temp="$(mktemp -d)"
+trap 'rm -rf "$temp"' EXIT
+bao_http --fail -H "X-Vault-Token: $root_token" \
+  https://openbao:8200/v1/auth/approle/role/core-host/role-id | jq -er '.data.role_id' > "$temp/role-id"
+bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+  --data '{}' https://openbao:8200/v1/auth/approle/role/core-host/secret-id |
+  jq -er '.data.secret_id' > "$temp/secret-id"
+chmod 0600 "$temp/role-id" "$temp/secret-id"
+if [ ! -f apps/core-host/dist/secrets.js ]; then
+  echo "Core Host TypeScript output not found for integration test" >&2
+  exit 1
+fi
+docker run --rm --network syndes-secrets \
+  -v "$PWD/apps/core-host/dist:/app:ro" \
+  -v "$temp:/run/creds:ro" \
+  -v "$cert:/etc/ssl/openbao-ca.crt:ro" \
+  -e NODE_EXTRA_CA_CERTS=/etc/ssl/openbao-ca.crt \
+  node:22-bookworm-slim node --input-type=module -e '
+    import { loadCoreSecrets } from "/app/secrets.js";
+    const values = await loadCoreSecrets({
+      address: "https://openbao:8200",
+      roleIdFile: "/run/creds/role-id",
+      secretIdFile: "/run/creds/secret-id",
+    });
+    if (values.controlDbUrl !== "ci-only-core-db-url" ||
+        values.openfgaToken !== "ci-only-fga-key") {
+      throw new Error("OpenBao application credentials do not match");
+    }
+    console.log("Core Host AppRole -> OpenBao KV: PASS");
+  '
+
 unset unseal_key root_token
 echo "OpenBao TLS, initialization, sealing, unsealing and encrypted Raft persistence: PASS"
