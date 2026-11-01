@@ -50,7 +50,7 @@ test("Inbox package mounts API/UI independently; auth and tenant denial run befo
     method:"POST",headers:{authorization:"Bearer ci-token","content-type":"application/json"},
     body:JSON.stringify({source:"whatsapp",externalRef:"55119999",externalMessageId:"remote",body:"Hi"})
   });
-  assert.equal(inbound.status,400,"User token may not ingest provider messages");
+  assert.equal(inbound.status,403,"User token may not ingest provider messages");
   assert.equal(selected,1);
   const page=await fetch(base+"/inbox");
   assert.equal(page.status,200);
