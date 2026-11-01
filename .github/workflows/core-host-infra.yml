@@ -84,9 +84,11 @@ jobs:
       - name: PostgreSQL logs on failure
         if: failure()
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml logs --no-color --tail 100
-      - name: Remove disposable database
+      - name: Remove disposable database and CI secret files
         if: always()
-        run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml down -v --remove-orphans
+        run: |
+          docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml down -v --remove-orphans
+          sudo rm -rf /run/syndes/runtime
   identity-integration:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -156,3 +158,4 @@ jobs:
         run: |
           docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml down -v --remove-orphans || true
           docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml down -v --remove-orphans || true
+          sudo rm -rf /run/syndes/runtime
