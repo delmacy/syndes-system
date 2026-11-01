@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-docker run -d --name syndes-crm-ci-pg -e POSTGRES_PASSWORD=ci-only-not-production-123 postgres:17-bookworm >/dev/null
+docker run -d --name syndes-crm-ci-pg -p 127.0.0.1:54329:5432 -e POSTGRES_PASSWORD=ci-only-not-production-123 postgres:17-bookworm >/dev/null
 trap 'docker rm -f syndes-crm-ci-pg >/dev/null 2>&1 || true' EXIT
 for attempt in $(seq 1 40); do
   if docker exec syndes-crm-ci-pg pg_isready -U postgres -d postgres >/dev/null 2>&1; then break; fi
@@ -46,4 +46,5 @@ BEGIN
   END IF;
 END $$;
 SQL
+node modules/core-crm/test/pg-repo-integration.mjs
 echo "CRM PostgreSQL migrations and tenant-scoped composite FKs: PASS"
