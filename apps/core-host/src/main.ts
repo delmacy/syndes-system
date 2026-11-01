@@ -1,5 +1,7 @@
 import "reflect-metadata";
-import {Controller,Get,Post,Param,Headers,Body,Module,Injectable,Inject,HttpException,HttpStatus,OnModuleDestroy} from "@nestjs/common";
+import {readFile} from "node:fs/promises";
+import {join} from "node:path";
+import {Controller,Get,Header,Post,Param,Headers,Body,Module,Injectable,Inject,HttpException,HttpStatus,OnModuleDestroy} from "@nestjs/common";
 import {NestFactory} from "@nestjs/core";
 import {Pool} from "pg";
 import {CoreKernel,AccessDeniedError} from "@syndes/core-kernel";
@@ -32,6 +34,21 @@ class CoreService implements OnModuleDestroy{
 class CoreController{
  constructor(private readonly service:CoreService){}
  @Get("healthz")health(){return {status:"ok"}}
+ @Get("crm/config")
+ crmConfig(){
+  return {issuer:env("CORE_KEYCLOAK_ISSUER"),clientId:process.env.CORE_CRM_PUBLIC_CLIENT_ID??"syndes-crm-ui"};
+ }
+ @Get("crm")
+ @Header("Content-Type","text/html; charset=utf-8")
+ @Header("Content-Security-Policy","default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https:; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
+ async crmUi(){return readFile(join(process.cwd(),"public/crm.html"),"utf8")}
+ @Get("crm/app.js")
+ @Header("Content-Type","application/javascript; charset=utf-8")
+ @Header("Cache-Control","no-store")
+ async crmJs(){return readFile(join(process.cwd(),"public/app.js"),"utf8")}
+ @Get("crm/styles.css")
+ @Header("Content-Type","text/css; charset=utf-8")
+ async crmCss(){return readFile(join(process.cwd(),"public/styles.css"),"utf8")}
  @Get("readyz")async ready(){await this.service.ready();return {status:"ready"}}
  @Post("v1/tenants/:tenantId/authorize")
  async check(@Param("tenantId") tenantId:string,@Headers("authorization") header:string|undefined,@Body() body:unknown){
