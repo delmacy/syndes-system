@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "default": "./dist/plugin.js"
     }
   },
   "scripts": {
@@ -27,6 +31,13 @@
   "files": [
     "dist",
     "sql",
+    "public",
     "README.md"
-  ]
+  ],
+  "peerDependencies": {
+    "@nestjs/common": "12.2.0",
+    "@nestjs/core": "12.2.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
+  }
 }

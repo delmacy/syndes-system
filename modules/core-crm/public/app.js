@@ -204,7 +204,7 @@ $("csv-export").onclick=()=>safe(async()=>{
 });
 (async()=>{
  try{
-   const response=await fetch("/crm/config");if(!response.ok)throw Error("Configuração indisponível");
+   const response=await fetch("/modules/crm/config");if(!response.ok)throw Error("Configuração indisponível");
    config=await response.json();
    await callback();
  }catch(e){notify(e instanceof Error?e.message:"Erro ao iniciar CRM",true)}

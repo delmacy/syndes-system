@@ -1,18 +1,18 @@
 import {Body,Controller,Delete,Get,Header,Headers,HttpException,HttpStatus,Injectable,Param,Patch,Post,Query} from "@nestjs/common";
 import {Inject} from "@nestjs/common";
 import {AccessDeniedError} from "@syndes/core-kernel";
-import {CrmService,CrmExtras,PgCrmRepositoryFactory,PgCrmExtrasFactory,CrmValidationError,TenantDatabaseMismatchError} from "@syndes/core-crm";
-import type {CrmContext,CreatePerson,CreateOrganization} from "@syndes/core-crm";
-import {tenantUUID} from "./adapters.js";
-import {TenantPgProvider,type CoreApi} from "./tenant-database.js";
+import {CrmService,CrmExtras,PgCrmRepositoryFactory,PgCrmExtrasFactory,CrmValidationError,TenantDatabaseMismatchError} from "./index.js";
+import type {CrmContext,CreatePerson,CreateOrganization} from "./contracts.js";
+import {isUuid} from "./validation.js";
+import {CORE_RUNTIME,TENANT_DATABASES,type CrmHostRuntime,type TrustedTenantDatabaseProvider} from "./runtime.js";
 
 @Injectable()
 export class CrmHost {
  readonly crm:CrmService;
  readonly extra:CrmExtras;
  constructor(
-   @Inject("SYNDES_CORE_API") readonly core:CoreApi,
-   private readonly pools:TenantPgProvider
+   @Inject(CORE_RUNTIME) readonly core:CrmHostRuntime,
+   @Inject(TENANT_DATABASES) private readonly pools:TrustedTenantDatabaseProvider
  ){
    const repos=new PgCrmRepositoryFactory(pools);
    const extras=new PgCrmExtrasFactory(pools);
@@ -20,7 +20,7 @@ export class CrmHost {
    this.extra=new CrmExtras(core.kernel,id=>extras.forTenant(id));
  }
  async context(tenantId:string,bearer:string|undefined):Promise<CrmContext>{
-   if(!tenantUUID(tenantId))throw new HttpException("Invalid tenant ID",400);
+   if(!isUuid(tenantId))throw new HttpException("Invalid tenant ID",400);
    try{
      const actor=await this.core.verifier.verify(bearer);
      return {actor,tenantId};
