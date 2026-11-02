@@ -67,28 +67,46 @@ func main() {
 		slog.Error("failed to migrate session store", "error", err.Error())
 		os.Exit(1)
 	}
-	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS syndes_whatsapp_tenants (
-		tenant_id uuid PRIMARY KEY,
-		device_jid text UNIQUE NOT NULL,
-		updated_at timestamptz NOT NULL DEFAULT now()
-	)`); err != nil {
-		slog.Error("failed to migrate tenant session map", "error", err.Error())
-		os.Exit(1)
-	}
-	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS syndes_whatsapp_inbound_outbox (
-		id bigserial PRIMARY KEY,
-		tenant_id uuid NOT NULL,
-		external_message_id text NOT NULL,
-		payload jsonb NOT NULL,
-		attempts integer NOT NULL DEFAULT 0,
-		next_attempt_at timestamptz NOT NULL DEFAULT now(),
-		last_error text,
-		created_at timestamptz NOT NULL DEFAULT now(),
-		UNIQUE (tenant_id, external_message_id)
-	)`); err != nil {
-		slog.Error("failed to migrate inbound outbox", "error", err.Error())
-		os.Exit(1)
-	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS syndes_whatsapp_accounts (
+  account_id uuid PRIMARY KEY,
+  tenant_id uuid NOT NULL,
+  device_jid text UNIQUE,
+  enabled boolean NOT NULL DEFAULT true,
+  updated_at timestamptz NOT NULL DEFAULT now()
+ );
+ `); err != nil {
+  slog.Error("failed to migrate account registry", "error", err.Error())
+  os.Exit(1)
+ }
+ // Preserve original tenant-only sessions when upgrading existing installations.
+ var legacyExists bool
+ if err := db.QueryRowContext(ctx, `SELECT to_regclass('syndes_whatsapp_tenants') IS NOT NULL`).Scan(&legacyExists); err != nil {
+  slog.Error("failed to detect legacy sessions", "error", err.Error()); os.Exit(1)
+ }
+ if legacyExists {
+  if _, err := db.ExecContext(ctx, `INSERT INTO syndes_whatsapp_accounts(account_id,tenant_id,device_jid)
+  SELECT tenant_id,tenant_id,device_jid FROM syndes_whatsapp_tenants
+  ON CONFLICT(account_id) DO NOTHING`); err != nil {
+   slog.Error("failed to migrate legacy sessions", "error", err.Error()); os.Exit(1)
+  }
+ }
+ if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS syndes_whatsapp_inbound_outbox (
+  id bigserial PRIMARY KEY,
+  tenant_id uuid NOT NULL,
+  account_id uuid,
+  external_message_id text NOT NULL,
+  payload jsonb NOT NULL,
+  attempts integer NOT NULL DEFAULT 0,
+  next_attempt_at timestamptz NOT NULL DEFAULT now(),
+  last_error text,
+  created_at timestamptz NOT NULL DEFAULT now()
+ );
+ ALTER TABLE syndes_whatsapp_inbound_outbox ADD COLUMN IF NOT EXISTS account_id uuid;
+ CREATE UNIQUE INDEX IF NOT EXISTS syndes_whatsapp_inbound_account_message_idx
+ ON syndes_whatsapp_inbound_outbox(account_id,external_message_id);`); err != nil {
+  slog.Error("failed to migrate inbound outbox", "error", err.Error())
+  os.Exit(1)
+ }
 
 	callback := &callbackClient{
 		baseURL: cfg.apiBaseURL,
@@ -147,25 +165,25 @@ func newHTTPHandler(gateway gateway, token string) http.Handler {
 	mux.HandleFunc("GET /healthz", func(writer http.ResponseWriter, _ *http.Request) {
 		writeJSON(writer, http.StatusOK, map[string]string{"status": "ok"})
 	})
-	mux.HandleFunc("POST /v1/tenants/{tenantId}/{operation}", func(writer http.ResponseWriter, request *http.Request) {
+	mux.HandleFunc("POST /v1/accounts/{accountId}/{operation}", func(writer http.ResponseWriter, request *http.Request) {
 		if !constantTimeBearer(request.Header.Get("Authorization"), token) {
 			writeJSON(writer, http.StatusUnauthorized, map[string]string{"code": "unauthorized"})
 			return
 		}
-		tenantID := request.PathValue("tenantId")
-		if !validUUID(tenantID) {
-			writeJSON(writer, http.StatusBadRequest, map[string]string{"code": "invalid_tenant"})
+		accountID := request.PathValue("accountId")
+		if !validUUID(accountID) {
+			writeJSON(writer, http.StatusBadRequest, map[string]string{"code": "invalid_account"})
 			return
 		}
 		var response any
 		var err error
 		switch request.PathValue("operation") {
 		case "pairing":
-			response, err = gateway.Pair(request.Context(), tenantID)
+			response, err = gateway.Pair(request.Context(), accountID)
 		case "connect":
-			response, err = gateway.Connect(request.Context(), tenantID)
+			response, err = gateway.Connect(request.Context(), accountID)
 		case "disconnect":
-			err = gateway.Disconnect(request.Context(), tenantID)
+			err = gateway.Disconnect(request.Context(), accountID)
 			if err == nil {
 				writer.WriteHeader(http.StatusNoContent)
 				return
@@ -178,13 +196,13 @@ func newHTTPHandler(gateway gateway, token string) http.Handler {
 				writeJSON(writer, http.StatusBadRequest, map[string]string{"code": "invalid_request"})
 				return
 			}
-			response, err = gateway.Send(request.Context(), tenantID, input)
+			response, err = gateway.Send(request.Context(), accountID, input)
 		default:
 			writeJSON(writer, http.StatusNotFound, map[string]string{"code": "not_found"})
 			return
 		}
 		if err != nil {
-			slog.Warn("whatsmeow operation failed", "operation", request.PathValue("operation"), "tenant_id", tenantID, "error", err.Error())
+			slog.Warn("whatsmeow operation failed", "operation", request.PathValue("operation"), "account_id", accountID, "error", err.Error())
 			writeJSON(writer, http.StatusBadGateway, map[string]string{"code": "provider_error"})
 			return
 		}
