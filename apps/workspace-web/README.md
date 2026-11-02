@@ -96,3 +96,10 @@ A ficha contextual apresenta organizações e tags da pessoa vinculada por endpo
 ``src/features/crm.tsx`` gerencia lista, busca, paginação, criação/edição, arquivamento, confirmação de duplicados e importação/exportação CSV. ``src/features/crm-person-detail.tsx`` apresenta ficha de contato com empresas, tags, notas, canais, funcionário e timeline. A interface consulta ``GET /crm/capabilities`` e usa ``can(resource.action)``, sem flags de papel ``isAdmin``. O Core Host segue verificando JWT, membership e OpenFGA em **cada operação**.
 
 Testes de browser sem segredo: ``npm run test:crm-ui`` (API/identidade simuladas). Para escopo, limites e critérios de aceite reais, leia [checkpoint CRM](../../docs/product/CORE-CRM-FRONTEND-COMPLETION.md).
+
+
+## Layout responsivo da ficha CRM (2026-11-02)
+
+A classe \`crm-record-sheet\` define 100vw até 639px (tela inteira) e \`min(860px, 94vw)\` a partir de 640px, sem afetar o \`Sheet\` da Inbox. A ficha usa grid em duas colunas no desktop, rolagem vertical e cabeçalho com fechamento sempre acessível. Os formulários de vínculo/edição se empilham no mobile.
+
+O teste \`npm run test:crm-ui\` verifica geometria de viewport 320/390/1440px, fechamento da ficha mesmo após rolagem e não regressão do fluxo CRUD usando mocks. Ver revisão visual em \`docs/reviews/crm-frontend-2026-11-02/\`.

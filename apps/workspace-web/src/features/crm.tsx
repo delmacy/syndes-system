@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Archive, Building2, ChevronLeft, ChevronRight, CircleAlert, ContactRound, Download, FileUp, LoaderCircle, Plus, RefreshCw, Search } from "lucide-react";
+import { Archive, Building2, ChevronLeft, ChevronRight, CircleAlert, ContactRound, Download, FileUp, LoaderCircle, Plus, RefreshCw, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CrmPersonDetail } from "@/features/crm-person-detail";
 import type { CrmCapabilities, CrmCapability, CrmDuplicate, Organization, Person, TenantApi } from "@/lib/api";
 
@@ -177,8 +177,8 @@ export function CrmFeature({ api }: { api: TenantApi }) {
       </div>
       {!ableToRead ? <Card><CardContent className="p-6 text-sm">Seu perfil não tem permissão de leitura para {title.toLowerCase()}.</CardContent></Card> :
       <Card className="border-[#e6eaf1]"><CardContent className="space-y-4 p-5">
-        <form className="flex gap-2" onSubmit={event=>{event.preventDefault();setSearch(query);setPage(0);void reload(tab,query,0);}}>
-          <div className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground"/>
+        <form className="flex flex-wrap gap-2" onSubmit={event=>{event.preventDefault();setSearch(query);setPage(0);void reload(tab,query,0);}}>
+          <div className="relative w-full min-w-0 sm:flex-1"><Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground"/>
             <Input aria-label="Pesquisar registros" className="pl-10" value={query} onChange={event=>setQuery(event.target.value)}
               placeholder={tab==="people"?"Buscar nome, e-mail ou telefone":"Buscar razão social, fantasia ou CPF/CNPJ"}/></div>
           <Button variant="outline" type="submit" disabled={loading}>Buscar</Button>
@@ -205,11 +205,18 @@ export function CrmFeature({ api }: { api: TenantApi }) {
       </CardContent></Card>}
     </>}
     <Sheet open={Boolean(selected)} onOpenChange={open=>{if(!open)setSelected(null);}}>
-      <SheetContent side="right" className="w-full gap-0 overflow-y-auto p-0 sm:max-w-xl">
-        <SheetHeader className="border-b p-5"><SheetTitle>{selected ? titleOf(selected) : "Ficha"}</SheetTitle>
-          <SheetDescription>{selectedPerson?"Ficha do contato":"Ficha da organização"}</SheetDescription></SheetHeader>
+      <SheetContent side="right" showCloseButton={false} className="crm-record-sheet min-w-0 gap-0 overflow-y-auto overscroll-contain p-0">
+        <SheetHeader className="sticky top-0 z-10 grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b bg-white px-4 py-4 sm:px-6 sm:py-5">
+          <div className="min-w-0">
+            <SheetTitle className="break-words pr-1">{selected ? titleOf(selected) : "Ficha"}</SheetTitle>
+            <SheetDescription>{selectedPerson?"Ficha do contato":"Ficha da organização"}</SheetDescription>
+          </div>
+          <SheetClose aria-label="Fechar ficha" className="flex size-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+            <X className="size-5" />
+          </SheetClose>
+        </SheetHeader>
         {selectedPerson && <CrmPersonDetail key={selectedPerson.id} api={api} person={selectedPerson} can={can} onEdit={()=>openEdit(selectedPerson)} onArchive={()=>setArchiveTarget(selectedPerson)}/>}
-        {selectedOrg && <div className="space-y-4 p-5">
+        {selectedOrg && <div className="space-y-4 p-4 sm:p-6">
           <p className="text-sm"><strong>Razão social:</strong> {selectedOrg.legalName}</p>
           <p className="text-sm"><strong>Nome fantasia:</strong> {selectedOrg.tradeName||"Não informado"}</p>
           <p className="text-sm"><strong>CPF/CNPJ:</strong> {selectedOrg.taxId||"Não informado"}</p>

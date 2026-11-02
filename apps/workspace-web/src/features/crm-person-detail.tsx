@@ -65,8 +65,8 @@ export function CrmPersonDetail({ api, person, can, onEdit, onArchive }: {
   const myEmployee = employee.data ? [employee.data] : [];
   const displayError = (text:string|null) => text?<p role="status" className="text-xs text-amber-800">{text}</p>:null;
 
-  return <div className="space-y-6 p-5">
-    <section className="space-y-3" aria-label="Informações pessoais">
+  return <div className="grid min-w-0 grid-cols-1 gap-5 p-4 sm:gap-6 sm:p-6 lg:grid-cols-2">
+    <section className="min-w-0 space-y-3 lg:col-span-2" aria-label="Informações pessoais">
       <div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-full bg-indigo-100 text-indigo-700"><ContactRound className="size-6"/></div>
         <div className="min-w-0"><strong className="block truncate">{person.name}</strong><span className="text-xs text-muted-foreground">Contato CRM</span></div></div>
       <dl className="space-y-2 rounded-xl bg-slate-50 p-3 text-sm">
@@ -76,28 +76,28 @@ export function CrmPersonDetail({ api, person, can, onEdit, onArchive }: {
       {can("people.write") && <div className="flex gap-2"><Button size="sm" onClick={onEdit}><PenLine className="size-4"/> Editar</Button>
         <Button size="sm" variant="outline" onClick={onArchive}><Archive className="size-4"/> Arquivar</Button></div>}
     </section>
-    <section aria-label="Organizações vinculadas" className="space-y-3 border-t pt-4">
+    <section aria-label="Organizações vinculadas" className="min-w-0 space-y-3 border-t pt-4">
       <h3 className="flex items-center gap-2 text-sm font-semibold"><Building2 className="size-4"/> Organizações</h3>
       {displayError(organizations.error)}
       {organizations.data?.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma empresa vinculada.</p>}
-      {organizations.data?.map(org=><div key={org.id} className="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm">
-        <span><strong>{org.tradeName || org.legalName}</strong>
+      {organizations.data?.map(org=><div key={org.id} className="flex min-w-0 flex-wrap items-start justify-between gap-3 rounded-lg border p-3 text-sm">
+        <span className="min-w-0 flex-1 break-words"><strong>{org.tradeName || org.legalName}</strong>
         {org.tradeName && <p className="text-xs text-muted-foreground">{org.legalName}</p>}</span>
         {can("relationships.write") && <Button size="sm" variant="outline" disabled={saving}
           aria-label={"Desvincular organização "+org.legalName}
           onClick={()=>void mutate(()=>api.unlinkPersonOrganization(person.id,org.id),"Organização desvinculada.",()=>{})}>Desvincular</Button>}</div>)}
-      {can("relationships.write") && can("organizations.read") && <form className="flex flex-wrap gap-2" onSubmit={event=>{
+      {can("relationships.write") && can("organizations.read") && <form className="flex min-w-0 flex-col gap-2 xl:flex-row" onSubmit={event=>{
         event.preventDefault();if(!selectedOrg)return;
         void mutate(()=>api.linkPersonOrganization(person.id,selectedOrg),"Organização vinculada.",()=>setSelectedOrg(""));
       }}>
         <select aria-label="Selecionar organização" value={selectedOrg} onChange={event=>setSelectedOrg(event.target.value)}
-          className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-white px-2 text-sm">
+          className="h-10 w-full min-w-0 rounded-lg border border-input bg-white px-2 text-sm xl:flex-1">
           <option value="">Selecione uma organização</option>
           {choices.filter(org=>!organizations.data?.some(linked=>linked.id===org.id)).map(org=><option value={org.id} key={org.id}>{org.tradeName||org.legalName}</option>)}
-        </select><Button size="sm" type="submit" disabled={!selectedOrg||saving}><Link2 className="size-4"/> Vincular</Button>
+        </select><Button className="w-full xl:w-auto" size="sm" type="submit" disabled={!selectedOrg||saving}><Link2 className="size-4"/> Vincular</Button>
       </form>}
     </section>
-    <section aria-label="Tags do contato" className="space-y-3 border-t pt-4">
+    <section aria-label="Tags do contato" className="min-w-0 space-y-3 border-t pt-4">
       <h3 className="flex items-center gap-2 text-sm font-semibold"><Tags className="size-4"/> Tags</h3>
       {displayError(tags.error)}
       {tags.data?.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma tag vinculada.</p>}
@@ -106,26 +106,26 @@ export function CrmPersonDetail({ api, person, can, onEdit, onArchive }: {
         {can("tags.write") && <Button size="sm" variant="ghost" className="h-6 px-1 text-xs" disabled={saving}
           aria-label={"Desvincular tag "+tag.label}
           onClick={()=>void mutate(()=>api.unlinkPersonTag(person.id,tag.id),"Tag desvinculada.",()=>{})}>Remover</Button>}</span>)}</div>
-      {can("tags.read") && can("tags.write") && <form className="flex gap-2" onSubmit={event=>{event.preventDefault();if(!selectedTag)return;
+      {can("tags.read") && can("tags.write") && <form className="flex min-w-0 flex-col gap-2 xl:flex-row" onSubmit={event=>{event.preventDefault();if(!selectedTag)return;
         void mutate(()=>api.tagPerson(person.id,selectedTag),"Tag existente vinculada.",()=>setSelectedTag(""));
       }}>
         <select aria-label="Selecionar tag existente" value={selectedTag} onChange={event=>setSelectedTag(event.target.value)}
-          className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-white px-2 text-sm">
+          className="h-10 w-full min-w-0 rounded-lg border border-input bg-white px-2 text-sm xl:flex-1">
           <option value="">Tags já cadastradas</option>
           {tagCatalog.filter(tag=>!tags.data?.some(assigned=>assigned.id===tag.id)).map(tag=><option key={tag.id} value={tag.id}>{tag.label}</option>)}
         </select>
-        <Button type="submit" size="sm" disabled={saving||!selectedTag}>Vincular</Button>
+        <Button className="w-full xl:w-auto" type="submit" size="sm" disabled={saving||!selectedTag}>Vincular</Button>
       </form>}
-      {can("tags.write") && <form className="flex gap-2" onSubmit={event=>{event.preventDefault();if(!tagText.trim())return;
+      {can("tags.write") && <form className="flex min-w-0 flex-col gap-2 xl:flex-row" onSubmit={event=>{event.preventDefault();if(!tagText.trim())return;
         void mutate(async()=>{
           const tag=await api.createTag(tagText.trim());
           await api.tagPerson(person.id,tag.id);
         },"Tag vinculada.",()=>setTagText(""));
       }}>
         <Input aria-label="Nova tag" maxLength={80} value={tagText} onChange={event=>setTagText(event.target.value)} placeholder="Nova tag"/>
-        <Button size="sm" type="submit" disabled={!tagText.trim()||saving}><Plus className="size-4"/> Adicionar</Button></form>}
+        <Button className="w-full xl:w-auto" size="sm" type="submit" disabled={!tagText.trim()||saving}><Plus className="size-4"/> Adicionar</Button></form>}
     </section>
-    <section aria-label="Notas do contato" className="space-y-3 border-t pt-4">
+    <section aria-label="Notas do contato" className="min-w-0 space-y-3 border-t pt-4">
       <h3 className="flex items-center gap-2 text-sm font-semibold"><NotebookPen className="size-4"/> Notas</h3>
       {displayError(notes.error)}
       {notes.data?.length===0 && <p className="text-xs text-muted-foreground">Nenhuma nota registrada.</p>}
@@ -138,7 +138,7 @@ export function CrmPersonDetail({ api, person, can, onEdit, onArchive }: {
         <Textarea aria-label="Escrever nota CRM" rows={2} maxLength={3000} value={noteText} onChange={event=>setNoteText(event.target.value)} placeholder="Nota interna do contato..."/>
         <Button size="sm" disabled={!noteText.trim()||saving} type="submit"><Plus className="size-4"/> Registrar nota</Button></form>}
     </section>
-    <section aria-label="Canais vinculados" className="space-y-3 border-t pt-4">
+    <section aria-label="Canais vinculados" className="min-w-0 space-y-3 border-t pt-4">
       <h3 className="flex items-center gap-2 text-sm font-semibold"><Radio className="size-4"/> Identidades de canais</h3>
       {displayError(channels.error)}
       {channels.data?.length===0 && <p className="text-xs text-muted-foreground">Nenhum canal vinculado.</p>}
@@ -153,17 +153,17 @@ export function CrmPersonDetail({ api, person, can, onEdit, onArchive }: {
         <Input aria-label="Nome exibido no canal" maxLength={160} placeholder="Nome exibido (opcional)" value={displayName} onChange={event=>setDisplayName(event.target.value)}/>
         <Button size="sm" disabled={saving||!externalId.trim()} type="submit">Vincular canal</Button></form>}
     </section>
-    <section aria-label="Funcionário vinculado" className="space-y-3 border-t pt-4">
+    <section aria-label="Funcionário vinculado" className="min-w-0 space-y-3 border-t pt-4">
       <h3 className="flex items-center gap-2 text-sm font-semibold"><UsersRound className="size-4"/> Funcionário</h3>
       {displayError(employee.error)}
       {myEmployee.map(item=><p key={item.id} className="text-sm">{item.jobTitle} — {item.active?"Ativo":"Inativo"}</p>)}
-      {can("employees.write") && myEmployee.length===0 && <form className="flex gap-2" onSubmit={event=>{event.preventDefault();if(!jobTitle.trim())return;
+      {can("employees.write") && myEmployee.length===0 && <form className="flex min-w-0 flex-col gap-2 xl:flex-row" onSubmit={event=>{event.preventDefault();if(!jobTitle.trim())return;
         void mutate(()=>api.createEmployee(person.id,jobTitle.trim()),"Funcionário vinculado.",()=>setJobTitle(""));
       }}>
         <Input aria-label="Cargo do funcionário" maxLength={160} value={jobTitle} onChange={event=>setJobTitle(event.target.value)} placeholder="Cargo"/>
-        <Button size="sm" type="submit" disabled={saving||!jobTitle.trim()}>Registrar</Button></form>}
+        <Button className="w-full xl:w-auto" size="sm" type="submit" disabled={saving||!jobTitle.trim()}>Registrar</Button></form>}
     </section>
-    <section aria-label="Histórico do contato" className="space-y-3 border-t pt-4">
+    <section aria-label="Histórico do contato" className="min-w-0 space-y-3 border-t pt-4">
       <h3 className="flex items-center gap-2 text-sm font-semibold"><Clock3 className="size-4"/> Histórico</h3>
       {displayError(timeline.error)}
       {timeline.data?.length===0 && <p className="text-xs text-muted-foreground">Sem histórico disponível.</p>}
@@ -172,6 +172,6 @@ export function CrmPersonDetail({ api, person, can, onEdit, onArchive }: {
         <time className="text-muted-foreground">{fmt(entry.recordedAt)}</time></p>)}
       <Button size="sm" variant="outline" onClick={refresh}><RefreshCw className="size-4"/> Atualizar ficha</Button>
     </section>
-    <p className="text-xs text-muted-foreground"><FileText className="mr-1 inline size-3"/> Recursos exibidos conforme as capacidades do usuário e autorização do Core Host.</p>
+    <p className="min-w-0 text-xs text-muted-foreground lg:col-span-2"><FileText className="mr-1 inline size-3"/> Recursos exibidos conforme as capacidades do usuário e autorização do Core Host.</p>
   </div>;
 }
