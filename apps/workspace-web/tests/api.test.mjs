@@ -126,3 +126,23 @@ test("CRM pagination and relation unlink endpoints stay inside the active tenant
  assert.equal(calls[4].url,"/v1/tenants/tenant-main/crm/capabilities");
  assert.equal(calls[5].url,"/v1/tenants/tenant-main/crm/tags");
 });
+
+test("SSE stream authenticates via Bearer and only dispatches change-only frames",async()=>{
+ const seen=[];const invalidations=[];
+ const encoder=new TextEncoder();
+ globalThis.fetch=async(url,options)=>{
+   seen.push({url,options});
+   return new Response(new ReadableStream({
+     start(controller){
+       controller.enqueue(encoder.encode([": connected","","event: changed","data: {}","",""].join("\n")));
+       controller.close();
+     }
+   }),{status:200,headers:{"content-type":"text/event-stream"}});
+ };
+ const api=new TenantApi("tenant-abc","jwt-token",()=>assert.fail("unexpected logout"));
+ const abort=new AbortController();
+ await api.watchInbox(abort.signal,()=>invalidations.push("changed"));
+ assert.equal(seen[0].url,"/v1/tenants/tenant-abc/inbox/events");
+ assert.equal(seen[0].options.headers.Authorization,"Bearer jwt-token");
+ assert.deepEqual(invalidations,["changed"]);
+});

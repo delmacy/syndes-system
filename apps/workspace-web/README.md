@@ -103,3 +103,9 @@ Testes de browser sem segredo: ``npm run test:crm-ui`` (API/identidade simuladas
 A classe \`crm-record-sheet\` define 100vw até 639px (tela inteira) e \`min(860px, 94vw)\` a partir de 640px, sem afetar o \`Sheet\` da Inbox. A ficha usa grid em duas colunas no desktop, rolagem vertical e cabeçalho com fechamento sempre acessível. Os formulários de vínculo/edição se empilham no mobile.
 
 O teste \`npm run test:crm-ui\` verifica geometria de viewport 320/390/1440px, fechamento da ficha mesmo após rolagem e não regressão do fluxo CRUD usando mocks. Ver revisão visual em \`docs/reviews/crm-frontend-2026-11-02/\`.
+
+## Inbox — realtime SSE
+
+``src/lib/api.ts`` abre `GET /v1/tenants/:tenantId/inbox/events` com `fetch` e header Bearer. Os eventos contêm somente `changed`; a interface recarrega as conversas via API autorizada. Após desconexão/erro, a interface retorna automaticamente ao polling a cada 10 segundos e tenta restabelecer SSE. Sessões SSE são reautorizadas pelo servidor a cada 60 segundos. Sem SSE disponível, a Inbox continua funcionando em modo HTTP.
+
+Limite atual: único processo Core Host. Exige broker de eventos compartilhado antes de escala horizontal.

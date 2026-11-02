@@ -18,7 +18,7 @@ import { clearSentDraft, draftKey, setDraft, type ComposerMode } from "@/feature
 import type { Conversation, Message, Person, TenantApi, QueueFilter } from "@/lib/api";
 
 type Status = Conversation["status"];
-const POLL_INTERVAL_MS = 10_000;
+const FALLBACK_INTERVAL_MS = 10_000;
 const statusLabel: Record<Status, string> = { open: "Aberta", pending: "Pendente", resolved: "Resolvida" };
 const statusVariant: Record<Status, "secondary" | "outline" | "default"> = {
   open: "secondary", pending: "outline", resolved: "default",
@@ -50,6 +50,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState(false);
   const [listError, setListError] = useState(false);
+  const [live, setLive] = useState(false);
   const [threadError, setThreadError] = useState(false);
   const [sending, setSending] = useState(false);
   const [drafts, setDrafts] = useState<Record<string,string>>({});
@@ -102,13 +103,43 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
 
   useEffect(() => { void refresh(true); }, [refresh]);
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (document.visibilityState !== "visible" || busy.current) return;
+    const abort = new AbortController();
+    let liveStream=false;
+    let retry:ReturnType<typeof setTimeout>|undefined;
+    const reload = () => {
+      if(document.visibilityState!=="visible" || busy.current)return;
       void refresh();
-      if (activeId.current) void readThread(activeId.current);
-    }, POLL_INTERVAL_MS);
-    return () => window.clearInterval(timer);
-  }, [refresh, readThread]);
+      if(activeId.current)void readThread(activeId.current);
+    };
+    const connect = async () => {
+      while(!abort.signal.aborted){
+        try {
+          liveStream=true;setLive(true);
+          await api.watchInbox(abort.signal,reload);
+        }catch{
+          // Fall back to polling: no message loss, no exposure of event payloads.
+        }finally{
+          liveStream=false;
+          if(!abort.signal.aborted)setLive(false);
+        }
+        if(abort.signal.aborted)break;
+        await new Promise<void>(resolve=>{
+          retry=setTimeout(resolve,5000);
+          abort.signal.addEventListener("abort",()=>{if(retry)clearTimeout(retry);resolve();},{once:true});
+        });
+      }
+    };
+    void connect();
+    const timer = window.setInterval(()=>{if(!liveStream)reload();},FALLBACK_INTERVAL_MS);
+    const visible = () => {if(document.visibilityState==="visible")reload();};
+    document.addEventListener("visibilitychange",visible);
+    return ()=>{
+      abort.abort();
+      if(retry)clearTimeout(retry);
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange",visible);
+    };
+  }, [api,refresh,readThread]);
   useEffect(() => () => {
     listRequest.current += 1;
     threadRequest.current += 1;
@@ -223,7 +254,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
       <div><p className="eyebrow">Central de atendimento</p><h1 className="page-title">Inbox</h1>
         <p className="page-subtitle">Acompanhe, atribua e responda conversas em um único espaço.</p></div>
       <div className="flex items-center gap-2">
-        <span className="hidden text-xs text-muted-foreground sm:inline">Sincronização a cada 10 s</span>
+        <span className="hidden text-xs text-muted-foreground sm:inline" role="status">{live?"Atualização em tempo real":"Reconectando · consulta a cada 10 s"}</span>
         <Button variant="outline" size="icon-lg" aria-label="Atualizar fila" title="Atualizar fila" onClick={() => void refresh(true)}><RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} /></Button>
         <Button size="lg" onClick={newConversation}><Plus className="size-4" /> Nova conversa</Button>
       </div>

@@ -143,6 +143,41 @@ export class TenantApi {
   createOrganization(body: { legalName: string; tradeName?: string; taxId?: string }) {
     return this.request<Organization>("crm", "/organizations", "POST", body);
   }
+  /**
+   * Fetch-based SSE uses the Bearer JWT header (native EventSource cannot).
+   * Stream events contain no conversation data: only an invalidation signal.
+   * Reconnect is the caller's responsibility; each 60s connection is reauthorized.
+   */
+  async watchInbox(signal: AbortSignal, onChange: () => void): Promise<void> {
+    const response = await fetch(
+      "/v1/tenants/" + encodeURIComponent(this.tenantId) + "/inbox/events",
+      {headers:{Authorization:"Bearer " + this.token,Accept:"text/event-stream"},
+        signal,cache:"no-store"},
+    );
+    if(response.status===401)this.unauthorized();
+    if(!response.ok)throw new ApiError(response.status,
+      response.status===403?"Sem permissão para notificações da Inbox.":"Realtime indisponível.");
+    if(!response.body)throw new Error("SSE sem corpo de resposta");
+    const reader=response.body.getReader();
+    const decoder=new TextDecoder();
+    let buffer="";
+    try {
+      while(!signal.aborted){
+        const {value,done}=await reader.read();
+        if(done)break;
+        buffer+=decoder.decode(value,{stream:true}).replaceAll("\r\n","\n");
+        // Cap event buffer to avoid unbounded memory growth from malformed peers.
+        if(buffer.length>65536)throw new Error("SSE inválido");
+        let pos=buffer.indexOf("\n\n");
+        while(pos>=0){
+          const frame=buffer.slice(0,pos);
+          buffer=buffer.slice(pos+2);
+          if(frame.split("\n").some(line=>line.trim()==="event: changed"))onChange();
+          pos=buffer.indexOf("\n\n");
+        }
+      }
+    }finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
+  }
   conversations(status = "", queue: QueueFilter = "all") {
     return this.request<Conversation[]>("inbox", "/conversations?limit=100"
       + (status ? "&status=" + encodeURIComponent(status) : "")
