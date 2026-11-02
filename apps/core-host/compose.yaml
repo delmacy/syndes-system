@@ -5,6 +5,10 @@ services:
     restart: unless-stopped
     environment:
       CORE_PORT: "8082"
+      WHATSAPP_GATEWAY_URL: http://whatsapp-gateway:19083
+      WHATSAPP_WHATSMEOW_TOKEN: ${WHATSAPP_WHATSMEOW_TOKEN:?Set gateway secret}
+      WHATSAPP_WEBHOOK_TOKEN: ${WHATSAPP_WEBHOOK_TOKEN:?Set webhook secret}
+      WHATSAPP_DISPATCH_ENABLED: "true"
       CORE_KEYCLOAK_ISSUER: ${CORE_KEYCLOAK_ISSUER:?}
       CORE_KEYCLOAK_AUDIENCE: ${CORE_KEYCLOAK_AUDIENCE:?}
       CORE_KEYCLOAK_JWKS_URL: ${CORE_KEYCLOAK_JWKS_URL:?}
