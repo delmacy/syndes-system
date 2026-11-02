@@ -25,6 +25,22 @@ jobs:
     name: Go build, vet and tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: syndes_ci
+          POSTGRES_PASSWORD: syndes_ci_test_only
+          POSTGRES_DB: syndes_whatsapp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd 'pg_isready -U syndes_ci -d syndes_whatsapp_test'
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SYNDES_WHATSAPP_TEST_PG_DSN: postgres://syndes_ci:syndes_ci_test_only@localhost:5432/syndes_whatsapp_test?sslmode=disable
     defaults:
       run:
         working-directory: modules/whatsapp/gateway/whatsmeow
