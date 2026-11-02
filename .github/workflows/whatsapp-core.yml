@@ -1,0 +1,34 @@
+name: WhatsApp Core Receiver CI
+on:
+  pull_request:
+    paths:
+      - 'modules/whatsapp/src/**'
+      - 'modules/whatsapp/sql/**'
+      - 'modules/whatsapp/test/**'
+      - 'modules/whatsapp/package.json'
+      - '.github/workflows/whatsapp-core.yml'
+  push:
+    branches: ['feat/whatsapp-module-foundation']
+    paths:
+      - 'modules/whatsapp/src/**'
+      - 'modules/whatsapp/sql/**'
+      - 'modules/whatsapp/test/**'
+      - 'modules/whatsapp/package.json'
+      - '.github/workflows/whatsapp-core.yml'
+permissions:
+  contents: read
+jobs:
+  typescript:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build shared Core Kernel
+        run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Install WhatsApp module dependencies
+        run: cd modules/whatsapp && npm install --no-package-lock --no-audit --no-fund
+      - name: TypeScript build and isolation tests
+        run: cd modules/whatsapp && npm run check && npm test
