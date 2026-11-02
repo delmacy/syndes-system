@@ -38,6 +38,11 @@ export class WhatsAppAccounts {
   if(!result.rows[0])throw new Error("Account creation failed");
   return view(result.rows[0]);
  }
+ async setEnabled(ctx:TenantContext,accountId:string,enabled:boolean):Promise<WhatsAppAccountView|null> {
+  const tenant=uuid(ctx.tenantId),id=uuid(accountId),db=await this.forTenant(tenant);
+  const result=await db.query<AccountRow>("UPDATE whatsapp_accounts SET service_enabled=$3,connection_status=CASE WHEN $3 THEN connection_status ELSE 'disconnected' END,updated_at=now() WHERE tenant_id=$1 AND id=$2 RETURNING id,tenant_id,display_name,phone_external_id,device_jid,connection_status,service_enabled",[tenant,id,enabled]);
+  return result.rows[0]?view(result.rows[0]):null;
+ }
  async requireEnabled(ctx:TenantContext,accountId:string):Promise<WhatsAppAccountView> {
   const account=await this.get(ctx,accountId);
   if(!account||!account.serviceEnabled)throw new Error("Account not found or disabled");
