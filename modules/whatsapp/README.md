@@ -64,3 +64,9 @@ The legacy local gateway remains untouched during migration; deduplicate deploym
 - Go dispatcher serializes rate reservations via PostgreSQL account row locks and caps at 40/minute/account. Reservation and claim run in one transaction.
 - Outbound messages with uncertain outcomes are marked failed (manual reconciliation), never blindly retried. A startup recovery marks stale processing claims uncertain.
 - **Still pending:** backend account provisioning, outbound status API, transaction-level DB integration tests, dead-letter management, inbound consumer integration, operational health, multi-instance worker leases, and real WhatsApp acceptance.
+
+## Versioned inbound event contract (2026-11-02)
+- Go gateway POSTs an authenticated version 1 envelope to the existing internal callback URL with `type=whatsapp.message.received`, `tenantId`, `accountId`, and a nested normalized `message` body.
+- Headers: `X-Syndes-Event-Version: 1`, `X-Syndes-Event-Type: whatsapp.message.received`.
+- Callback retries remain buffered in the inbound outbox; CRM/Inbox integration must verify tenant/account mapping and deduplicate by account+external message ID.
+- **Breaking integration gate:** the previous unversioned consumer, if any, must be adapted before activating the gateway. No new Core Host receiver has been enabled or deployed yet.
