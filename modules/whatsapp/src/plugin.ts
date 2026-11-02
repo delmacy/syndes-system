@@ -2,7 +2,8 @@ import {defineSyndesModule,type ModuleDefinition} from "@syndes/core-kernel";
 import {WhatsAppHttpModule} from "./http.js";
 import {WhatsAppInboundHttpModule} from "./inbound-http.js";
 import {Module} from "@nestjs/common";
-@Module({imports:[WhatsAppHttpModule,WhatsAppInboundHttpModule]})
+import {WhatsAppDispatchWorker} from "./dispatch-worker.js";
+@Module({imports:[WhatsAppHttpModule,WhatsAppInboundHttpModule],providers:[WhatsAppDispatchWorker]})
 class WhatsAppApiModule{}
 const whatsappModule:ModuleDefinition={id:"whatsapp",version:"0.1.0",dependencies:["platform","crm","inbox"]};
 export const syndesPlugin=defineSyndesModule({
