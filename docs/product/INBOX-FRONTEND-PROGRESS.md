@@ -74,3 +74,15 @@ A implantação no DevServer01 somente é válida após **atualizar também o Co
 - Não foram criados templates, mensagens automáticas, novos canais, serviços, bancos, tabelas ou novas permissões administrativas.
 - Cobertura: testes unitários de acesso isolado por tenant, PostgreSQL temporário com organizações/tags e negativas cross-tenant, e smoke Chrome com APIs mockadas para rascunhos, atalho e reenvio depois de falha 503.
 - **Não concluído:** acessibilidade completa, histórico mais abrangente, edição profunda de CRM, várias pessoas no mesmo cliente, realtime seguro, anexos e aceite E2E desta UI com JWT real de múltiplos atendentes.
+
+## Realtime SSE no Workspace — incremento 2026-11-02
+
+- [x] Endpoint de alterações tenant-scoped, autenticado por Bearer JWT e OpenFGA `inbox:conversations/read`, sem payload de dados da conversa.
+- [x] Notificação após mutações bem-sucedidas; frontend reconstrói dados pelas APIs REST autorizadas, sem confiar no evento para dados de negócio.
+- [x] Reautorização a cada até 60 segundos, heartbeats, limite de conexões, isolamento entre tenants e cleanup testados em unidade.
+- [x] Modo de contingência via polling 10 segundos quando SSE está desconectado.
+- [ ] Live E2E com dois usuários Keycloak e dois tenants, incluindo perda de conexão, reconexão, FGA negativo e concorrência.
+- [ ] Distribuição dos eventos entre múltiplas instâncias se o Core Host deixar de ser single-replica; não usar a implementação atual em cluster horizontal.
+- [ ] Deploy do código no DevServer01 com conta administrativa, rollback e observabilidade.
+
+**Status:** implementação/testes locais; NÃO equivale a realtime homologado em produção. O Core CRM também permanece sem Product Gate final.

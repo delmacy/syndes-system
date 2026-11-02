@@ -15,6 +15,10 @@ export class InboxService {
    return this.kernel.execute({actor:ctx.actor,tenantId:ctx.tenantId,action,resource},
      async()=>handler(await this.storeForTenant(ctx.tenantId)));
  }
+ /** Authorization for a live change-only stream; NO database lease or tenant-supplied actor. */
+ watch(ctx:InboxContext):Promise<void>{
+   return this.kernel.execute({actor:ctx.actor,tenantId:ctx.tenantId,action:"read",resource:"inbox:conversations"},async()=>{});
+ }
  create(ctx:InboxContext,input:CreateConversation):Promise<Conversation>{
    const record={
      id:randomUUID(),subject:text(input?.subject,"subject",160),
