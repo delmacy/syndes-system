@@ -30,12 +30,14 @@ jobs:
         working-directory: modules/whatsapp/gateway/whatsmeow
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
       - uses: actions/setup-go@v5
         with:
           go-version-file: modules/whatsapp/gateway/whatsmeow/go.mod
           cache-dependency-path: modules/whatsapp/gateway/whatsmeow/go.sum
       - name: Format Go sources on the approved feature branch
-        if: github.event_name == 'push' && github.ref == 'refs/heads/feat/whatsapp-module-foundation'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/whatsapp-module-foundation') || (github.event_name == 'pull_request' && github.head_ref == 'feat/whatsapp-module-foundation' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           gofmt -w main.go gateway.go architecture_test.go
           if ! git diff --quiet -- '*.go'; then
