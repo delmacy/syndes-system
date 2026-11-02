@@ -1,0 +1,49 @@
+name: WhatsApp Gateway Go
+
+on:
+  pull_request:
+    paths:
+      - 'modules/whatsapp/gateway/whatsmeow/**'
+      - '.github/workflows/whatsapp-go.yml'
+  push:
+    branches:
+      - 'feat/whatsapp-module-foundation'
+    paths:
+      - 'modules/whatsapp/gateway/whatsmeow/**'
+      - '.github/workflows/whatsapp-go.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: whatsapp-go-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-test:
+    name: Go build, vet and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: modules/whatsapp/gateway/whatsmeow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: modules/whatsapp/gateway/whatsmeow/go.mod
+          cache-dependency-path: modules/whatsapp/gateway/whatsmeow/go.sum
+      - name: Validate formatting
+        run: |
+          files="$(gofmt -l $(find . -name '*.go' -type f))"
+          if [ -n "$files" ]; then
+            printf 'Files needing gofmt:\n%s\n' "$files"
+            exit 1
+          fi
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test -race -count=1 ./...
