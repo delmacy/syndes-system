@@ -64,6 +64,9 @@ export class TenantApi {
 
   whatsappAccounts(){return this.request<WhatsAppAccount[]>("whatsapp","/accounts")}
   createWhatsAppAccount(displayName:string){return this.request<WhatsAppAccount>("whatsapp","/accounts","POST",{displayName})}
+  setWhatsAppEnabled(accountId:string,enabled:boolean){
+    return this.request<WhatsAppAccount>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/enabled","PATCH",{enabled});
+  }
   pairWhatsAppAccount(accountId:string){return this.request<{pairingCode:string;expiresAt:string}>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/pair","POST")}
   connectWhatsAppAccount(accountId:string){return this.request<{phoneExternalId:string}>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/connect","POST")}
   disconnectWhatsAppAccount(accountId:string){return this.request<null>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/disconnect","POST")}
