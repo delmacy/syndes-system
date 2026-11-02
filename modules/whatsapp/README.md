@@ -57,3 +57,10 @@ The legacy local gateway remains untouched during migration; deduplicate deploym
 - Go migration creates `syndes_whatsapp_accounts`; existing legacy tenant-only sessions are imported as account ID = tenant ID where the legacy table exists (preserves rollback).
 - Events carry `accountId` and tenant is resolved by the server-side account registry.
 - **Not production-ready:** caller authentication is still a shared Bearer; account-scoped credentials / binding authorization, Go compilation, queue-only outbound, callback routing and PostgreSQL integration tests are outstanding. Never expose routes directly.
+
+## Go-only outbound delivery and security (incremental)
+- Account token: HMAC-SHA256(master, `syndes-whatsapp-v1:tenantId:accountId`), sent as Bearer over private transport. The Core Host must derive scoped tokens **only after** Keycloak/OpenFGA authorization. Master token itself is rejected for account operations.
+- `POST /v1/accounts/{accountId}/messages` now requires `idempotencyKey` and **queues** rather than calling whatsmeow in the HTTP handler.
+- Go dispatcher serializes rate reservations via PostgreSQL account row locks and caps at 40/minute/account. Reservation and claim run in one transaction.
+- Outbound messages with uncertain outcomes are marked failed (manual reconciliation), never blindly retried. A startup recovery marks stale processing claims uncertain.
+- **Still pending:** backend account provisioning, outbound status API, transaction-level DB integration tests, dead-letter management, inbound consumer integration, operational health, multi-instance worker leases, and real WhatsApp acceptance.
