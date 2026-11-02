@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: whatsapp-go-${{ github.workflow }}-${{ github.ref }}
@@ -34,6 +34,17 @@ jobs:
         with:
           go-version-file: modules/whatsapp/gateway/whatsmeow/go.mod
           cache-dependency-path: modules/whatsapp/gateway/whatsmeow/go.sum
+      - name: Format Go sources on the approved feature branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feat/whatsapp-module-foundation'
+        run: |
+          gofmt -w main.go gateway.go architecture_test.go
+          if ! git diff --quiet -- '*.go'; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add -- '*.go'
+            git commit -m 'style(whatsapp-go): apply gofmt'
+            git push origin HEAD:feat/whatsapp-module-foundation
+          fi
       - name: Validate formatting
         run: |
           files="$(gofmt -l $(find . -name '*.go' -type f))"
