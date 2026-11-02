@@ -35,6 +35,18 @@ export class WhatsAppGatewayClient {
   if(!response.ok)throw Error("Gateway session registry unavailable");
   return response.json() as Promise<Array<{accountId:string;tenantId:string;deviceJid:string|null;enabled:boolean;connected:boolean}>>;
  }
+ async setEnabled(tenantId:string,accountId:string,enabled:boolean):Promise<{enabled:boolean}>{
+  if(!this.base||!this.secret)throw Error("WhatsApp gateway not configured");
+  const url=new URL(this.base);
+  if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||url.username||url.password||url.search||url.hash||url.pathname!=="/")throw Error("Invalid gateway private URL");
+  const token=createHmac("sha256",this.secret).update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const response=await fetch(new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/enabled",url),{
+   method:"PATCH",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+   body:JSON.stringify({enabled}),signal:AbortSignal.timeout(10000),redirect:"error",
+  });
+  if(!response.ok)throw Error("Gateway account state unavailable ("+response.status+")");
+  return response.json() as Promise<{enabled:boolean}>;
+ }
  pair(tenantId:string,accountId:string){return this.request(tenantId,accountId,"pairing")}
  connect(tenantId:string,accountId:string){return this.request(tenantId,accountId,"connect")}
  disconnect(tenantId:string,accountId:string){return this.request(tenantId,accountId,"disconnect")}
