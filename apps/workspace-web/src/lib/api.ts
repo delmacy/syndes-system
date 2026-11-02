@@ -1,3 +1,4 @@
+export type WhatsAppAccount={id:string;tenantId:string;displayName:string;phoneExternalId:string|null;deviceJid:string|null;state:string;serviceEnabled:boolean};
 export type Person = { id: string; name: string; email?: string | null; phone?: string | null };
 export type Organization = { id: string; legalName: string; tradeName?: string | null; taxId?: string | null };
 export type Conversation = {
@@ -38,7 +39,7 @@ export class TenantApi {
     this.unauthorized = unauthorized;
   }
 
-  private async request<T>(module: "crm" | "inbox", path: string, method = "GET", body?: object): Promise<T> {
+  private async request<T>(module: "crm" | "inbox" | "whatsapp", path: string, method = "GET", body?: object): Promise<T> {
     const response = await fetch(
       "/v1/tenants/" + encodeURIComponent(this.tenantId) + "/" + module + path,
       { method, headers: {
@@ -58,9 +59,14 @@ export class TenantApi {
         response.status === 401 ? "Sessão expirada. Entre novamente." :
         typeof message === "string" ? message : "Erro na operação (" + response.status + ").");
     }
-    return (await response.json()) as T;
+    return (response.status === 204 ? null : await response.json()) as T;
   }
 
+  whatsappAccounts(){return this.request<WhatsAppAccount[]>("whatsapp","/accounts")}
+  createWhatsAppAccount(displayName:string){return this.request<WhatsAppAccount>("whatsapp","/accounts","POST",{displayName})}
+  pairWhatsAppAccount(accountId:string){return this.request<{pairingCode:string;expiresAt:string}>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/pair","POST")}
+  connectWhatsAppAccount(accountId:string){return this.request<{phoneExternalId:string}>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/connect","POST")}
+  disconnectWhatsAppAccount(accountId:string){return this.request<null>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/disconnect","POST")}
   people(query = "", offset = 0, limit = 100) {
     return this.request<Person[]>("crm", "/people?limit=" + limit + "&q=" + encodeURIComponent(query) + (offset ? "&offset=" + offset : ""));
   }
