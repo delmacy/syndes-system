@@ -117,7 +117,7 @@ func (gateway *whatsmeowGateway) Disconnect(ctx context.Context, accountID strin
 	return nil
 }
 
-func (gateway *whatsmeowGateway) Send(ctx context.Context, accountID string, input sendRequest) (sendResponse, error) {
+func (gateway *whatsmeowGateway) sendDirect(ctx context.Context, accountID string, input sendRequest) (sendResponse, error) {
 	client, err := gateway.client(ctx, accountID)
 	if err != nil {
 		return sendResponse{}, err
@@ -139,75 +139,57 @@ func (gateway *whatsmeowGateway) Send(ctx context.Context, accountID string, inp
 // Clients are keyed by account, never by tenant. Account ownership is resolved from
 // the gateway's own trusted session registry, not a caller supplied tenant selector.
 func (gateway *whatsmeowGateway) client(ctx context.Context, accountID string) (*whatsmeow.Client, error) {
-	gateway.mu.RLock()
-	client := gateway.clients[accountID]
-	gateway.mu.RUnlock()
-	var tenantID string
-	err := gateway.db.QueryRowContext(ctx, `SELECT tenant_id::text FROM syndes_whatsapp_accounts
+ gateway.mu.RLock()
+ client := gateway.clients[accountID]
+ gateway.mu.RUnlock()
+ var tenantID string
+ err := gateway.db.QueryRowContext(ctx, `SELECT tenant_id::text FROM syndes_whatsapp_accounts
  WHERE account_id=$1 AND enabled=true`, accountID).Scan(&tenantID)
-	if err != nil {
-		return nil, errors.New("account not registered or disabled")
-	}
-	if client != nil {
-		return client, nil
-	}
-	gateway.mu.Lock()
-	defer gateway.mu.Unlock()
-	if existing := gateway.clients[accountID]; existing != nil {
-		return existing, nil
-	}
-	device := gateway.container.NewDevice()
-	client = whatsmeow.NewClient(device, nil)
-	gateway.registerClientHandler(accountID, tenantID, client)
-	gateway.clients[accountID] = client
-	return client, nil
+ if err != nil { return nil, errors.New("account not registered or disabled") }
+ if client != nil { return client, nil }
+ gateway.mu.Lock()
+ defer gateway.mu.Unlock()
+ if existing := gateway.clients[accountID]; existing != nil { return existing, nil }
+ device := gateway.container.NewDevice()
+ client = whatsmeow.NewClient(device, nil)
+ gateway.registerClientHandler(accountID, tenantID, client)
+ gateway.clients[accountID] = client
+ return client, nil
 }
 
 func (gateway *whatsmeowGateway) registerClient(accountID, tenantID string, client *whatsmeow.Client) {
-	gateway.mu.Lock()
-	defer gateway.mu.Unlock()
-	gateway.registerClientHandler(accountID, tenantID, client)
-	gateway.clients[accountID] = client
+ gateway.mu.Lock()
+ defer gateway.mu.Unlock()
+ gateway.registerClientHandler(accountID, tenantID, client)
+ gateway.clients[accountID] = client
 }
 
 func (gateway *whatsmeowGateway) registerClientHandler(accountID, tenantID string, client *whatsmeow.Client) {
-	client.AddEventHandler(func(raw any) {
-		switch event := raw.(type) {
-		case *events.Connected:
-			if client.Store.ID != nil {
-				_ = gateway.saveMapping(context.Background(), accountID, client.Store.ID.String())
-			}
-		case *events.Message:
-			if event.Info.IsFromMe || event.Info.IsGroup || event.Info.Chat.Server == types.NewsletterServer {
-				return
-			}
-			body := messageText(event.Message)
-			if body == "" {
-				return
-			}
-			go gateway.enqueueInbound(context.Background(), tenantID, accountID, inboundEvent{
-				AccountID: accountID, ExternalMessageID: event.Info.ID,
-				SenderExternalID: event.Info.Sender.String(), Body: body,
-				OccurredAt: event.Info.Timestamp.UTC().Format(time.RFC3339Nano),
-			})
-		}
-	})
+ client.AddEventHandler(func(raw any) {
+  switch event := raw.(type) {
+  case *events.Connected:
+   if client.Store.ID != nil { _ = gateway.saveMapping(context.Background(), accountID, client.Store.ID.String()) }
+  case *events.Message:
+   if event.Info.IsFromMe || event.Info.IsGroup || event.Info.Chat.Server == types.NewsletterServer { return }
+   body := messageText(event.Message)
+   if body == "" { return }
+   go gateway.enqueueInbound(context.Background(), tenantID, accountID, inboundEvent{
+    AccountID: accountID, ExternalMessageID: event.Info.ID,
+    SenderExternalID: event.Info.Sender.String(), Body: body,
+    OccurredAt: event.Info.Timestamp.UTC().Format(time.RFC3339Nano),
+   })
+  }
+ })
 }
 
 func (gateway *whatsmeowGateway) saveMapping(ctx context.Context, accountID, jid string) error {
-	result, err := gateway.db.ExecContext(ctx, `UPDATE syndes_whatsapp_accounts
+ result, err := gateway.db.ExecContext(ctx, `UPDATE syndes_whatsapp_accounts
  SET device_jid=$2, updated_at=now() WHERE account_id=$1 AND enabled=true`, accountID, jid)
-	if err != nil {
-		return err
-	}
-	count, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if count != 1 {
-		return errors.New("account not registered or disabled")
-	}
-	return nil
+ if err != nil { return err }
+ count, err := result.RowsAffected()
+ if err != nil { return err }
+ if count != 1 { return errors.New("account not registered or disabled") }
+ return nil
 }
 
 func (gateway *whatsmeowGateway) enqueueInbound(ctx context.Context, tenantID, accountID string, event inboundEvent) {
@@ -309,7 +291,7 @@ func messageText(message *waE2E.Message) string {
 }
 
 type inboundEvent struct {
-	AccountID         string `json:"accountId"`
+ AccountID string `json:"accountId"`
 	ExternalMessageID string `json:"externalMessageId"`
 	SenderExternalID  string `json:"senderExternalId"`
 	Body              string `json:"body"`
