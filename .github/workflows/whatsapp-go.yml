@@ -39,7 +39,7 @@ jobs:
       - name: Format Go sources on the approved feature branch
         if: (github.event_name == 'push' && github.ref == 'refs/heads/feat/whatsapp-module-foundation') || (github.event_name == 'pull_request' && github.head_ref == 'feat/whatsapp-module-foundation' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
-          gofmt -w main.go gateway.go architecture_test.go
+          gofmt -w $(find . -name '*.go' -type f)
           if ! git diff --quiet -- '*.go'; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
