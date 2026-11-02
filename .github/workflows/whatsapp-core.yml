@@ -6,6 +6,10 @@ on:
       - 'modules/whatsapp/sql/**'
       - 'modules/whatsapp/test/**'
       - 'modules/whatsapp/package.json'
+      - 'apps/core-host/**'
+      - 'apps/workspace-web/**'
+      - 'apps/core-host/**'
+      - 'apps/workspace-web/**'
       - '.github/workflows/whatsapp-core.yml'
   push:
     branches: ['feat/whatsapp-module-foundation']
@@ -32,3 +36,37 @@ jobs:
         run: cd modules/whatsapp && npm install --no-package-lock --no-audit --no-fund
       - name: TypeScript build and isolation tests
         run: cd modules/whatsapp && npm run check && npm test
+
+  core-host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build shared domain modules
+        run: |
+          cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+          cd ../../modules/core-crm && npm ci --no-audit --no-fund && npm run build
+          cd ../inbox && npm ci --no-audit --no-fund && npm run build
+          cd ../whatsapp && npm install --no-package-lock --no-audit --no-fund && npm run build
+      - name: Validate plugin installation and Core Host tests
+        run: |
+          cd apps/core-host
+          npm ci --no-audit --no-fund
+          npm run link-peers
+          npm test
+  workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build QR Code and Inbox workspace
+        run: |
+          cd apps/workspace-web
+          npm ci --no-audit --no-fund
+          npm run build
