@@ -24,9 +24,9 @@ export class WhatsAppDispatchWorker implements OnModuleInit,OnModuleDestroy{
    const tenants=await this.registry.db.query("SELECT tenant_id::text AS tenant_id FROM tenant_registry WHERE state='active' ORDER BY tenant_id LIMIT 500");
    for(const tenant of tenants.rows){
     if(typeof tenant.tenant_id!=="string")continue;
-    try{for(let i=0;i<20;i++){const state=await this.projection.deliverNext(tenant.tenant_id);if(state!=="delivered")break}}
+    try{for(let i=0;i<20;i++){const state=await this.projection.deliverNext(tenant.tenant_id);if(state==="empty")break}}
     catch{/* Tenant failures remain pending and are retried in the next cycle. */}
    }
-  }finally{this.working=false}
+  }catch{/* Registry unavailable; retry on next scheduled tick. */}finally{this.working=false}
  }
 }
