@@ -75,22 +75,24 @@ func main() {
   updated_at timestamptz NOT NULL DEFAULT now()
  );
  `); err != nil {
-  slog.Error("failed to migrate account registry", "error", err.Error())
-  os.Exit(1)
- }
- // Preserve original tenant-only sessions when upgrading existing installations.
- var legacyExists bool
- if err := db.QueryRowContext(ctx, `SELECT to_regclass('syndes_whatsapp_tenants') IS NOT NULL`).Scan(&legacyExists); err != nil {
-  slog.Error("failed to detect legacy sessions", "error", err.Error()); os.Exit(1)
- }
- if legacyExists {
-  if _, err := db.ExecContext(ctx, `INSERT INTO syndes_whatsapp_accounts(account_id,tenant_id,device_jid)
+		slog.Error("failed to migrate account registry", "error", err.Error())
+		os.Exit(1)
+	}
+	// Preserve original tenant-only sessions when upgrading existing installations.
+	var legacyExists bool
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass('syndes_whatsapp_tenants') IS NOT NULL`).Scan(&legacyExists); err != nil {
+		slog.Error("failed to detect legacy sessions", "error", err.Error())
+		os.Exit(1)
+	}
+	if legacyExists {
+		if _, err := db.ExecContext(ctx, `INSERT INTO syndes_whatsapp_accounts(account_id,tenant_id,device_jid)
   SELECT tenant_id,tenant_id,device_jid FROM syndes_whatsapp_tenants
   ON CONFLICT(account_id) DO NOTHING`); err != nil {
-   slog.Error("failed to migrate legacy sessions", "error", err.Error()); os.Exit(1)
-  }
- }
- if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS syndes_whatsapp_inbound_outbox (
+			slog.Error("failed to migrate legacy sessions", "error", err.Error())
+			os.Exit(1)
+		}
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS syndes_whatsapp_inbound_outbox (
   id bigserial PRIMARY KEY,
   tenant_id uuid NOT NULL,
   account_id uuid,
@@ -104,9 +106,9 @@ func main() {
  ALTER TABLE syndes_whatsapp_inbound_outbox ADD COLUMN IF NOT EXISTS account_id uuid;
  CREATE UNIQUE INDEX IF NOT EXISTS syndes_whatsapp_inbound_account_message_idx
  ON syndes_whatsapp_inbound_outbox(account_id,external_message_id);`); err != nil {
-  slog.Error("failed to migrate inbound outbox", "error", err.Error())
-  os.Exit(1)
- }
+		slog.Error("failed to migrate inbound outbox", "error", err.Error())
+		os.Exit(1)
+	}
 
 	callback := &callbackClient{
 		baseURL: cfg.apiBaseURL,
