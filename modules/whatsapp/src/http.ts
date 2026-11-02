@@ -1,4 +1,4 @@
-import {Body,Controller,Get,Headers,HttpException,Inject,Injectable,Module,Param,Post} from "@nestjs/common";
+import {Body,Controller,Get,Headers,HttpException,Inject,Injectable,Module,Param,Post,Patch} from "@nestjs/common";
 import {AccessDeniedError,type Actor,type CoreKernel,type TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 import {WhatsAppAccounts} from "./accounts.js";
 import {WhatsAppGatewayClient} from "./gateway-client.js";
@@ -45,7 +45,7 @@ export class WhatsAppAccountsController {
    const sessions=new Map(connected.map(s=>[s.accountId,s]));
    return accounts.map(a=>{
     const s=sessions.get(a.id);
-    return {...a,deviceJid:s?.deviceJid??a.deviceJid,
+    return {...a,serviceEnabled:a.serviceEnabled&&(s?.enabled??true),deviceJid:s?.deviceJid??a.deviceJid,
      phoneExternalId:s?.deviceJid??a.phoneExternalId,
      state:s?.connected?"connected":s?.deviceJid?"disconnected":"unpaired"};
    });
@@ -83,6 +83,25 @@ export class WhatsAppAccountsController {
   return this.host.run(tenantId,authorization,"write",async()=>{
    await this.host.accounts.requireEnabled({tenantId},accountId);
    return this.host.gateway.disconnect(tenantId,accountId);
+  });
+ }
+ @Patch(":accountId/enabled")
+ enabled(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,@Headers("authorization")authorization:string|undefined,
+ @Body()body:{enabled?:unknown}){
+  return this.host.run(tenantId,authorization,"write",async()=>{
+   if(typeof body?.enabled!=="boolean")throw new HttpException("Invalid enabled state",400);
+   const current=await this.host.accounts.get({tenantId},accountId);
+   if(!current)throw new HttpException("WhatsApp account not found",404);
+   await this.host.gateway.setEnabled(tenantId,accountId,body.enabled);
+   try{
+    const updated=await this.host.accounts.setEnabled({tenantId},accountId,body.enabled);
+    if(!updated)throw new Error("Account update unavailable");
+    return updated;
+   }catch(error){
+    try{await this.host.gateway.setEnabled(tenantId,accountId,current.serviceEnabled)}
+    catch{/* Remote state must be reconciled by operator if rollback fails. */}
+    throw error;
+   }
   });
  }
  @Post(":accountId/connect")
