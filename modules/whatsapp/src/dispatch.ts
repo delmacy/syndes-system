@@ -11,16 +11,19 @@ export class WhatsAppInboxProjection{
   const db=await this.pools.resolve(tenantId);
   if(db.tenantId!==tenantId)throw new Error("Tenant database mismatch");
   const pending=await db.query(`SELECT id,payload FROM whatsapp_inbound_events
-    WHERE tenant_id=$1::uuid AND processed_at IS NULL ORDER BY id LIMIT 1`,[tenantId]);
+    WHERE tenant_id=$1::uuid AND processed_at IS NULL AND failed_at IS NULL ORDER BY id LIMIT 1`,[tenantId]);
   const row=pending.rows[0] as {id?:unknown;payload?:unknown}|undefined;
   if(!row)return "empty";
-  if(!validIncomingEnvelope(tenantId,row.payload))return "invalid";
+  if(!validIncomingEnvelope(tenantId,row.payload)){
+   await db.query("UPDATE whatsapp_inbound_events SET failed_at=clock_timestamp(),last_error=$3 WHERE tenant_id=$1::uuid AND id=$2 AND processed_at IS NULL AND failed_at IS NULL",[tenantId,row.id,"invalid envelope"]);
+   return "invalid";
+  }
   const event=row.payload;
   // Include both the sending number and remote sender to prevent thread merging.
   const thread=createHash("sha256").update(event.accountId+"|"+event.message.senderExternalId).digest("hex");
   const externalId=createHash("sha256").update(event.accountId+"|"+event.message.externalMessageId).digest("hex");
   const subject="WhatsApp · "+event.message.senderExternalId.slice(0,100);
-  if(event.message.body.length>5000)return "invalid";
+  const inboxBody=event.message.body.slice(0,5000);
   const result=await db.query(`
    WITH incoming AS (
      SELECT e.id,e.tenant_id,e.account_id
@@ -51,7 +54,7 @@ export class WhatsAppInboxProjection{
      RETURNING e.id
    )
    SELECT id FROM acknowledged
-   `,[tenantId,row.id,randomUUID(),subject,thread,randomUUID(),event.message.body,
+   `,[tenantId,row.id,randomUUID(),subject,thread,randomUUID(),inboxBody,
       event.message.senderExternalId,externalId]);
   return result.rows.length===1?"delivered":"invalid";
  }
