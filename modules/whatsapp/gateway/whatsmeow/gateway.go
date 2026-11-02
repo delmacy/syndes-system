@@ -323,10 +323,14 @@ type callbackClient struct {
 }
 
 func (callback *callbackClient) deliver(ctx context.Context, tenantID string, event inboundEvent) error {
-	payload, err := json.Marshal(event)
-	if err != nil {
-		return err
-	}
+	payload, err := json.Marshal(struct {
+  Version string `json:"version"`
+  Type string `json:"type"`
+  TenantID string `json:"tenantId"`
+  AccountID string `json:"accountId"`
+  Message inboundEvent `json:"message"`
+ }{Version:"1",Type:"whatsapp.message.received",TenantID:tenantID,AccountID:event.AccountID,Message:event})
+ if err != nil { return err }
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
 		request, err := http.NewRequestWithContext(ctx, http.MethodPost, callback.baseURL+"/api/v1/internal/whatsapp/events/"+tenantID, bytes.NewReader(payload))
@@ -335,6 +339,8 @@ func (callback *callbackClient) deliver(ctx context.Context, tenantID string, ev
 		}
 		request.Header.Set("Authorization", "Bearer "+callback.token)
 		request.Header.Set("Content-Type", "application/json")
+        request.Header.Set("X-Syndes-Event-Version", "1")
+        request.Header.Set("X-Syndes-Event-Type", "whatsapp.message.received")
 		response, err := callback.client.Do(request)
 		if err == nil {
 			_ = response.Body.Close()
