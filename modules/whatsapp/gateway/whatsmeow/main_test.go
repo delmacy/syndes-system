@@ -61,3 +61,16 @@ func TestCallbackRetriesUntilAccepted(t *testing.T) {
 		t.Fatalf("expected 3 attempts, got %d", attempts.Load())
 	}
 }
+
+
+func TestAccountTokensAreIsolated(t *testing.T) {
+ master := "test-only-secret"
+ tenantA := "00000000-0000-4000-8000-000000000001"
+ tenantB := "00000000-0000-4000-8000-000000000002"
+ accountA := "00000000-0000-4000-8000-000000000011"
+ accountB := "00000000-0000-4000-8000-000000000012"
+ one := accountToken(master, tenantA, accountA)
+ if len(one) != 64 { t.Fatal("unexpected token size") }
+ if one == accountToken(master,tenantA,accountB) {t.Fatal("account tokens must differ")}
+ if one == accountToken(master,tenantB,accountA) {t.Fatal("tenant tokens must differ")}
+}
