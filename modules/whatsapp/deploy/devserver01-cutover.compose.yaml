@@ -1,0 +1,45 @@
+# Reversible DevServer01 shadow deployment. Original protected Compose services remain running.
+# Stop these shadow services to restore the original Traefik routes.
+services:
+  core-host-whatsapp:
+    image: syndes/core-host:whatsapp-dev
+    container_name: syndes-core-host-whatsapp-v2
+    restart: unless-stopped
+    env_file:
+      - /home/delmacy/.config/syndes-whatsapp/core-canary.env
+    environment:
+      WHATSAPP_DISPATCH_ENABLED: "true"
+    volumes_from:
+      - container:core-host-core-host-1
+    networks: [syndes-data, syndes-security-access, syndes-secrets, infra-proxy, syndes-web]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: infra-proxy
+      traefik.http.routers.syndes-core-whatsapp-v2.entrypoints: web
+      traefik.http.routers.syndes-core-whatsapp-v2.middlewares: syndes-tailnet-only@docker
+      traefik.http.routers.syndes-core-whatsapp-v2.priority: "110"
+      traefik.http.routers.syndes-core-whatsapp-v2.rule: 'Host(`delmacy-desktoppc.tayra-delta.ts.net`) && (PathPrefix(`/v1/`) || PathPrefix(`/modules/`))'
+      traefik.http.services.syndes-core-whatsapp-v2.loadbalancer.server.port: "8082"
+  workspace-whatsapp:
+    image: nginx:1.29-alpine
+    container_name: syndes-workspace-whatsapp-v2
+    restart: unless-stopped
+    volumes:
+      - /home/delmacy/syndes-system/apps/workspace-web/dist:/usr/share/nginx/html:ro
+      - /home/delmacy/syndes-snapshots/2026-11-02-whatsapp-pre-cutover/workspace-runtime.json:/etc/nginx/workspace-runtime.json:ro
+      - /home/delmacy/syndes-snapshots/2026-11-02-whatsapp-pre-cutover/workspace-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [infra-proxy, syndes-web]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: infra-proxy
+      traefik.http.routers.syndes-workspace-whatsapp-v2.entrypoints: web
+      traefik.http.routers.syndes-workspace-whatsapp-v2.middlewares: syndes-tailnet-only@docker
+      traefik.http.routers.syndes-workspace-whatsapp-v2.priority: "2"
+      traefik.http.routers.syndes-workspace-whatsapp-v2.rule: 'Host(`delmacy-desktoppc.tayra-delta.ts.net`)'
+      traefik.http.services.syndes-workspace-whatsapp-v2.loadbalancer.server.port: "80"
+networks:
+  syndes-data: {external: true}
+  syndes-security-access: {external: true}
+  syndes-secrets: {external: true}
+  infra-proxy: {external: true}
+  syndes-web: {external: true}
