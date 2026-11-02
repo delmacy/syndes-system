@@ -9,20 +9,13 @@ Before boot:
 6. Pair a dedicated test number in Workspace > Settings > WhatsApp numbers, inspect the inbound event storage and Inbox, verify disconnect and reconnect.
 A Go test suite and a web build do NOT substitute for container startup/QR/live-message acceptance.
 
-Operational note: the gateway attaches to both `syndes-data` (private PostgreSQL/Core Host) and `syndes-whatsapp-egress` (outbound internet for WhatsApp). Create the outbound network before deployment; do not publish port 19083. DevServer01 uses `/srv/syndes-lab/system` for the currently deployed Core Host Compose, so plan the Core Host image update against those live Compose overlays and existing secrets, not the development worktree alone.
+## Reversible DevServer01 cutover (2026-11-02)
+The existing protected Core Host and Workspace containers were not deleted or replaced. A separate Docker Compose stack is defined in `devserver01-cutover.compose.yaml` using the existing Core Host AppRole mounts through `volumes_from` and the new Workspace dist. Its Traefik router priority is higher than the old one, with the same tailnet-only middleware. The gateway uses `devserver01-callback.compose.yaml` to target the new Core Host, avoiding callbacks to the older image.
 
-## DevServer01 provisioned resources (2026-11-02)
-- Database `syndes_whatsapp_gateway` and LOGIN role `syndes_whatsapp_gateway` created. The role's password was configured interactively by the operator, and authentication using the restricted local credential file was verified. Do not use the postgres superuser.
-- Outbound network `syndes-whatsapp-egress` exists; `syndes-data` remains internal.
-- Secret material was generated locally in `/home/delmacy/.config/syndes-whatsapp/` with restricted permissions. **Never commit, print, or copy these secret values into issue/PR logs**.
-- On the authorized host, a human operator can use interactive PostgreSQL `\\password syndes_whatsapp_gateway` in `psql`; this avoids entering a password in shell history. Ensure the configured password and the gateway DSN match.
-- The Core Host currently running on DevServer01 is the previous image. Updating it must preserve `/srv/syndes-lab/system` and its existing Compose overlays/secret mounts.
-- Database credential provisioning, tenant WhatsApp SQL migrations, and gateway startup are completed. The gateway is currently running as `syndes-whatsapp-whatsapp-gateway-1` (HTTP 200 from Core Host on `/healthz`, authenticated tenant accounts endpoint 200; no accounts paired yet). The existing Core Host and frontend are still running their previous images; updating their protected Compose stacks remains pending. Pair a test number and verify WhatsApp-to-Inbox messages only after the new Core Host and workspace are deployed and FGA grants are confirmed.
+The `syndes-whatsapp-cutover` stack runs `syndes-core-host-whatsapp-v2` and `syndes-workspace-whatsapp-v2`. Gateway remains `syndes-whatsapp-whatsapp-gateway-1`. The secure canary env file remains under `~/.config/syndes-whatsapp/core-canary.env`, with permissions 0600. The tenant-bound OpenFGA `whatsapp:accounts` resource relationship was created through the authenticated API; it grants tenant roles according to the existing FGA model.
 
-## Live verification — 2026-11-02
-- Reused the existing `syndes-postgres-postgres-1` instance; no additional PostgreSQL server/container.
-- Verified login as `syndes_whatsapp_gateway` to `syndes_whatsapp_gateway` using the pre-existing local credential file, without logging its contents.
-- Applied WhatsApp migrations `001_whatsapp_accounts` and `002_whatsapp_inbound` to the active tenant database under the tenant role.
-- The gateway container runs on `syndes-data` and `syndes-whatsapp-egress`, with no published ports, and restarts automatically.
-- Internal `/healthz` = 200, unauthenticated account listing = 401, tenant-token authenticated account listing = 200 with zero accounts; external DNS for `web.whatsapp.com` resolved.
-- Access to the root-protected deployment source under `/srv/syndes-lab` is currently unavailable to the operator session. Do not reconstruct or replace those running Compose services from partial configuration. Existing CRM and Inbox continue unchanged. Coordinate a privileged deployment of the already-built Core Host and workspace images via the original Compose overlays, then perform QR and Inbox acceptance tests.
+**Rollback (reversible):** stop the two `syndes-whatsapp-cutover` containers with `docker compose -p syndes-whatsapp-cutover -f modules/whatsapp/deploy/devserver01-cutover.compose.yaml stop`. The old routers and containers stay running and will serve users again. Before accepting WhatsApp traffic after rollback, re-point the gateway callback at a compatible Core Host or pause the gateway; the older Host does not accept versioned WhatsApp callbacks. Never delete the original containers or Compose overlays during this temporary cutover.
+
+**Snapshots:** `/home/delmacy/syndes-snapshots/2026-11-02-whatsapp-pre-cutover` has the old Core Host image tag `syndes/core-host:pre-whatsapp-snapshot-20261102`, old workspace image tag `syndes/workspace:pre-whatsapp-snapshot-20261102`, container inspection metadata, static workspace files, and two screenshot previews. Screenshots use *simulated* number and QR data, not a paired WhatsApp number.
+
+**Acceptance remaining:** an authorized user must open CRM > Gerenciar números WhatsApp, create an account, scan a live QR code and send a real test message before end-to-end messaging and message replies are marked validated. The inbox fallback refresh can take up to ten seconds. Do not claim live-number pairing or two-way delivery without this test.
