@@ -22,3 +22,14 @@ test("reject invalid names before database access",async()=>{
  const repo=new WhatsAppAccounts(async()=>{throw Error("unexpected connection")});
  await assert.rejects(repo.create({tenantId:t1}," "),/Invalid account display name/);
 });
+
+test("setEnabled uses tenant-scoped update and preserves account identity",async()=>{
+ const calls=[];
+ const repo=new WhatsAppAccounts(async()=>({query:async(sql,values)=>{
+  calls.push({sql,values});return {rows:[{...row,service_enabled:false,connection_status:"disconnected"}]};
+ }}));
+ const disabled=await repo.setEnabled({tenantId:t1},accountId,false);
+ assert.equal(disabled?.serviceEnabled,false);
+ assert.deepEqual(calls[0].values,[t1,accountId,false]);
+ assert.match(calls[0].sql,/WHERE tenant_id=\$1 AND id=\$2/);
+});
