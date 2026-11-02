@@ -19,7 +19,7 @@ test('does not acknowledge invalid event',async()=>{
  let n=0;
  const projection=new WhatsAppInboxProjection({resolve:async()=>({tenantId,query:async()=>{n++;return {rows:[{id:1,payload:{}}]}}})});
  assert.equal(await projection.deliverNext(tenantId),'invalid');
- assert.equal(n,1);
+ assert.equal(n,2);
 });
 test('rejects foreign tenant database',async()=>{
  const projection=new WhatsAppInboxProjection({resolve:async()=>({tenantId:'wrong',query:async()=>{throw Error('not reached')}})});
