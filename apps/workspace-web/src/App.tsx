@@ -19,6 +19,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CrmFeature } from "@/features/crm";
 import { Overview } from "@/features/overview";
 import { SecurityInfo } from "@/features/settings";
+import { WhatsAppAccountsFeature } from "@/features/whatsapp-accounts";
 import { InboxFeature } from "@/features/inbox";
 import { TenantApi } from "@/lib/api";
 import { actorFromToken, beginLogin, finishLogin, getWorkspaceConfig, type WorkspaceConfig } from "@/lib/auth";
@@ -125,7 +126,7 @@ export default function App() {
           {loginError && <div role="alert" className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><LockKeyhole className="mt-0.5 size-4 shrink-0" /><span>{loginError}</span><Button variant="outline" size="xs" className="ml-auto" onClick={() => window.location.reload()}>Tentar novamente</Button></div>}
           {initializing && <div className="flex min-h-72 items-center justify-center text-sm text-muted-foreground"><Sparkles className="mr-2 size-4 animate-pulse" /> Carregando Workspace Syndes...</div>}
           {!initializing && view === "overview" && <Overview api={api} name={tenantName} onNavigate={navigate} />}
-          {!initializing && view === "settings" && config && <SecurityInfo config={config} />}
+          {!initializing && view === "settings" && config && <><SecurityInfo config={config} />{api&&<WhatsAppAccountsFeature api={api} />}</>}
           {!initializing && (view === "crm" || view === "inbox") && !api && <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-4 rounded-3xl border border-[#e3eaf6] bg-white p-10 text-center shadow-sm"><div className="rounded-2xl bg-[#eaf0ff] p-5 text-[#4d6ed3]"><LockKeyhole className="size-8" /></div><h2 className="text-xl font-bold">Acesso protegido</h2><p className="text-sm leading-relaxed text-muted-foreground">Para trabalhar no {title}, autentique-se com sua conta. O Keycloak validará sua identidade e as permissões serão conferidas no servidor.</p><Button size="lg" onClick={() => config && void beginLogin(config)}><LogIn className="size-4" /> Entrar com Keycloak</Button></div>}
           {!initializing && api && view === "crm" && <CrmFeature api={api} />}
           {!initializing && api && view === "inbox" && <InboxFeature api={api} actorId={actorId} onOpenCrm={() => navigate("crm")} />}
