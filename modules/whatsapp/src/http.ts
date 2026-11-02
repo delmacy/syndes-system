@@ -1,11 +1,13 @@
 import {Body,Controller,Get,Headers,HttpException,Inject,Injectable,Module,Param,Post} from "@nestjs/common";
 import {AccessDeniedError,type Actor,type CoreKernel,type TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 import {WhatsAppAccounts} from "./accounts.js";
+import {WhatsAppGatewayClient} from "./gateway-client.js";
 
 type Runtime={kernel:CoreKernel;verifier:{verify(value:string|undefined):Promise<Actor>}};
 @Injectable()
 export class WhatsAppHost {
  readonly accounts:WhatsAppAccounts;
+ readonly gateway=new WhatsAppGatewayClient();
  constructor(@Inject("SYNDES_CORE_API")private readonly core:Runtime,
  @Inject("SYNDES_TENANT_DB")pools:TrustedTenantDatabaseProvider){
   this.accounts=new WhatsAppAccounts(async tenantId=>{
@@ -37,7 +39,17 @@ export class WhatsAppAccountsController {
  constructor(private readonly host:WhatsAppHost){}
  @Get()
  list(@Param("tenantId")tenantId:string,@Headers("authorization")authorization:string|undefined){
-  return this.host.run(tenantId,authorization,"read",()=>this.host.accounts.list({tenantId}));
+  return this.host.run(tenantId,authorization,"read",async()=>{
+   const accounts=await this.host.accounts.list({tenantId});
+   const connected=await this.host.gateway.list(tenantId);
+   const sessions=new Map(connected.map(s=>[s.accountId,s]));
+   return accounts.map(a=>{
+    const s=sessions.get(a.id);
+    return {...a,deviceJid:s?.deviceJid??a.deviceJid,
+     phoneExternalId:s?.deviceJid??a.phoneExternalId,
+     state:s?.connected?"connected":s?.deviceJid?"disconnected":"unpaired"};
+   });
+  });
  }
  @Get(":accountId")
  get(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,
@@ -51,9 +63,33 @@ export class WhatsAppAccountsController {
  @Post()
  create(@Param("tenantId")tenantId:string,@Headers("authorization")authorization:string|undefined,
  @Body()body:{displayName?:unknown}){
-  return this.host.run(tenantId,authorization,"write",()=>{
+  return this.host.run(tenantId,authorization,"write",async()=>{
    if(typeof body?.displayName!=="string")throw new HttpException("Invalid display name",400);
-   return this.host.accounts.create({tenantId},body.displayName);
+   const account=await this.host.accounts.create({tenantId},body.displayName);
+   await this.host.gateway.register(tenantId,account.id);
+   return account;
+  });
+ }
+ @Post(":accountId/pair")
+ pair(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,@Headers("authorization")authorization:string|undefined){
+  return this.host.run(tenantId,authorization,"write",async()=>{
+   await this.host.accounts.requireEnabled({tenantId},accountId);
+   await this.host.gateway.register(tenantId,accountId);
+   return this.host.gateway.pair(tenantId,accountId);
+  });
+ }
+ @Post(":accountId/disconnect")
+ disconnect(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,@Headers("authorization")authorization:string|undefined){
+  return this.host.run(tenantId,authorization,"write",async()=>{
+   await this.host.accounts.requireEnabled({tenantId},accountId);
+   return this.host.gateway.disconnect(tenantId,accountId);
+  });
+ }
+ @Post(":accountId/connect")
+ connect(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,@Headers("authorization")authorization:string|undefined){
+  return this.host.run(tenantId,authorization,"write",async()=>{
+   await this.host.accounts.requireEnabled({tenantId},accountId);
+   return this.host.gateway.connect(tenantId,accountId);
   });
  }
 }
