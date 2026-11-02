@@ -8,3 +8,5 @@ Before boot:
 5. Run: docker compose -f modules/whatsapp/deploy/compose.yaml config (with env configured), then docker compose -f modules/whatsapp/deploy/compose.yaml up -d --build.
 6. Pair a dedicated test number in Workspace > Settings > WhatsApp numbers, inspect the inbound event storage and Inbox, verify disconnect and reconnect.
 A Go test suite and a web build do NOT substitute for container startup/QR/live-message acceptance.
+
+Operational note: the gateway attaches to both `syndes-data` (private PostgreSQL/Core Host) and `syndes-whatsapp-egress` (outbound internet for WhatsApp). Create the outbound network before deployment; do not publish port 19083. DevServer01 uses `/srv/syndes-lab/system` for the currently deployed Core Host Compose, so plan the Core Host image update against those live Compose overlays and existing secrets, not the development worktree alone.
