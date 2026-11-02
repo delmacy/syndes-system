@@ -50,3 +50,10 @@ The legacy local gateway remains untouched during migration; deduplicate deploym
 - API uses Core JWT verifier, CoreKernel membership/OpenFGA, and trusted tenant database lease. It is not yet in Core Host's installed-modules allowlist; no live routes have been enabled.
 - Peer dependency installation in offline mode failed because the npm registry package cache was missing. Local symlinks were used solely to compile; a reproducible installation/lockfile check is required before deployment.
 - Device operations, secure account-bound sidecar protocol, callback receiver and Inbox integration are not implemented by these routes.
+
+## Go-only gateway direction (2026-11-02)
+- WhatsApp protocol server and account session registry are Go + whatsmeow; CRM/Inbox remain downstream consumers over authenticated internal API.
+- Account-scoped `/v1/accounts/{accountId}/{operation}` routes replace tenant-keyed sessions in the **source tree**. The sidecar requires trusted account provisioning and is NOT switched on in deployment.
+- Go migration creates `syndes_whatsapp_accounts`; existing legacy tenant-only sessions are imported as account ID = tenant ID where the legacy table exists (preserves rollback).
+- Events carry `accountId` and tenant is resolved by the server-side account registry.
+- **Not production-ready:** caller authentication is still a shared Bearer; account-scoped credentials / binding authorization, Go compilation, queue-only outbound, callback routing and PostgreSQL integration tests are outstanding. Never expose routes directly.
