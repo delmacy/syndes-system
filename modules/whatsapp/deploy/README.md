@@ -19,3 +19,12 @@ The `syndes-whatsapp-cutover` stack runs `syndes-core-host-whatsapp-v2` and `syn
 **Snapshots:** `/home/delmacy/syndes-snapshots/2026-11-02-whatsapp-pre-cutover` has the old Core Host image tag `syndes/core-host:pre-whatsapp-snapshot-20261102`, old workspace image tag `syndes/workspace:pre-whatsapp-snapshot-20261102`, container inspection metadata, static workspace files, and two screenshot previews. Screenshots use *simulated* number and QR data, not a paired WhatsApp number.
 
 **Acceptance remaining:** an authorized user must open CRM > Gerenciar números WhatsApp, create an account, scan a live QR code and send a real test message before end-to-end messaging and message replies are marked validated. The inbox fallback refresh can take up to ten seconds. Do not claim live-number pairing or two-way delivery without this test.
+
+## Verified post-cutover state — 2026-11-02
+- High-priority Traefik routers now deliver the new Workspace and Core Host, while the original Core Host and Workspace containers remain available as rollback targets.
+- Core Host, gateway and frontend are pinned to immutable local release assets in `/home/delmacy/syndes-releases/whatsapp-cutover-20261102`. Do not rebuild into these tags; the Workspace is served from the frozen `workspace-dist` copy, not the active development build directory.
+- Gateway `SYNDES_API_URL` targets `http://syndes-core-host-whatsapp-v2:8082` through the callback override. Core `readyz` and Go `healthz` returned HTTP 200. Host-routed Workspace returned HTTP 200; WhatsApp account GET and enabled PATCH without a bearer token returned HTTP 401.
+- Permanent number deactivation/reactivation is available via tenant-scoped gateway registry and tenant database state. Disconnect only closes a session; Deactivate also prevents automatic restore.
+- Post-cutover snapshots: `/home/delmacy/syndes-snapshots/2026-11-02-whatsapp-post-cutover` (sanitized container metadata and UI previews). Pre-cutover images and original static files remain in the pre-cutover snapshot directory.
+- QR screenshots are **visual simulations**, not proof of a real WhatsApp pairing. No number has been paired in this deployment yet; end-to-end WhatsApp-to-Inbox acceptance must be performed using an authorized real device. Outgoing WhatsApp replies through the Inbox are not homologated.
+- Keep both the cutover Compose and callback override when operating the gateway. The rollout is a reversible shadow deployment until the protected canonical deployment files are updated by an authorized system operator.
