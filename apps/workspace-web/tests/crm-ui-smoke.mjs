@@ -60,6 +60,14 @@ try{
  page.on("pageerror",e=>errors.push(e.message));
  await setup(page);
  await page.getByRole("button",{name:/Ana Exemplo/}).click();
+ await page.waitForTimeout(300); // Wait until the drawer entrance transition finishes.
+ const desktopSheet = await page.locator(".crm-record-sheet").boundingBox();
+ console.log("DESKTOP_SHEET_GEOMETRY",JSON.stringify(desktopSheet));
+ assert.ok(desktopSheet && desktopSheet.width >= 780 && desktopSheet.width <= 900,
+   "Desktop CRM sheet should be wide enough for two-column details");
+ assert.ok(Math.abs(desktopSheet.x+desktopSheet.width-1440)<3,
+   "Desktop sheet should align to viewport's right edge");
+ await page.getByRole("button",{name:"Fechar ficha"}).waitFor();
  await page.getByRole("button",{name:"Editar",exact:true}).click();
  await page.getByRole("dialog").getByLabel("Nome do cadastro").fill("Ana Atualizada");
  await page.getByRole("dialog").getByRole("button",{name:"Salvar cadastro"}).click();
@@ -110,9 +118,40 @@ try{
  await setup(mobile,true);
  await mobile.getByRole("button",{name:/Ana Exemplo/}).click();
  await mobile.getByRole("heading",{name:"Ana Exemplo"}).waitFor();
- const width=await mobile.evaluate(()=>({document:document.documentElement.scrollWidth,viewport:innerWidth}));
- assert.ok(width.document<=width.viewport+4, "CRM mobile must not overflow horizontally");
- console.log("PASS: mobile CRM detail and no horizontal overflow");
+ await mobile.waitForTimeout(300); // Mobile drawer entrance animation.
+ const geometry=await mobile.evaluate(()=>{
+   const sheet=document.querySelector(".crm-record-sheet");
+   const rect=sheet.getBoundingClientRect();
+   const controls=[...sheet.querySelectorAll('input, select, [data-slot="sheet-close"]')]
+     .filter(el=>el.getBoundingClientRect().width > 0)
+     .map(el=>({name:el.getAttribute("aria-label")||el.tagName,rect:el.getBoundingClientRect().toJSON()}));
+   return {sheet:rect.toJSON(),document:document.documentElement.scrollWidth,viewport:innerWidth,controls};
+ });
+ console.log("MOBILE_SHEET_GEOMETRY",JSON.stringify({sheet:geometry.sheet,viewport:geometry.viewport}));
+ assert.ok(Math.abs(geometry.sheet.left)<2 && geometry.sheet.width>=geometry.viewport-2,
+   "CRM detail must use the full mobile viewport");
+ assert.ok(geometry.document<=geometry.viewport+4, "CRM mobile must not overflow horizontally");
+ assert.ok(geometry.controls.every(c=>c.rect.left>=-2 && c.rect.right<=geometry.viewport+2),
+   "CRM mobile controls must not be clipped by the viewport");
+ await mobile.locator(".crm-record-sheet").evaluate(el=>{el.scrollTop=el.scrollHeight});
+ await mobile.getByRole("button",{name:"Fechar ficha"}).click();
+ await mobile.getByRole("heading",{name:"Ana Exemplo"}).waitFor({state:"detached"});
+ console.log("PASS: full-screen mobile CRM detail, unclipped controls, accessible sticky close");
+ const small=await browser.newPage({viewport:{width:320,height:700},isMobile:true,hasTouch:true});
+ await setup(small,true);
+ await small.getByRole("button",{name:/Ana Exemplo/}).click();
+ await small.getByRole("heading",{name:"Ana Exemplo"}).waitFor();
+ await small.waitForTimeout(300);
+ const smallBounds=await small.evaluate(()=>{
+   const sheet=document.querySelector(".crm-record-sheet").getBoundingClientRect();
+   const close=document.querySelector('.crm-record-sheet [data-slot="sheet-close"]').getBoundingClientRect();
+   return {left:sheet.left,right:sheet.right,innerWidth,closeRight:close.right,scrollWidth:document.documentElement.scrollWidth};
+ });
+ assert.ok(Math.abs(smallBounds.left)<2 && Math.abs(smallBounds.right-smallBounds.innerWidth)<2,
+   "320px device should have edge-to-edge sheet");
+ assert.ok(smallBounds.closeRight<=smallBounds.innerWidth+2 && smallBounds.scrollWidth<=smallBounds.innerWidth+4,
+   "320px device must keep close button visible without page overflow");
+ console.log("PASS: compact 320px mobile CRM sheet");
  assert.deepEqual(errors,[]);
  const limited=await browser.newPage();await setup(limited,true);
  assert.equal(await limited.getByRole("button",{name:"Novo contato"}).count(),0);

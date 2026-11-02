@@ -54,3 +54,18 @@ Não há migração SQL nem nova tabela. Todas as rotas continuam sob `/v1/tenan
 5. Verificar backups/restore, observabilidade e políticas de implantação antes de produção; não considerar o CI isolado como homologação de cliente.
 
 **Estado formal:** Core CRM segue **em desenvolvimento até o Product Gate**, apesar de as tarefas de frontend acordadas estarem implementadas. Inbox também continua em desenvolvimento. Não iniciar novas stacks Komodo nesta fase.
+
+
+## Ajuste visual de CRM (2026-11-02) — revisão após screenshots
+
+A pedido do responsável pelo produto, a interface da ficha CRM foi refinada sem mudança de domínio/API:
+
+- **Desktop:** ficha lateral com largura máxima de 860px, responsiva a 94% da viewport em tablets, conteúdo em até duas colunas. Mantém dados e controles visíveis sem sobrecarregar uma coluna estreita.
+- **Mobile:** a ficha passa a ocupar 100% da largura da tela; os campos de organização, tags e funcionário tornam-se empilhados em dispositivos estreitos para eliminar truncamento.
+- **Cabeçalho de rolagem:** título e botão \`Fechar ficha\` permanecem juntos no topo. O botão foi movido para dentro do cabeçalho, corrigindo uma colisão de camadas encontrada em teste de navegador.
+- **Busca mobile:** campo de busca usa toda a linha disponível e botões podem fluir para uma segunda linha.
+- O override CSS tem classe própria \`crm-record-sheet\`, preservando a largura dos painéis do módulo Inbox.
+- **Testes com Chrome e dados mockados:** painel de desktop medido em 860px numa janela de 1440px; painel mobile medido em **390px numa viewport de 390px** e checado também em 320px, sem overflow, campos cortados ou perda do botão de fechar. Foram repetidos fluxo CRM, regressão da Inbox, UI anônima e 17 testes unitários do Workspace.
+- Capturas novas: \`docs/reviews/crm-frontend-2026-11-02/\`. As imagens vêm do frontend real compilado, mas **com API e identidade fictícias**, não de um tenant publicado.
+
+**Product Gate ainda aberto:** a alteração é de experiência de uso. Não comprova homologação Keycloak/OpenFGA real, nem implantação no servidor protegido, e não implica CRM concluído para produção.
