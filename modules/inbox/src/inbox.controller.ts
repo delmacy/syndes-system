@@ -19,11 +19,20 @@ export class InboxHost{
   @Inject(CORE_RUNTIME) private readonly core:InboxHostRuntime,
   @Inject(TENANT_DATABASES) pools:TrustedTenantDatabaseProvider,
   @Optional() @Inject("SYNDES_WHATSAPP_REPLY")
-  private readonly whatsappReply?:{enqueue(ctx:InboxContext,conversationId:string,body:unknown):Promise<unknown|null>}
+  private readonly whatsappReply?:{
+   enqueue(ctx:InboxContext,conversationId:string,body:unknown):Promise<unknown|null>;
+   decorate(tenantId:string,messages:readonly {id:string;direction:string}[]):Promise<readonly unknown[]>;
+  }
  ){
   const repo=new PgInboxRepositoryFactory(pools);
   this.inbox=new InboxService(core.kernel,tenantId=>repo.forTenant(tenantId));
   this.simulator=new SimulatedChannelAdapter(this.inbox);
+ }
+ async messages(ctx:InboxContext,conversationId:string,limit:number){
+  const selected=await this.inbox.messages(ctx,conversationId,limit);
+  if(!selected || !this.whatsappReply)return selected;
+  // The Inbox authorization and tenant-scoped query run before any decoration.
+  return this.whatsappReply.decorate(ctx.tenantId,selected);
  }
  async reply(ctx:InboxContext,conversationId:string,body:unknown){
   const conv=await this.inbox.get(ctx,conversationId);
@@ -93,7 +102,7 @@ export class InboxController{
  @Get("conversations/:id/messages")
  messages(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
           @Param("id")key:string,@Query("limit")l:string|undefined){
-  return this.run(t,h,async c=>found(await this.host.inbox.messages(c,key,l===undefined?100:Number(l))));
+  return this.run(t,h,async c=>found(await this.host.messages(c,key,l===undefined?100:Number(l))));
  }
  @Patch("conversations/:id/assignment")
  assign(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
