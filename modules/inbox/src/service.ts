@@ -60,6 +60,14 @@ export class InboxService {
    return this.execute(ctx,"write","inbox:conversations",
      repo=>repo.handoff(ctx.tenantId,key,ctx.actor.id,value));
  }
+ /** Linking an existing/new CRM person requires Inbox write AND CRM read.
+  * The database also enforces tenant ownership and non-archived person. */
+ linkContact(ctx:InboxContext,conversationId:string,personId:string):Promise<Conversation|null>{
+  const key=id(conversationId),person=id(personId,"CRM person");
+  return this.kernel.execute({actor:ctx.actor,tenantId:ctx.tenantId,action:"read",resource:"crm:people"},
+   ()=>this.execute(ctx,"write","inbox:conversations",
+     repo=>repo.linkContact(ctx.tenantId,key,ctx.actor.id,person)));
+ }
  reply(ctx:InboxContext,conversationId:string,value:unknown):Promise<Message|null>{
    const key=id(conversationId),body=text(value,"message",5000);
    return this.execute(ctx,"write","inbox:messages",
