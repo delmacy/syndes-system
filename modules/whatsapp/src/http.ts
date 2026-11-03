@@ -2,14 +2,17 @@ import {Body,Controller,Get,Headers,HttpException,Inject,Injectable,Module,Param
 import {AccessDeniedError,type Actor,type CoreKernel,type TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 import {WhatsAppAccounts} from "./accounts.js";
 import {WhatsAppGatewayClient} from "./gateway-client.js";
+import {WhatsAppContactNames} from "./contact-name.js";
 
 type Runtime={kernel:CoreKernel;verifier:{verify(value:string|undefined):Promise<Actor>}};
 @Injectable()
 export class WhatsAppHost {
  readonly accounts:WhatsAppAccounts;
  readonly gateway=new WhatsAppGatewayClient();
+ readonly contactNames:WhatsAppContactNames;
  constructor(@Inject("SYNDES_CORE_API")private readonly core:Runtime,
  @Inject("SYNDES_TENANT_DB")pools:TrustedTenantDatabaseProvider){
+  this.contactNames=new WhatsAppContactNames(pools,this.gateway);
   this.accounts=new WhatsAppAccounts(async tenantId=>{
    const db=await pools.resolve(tenantId);
    if(db.tenantId!==tenantId)throw new Error("Tenant database mismatch");
@@ -18,6 +21,26 @@ export class WhatsAppHost {
     return {rows:result.rows as T[]};
    }};
   });
+ }
+ async runContactName<T>(tenantId:string,authorization:string|undefined,fn:(actor:Actor)=>Promise<T>):Promise<T>{
+  let actor:Actor;
+  try{actor=await this.core.verifier.verify(authorization)}
+  catch{throw new HttpException("Authentication required",401)}
+  try{
+   return await this.core.kernel.execute({tenantId,actor,resource:"whatsapp:accounts",action:"write"},
+    ()=>this.core.kernel.execute({tenantId,actor,resource:"crm:people",action:"write"},
+       ()=>fn(actor)));
+  }catch(error){
+   if(error instanceof HttpException)throw error;
+   if(error instanceof AccessDeniedError)throw new HttpException("Forbidden",403);
+   if(error instanceof Error && /Invalid contact name|Invalid contact context/.test(error.message))
+     throw new HttpException("Nome inválido",400);
+   if(error instanceof Error && /Use the CRM contact name first/.test(error.message))
+     throw new HttpException("Atualize o nome no CRM antes de sincronizar.",409);
+   if(error instanceof Error && /WhatsApp contact not eligible|WhatsApp contact route changed/.test(error.message))
+     throw new HttpException("Conversa ou telefone não elegível",404);
+   throw new HttpException("Não foi possível enviar a alteração ao WhatsApp",503);
+  }
  }
  async run<T>(tenantId:string,authorization:string|undefined,action:"read"|"write",fn:()=>Promise<T>):Promise<T>{
   let actor:Actor;
@@ -112,5 +135,17 @@ export class WhatsAppAccountsController {
   });
  }
 }
-@Module({providers:[WhatsAppHost],controllers:[WhatsAppAccountsController]})
+@Controller("v1/tenants/:tenantId/whatsapp/conversations")
+export class WhatsAppContactNamesController {
+ constructor(private readonly host:WhatsAppHost){}
+ @Patch(":conversationId/contact-name")
+ rename(@Param("tenantId")tenantId:string,@Param("conversationId")conversationId:string,
+   @Headers("authorization")authorization:string|undefined,
+   @Body()body:{fullName?:unknown;saveOnPrimaryAddressbook?:unknown}){
+  return this.host.runContactName(tenantId,authorization,actor=>
+   this.host.contactNames.rename(tenantId,actor.id,conversationId,
+      body?.fullName,body?.saveOnPrimaryAddressbook??false));
+ }
+}
+@Module({providers:[WhatsAppHost],controllers:[WhatsAppAccountsController,WhatsAppContactNamesController]})
 export class WhatsAppHttpModule{}
