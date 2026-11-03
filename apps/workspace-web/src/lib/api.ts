@@ -4,7 +4,7 @@ export type Organization = { id: string; legalName: string; tradeName?: string |
 export type Conversation = {
   id: string; subject: string; status: "open" | "pending" | "resolved";
   assignedTo?: string | null; handoff?: "bot" | "human";
-  channel: string; crmPersonId?: string | null; updatedAt?: string;
+  channel: string; crmPersonId?: string | null; updatedAt?: string; phoneNumber?: string | null;
 };
 export type Message = {
   id: string; body: string; direction: string; createdAt?: string; authorId?: string;
@@ -201,6 +201,9 @@ export class TenantApi {
   }
   message(id: string, path: "replies" | "notes" | "simulator/inbound", body: { body: string; externalMessageId?: string }) {
     return this.request<Message>("inbox", "/conversations/" + encodeURIComponent(id) + "/" + path, "POST", body);
+  }
+  linkConversationContact(id:string,personId:string) {
+    return this.request<Conversation>("inbox","/conversations/"+encodeURIComponent(id)+"/contact","PATCH",{personId});
   }
   setStatus(id: string, status: Conversation["status"]) {
     return this.request<Conversation>("inbox", "/conversations/" + encodeURIComponent(id) + "/status", "PATCH", { status });
