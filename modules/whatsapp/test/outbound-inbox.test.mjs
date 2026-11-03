@@ -96,3 +96,15 @@ test("tenant database mismatches fail closed",async()=>{
  await assert.rejects(new WhatsAppReplyQueue(provider).enqueue(ctx,conversationId,"hey"),/Tenant database mismatch/);
  await assert.rejects(new WhatsAppOutboundRelay(provider,{}).deliverNext(tenantId),/Tenant database mismatch/);
 });
+test("delivery status distinguishes sent, queued and older local-only replies",async()=>{
+ const ids=["00000000-0000-4000-8000-000000000040","00000000-0000-4000-8000-000000000041","00000000-0000-4000-8000-000000000042"];
+ const messages=ids.map(id=>({id,direction:"outbound",body:"test"}));
+ const provider={resolve:async()=>({tenantId,query:async(sql,args)=>{
+  assert.match(sql,/inbox_message_id=ANY\(\$2::uuid\[\]\)/);
+  assert.equal(args[0],tenantId);
+  assert.deepEqual(args[1],ids);
+  return {rows:[{message_id:ids[0],status:"sent"},{message_id:ids[1],status:"processing"}]};
+ }})};
+ const result=await new WhatsAppReplyQueue(provider).decorate(tenantId,messages);
+ assert.deepEqual(result.map(m=>m.deliveryStatus),["sent","processing","not_queued"]);
+});
