@@ -47,6 +47,27 @@ export class WhatsAppGatewayClient {
   if(!response.ok)throw Error("Gateway account state unavailable ("+response.status+")");
   return response.json() as Promise<{enabled:boolean}>;
  }
+ async sendQueued(tenantId:string,accountId:string,input:{idempotencyKey:string;recipientExternalId:string;body:string}):Promise<{queueId:number}>{
+  const result=await this.request(tenantId,accountId,"messages","POST",input) as {queueId?:unknown};
+  if(!result||!Number.isSafeInteger(result.queueId)||Number(result.queueId)<=0)throw Error("Invalid gateway queue confirmation");
+  return {queueId:Number(result.queueId)};
+ }
+ async outboundStatus(tenantId:string,accountId:string,queueId:number):Promise<{status:"pending"|"processing"|"sent"|"failed";externalMessageId?:string}>{
+  if(!this.base||!this.secret||!Number.isSafeInteger(queueId)||queueId<=0)throw Error("Invalid outbound status query");
+  const url=new URL(this.base);
+  if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||url.username||url.password||url.search||url.hash||url.pathname!=="/")
+   throw Error("Invalid gateway private URL");
+  const token=createHmac("sha256",this.secret).update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const resp=await fetch(new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/outbox/"+queueId,url),{
+   headers:{Authorization:"Bearer "+token},redirect:"error",signal:AbortSignal.timeout(10000)
+  });
+  if(!resp.ok)throw Error("Gateway outbound status unavailable ("+resp.status+")");
+  const value=await resp.json() as {status?:unknown;externalMessageId?:unknown};
+  if(!value||!["pending","processing","sent","failed"].includes(String(value.status)))throw Error("Invalid gateway outbound state");
+  if(value.externalMessageId!==undefined && (typeof value.externalMessageId!=="string"||value.externalMessageId.length>160))
+   throw Error("Invalid gateway external message ID");
+  return {status:value.status as "pending"|"processing"|"sent"|"failed",...(typeof value.externalMessageId==="string"?{externalMessageId:value.externalMessageId}:{})};
+ }
  pair(tenantId:string,accountId:string){return this.request(tenantId,accountId,"pairing")}
  connect(tenantId:string,accountId:string){return this.request(tenantId,accountId,"connect")}
  disconnect(tenantId:string,accountId:string){return this.request(tenantId,accountId,"disconnect")}
