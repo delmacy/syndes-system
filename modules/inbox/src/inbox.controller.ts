@@ -4,7 +4,7 @@ import {InboxService} from "./service.js";
 import {SimulatedChannelAdapter} from "./channels.js";
 import {InboxConflictError,PgInboxRepositoryFactory} from "./postgres.js";
 import {InboxTenantMismatchError,InboxValidationError} from "./contracts.js";
-import type {ConversationStatus,ConversationQueue,HandoffMode,InboxContext,CreateConversation} from "./contracts.js";
+import type {ConversationStatus,ConversationQueue,ChatScope,HandoffMode,InboxContext,CreateConversation} from "./contracts.js";
 import {id} from "./validation.js";
 import {InboxChangeBus,type SseSink} from "./realtime.js";
 import {CORE_RUNTIME,TENANT_DATABASES,type InboxHostRuntime} from "./runtime.js";
@@ -21,6 +21,7 @@ export class InboxHost{
   @Optional() @Inject("SYNDES_WHATSAPP_REPLY")
   private readonly whatsappReply?:{
    enqueue(ctx:InboxContext,conversationId:string,body:unknown):Promise<unknown|null>;
+   requestHistory(ctx:InboxContext,conversationId:string):Promise<{requested:boolean;note:string}>;
    decorate(tenantId:string,messages:readonly {id:string;direction:string}[]):Promise<readonly unknown[]>;
    decorateConversations(tenantId:string,conversations:readonly {id:string;channel:string}[]):Promise<readonly unknown[]>;
   }
@@ -29,8 +30,8 @@ export class InboxHost{
   this.inbox=new InboxService(core.kernel,tenantId=>repo.forTenant(tenantId));
   this.simulator=new SimulatedChannelAdapter(this.inbox);
  }
- async list(ctx:InboxContext,status:ConversationStatus|null,limit:number,queue:ConversationQueue){
-  const records=await this.inbox.list(ctx,status,limit,queue);
+ async list(ctx:InboxContext,status:ConversationStatus|null,limit:number,queue:ConversationQueue,scope:ChatScope,offset:number,search:string){
+  const records=await this.inbox.list(ctx,status,limit,queue,scope,offset,search);
   if(!this.whatsappReply)return records;
   return this.whatsappReply.decorateConversations(ctx.tenantId,records);
  }
@@ -45,6 +46,14 @@ export class InboxHost{
   if(!selected || !this.whatsappReply)return selected;
   // The Inbox authorization and tenant-scoped query run before any decoration.
   return this.whatsappReply.decorate(ctx.tenantId,selected);
+ }
+ async history(ctx:InboxContext,conversationId:string){
+  const conv=await this.inbox.get(ctx,conversationId);
+  if(!conv||conv.channel!=="whatsapp")throw new HttpException("WhatsApp conversation unavailable",404);
+  if(!this.whatsappReply)throw new HttpException("WhatsApp integration unavailable",503);
+  return this.core.kernel.execute({actor:ctx.actor,tenantId:ctx.tenantId,
+     action:"read",resource:"whatsapp:accounts"},
+    ()=>this.whatsappReply!.requestHistory(ctx,conversationId));
  }
  async reply(ctx:InboxContext,conversationId:string,body:unknown){
   const conv=await this.inbox.get(ctx,conversationId);
@@ -98,9 +107,11 @@ export class InboxController{
  @Get("conversations")
  list(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
       @Query("status")s:string|undefined,@Query("limit")l:string|undefined,
-      @Query("queue")queue:string|undefined){
+      @Query("queue")queue:string|undefined,@Query("scope")scope:string|undefined,
+      @Query("offset")offset:string|undefined,@Query("q")search:string|undefined){
   return this.run(t,h,c=>this.host.list(c,(s||null) as ConversationStatus|null,
-    l===undefined?30:Number(l),(queue||"all") as ConversationQueue));
+    l===undefined?30:Number(l),(queue||"all") as ConversationQueue,
+   (scope||"all") as ChatScope,offset===undefined?0:Number(offset),search??""));
  }
  @Post("conversations")
  create(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
@@ -131,6 +142,21 @@ export class InboxController{
          @Param("id")key:string,@Body()b:{mode:HandoffMode}){
   return this.run(t,h,async c=>{const result=found(await this.host.inbox.handoff(c,key,b?.mode));this.host.events.publish(c.tenantId);return result;});
  }
+ @Patch("conversations/:id/favorite")
+ favorite(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
+   @Param("id")key:string,@Body()b:{favorite:boolean}){
+   return this.run(t,h,async c=>{
+    const result=found(await this.host.inbox.favorite(c,key,b?.favorite));
+    this.host.events.publish(c.tenantId);return result;
+   });
+ }
+ @Patch("conversations/:id/read")
+ read(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@Param("id")key:string){
+   return this.run(t,h,async c=>{
+    const result=found(await this.host.inbox.markRead(c,key));
+    this.host.events.publish(c.tenantId);return result;
+   });
+ }
  @Patch("conversations/:id/contact")
  contact(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
          @Param("id")key:string,@Body()b:{personId?:string}){
@@ -139,6 +165,11 @@ export class InboxController{
    this.host.events.publish(c.tenantId);
    return this.host.get(c,key);
   });
+ }
+ @Post("conversations/:id/history")
+ requestHistory(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
+   @Param("id")key:string){
+   return this.run(t,h,c=>this.host.history(c,key));
  }
  @Post("conversations/:id/replies")
  reply(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
