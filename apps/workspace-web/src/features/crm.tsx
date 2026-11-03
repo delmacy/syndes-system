@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CrmPersonDetail } from "@/features/crm-person-detail";
+import { WhatsAppAccountsFeature } from "@/features/whatsapp-accounts";
 import type { CrmCapabilities, CrmCapability, CrmDuplicate, Organization, Person, TenantApi } from "@/lib/api";
 
 type Kind = "people" | "organizations";
@@ -21,6 +22,7 @@ const PAGE_SIZE = 25;
 
 export function CrmFeature({ api }: { api: TenantApi }) {
   const [caps, setCaps] = useState<CrmCapabilities | null>(null);
+  const [whatsAppOpen,setWhatsAppOpen]=useState(false);
   const [accessError, setAccessError] = useState("");
   const [tab, setTab] = useState<Kind>("people");
   const [people, setPeople] = useState<Person[]>([]);
@@ -156,6 +158,9 @@ export function CrmFeature({ api }: { api: TenantApi }) {
   const title = tab === "people" ? "Pessoas" : "Organizações";
 
   return <section className="space-y-5">
+    <div className="flex justify-end"><Button variant="outline" onClick={()=>setWhatsAppOpen(v=>!v)}>{whatsAppOpen?"Voltar aos contatos":"Gerenciar números WhatsApp"}</Button></div>
+    {whatsAppOpen?<WhatsAppAccountsFeature api={api}/>:null}
+    <div className={whatsAppOpen?"hidden":""}>
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div><p className="eyebrow">Relacionamento</p><h1 className="page-title">CRM</h1>
         <p className="page-subtitle">Contatos, organizações, vínculos e histórico no mesmo workspace.</p></div>
@@ -263,5 +268,6 @@ export function CrmFeature({ api }: { api: TenantApi }) {
           <Button disabled={!csv.trim()||importing} onClick={()=>void importCsv()}>{importing?"Importando...":"Confirmar importação"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
+  </div>
   </section>;
 }

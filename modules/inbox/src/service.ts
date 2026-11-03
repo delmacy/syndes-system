@@ -1,6 +1,6 @@
 import {randomUUID} from "node:crypto";
 import type {CoreKernel,ModuleDefinition} from "@syndes/core-kernel";
-import type {InboxContext,InboxRepository,Conversation,ConversationStatus,ConversationQueue,CreateConversation,HandoffMode,Message,InboxMetrics} from "./contracts.js";
+import type {InboxContext,InboxRepository,Conversation,ConversationStatus,ConversationQueue,ChatScope,CreateConversation,HandoffMode,Message,InboxMetrics} from "./contracts.js";
 import {InboxValidationError} from "./contracts.js";
 import {id,text,optionalExternal,limit,assignee} from "./validation.js";
 
@@ -27,13 +27,17 @@ export class InboxService {
    };
    return this.execute(ctx,"write","inbox:conversations",repo=>repo.create(ctx.tenantId,ctx.actor.id,record));
  }
- list(ctx:InboxContext,status:ConversationStatus|null=null,pageSize=30,queue:ConversationQueue="all"):Promise<readonly Conversation[]>{
+ list(ctx:InboxContext,status:ConversationStatus|null=null,pageSize=30,queue:ConversationQueue="all",
+     scope:ChatScope="all",offset=0,search=""):Promise<readonly Conversation[]>{
    if(status!==null&&!["open","pending","resolved"].includes(status))
      throw new InboxValidationError("Invalid status");
    if(!["all","mine","unassigned"].includes(queue))throw new InboxValidationError("Invalid queue");
    const size=limit(pageSize);
+  if(!["all","unread","favorites","groups","archived"].includes(scope))throw new InboxValidationError("Invalid filter");
+  if(!Number.isInteger(offset)||offset<0||offset>100000)throw new InboxValidationError("Invalid offset");
+  if(typeof search!=="string"||search.length>80)throw new InboxValidationError("Invalid search");
    // "mine" derives assignee exclusively from the verified actor, never a user-supplied ID.
-   return this.execute(ctx,"read","inbox:conversations",repo=>repo.list(ctx.tenantId,status,size,queue,ctx.actor.id));
+   return this.execute(ctx,"read","inbox:conversations",repo=>repo.list(ctx.tenantId,status,size,queue,ctx.actor.id,scope,offset,search));
  }
  get(ctx:InboxContext,conversationId:string):Promise<Conversation|null>{
    const key=id(conversationId);
@@ -59,6 +63,23 @@ export class InboxService {
    if(value!=="human"&&value!=="bot")throw new InboxValidationError("Invalid handoff");
    return this.execute(ctx,"write","inbox:conversations",
      repo=>repo.handoff(ctx.tenantId,key,ctx.actor.id,value));
+ }
+ favorite(ctx:InboxContext,conversationId:string,value:boolean):Promise<Conversation|null>{
+  const key=id(conversationId);
+  if(typeof value!=="boolean")throw new InboxValidationError("Invalid favorite state");
+  return this.execute(ctx,"write","inbox:conversations",repo=>repo.favorite(ctx.tenantId,key,ctx.actor.id,value));
+ }
+ markRead(ctx:InboxContext,conversationId:string):Promise<Conversation|null>{
+  const key=id(conversationId);
+  return this.execute(ctx,"write","inbox:conversations",repo=>repo.markRead(ctx.tenantId,key,ctx.actor.id));
+ }
+ /** Linking an existing/new CRM person requires Inbox write AND CRM read.
+  * The database also enforces tenant ownership and non-archived person. */
+ linkContact(ctx:InboxContext,conversationId:string,personId:string):Promise<Conversation|null>{
+  const key=id(conversationId),person=id(personId,"CRM person");
+  return this.kernel.execute({actor:ctx.actor,tenantId:ctx.tenantId,action:"read",resource:"crm:people"},
+   ()=>this.execute(ctx,"write","inbox:conversations",
+     repo=>repo.linkContact(ctx.tenantId,key,ctx.actor.id,person)));
  }
  reply(ctx:InboxContext,conversationId:string,value:unknown):Promise<Message|null>{
    const key=id(conversationId),body=text(value,"message",5000);

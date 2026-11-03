@@ -1,12 +1,16 @@
+export type WhatsAppAccount={id:string;tenantId:string;displayName:string;phoneExternalId:string|null;deviceJid:string|null;state:string;serviceEnabled:boolean};
 export type Person = { id: string; name: string; email?: string | null; phone?: string | null };
 export type Organization = { id: string; legalName: string; tradeName?: string | null; taxId?: string | null };
 export type Conversation = {
   id: string; subject: string; status: "open" | "pending" | "resolved";
   assignedTo?: string | null; handoff?: "bot" | "human";
-  channel: string; crmPersonId?: string | null; updatedAt?: string;
+  channel: string; crmPersonId?: string | null; updatedAt?: string; phoneNumber?: string | null;
+  displayName?:string|null;contactNameSyncStatus?:"submitted"|null;
+  isGroup?:boolean;unreadCount?:number;isFavorite?:boolean;isArchived?:boolean;historySyncAt?:string|null;
 };
 export type Message = {
   id: string; body: string; direction: string; createdAt?: string; authorId?: string;
+  deliveryStatus?: "pending"|"processing"|"sent"|"failed"|"not_queued"|"synced";source?:"local"|"live"|"history";
 };
 export type CrmNote = { id: string; body: string; createdAt: string; createdBy: string };
 export type CrmCapability =
@@ -38,7 +42,7 @@ export class TenantApi {
     this.unauthorized = unauthorized;
   }
 
-  private async request<T>(module: "crm" | "inbox", path: string, method = "GET", body?: object): Promise<T> {
+  private async request<T>(module: "crm" | "inbox" | "whatsapp", path: string, method = "GET", body?: object): Promise<T> {
     const response = await fetch(
       "/v1/tenants/" + encodeURIComponent(this.tenantId) + "/" + module + path,
       { method, headers: {
@@ -58,9 +62,22 @@ export class TenantApi {
         response.status === 401 ? "Sessão expirada. Entre novamente." :
         typeof message === "string" ? message : "Erro na operação (" + response.status + ").");
     }
-    return (await response.json()) as T;
+    return (response.status === 204 ? null : await response.json()) as T;
   }
 
+  whatsappAccounts(){return this.request<WhatsAppAccount[]>("whatsapp","/accounts")}
+  createWhatsAppAccount(displayName:string){return this.request<WhatsAppAccount>("whatsapp","/accounts","POST",{displayName})}
+  setWhatsAppEnabled(accountId:string,enabled:boolean){
+    return this.request<WhatsAppAccount>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/enabled","PATCH",{enabled});
+  }
+  updateWhatsAppContactName(conversationId:string,fullName:string,saveOnPrimaryAddressbook:boolean){
+    return this.request<{submitted:true;confirmedOnPhone:false;fullName:string;phoneNumber:string}>("whatsapp",
+      "/conversations/"+encodeURIComponent(conversationId)+"/contact-name","PATCH",
+      {fullName,saveOnPrimaryAddressbook});
+  }
+  pairWhatsAppAccount(accountId:string){return this.request<{pairingCode:string;expiresAt:string}>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/pair","POST")}
+  connectWhatsAppAccount(accountId:string){return this.request<{phoneExternalId:string}>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/connect","POST")}
+  disconnectWhatsAppAccount(accountId:string){return this.request<null>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/disconnect","POST")}
   people(query = "", offset = 0, limit = 100) {
     return this.request<Person[]>("crm", "/people?limit=" + limit + "&q=" + encodeURIComponent(query) + (offset ? "&offset=" + offset : ""));
   }
@@ -178,10 +195,10 @@ export class TenantApi {
       }
     }finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
   }
-  conversations(status = "", queue: QueueFilter = "all") {
+  conversations(status = "", queue: QueueFilter = "all",scope="all",offset=0,search="") {
     return this.request<Conversation[]>("inbox", "/conversations?limit=100"
       + (status ? "&status=" + encodeURIComponent(status) : "")
-      + "&queue=" + queue);
+      + "&queue=" + queue+"&scope="+encodeURIComponent(scope)+"&offset="+offset+"&q="+encodeURIComponent(search));
   }
   metrics() { return this.request<InboxMetrics>("inbox", "/metrics"); }
   conversation(id: string) { return this.request<Conversation>("inbox", "/conversations/" + encodeURIComponent(id)); }
@@ -191,6 +208,19 @@ export class TenantApi {
   }
   message(id: string, path: "replies" | "notes" | "simulator/inbound", body: { body: string; externalMessageId?: string }) {
     return this.request<Message>("inbox", "/conversations/" + encodeURIComponent(id) + "/" + path, "POST", body);
+  }
+  setConversationFavorite(id:string,favorite:boolean){
+    return this.request<Conversation>("inbox","/conversations/"+encodeURIComponent(id)+"/favorite","PATCH",{favorite});
+  }
+  requestConversationHistory(id:string){
+    return this.request<{requested:boolean;note:string}>("inbox",
+      "/conversations/"+encodeURIComponent(id)+"/history","POST");
+  }
+  markConversationRead(id:string){
+    return this.request<Conversation>("inbox","/conversations/"+encodeURIComponent(id)+"/read","PATCH");
+  }
+  linkConversationContact(id:string,personId:string) {
+    return this.request<Conversation>("inbox","/conversations/"+encodeURIComponent(id)+"/contact","PATCH",{personId});
   }
   setStatus(id: string, status: Conversation["status"]) {
     return this.request<Conversation>("inbox", "/conversations/" + encodeURIComponent(id) + "/status", "PATCH", { status });

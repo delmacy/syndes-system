@@ -7,7 +7,12 @@ for attempt in $(seq 1 40);do
  if [[ "$attempt" == 40 ]];then echo "Inbox DB not ready" >&2;exit 1;fi
  sleep 2
 done
-for migration in modules/core-crm/sql/001_crm_foundation.sql modules/inbox/sql/001_inbox_foundation.sql;do
+# Inbox listing and contact names depend on the WhatsApp conversation routing
+# tables. Recreate the full additive tenant schema in the isolated CI database.
+for migration in modules/core-crm/sql/001_crm_foundation.sql modules/inbox/sql/001_inbox_foundation.sql \
+ modules/whatsapp/sql/001_whatsapp_accounts.sql modules/whatsapp/sql/002_whatsapp_inbound.sql \
+ modules/whatsapp/sql/003_whatsapp_outbound_inbox.sql modules/whatsapp/sql/004_whatsapp_conversation_phone.sql \
+ modules/whatsapp/sql/005_whatsapp_history.sql modules/whatsapp/sql/006_whatsapp_contact_names.sql;do
  docker exec -i syndes-inbox-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres < "$migration" >/dev/null
  docker exec -i syndes-inbox-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres < "$migration" >/dev/null
 done

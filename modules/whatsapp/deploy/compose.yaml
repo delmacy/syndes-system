@@ -1,0 +1,23 @@
+services:
+  whatsapp-gateway:
+    image: ${SYNDES_WHATSAPP_GATEWAY_IMAGE:-syndes/whatsapp-gateway:dev}
+    build:
+      context: ../gateway/whatsmeow
+    restart: unless-stopped
+    environment:
+      WHATSAPP_SIDECAR_BIND: 0.0.0.0:19083
+      WHATSAPP_STORE_DSN: ${WHATSAPP_STORE_DSN:?Set the private gateway PostgreSQL DSN}
+      SYNDES_API_URL: http://core-host:8082
+      WHATSAPP_WHATSMEOW_TOKEN: ${WHATSAPP_WHATSMEOW_TOKEN:?Set a strong gateway secret}
+      WHATSAPP_WEBHOOK_TOKEN: ${WHATSAPP_WEBHOOK_TOKEN:?Set a separate strong callback secret}
+    networks: [syndes-data, syndes-whatsapp-egress]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp]
+    # Internal-only. Do not publish any host ports.
+networks:
+  syndes-data:
+    external: true
+  syndes-whatsapp-egress:
+    external: true

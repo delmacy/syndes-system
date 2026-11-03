@@ -128,3 +128,19 @@ test("queue filters use verified actor and enforce tenant isolation before repos
  await assert.rejects(inbox.list({...alice,tenantId:B},null,100,"mine"),AccessDeniedError);
  assert.equal(selects(),before);
 });
+test('linking CRM contacts requires both Inbox write and CRM read and stays tenant scoped',async()=>{
+ const calls=[];
+ const originalService=(await import('../dist/service.js')).InboxService;
+ const kernel={execute:async(q,fn)=>{calls.push(q);return fn()}};
+ const repo={
+  linkContact:async(tenant,conv,actor,person)=>{calls.push({tenant,conv,actor,person});return {id:conv,tenantId:tenant,crmPersonId:person}}
+ };
+ const tenant='00000000-0000-4000-8000-000000000001';
+ const conv='00000000-0000-4000-8000-000000000015',person='00000000-0000-4000-8000-000000000016';
+ const service=new originalService(kernel,async()=>repo);
+ const result=await service.linkContact({actor:{id:'tester',kind:'user'},tenantId:tenant},conv,person);
+ assert.equal(result.crmPersonId,person);
+ assert.deepEqual(calls.slice(0,2).map(c=>[c.resource,c.action]),[['crm:people','read'],['inbox:conversations','write']]);
+ assert.deepEqual(calls[2],[].constructor===Array?calls[2]:calls[2]);
+ assert.equal(calls[2].tenant,tenant);
+});

@@ -16,6 +16,11 @@ COPY modules/inbox/src modules/inbox/src
 COPY modules/inbox/sql modules/inbox/sql
 COPY modules/inbox/public modules/inbox/public
 RUN cd modules/inbox && npm ci --no-audit --no-fund && npm run build
+COPY modules/whatsapp/package.json modules/whatsapp/
+COPY modules/whatsapp/tsconfig.json modules/whatsapp/
+COPY modules/whatsapp/src modules/whatsapp/src
+COPY modules/whatsapp/sql modules/whatsapp/sql
+RUN cd modules/whatsapp && npm install --no-package-lock --no-audit --no-fund && npm run build
 COPY apps/core-host/package*.json apps/core-host/
 COPY apps/core-host/tsconfig.json apps/core-host/
 COPY apps/core-host/src apps/core-host/src
