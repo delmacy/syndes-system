@@ -26,7 +26,7 @@ export class WhatsAppInboxProjection{
   const inboxBody=event.message.body.slice(0,5000);
   const result=await db.query(`
    WITH incoming AS (
-     SELECT e.id,e.tenant_id,e.account_id
+     SELECT e.id,e.tenant_id,e.account_id,e.payload
      FROM whatsapp_inbound_events e
      WHERE e.tenant_id=$1::uuid AND e.id=$2 AND e.processed_at IS NULL
      FOR UPDATE
@@ -36,16 +36,26 @@ export class WhatsAppInboxProjection{
      ON CONFLICT(tenant_id,channel,external_thread_id) WHERE external_thread_id IS NOT NULL
      DO UPDATE SET updated_at=inbox_conversations.updated_at
      RETURNING tenant_id,id
+   ), route AS (
+     INSERT INTO whatsapp_conversation_routes(tenant_id,conversation_id,account_id,recipient_external_id)
+     SELECT thread.tenant_id,thread.id,incoming.account_id,
+       incoming.payload->'message'->>'senderExternalId'
+     FROM thread JOIN incoming ON incoming.tenant_id=thread.tenant_id
+     ON CONFLICT(tenant_id,conversation_id) DO UPDATE
+       SET recipient_external_id=EXCLUDED.recipient_external_id
+       WHERE whatsapp_conversation_routes.account_id=EXCLUDED.account_id
+         AND whatsapp_conversation_routes.recipient_external_id=EXCLUDED.recipient_external_id
+     RETURNING tenant_id,conversation_id
    ), inserted AS (
      INSERT INTO inbox_messages(tenant_id,id,conversation_id,direction,body,author_id,external_message_id)
-     SELECT tenant_id,$6::uuid,id,'inbound',$7,$8,$9 FROM thread
+     SELECT route.tenant_id,$6::uuid,route.conversation_id,'inbound',$7,$8,$9 FROM route
      ON CONFLICT(tenant_id,conversation_id,external_message_id) WHERE external_message_id IS NOT NULL
      DO NOTHING RETURNING tenant_id,conversation_id
    ), acknowledged AS (
      UPDATE whatsapp_inbound_events e SET processed_at=clock_timestamp()
      FROM incoming
      WHERE e.id=incoming.id AND e.tenant_id=incoming.tenant_id
-       AND EXISTS(SELECT 1 FROM thread)
+       AND EXISTS(SELECT 1 FROM route)
        AND (EXISTS(SELECT 1 FROM inserted) OR EXISTS (
          SELECT 1 FROM inbox_messages m JOIN thread t ON t.tenant_id=m.tenant_id
          AND t.id=m.conversation_id
