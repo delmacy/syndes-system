@@ -8,7 +8,7 @@ import (
 )
 
 func TestQRSessionCanBeReadAcrossRequests(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	session := newQRSession(cancel)
 	session.publish("first-live-code", 60*time.Second)
