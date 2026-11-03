@@ -54,25 +54,51 @@ export class WhatsAppReplyQueue{
   if(!UUID.test(tenantId))throw Error("Invalid tenant");
   const db=await this.pools.resolve(tenantId);
   if(db.tenantId!==tenantId)throw Error("Tenant database mismatch");
-  const rows=await db.query(`SELECT r.conversation_id::text AS id,r.phone_e164,
-     labels.full_name AS display_name
+  const rows=await db.query(`SELECT r.conversation_id::text AS id,r.account_id::text AS account_id,
+     r.phone_e164,labels.full_name AS edited_name,
+     person.name AS crm_name
    FROM whatsapp_conversation_routes r
    LEFT JOIN whatsapp_contact_name_labels labels
     ON labels.tenant_id=r.tenant_id AND labels.account_id=r.account_id
      AND labels.phone_e164=r.phone_e164
-   JOIN inbox_conversations c
-   ON c.tenant_id=r.tenant_id AND c.id=r.conversation_id
+   JOIN inbox_conversations c ON c.tenant_id=r.tenant_id AND c.id=r.conversation_id
+   LEFT JOIN crm_people person ON person.tenant_id=c.tenant_id
+    AND person.id=c.crm_person_id AND person.archived_at IS NULL
    WHERE r.tenant_id=$1::uuid AND c.channel='whatsapp'
-   AND r.conversation_id=ANY($2::uuid[])`,[tenantId,whatsapp.map(c=>c.id)]);
-  const known=new Map(rows.rows.map(row=>[String(row.id),{
-   phoneNumber:typeof row.phone_e164==="string"?row.phone_e164:null,
-   displayName:typeof row.display_name==="string"?row.display_name:null
-  }]));
-  return conversations.map(c=>c.channel==="whatsapp"?{
-   ...c,phoneNumber:known.get(c.id)?.phoneNumber??null,
-   displayName:known.get(c.id)?.displayName??null,
-   contactNameSyncStatus:known.get(c.id)?.displayName?"submitted" as const:null
-  }:c);
+    AND r.conversation_id=ANY($2::uuid[])`,[tenantId,whatsapp.map(c=>c.id)]);
+  type ContactRow={id:unknown;account_id:unknown;phone_e164:unknown;edited_name:unknown;crm_name:unknown};
+  const known=new Map<string,ContactRow>(rows.rows.map(row=>[String(row.id),row as ContactRow]));
+  // The names cached by whatsmeow are scoped to the linked account. Never
+  // use bare LIDs as phone numbers, and never return the full contact book.
+  const accountJids=new Map<string,Set<string>>();
+  for(const record of known.values()){
+   const account=String(record.account_id),phone=record.phone_e164;
+   if(!UUID.test(account)||typeof phone!=="string"||!/^\+[1-9][0-9]{9,14}$/.test(phone))continue;
+   if(!accountJids.has(account))accountJids.set(account,new Set());
+   accountJids.get(account)!.add(phone.slice(1)+"@s.whatsapp.net");
+  }
+  const contactNames=new Map<string,Record<string,string>>();
+  const client=new WhatsAppGatewayClient();
+  await Promise.all([...accountJids].map(async ([account,jids])=>{
+   const names:Record<string,string>={};
+   const ids=[...jids];
+   for(let offset=0;offset<ids.length;offset+=100){
+    try{Object.assign(names,await client.lookupContactNames(tenantId,account,ids.slice(offset,offset+100)))}
+    catch{break} // Keep the Inbox available when the device is offline.
+   }
+   contactNames.set(account,names);
+  }));
+  return conversations.map(c=>{
+   if(c.channel!=="whatsapp")return c;
+   const row=known.get(c.id);
+   const phone=typeof row?.phone_e164==="string"?row.phone_e164:null;
+   const crm=typeof row?.crm_name==="string"&&row.crm_name.trim()?row.crm_name.trim():null;
+   const edited=typeof row?.edited_name==="string"&&row.edited_name.trim()?row.edited_name.trim():null;
+   const jId=phone?phone.slice(1)+"@s.whatsapp.net":"";
+   const synced=phone?contactNames.get(String(row?.account_id))?.[jId]??null:null;
+   const displayName=crm??edited??synced;
+   return {...c,phoneNumber:phone,displayName,contactNameSyncStatus:edited?"submitted" as const:null};
+  });
  }
  /** A trusted Inbox reader can request <=50 older messages from their
   * own phone for one known, account-scoped conversation. A reply arrives
