@@ -308,23 +308,42 @@ func (gateway *whatsmeowGateway) registerClientHandler(accountID, tenantID strin
 			if client.Store.ID != nil {
 				_ = gateway.saveMapping(context.Background(), accountID, client.Store.ID.String())
 			}
+		case *events.HistorySync:
+			gateway.historyForEvent(tenantID, accountID, client, event)
 		case *events.Message:
-			if event.Info.IsFromMe || event.Info.IsGroup || event.Info.Chat.Server == types.NewsletterServer {
+			if event.Info.Chat.Server == types.NewsletterServer || !validChatJID(event.Info.Chat) {
 				return
 			}
-			body := messageText(event.Message)
-			if body == "" {
+			body := acceptedChatText(event)
+			if body == "" || event.Info.ID == "" || event.Info.Timestamp.IsZero() {
+				return
+			}
+			source := event.Info.MessageSource
+			chat := source.Chat
+			isGroup := chat.Server == types.GroupServer
+			sender := source.Sender
+			if !validChatJID(sender) && source.IsFromMe {
+				sender = chat
+			}
+			if !validChatJID(sender) {
 				return
 			}
 			go func() {
-				source := event.Info.MessageSource
-				phone := senderPhoneForMessage(client, source)
+				phone := ""
+				if !isGroup {
+					phone = verifiedPhone(chat)
+					if phone == "" {
+						phone = senderPhoneForMessage(client, types.MessageSource{Sender: chat})
+					}
+				}
 				gateway.enqueueInbound(context.Background(), tenantID, accountID, inboundEvent{
 					AccountID: accountID, ExternalMessageID: event.Info.ID,
-					SenderExternalID: source.Sender.String(), SenderPhone: phone, Body: body,
-					OccurredAt: event.Info.Timestamp.UTC().Format(time.RFC3339Nano),
+					SenderExternalID: sender.String(), SenderPhone: phone, Body: body,
+					ChatExternalID: chat.String(), IsGroup: isGroup, FromMe: event.Info.IsFromMe,
+					Source: "live", OccurredAt: event.Info.Timestamp.UTC().Format(time.RFC3339Nano),
 				})
 			}()
+
 		}
 	})
 }
@@ -476,13 +495,29 @@ func messageText(message *waE2E.Message) string {
 	return ""
 }
 
+type chatEvent struct {
+	AccountID      string `json:"accountId"`
+	ChatExternalID string `json:"chatExternalId"`
+	IsGroup        bool   `json:"isGroup"`
+	Name           string `json:"name,omitempty"`
+	UnreadCount    uint32 `json:"unreadCount"`
+	Archived       bool   `json:"archived"`
+	OccurredAt     string `json:"occurredAt,omitempty"`
+}
 type inboundEvent struct {
-	AccountID         string `json:"accountId"`
-	ExternalMessageID string `json:"externalMessageId"`
-	SenderExternalID  string `json:"senderExternalId"`
-	SenderPhone       string `json:"senderPhone,omitempty"`
-	Body              string `json:"body"`
-	OccurredAt        string `json:"occurredAt"`
+	AccountID         string     `json:"accountId"`
+	ExternalMessageID string     `json:"externalMessageId"`
+	SenderExternalID  string     `json:"senderExternalId"`
+	SenderPhone       string     `json:"senderPhone,omitempty"`
+	Body              string     `json:"body"`
+	OccurredAt        string     `json:"occurredAt"`
+	ChatExternalID    string     `json:"chatExternalId,omitempty"`
+	FromMe            bool       `json:"fromMe"`
+	IsGroup           bool       `json:"isGroup"`
+	Source            string     `json:"source,omitempty"`
+	ChatName          string     `json:"chatName,omitempty"`
+	EventType         string     `json:"eventType,omitempty"`
+	Chat              *chatEvent `json:"chat,omitempty"`
 }
 
 type callbackClient struct {
@@ -492,13 +527,24 @@ type callbackClient struct {
 }
 
 func (callback *callbackClient) deliver(ctx context.Context, tenantID string, event inboundEvent) error {
+	eventType := "whatsapp.message.received"
+	if event.EventType == "whatsapp.chat.snapshot" && event.Chat != nil {
+		eventType = event.EventType
+	}
+	var msg *inboundEvent
+	if eventType == "whatsapp.message.received" {
+		msg = &event
+	}
 	payload, err := json.Marshal(struct {
-		Version   string       `json:"version"`
-		Type      string       `json:"type"`
-		TenantID  string       `json:"tenantId"`
-		AccountID string       `json:"accountId"`
-		Message   inboundEvent `json:"message"`
-	}{Version: "1", Type: "whatsapp.message.received", TenantID: tenantID, AccountID: event.AccountID, Message: event})
+		Version   string        `json:"version"`
+		Type      string        `json:"type"`
+		TenantID  string        `json:"tenantId"`
+		AccountID string        `json:"accountId"`
+		Message   *inboundEvent `json:"message,omitempty"`
+		Chat      *chatEvent    `json:"chat,omitempty"`
+	}{Version: "1", Type: eventType, TenantID: tenantID, AccountID: event.AccountID,
+		Message: msg, Chat: event.Chat})
+
 	if err != nil {
 		return err
 	}
@@ -511,7 +557,7 @@ func (callback *callbackClient) deliver(ctx context.Context, tenantID string, ev
 		request.Header.Set("Authorization", "Bearer "+callback.token)
 		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("X-Syndes-Event-Version", "1")
-		request.Header.Set("X-Syndes-Event-Type", "whatsapp.message.received")
+		request.Header.Set("X-Syndes-Event-Type", eventType)
 		response, err := callback.client.Do(request)
 		if err == nil {
 			_ = response.Body.Close()
