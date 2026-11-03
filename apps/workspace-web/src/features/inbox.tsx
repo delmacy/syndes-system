@@ -3,7 +3,7 @@ import {
   ArrowLeft, Bot, CircleCheck, LoaderCircle,
   MessageCircle, Plus, RefreshCw, Search, Send, UserMinus, UserRoundCheck,
   UsersRound, StickyNote, FlaskConical, UserRoundPlus, PanelRightOpen,
-  Star, Users, Archive, History, MessageSquare, MailOpen,
+  Star, Users, Archive, History, MessageSquare, MailOpen, Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -39,8 +39,9 @@ function timeLabel(date: string | undefined): string {
   return value.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-export function inboxCallerLabel(record:Pick<Conversation,"channel"|"phoneNumber"|"subject"|"isGroup">):string{
+export function inboxCallerLabel(record:Pick<Conversation,"channel"|"phoneNumber"|"subject"|"isGroup"|"displayName">):string{
   if(record.channel!=="whatsapp"||record.isGroup)return record.subject;
+  if(typeof record.displayName==="string"&&record.displayName.trim())return record.displayName.trim();
   const number=record.phoneNumber;
   if(!number||!/^\+[1-9][0-9]{9,14}$/.test(number))return "Número não disponível";
   const d=number.slice(1);
@@ -81,6 +82,10 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   const [contactMatches,setContactMatches]=useState<Person[]>([]);
   const [contactCreatedId,setContactCreatedId]=useState<string|null>(null);
   const [contactBusy,setContactBusy]=useState(false);
+  const [nameEditorOpen,setNameEditorOpen]=useState(false);
+  const [nameEditorValue,setNameEditorValue]=useState("");
+  const [nameEditorPhone,setNameEditorPhone]=useState(false);
+  const [nameEditorBusy,setNameEditorBusy]=useState(false);
 
   const activeId = useRef<string | null>(null);
   const listRequest = useRef(0);
@@ -197,6 +202,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     setComposerMode("replies");
     setContextOpen(false);
     setContactOpen(false);
+    setNameEditorOpen(false);
     void readThread(conversation.id, true);
     if(conversation.channel==="whatsapp"&&Number(conversation.unreadCount??0)>0){
       void api.markConversationRead(conversation.id).then(updated=>{
@@ -291,6 +297,37 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     }catch(error){
       toast.error(error instanceof Error?error.message:"Não foi possível vincular o contato.");
     }finally{setContactBusy(false)}
+  };
+  const openNameEditor=async(conv:Conversation)=>{
+    if(conv.channel!=="whatsapp"||conv.isGroup||!conv.phoneNumber)return;
+    setNameEditorPhone(false);
+    setNameEditorValue(conv.displayName??"");
+    setNameEditorOpen(true);
+    if(conv.crmPersonId){
+      try{
+        const person=await api.person(conv.crmPersonId);
+        if(activeId.current===conv.id)setNameEditorValue(person.name);
+      }catch{
+        toast.info("Nome do CRM indisponível. Verifique antes de salvar.");
+      }
+    }
+  };
+  const saveWhatsAppName=async()=>{
+    if(!selected||nameEditorBusy||!nameEditorValue.trim())return;
+    setNameEditorBusy(true);
+    try{
+      const response=await api.updateWhatsAppContactName(selected.id,nameEditorValue.trim(),nameEditorPhone);
+      if(!response.submitted)throw Error("WhatsApp não aceitou a alteração.");
+      const update=(entry:Conversation):Conversation=>entry.id===selected.id?{
+        ...entry,displayName:response.fullName,contactNameSyncStatus:"submitted"
+      }:entry;
+      setSelected(current=>current?update(current):null);
+      setRecords(previous=>previous.map(update));
+      setNameEditorOpen(false);
+      toast.info("Alteração enviada ao WhatsApp. Confira o nome no WhatsApp Web e no celular.");
+    }catch(error){
+      toast.error(error instanceof Error?error.message:"Não foi possível editar o nome no WhatsApp.");
+    }finally{setNameEditorBusy(false)}
   };
   const create = async () => {
     if (!subject.trim() || busy.current) return;
@@ -437,11 +474,16 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
             {selected.channel==="whatsapp"&&<Badge className="border-0 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">WhatsApp</Badge>}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-slate-900" title={inboxCallerLabel(selected)}>{inboxCallerLabel(selected)}</p>
-              <p className="truncate text-[11px] text-muted-foreground">{selected.crmPersonId?"Contato vinculado ao CRM":"Sem contato vinculado"}</p>
+              <p className="truncate text-[11px] text-muted-foreground">{selected.displayName&&selected.phoneNumber?selected.phoneNumber+" · ":""}{selected.contactNameSyncStatus==="submitted"?"Nome enviado ao WhatsApp · confira no celular":selected.crmPersonId?"Contato vinculado ao CRM":"Sem contato vinculado"}</p>
             </div>
             {selected.channel==="whatsapp"&&!selected.isGroup&&!selected.crmPersonId&&<Button type="button" size="sm" variant="outline"
               className="gap-1.5 text-indigo-700" onClick={()=>openContactDialog(selected)}>
               <UserRoundPlus className="size-4"/> <span className="hidden sm:inline">Cadastrar contato</span><span className="sm:hidden">Cadastrar</span>
+            </Button>}
+            {selected.channel==="whatsapp"&&!selected.isGroup&&selected.phoneNumber&&<Button type="button"
+              size="icon-sm" variant="ghost" title="Editar nome no WhatsApp"
+              aria-label="Editar nome no WhatsApp" onClick={()=>void openNameEditor(selected)}>
+              <Pencil className="size-4"/>
             </Button>}
             {selected.channel==="whatsapp"&&<Button type="button" size="icon-sm" variant="ghost"
               title={selected.isFavorite?"Remover dos favoritos":"Adicionar aos favoritos"}
@@ -517,6 +559,32 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
           onOpenCrm={() => { setContextOpen(false); onOpenCrm(); }}/>}
       </SheetContent>
     </Sheet>
+    <Dialog open={nameEditorOpen} onOpenChange={setNameEditorOpen}><DialogContent>
+      <DialogHeader><DialogTitle>Editar nome no WhatsApp</DialogTitle>
+        <DialogDescription>A alteração será enviada ao WhatsApp da conta conectada. Ela não modifica o nome público escolhido pela outra pessoa.</DialogDescription></DialogHeader>
+      <form className="space-y-4" onSubmit={e=>{e.preventDefault();void saveWhatsAppName()}}>
+        <div className="space-y-1.5">
+          <label htmlFor="whatsapp-name-to-save" className="text-sm font-semibold">Nome a salvar</label>
+          <Input id="whatsapp-name-to-save" value={nameEditorValue} maxLength={160} required
+            onChange={e=>setNameEditorValue(e.target.value)} placeholder="Nome do contato"/>
+          <p className="text-xs text-muted-foreground">Telefone verificado: {selected?.phoneNumber??"—"}</p>
+        </div>
+        <label className="flex items-start gap-3 rounded-lg border p-3 text-sm">
+          <input type="checkbox" className="mt-1" checked={nameEditorPhone}
+            onChange={e=>setNameEditorPhone(e.target.checked)}/>
+          <span>Solicitar também o salvamento na agenda do celular
+            <span className="block text-xs text-muted-foreground">Opcional; depende de suporte e sincronização do dispositivo principal.</span>
+          </span>
+        </label>
+        <p className="text-xs text-amber-800">A aceitação pelo WhatsApp não garante que o nome já apareceu no celular. Se o contato estiver vinculado ao CRM, o nome informado deve corresponder ao cadastro.</p>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={()=>setNameEditorOpen(false)}>Cancelar</Button>
+          <Button type="submit" disabled={nameEditorBusy||!nameEditorValue.trim()}>
+            {nameEditorBusy?"Enviando...":"Salvar no WhatsApp"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent></Dialog>
     <Dialog open={contactOpen} onOpenChange={setContactOpen}><DialogContent>
       <DialogHeader><DialogTitle>Cadastrar contato WhatsApp</DialogTitle>
         <DialogDescription>Cadastre uma pessoa ou vincule um contato existente a esta conversa. O vínculo respeita as permissões do CRM e do tenant.</DialogDescription></DialogHeader>
