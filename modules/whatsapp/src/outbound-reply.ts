@@ -45,6 +45,24 @@ export class WhatsAppReplyQueue{
     RETURNING conversation_id`,[tenantId,conversationId,match.account_id,match.sender,thread]);
   if(result.rows.length!==1)throw new WhatsAppRouteError();
  }
+ /** Decorates only messages already selected by an authorized Inbox read.
+  * Missing outbox rows expose old local-only replies instead of implying delivery. */
+ async decorate<T extends {id:string;direction:string}>(tenantId:string,messages:readonly T[]):Promise<readonly (T & {deliveryStatus?:"pending"|"processing"|"sent"|"failed"|"not_queued"})[]>{
+  if(!UUID.test(tenantId))throw Error("Invalid tenant");
+  const outgoing=messages.filter(message=>message.direction==="outbound"&&UUID.test(message.id));
+  if(!outgoing.length)return messages;
+  const db=await this.pools.resolve(tenantId);
+  if(db.tenantId!==tenantId)throw Error("Tenant database mismatch");
+  const result=await db.query(`SELECT inbox_message_id::text AS message_id,status
+   FROM whatsapp_outbox WHERE tenant_id=$1::uuid AND inbox_message_id=ANY($2::uuid[])`,[tenantId,outgoing.map(m=>m.id)]);
+  const known=new Map(result.rows.map(row=>[String(row.message_id),String(row.status)]));
+  return messages.map(message=>{
+   if(message.direction!=="outbound")return message;
+   const state=known.get(message.id);
+   const deliveryStatus=state==="pending"||state==="processing"||state==="sent"||state==="failed"?state:"not_queued";
+   return {...message,deliveryStatus};
+  });
+ }
  async enqueue(ctx:Context,conversationId:string,input:unknown):Promise<Reply|null>{
   if(!UUID.test(ctx.tenantId)||!UUID.test(conversationId)||typeof ctx.actor.id!=="string"||!ctx.actor.id.trim())
    throw new WhatsAppRouteError();
