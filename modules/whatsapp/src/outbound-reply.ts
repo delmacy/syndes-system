@@ -82,6 +82,8 @@ export class WhatsAppReplyQueue{
   const db=await this.pools.resolve(ctx.tenantId);
   if(db.tenantId!==ctx.tenantId)throw Error("Tenant database mismatch");
   const result=await db.query(`SELECT r.account_id::text,r.recipient_external_id,
+    COALESCE(e.payload->'message'->>'chatExternalId',
+      e.payload->'message'->>'senderExternalId') AS history_chat_id,
     e.payload->'message'->>'externalMessageId' AS message_id,
     e.payload->'message'->>'occurredAt' AS occurred_at,
     COALESCE((e.payload->'message'->>'fromMe')::boolean,false) AS from_me
@@ -92,8 +94,11 @@ export class WhatsAppReplyQueue{
    WHERE r.tenant_id=$1::uuid AND r.conversation_id=$2::uuid
       AND c.channel='whatsapp' AND a.service_enabled=true
       AND e.event_type='whatsapp.message.received' AND e.processed_at IS NOT NULL
-      AND COALESCE(e.payload->'message'->>'chatExternalId',
+      AND (COALESCE(e.payload->'message'->>'chatExternalId',
         e.payload->'message'->>'senderExternalId')=r.recipient_external_id
+       OR (r.phone_e164 IS NOT NULL
+           AND e.payload->'message'->>'senderPhone'=r.phone_e164
+           AND COALESCE(e.payload->'message'->>'isGroup','false')='false'))
    ORDER BY (e.payload->'message'->>'occurredAt')::timestamptz ASC,e.id ASC LIMIT 1`,
    [ctx.tenantId,conversationId]);
   const row=result.rows[0];
@@ -101,7 +106,7 @@ export class WhatsAppReplyQueue{
   const msgID=String(row.message_id??""),timestamp=String(row.occurred_at??"");
   if(!msgID||!Number.isFinite(Date.parse(timestamp)))return {requested:false,note:"Mensagem de referência inválida."};
   await new WhatsAppGatewayClient().requestHistory(ctx.tenantId,String(row.account_id),{
-   chatExternalId:String(row.recipient_external_id),messageId:msgID,
+   chatExternalId:String(row.history_chat_id),messageId:msgID,
    timestamp,fromMe:row.from_me===true,count:50
   });
   return {requested:true,note:"Solicitação enviada ao telefone. O WhatsApp pode disponibilizar até 50 mensagens anteriores."};
