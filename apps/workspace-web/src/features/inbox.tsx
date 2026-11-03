@@ -302,7 +302,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
               <Badge variant={statusVariant[record.status]} className="text-[10px]">{statusLabel[record.status]}</Badge>
             </button>)}
           </div>
-          <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">Canal: simulação · Até 100 desta fila por consulta</p>
+          <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">Canais: WhatsApp e simulação · Até 100 desta fila por consulta</p>
         </div>
 
         <div className={(showThread ? "flex " : "hidden ") + "min-h-0 min-w-0 flex-col bg-[#fcfdff] md:flex"}>
@@ -359,6 +359,13 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
                   <time className="ml-auto font-normal normal-case">{timeLabel(message.createdAt)}</time>
                 </div>
                 <p className="whitespace-pre-wrap break-words">{message.body}</p>
+                {selected.channel === "whatsapp" && message.direction === "outbound" && <p className="mt-2 text-[10px] font-semibold opacity-85" role="status">{
+                  message.deliveryStatus === "sent" ? "Enviada pelo WhatsApp" :
+                  message.deliveryStatus === "pending" ? "Na fila de envio" :
+                  message.deliveryStatus === "processing" ? "Enviando pelo WhatsApp" :
+                  message.deliveryStatus === "failed" ? "Falha no envio · reenvie manualmente" :
+                  "Não enviada pelo gateway · registro anterior"
+                }</p>}
               </div>)}
             </div>
             <div className="space-y-3 border-t border-border bg-card p-4">
