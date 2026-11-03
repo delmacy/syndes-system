@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
@@ -28,6 +29,43 @@ func authorizedTenant(header, master, tenantID string) bool {
 	return subtle.ConstantTimeCompare([]byte(token), []byte(tenantToken(master, tenantID))) == 1
 }
 func installAccountRoutes(mux *http.ServeMux, db *sql.DB, provider gateway, master string) {
+	mux.HandleFunc("POST /v1/tenants/{tenantId}/accounts/{accountId}/history", func(w http.ResponseWriter, r *http.Request) {
+		tenantID, accountID := r.PathValue("tenantId"), r.PathValue("accountId")
+		if !authorizedTenant(r.Header.Get("Authorization"), master, tenantID) {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"code": "unauthorized"})
+			return
+		}
+		if !validUUID(accountID) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"code": "invalid_account"})
+			return
+		}
+		var enabled bool
+		err := db.QueryRowContext(r.Context(), `SELECT enabled FROM syndes_whatsapp_accounts
+            WHERE tenant_id=$1 AND account_id=$2`, tenantID, accountID).Scan(&enabled)
+		if err != nil || !enabled {
+			writeJSON(w, http.StatusNotFound, map[string]string{"code": "not_found"})
+			return
+		}
+		var body historyRequest
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&body) != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"code": "invalid_request"})
+			return
+		}
+		history, ok := provider.(interface {
+			RequestHistory(context.Context, string, historyRequest) error
+		})
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]string{"code": "history_unavailable"})
+			return
+		}
+		if err := history.RequestHistory(r.Context(), accountID, body); err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"code": "history_request_failed"})
+			return
+		}
+		writeJSON(w, http.StatusAccepted, map[string]bool{"requested": true})
+	})
 	mux.HandleFunc("GET /v1/tenants/{tenantId}/accounts", func(w http.ResponseWriter, r *http.Request) {
 		tenantID := r.PathValue("tenantId")
 		if !authorizedTenant(r.Header.Get("Authorization"), master, tenantID) {
