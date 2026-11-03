@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"go.mau.fi/whatsmeow"
 	waE2E "go.mau.fi/whatsmeow/proto/waE2E"
@@ -315,13 +316,50 @@ func (gateway *whatsmeowGateway) registerClientHandler(accountID, tenantID strin
 			if body == "" {
 				return
 			}
-			go gateway.enqueueInbound(context.Background(), tenantID, accountID, inboundEvent{
-				AccountID: accountID, ExternalMessageID: event.Info.ID,
-				SenderExternalID: event.Info.Sender.String(), Body: body,
-				OccurredAt: event.Info.Timestamp.UTC().Format(time.RFC3339Nano),
-			})
+			go func() {
+				source := event.Info.MessageSource
+				phone := senderPhoneForMessage(client, source)
+				gateway.enqueueInbound(context.Background(), tenantID, accountID, inboundEvent{
+					AccountID: accountID, ExternalMessageID: event.Info.ID,
+					SenderExternalID: source.Sender.String(), SenderPhone: phone, Body: body,
+					OccurredAt: event.Info.Timestamp.UTC().Format(time.RFC3339Nano),
+				})
+			}()
 		}
 	})
+}
+
+// Sender JID may be a LID, which is NOT a phone number. Only trusted PN
+// addressing (or the library's verified LID↔PN mapping) is exposed as a phone.
+func verifiedPhone(jid types.JID) string {
+	if jid.Server != types.DefaultUserServer || len(jid.User) < 10 || len(jid.User) > 15 {
+		return ""
+	}
+	for _, digit := range jid.User {
+		if !unicode.IsDigit(digit) || digit > '9' || digit < '0' {
+			return ""
+		}
+	}
+	if jid.User[0] == '0' {
+		return ""
+	}
+	return "+" + jid.User
+}
+func senderPhoneForMessage(client *whatsmeow.Client, source types.MessageSource) string {
+	if phone := verifiedPhone(source.Sender); phone != "" {
+		return phone
+	}
+	if phone := verifiedPhone(source.SenderAlt); phone != "" {
+		return phone
+	}
+	if client == nil || client.Store == nil {
+		return ""
+	}
+	pn, err := client.Store.GetAltJID(context.Background(), source.Sender)
+	if err != nil {
+		return ""
+	}
+	return verifiedPhone(pn)
 }
 
 func (gateway *whatsmeowGateway) saveMapping(ctx context.Context, accountID, jid string) error {
@@ -442,6 +480,7 @@ type inboundEvent struct {
 	AccountID         string `json:"accountId"`
 	ExternalMessageID string `json:"externalMessageId"`
 	SenderExternalID  string `json:"senderExternalId"`
+	SenderPhone       string `json:"senderPhone,omitempty"`
 	Body              string `json:"body"`
 	OccurredAt        string `json:"occurredAt"`
 }
