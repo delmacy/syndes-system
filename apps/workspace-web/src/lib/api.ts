@@ -5,10 +5,11 @@ export type Conversation = {
   id: string; subject: string; status: "open" | "pending" | "resolved";
   assignedTo?: string | null; handoff?: "bot" | "human";
   channel: string; crmPersonId?: string | null; updatedAt?: string; phoneNumber?: string | null;
+  isGroup?:boolean;unreadCount?:number;isFavorite?:boolean;isArchived?:boolean;historySyncAt?:string|null;
 };
 export type Message = {
   id: string; body: string; direction: string; createdAt?: string; authorId?: string;
-  deliveryStatus?: "pending"|"processing"|"sent"|"failed"|"not_queued";
+  deliveryStatus?: "pending"|"processing"|"sent"|"failed"|"not_queued"|"synced";source?:"local"|"live"|"history";
 };
 export type CrmNote = { id: string; body: string; createdAt: string; createdBy: string };
 export type CrmCapability =
@@ -188,10 +189,10 @@ export class TenantApi {
       }
     }finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
   }
-  conversations(status = "", queue: QueueFilter = "all") {
+  conversations(status = "", queue: QueueFilter = "all",scope="all",offset=0,search="") {
     return this.request<Conversation[]>("inbox", "/conversations?limit=100"
       + (status ? "&status=" + encodeURIComponent(status) : "")
-      + "&queue=" + queue);
+      + "&queue=" + queue+"&scope="+encodeURIComponent(scope)+"&offset="+offset+"&q="+encodeURIComponent(search));
   }
   metrics() { return this.request<InboxMetrics>("inbox", "/metrics"); }
   conversation(id: string) { return this.request<Conversation>("inbox", "/conversations/" + encodeURIComponent(id)); }
@@ -201,6 +202,16 @@ export class TenantApi {
   }
   message(id: string, path: "replies" | "notes" | "simulator/inbound", body: { body: string; externalMessageId?: string }) {
     return this.request<Message>("inbox", "/conversations/" + encodeURIComponent(id) + "/" + path, "POST", body);
+  }
+  setConversationFavorite(id:string,favorite:boolean){
+    return this.request<Conversation>("inbox","/conversations/"+encodeURIComponent(id)+"/favorite","PATCH",{favorite});
+  }
+  requestConversationHistory(id:string){
+    return this.request<{requested:boolean;note:string}>("inbox",
+      "/conversations/"+encodeURIComponent(id)+"/history","POST");
+  }
+  markConversationRead(id:string){
+    return this.request<Conversation>("inbox","/conversations/"+encodeURIComponent(id)+"/read","PATCH");
   }
   linkConversationContact(id:string,personId:string) {
     return this.request<Conversation>("inbox","/conversations/"+encodeURIComponent(id)+"/contact","PATCH",{personId});
