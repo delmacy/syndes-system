@@ -45,6 +45,22 @@ export class WhatsAppReplyQueue{
     RETURNING conversation_id`,[tenantId,conversationId,match.account_id,match.sender,thread]);
   if(result.rows.length!==1)throw new WhatsAppRouteError();
  }
+ /** Authenticated Inbox readers can see the verified phone attached to the
+  * conversation. Never infer a phone from a LID nor expose other tenants. */
+ async decorateConversations<T extends {id:string;channel:string}>(tenantId:string,conversations:readonly T[]):Promise<readonly (T & {phoneNumber?:string|null})[]>{
+  const whatsapp=conversations.filter(record=>record.channel==="whatsapp"&&UUID.test(record.id));
+  if(!whatsapp.length)return conversations;
+  if(!UUID.test(tenantId))throw Error("Invalid tenant");
+  const db=await this.pools.resolve(tenantId);
+  if(db.tenantId!==tenantId)throw Error("Tenant database mismatch");
+  const rows=await db.query(`SELECT r.conversation_id::text AS id,r.phone_e164
+   FROM whatsapp_conversation_routes r JOIN inbox_conversations c
+   ON c.tenant_id=r.tenant_id AND c.id=r.conversation_id
+   WHERE r.tenant_id=$1::uuid AND c.channel='whatsapp'
+   AND r.conversation_id=ANY($2::uuid[])`,[tenantId,whatsapp.map(c=>c.id)]);
+  const known=new Map(rows.rows.map(row=>[String(row.id),typeof row.phone_e164==="string"?row.phone_e164:null]));
+  return conversations.map(c=>c.channel==="whatsapp"?{...c,phoneNumber:known.get(c.id)??null}:c);
+ }
  /** Decorates only messages already selected by an authorized Inbox read.
   * Missing outbox rows expose old local-only replies instead of implying delivery. */
  async decorate<T extends {id:string;direction:string}>(tenantId:string,messages:readonly T[]):Promise<readonly (T & {deliveryStatus?:"pending"|"processing"|"sent"|"failed"|"not_queued"})[]>{
