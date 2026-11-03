@@ -22,7 +22,7 @@ export class WhatsAppInboxProjection{
   // Include both the sending number and remote sender to prevent thread merging.
   const thread=createHash("sha256").update(event.accountId+"|"+event.message.senderExternalId).digest("hex");
   const externalId=createHash("sha256").update(event.accountId+"|"+event.message.externalMessageId).digest("hex");
-  const subject="WhatsApp · "+event.message.senderExternalId.slice(0,100);
+  const subject="WhatsApp · "+(event.message.senderPhone??"Contato sem número disponível");
   const inboxBody=event.message.body.slice(0,5000);
   const result=await db.query(`
    WITH incoming AS (
@@ -37,12 +37,13 @@ export class WhatsAppInboxProjection{
      DO UPDATE SET updated_at=inbox_conversations.updated_at
      RETURNING tenant_id,id
    ), route AS (
-     INSERT INTO whatsapp_conversation_routes(tenant_id,conversation_id,account_id,recipient_external_id)
+     INSERT INTO whatsapp_conversation_routes(tenant_id,conversation_id,account_id,recipient_external_id,phone_e164)
      SELECT thread.tenant_id,thread.id,incoming.account_id,
-       incoming.payload->'message'->>'senderExternalId'
+       incoming.payload->'message'->>'senderExternalId',
+       incoming.payload->'message'->>'senderPhone'
      FROM thread JOIN incoming ON incoming.tenant_id=thread.tenant_id
      ON CONFLICT(tenant_id,conversation_id) DO UPDATE
-       SET recipient_external_id=EXCLUDED.recipient_external_id
+       SET phone_e164=COALESCE(EXCLUDED.phone_e164,whatsapp_conversation_routes.phone_e164)
        WHERE whatsapp_conversation_routes.account_id=EXCLUDED.account_id
          AND whatsapp_conversation_routes.recipient_external_id=EXCLUDED.recipient_external_id
      RETURNING tenant_id,conversation_id
