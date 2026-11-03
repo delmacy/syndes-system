@@ -381,7 +381,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     });
   };
 
-  return <section className="flex h-full min-h-0 min-w-0 flex-col bg-white" aria-label="Inbox">
+  return <section className="flex h-full max-h-full min-h-0 min-w-0 flex-col overflow-hidden bg-white" aria-label="Inbox">
     <div className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-[#e6eaf1] bg-white px-3 py-2 lg:px-5" role="toolbar" aria-label="Ações da Inbox">
       <div className="relative min-w-[185px] flex-1 sm:max-w-[310px]">
         <Search className="pointer-events-none absolute top-2.5 left-3 size-4 text-slate-400" />
@@ -412,8 +412,8 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
       </label>
       <span className="ml-auto hidden text-[11px] text-muted-foreground xl:inline" role="status">{live?"● Tempo real":"Atualização periódica"}</span>
     </div>
-    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 md:grid-cols-[minmax(250px,300px)_minmax(0,1fr)]">
-      <div className={(showThread?"hidden ":"flex ")+"min-h-0 flex-col border-r border-border bg-white md:flex"}>
+    <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden grid-cols-1 md:grid-cols-[minmax(250px,300px)_minmax(0,1fr)]">
+      <div className={(showThread?"hidden ":"flex ")+"min-h-0 min-w-0 overflow-hidden flex-col border-r border-border bg-white md:flex"}>
         <div className="shrink-0 space-y-2 border-b border-border p-3">
           <div role="group" aria-label="Filtros do WhatsApp" className="flex flex-wrap gap-1">
             {([
@@ -436,7 +436,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
               onClick={()=>setFilter(item.value)}>{item.label}</button>)}
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto" aria-label="Lista de conversas">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" aria-label="Lista de conversas" data-scroll-pane="contacts">
           {listError&&<div role="alert" className="border-b border-amber-200 bg-amber-50 p-3 text-xs">Falha ao atualizar a fila. <button className="underline" onClick={()=>void refresh(true)}>Tentar novamente</button></div>}
           {loading&&records.length===0&&<p className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/> Carregando...</p>}
           {!loading&&!listError&&matching.length===0&&<p className="p-7 text-center text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>}
@@ -463,7 +463,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
         </div>
         <p className="shrink-0 border-t border-border px-3 py-2 text-[11px] text-muted-foreground">WhatsApp e simulação · {records.length} conversas carregadas</p>
       </div>
-      <div className={(showThread?"flex ":"hidden ")+"min-h-0 min-w-0 flex-col bg-[#f7f9fd] md:flex"}>
+      <div className={(showThread?"flex ":"hidden ")+"min-h-0 min-w-0 overflow-hidden flex-col bg-[#f7f9fd] md:flex"}>
         {!selected&&<div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
           <MessageCircle className="size-9 text-indigo-300"/><p className="text-sm font-medium">Selecione uma conversa para atender.</p>
         </div>}
@@ -499,7 +499,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
             <Button type="button" size="icon-sm" variant="outline" aria-label="Abrir inspetor de contato" title="Abrir inspetor CRM"
               onClick={()=>setContextOpen(true)}><PanelRightOpen className="size-4"/></Button>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 lg:p-6" aria-label="Histórico de mensagens" aria-live="polite">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 lg:p-6" data-scroll-pane="messages" aria-label="Histórico de mensagens" aria-live="polite">
             {reading&&<p className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/> Carregando histórico...</p>}
             {threadError&&<p role="alert" className="text-sm text-amber-900">Falha ao ler o histórico. <button className="underline" onClick={()=>void readThread(selected.id,true)}>Tentar novamente</button></p>}
             {!reading&&!threadError&&!thread.length&&<p className="my-auto text-center text-sm text-muted-foreground">Esta conversa ainda não tem mensagens.</p>}
