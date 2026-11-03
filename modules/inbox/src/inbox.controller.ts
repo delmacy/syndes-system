@@ -1,4 +1,4 @@
-import {Body,Controller,Get,Headers,HttpException,Inject,Injectable,Param,Patch,Post,Query,Res} from "@nestjs/common";
+import {Body,Controller,Get,Headers,HttpException,Inject,Injectable,Optional,Param,Patch,Post,Query,Res} from "@nestjs/common";
 import {AccessDeniedError} from "@syndes/core-kernel";
 import {InboxService} from "./service.js";
 import {SimulatedChannelAdapter} from "./channels.js";
@@ -17,11 +17,24 @@ export class InboxHost{
  readonly events=new InboxChangeBus();
  constructor(
   @Inject(CORE_RUNTIME) private readonly core:InboxHostRuntime,
-  @Inject(TENANT_DATABASES) pools:TrustedTenantDatabaseProvider
+  @Inject(TENANT_DATABASES) pools:TrustedTenantDatabaseProvider,
+  @Optional() @Inject("SYNDES_WHATSAPP_REPLY")
+  private readonly whatsappReply?:{enqueue(ctx:InboxContext,conversationId:string,body:unknown):Promise<unknown|null>}
  ){
   const repo=new PgInboxRepositoryFactory(pools);
   this.inbox=new InboxService(core.kernel,tenantId=>repo.forTenant(tenantId));
   this.simulator=new SimulatedChannelAdapter(this.inbox);
+ }
+ async reply(ctx:InboxContext,conversationId:string,body:unknown){
+  const conv=await this.inbox.get(ctx,conversationId);
+  if(!conv)return null;
+  if(conv.channel!=="whatsapp")return this.inbox.reply(ctx,conversationId,body);
+  if(!this.whatsappReply)throw new HttpException("WhatsApp outbound module unavailable",503);
+  // The WhatsApp adapter is invoked only after both tenant membership and
+  // the *same* inbox:messages/write grant required by ordinary Inbox replies.
+  return this.core.kernel.execute({
+   tenantId:ctx.tenantId,actor:ctx.actor,action:"write",resource:"inbox:messages",
+  },()=>this.whatsappReply!.enqueue(ctx,conversationId,body));
  }
  async run<T>(tenantId:string,authorization:string|undefined,task:(context:InboxContext)=>Promise<T>):Promise<T>{
   try{id(tenantId,"tenant")}catch{throw new HttpException("Invalid tenant ID",400)}
@@ -100,7 +113,7 @@ export class InboxController{
  @Post("conversations/:id/replies")
  reply(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
        @Param("id")key:string,@Body()b:{body:string}){
-  return this.run(t,h,async c=>{const result=found(await this.host.inbox.reply(c,key,b?.body));this.host.events.publish(c.tenantId);return result;});
+  return this.run(t,h,async c=>{const result=found(await this.host.reply(c,key,b?.body));this.host.events.publish(c.tenantId);return result;});
  }
  @Post("conversations/:id/notes")
  note(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
