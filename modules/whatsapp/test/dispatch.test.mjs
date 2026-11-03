@@ -25,3 +25,16 @@ test('rejects foreign tenant database',async()=>{
  const projection=new WhatsAppInboxProjection({resolve:async()=>({tenantId:'wrong',query:async()=>{throw Error('not reached')}})});
  await assert.rejects(()=>projection.deliverNext(tenantId),/Tenant database mismatch/);
 });
+test('preserves WhatsApp routing JID while storing verified phone only as display metadata',async()=>{
+ const calls=[];
+ const payload={...event,message:{...event.message,senderExternalId:'76467123456789@lid',senderPhone:'+5551976471234'}};
+ const db={tenantId,query:async(sql,args)=>{calls.push({sql,args});return {rows:calls.length===1?[{id:42,payload}]:[{id:42}]}}};
+ const projection=new WhatsAppInboxProjection({resolve:async()=>db});
+ assert.equal(await projection.deliverNext(tenantId),'delivered');
+ const sql=calls[1].sql;
+ assert.match(sql,/recipient_external_id,phone_e164/);
+ assert.match(sql,/senderExternalId/);
+ assert.match(sql,/senderPhone/);
+ assert.match(sql,/COALESCE\(EXCLUDED.phone_e164,whatsapp_conversation_routes.phone_e164\)/);
+ assert.equal(calls[1].args[3],'WhatsApp · +5551976471234');
+});
