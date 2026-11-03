@@ -14,6 +14,7 @@ export const syndesPlugin=defineSyndesModule({
  permissions:[{resource:"whatsapp:accounts",actions:["read","write"]}],
  migrations:[{id:"001_whatsapp_accounts",fileUrl:new URL("../sql/001_whatsapp_accounts.sql",import.meta.url).href},{id:"002_whatsapp_inbound",fileUrl:new URL("../sql/002_whatsapp_inbound.sql",import.meta.url).href},{id:"003_whatsapp_outbound_inbox",fileUrl:new URL("../sql/003_whatsapp_outbound_inbox.sql",import.meta.url).href},
   {id:"004_whatsapp_conversation_phone",fileUrl:new URL("../sql/004_whatsapp_conversation_phone.sql",import.meta.url).href},
-  {id:"005_whatsapp_history",fileUrl:new URL("../sql/005_whatsapp_history.sql",import.meta.url).href}],
+  {id:"005_whatsapp_history",fileUrl:new URL("../sql/005_whatsapp_history.sql",import.meta.url).href},
+  {id:"006_whatsapp_contact_names",fileUrl:new URL("../sql/006_whatsapp_contact_names.sql",import.meta.url).href}],
  assets:[]
 });
