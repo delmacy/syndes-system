@@ -199,7 +199,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
       });
       setDrafts(previous => clearSentDraft(previous, key, originalDraft));
       await Promise.all([readThread(conversationId), refresh()]);
-      toast.success(mode === "notes" ? "Nota interna registrada." : mode === "simulator/inbound" ? "Mensagem simulada recebida." : "Resposta registrada.");
+      toast.success(mode === "notes" ? "Nota interna registrada." : mode === "simulator/inbound" ? "Mensagem simulada recebida." : selected.channel === "whatsapp" ? "Resposta colocada na fila do WhatsApp." : "Resposta registrada.");
     } catch (error) {
       // Preserve draft on network errors, forbidden access or validation failures.
       toast.error(error instanceof Error ? error.message : "Não foi possível enviar a mensagem.");
