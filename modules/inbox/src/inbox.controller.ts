@@ -22,11 +22,23 @@ export class InboxHost{
   private readonly whatsappReply?:{
    enqueue(ctx:InboxContext,conversationId:string,body:unknown):Promise<unknown|null>;
    decorate(tenantId:string,messages:readonly {id:string;direction:string}[]):Promise<readonly unknown[]>;
+   decorateConversations(tenantId:string,conversations:readonly {id:string;channel:string}[]):Promise<readonly unknown[]>;
   }
  ){
   const repo=new PgInboxRepositoryFactory(pools);
   this.inbox=new InboxService(core.kernel,tenantId=>repo.forTenant(tenantId));
   this.simulator=new SimulatedChannelAdapter(this.inbox);
+ }
+ async list(ctx:InboxContext,status:ConversationStatus|null,limit:number,queue:ConversationQueue){
+  const records=await this.inbox.list(ctx,status,limit,queue);
+  if(!this.whatsappReply)return records;
+  return this.whatsappReply.decorateConversations(ctx.tenantId,records);
+ }
+ async get(ctx:InboxContext,conversationId:string){
+  const result=await this.inbox.get(ctx,conversationId);
+  if(!result||!this.whatsappReply)return result;
+  const [decorated]=await this.whatsappReply.decorateConversations(ctx.tenantId,[result]);
+  return decorated;
  }
  async messages(ctx:InboxContext,conversationId:string,limit:number){
   const selected=await this.inbox.messages(ctx,conversationId,limit);
@@ -87,7 +99,7 @@ export class InboxController{
  list(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
       @Query("status")s:string|undefined,@Query("limit")l:string|undefined,
       @Query("queue")queue:string|undefined){
-  return this.run(t,h,c=>this.host.inbox.list(c,(s||null) as ConversationStatus|null,
+  return this.run(t,h,c=>this.host.list(c,(s||null) as ConversationStatus|null,
     l===undefined?30:Number(l),(queue||"all") as ConversationQueue));
  }
  @Post("conversations")
@@ -97,7 +109,7 @@ export class InboxController{
  }
  @Get("conversations/:id")
  get(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@Param("id")key:string){
-  return this.run(t,h,async c=>found(await this.host.inbox.get(c,key)));
+  return this.run(t,h,async c=>found(await this.host.get(c,key)));
  }
  @Get("conversations/:id/messages")
  messages(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
@@ -118,6 +130,15 @@ export class InboxController{
  handoff(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
          @Param("id")key:string,@Body()b:{mode:HandoffMode}){
   return this.run(t,h,async c=>{const result=found(await this.host.inbox.handoff(c,key,b?.mode));this.host.events.publish(c.tenantId);return result;});
+ }
+ @Patch("conversations/:id/contact")
+ contact(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
+         @Param("id")key:string,@Body()b:{personId?:string}){
+  return this.run(t,h,async c=>{
+   const result=found(await this.host.inbox.linkContact(c,key,b?.personId??""));
+   this.host.events.publish(c.tenantId);
+   return this.host.get(c,key);
+  });
  }
  @Post("conversations/:id/replies")
  reply(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
