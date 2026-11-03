@@ -84,6 +84,30 @@ export class WhatsAppGatewayClient {
   if(response.status!==202)throw Error("Historical sync request unavailable ("+response.status+")");
   return response.json() as Promise<{requested:boolean}>;
  }
+ async lookupContactNames(tenantId:string,accountId:string,jids:readonly string[]):Promise<Record<string,string>> {
+  if(!this.base||!this.secret||jids.length===0||jids.length>100)throw Error("Invalid contact lookup");
+  const url=new URL(this.base);
+  if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||
+    url.username||url.password||url.search||url.hash||url.pathname!=="/")
+   throw Error("Invalid gateway private URL");
+  const token=createHmac("sha256",this.secret)
+    .update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const response=await fetch(new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/contacts/lookup",url),{
+   method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+   body:JSON.stringify({jids}),signal:AbortSignal.timeout(6000),redirect:"error"
+  });
+  if(!response.ok)throw Error("WhatsApp contacts unavailable ("+response.status+")");
+  const payload=await response.json() as {names?:unknown};
+  if(!payload.names||typeof payload.names!=="object"||Array.isArray(payload.names))
+   throw Error("Invalid WhatsApp contact response");
+  const permitted=new Set(jids);
+  const out:Record<string,string>={};
+  for(const [jid,name] of Object.entries(payload.names)){
+   if(permitted.has(jid)&&typeof name==="string"&&name.trim()&&[...name].length<=160)
+     out[jid]=name.trim();
+  }
+  return out;
+ }
  async setContactName(tenantId:string,accountId:string,input:{
    contactJid:string;fullName:string;saveOnPrimaryAddressbook:boolean
  }):Promise<{submitted:true;confirmedOnPhone:false}>{
