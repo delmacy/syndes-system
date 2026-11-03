@@ -29,6 +29,47 @@ func authorizedTenant(header, master, tenantID string) bool {
 	return subtle.ConstantTimeCompare([]byte(token), []byte(tenantToken(master, tenantID))) == 1
 }
 func installAccountRoutes(mux *http.ServeMux, db *sql.DB, provider gateway, master string) {
+	mux.HandleFunc("PATCH /v1/tenants/{tenantId}/accounts/{accountId}/contacts/name", func(w http.ResponseWriter, r *http.Request) {
+		tenantID, accountID := r.PathValue("tenantId"), r.PathValue("accountId")
+		if !authorizedTenant(r.Header.Get("Authorization"), master, tenantID) {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"code": "unauthorized"})
+			return
+		}
+		if !validUUID(accountID) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"code": "invalid_account"})
+			return
+		}
+		var active bool
+		err := db.QueryRowContext(r.Context(), `SELECT enabled AND device_jid IS NOT NULL
+            FROM syndes_whatsapp_accounts WHERE tenant_id=$1 AND account_id=$2`, tenantID, accountID).Scan(&active)
+		if err != nil || !active {
+			writeJSON(w, http.StatusNotFound, map[string]string{"code": "account_unavailable"})
+			return
+		}
+		var body contactNameChange
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&body) != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"code": "invalid_request"})
+			return
+		}
+		if _, _, err := contactNamePatch(body); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"code": "invalid_contact"})
+			return
+		}
+		writer, ok := provider.(interface {
+			SubmitContactName(context.Context, string, contactNameChange) error
+		})
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]string{"code": "contact_edit_unavailable"})
+			return
+		}
+		if err := writer.SubmitContactName(r.Context(), accountID, body); err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"code": "contact_write_unavailable"})
+			return
+		}
+		writeJSON(w, http.StatusAccepted, map[string]any{"submitted": true, "confirmedOnPhone": false})
+	})
 	mux.HandleFunc("POST /v1/tenants/{tenantId}/accounts/{accountId}/history", func(w http.ResponseWriter, r *http.Request) {
 		tenantID, accountID := r.PathValue("tenantId"), r.PathValue("accountId")
 		if !authorizedTenant(r.Header.Get("Authorization"), master, tenantID) {
