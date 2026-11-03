@@ -5,6 +5,7 @@ export type Conversation = {
   id: string; subject: string; status: "open" | "pending" | "resolved";
   assignedTo?: string | null; handoff?: "bot" | "human";
   channel: string; crmPersonId?: string | null; updatedAt?: string; phoneNumber?: string | null;
+  displayName?:string|null;contactNameSyncStatus?:"submitted"|null;
   isGroup?:boolean;unreadCount?:number;isFavorite?:boolean;isArchived?:boolean;historySyncAt?:string|null;
 };
 export type Message = {
@@ -68,6 +69,11 @@ export class TenantApi {
   createWhatsAppAccount(displayName:string){return this.request<WhatsAppAccount>("whatsapp","/accounts","POST",{displayName})}
   setWhatsAppEnabled(accountId:string,enabled:boolean){
     return this.request<WhatsAppAccount>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/enabled","PATCH",{enabled});
+  }
+  updateWhatsAppContactName(conversationId:string,fullName:string,saveOnPrimaryAddressbook:boolean){
+    return this.request<{submitted:true;confirmedOnPhone:false;fullName:string;phoneNumber:string}>("whatsapp",
+      "/conversations/"+encodeURIComponent(conversationId)+"/contact-name","PATCH",
+      {fullName,saveOnPrimaryAddressbook});
   }
   pairWhatsAppAccount(accountId:string){return this.request<{pairingCode:string;expiresAt:string}>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/pair","POST")}
   connectWhatsAppAccount(accountId:string){return this.request<{phoneExternalId:string}>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/connect","POST")}
