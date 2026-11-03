@@ -48,19 +48,31 @@ export class WhatsAppReplyQueue{
  }
  /** Authenticated Inbox readers can see the verified phone attached to the
   * conversation. Never infer a phone from a LID nor expose other tenants. */
- async decorateConversations<T extends {id:string;channel:string}>(tenantId:string,conversations:readonly T[]):Promise<readonly (T & {phoneNumber?:string|null})[]>{
+ async decorateConversations<T extends {id:string;channel:string}>(tenantId:string,conversations:readonly T[]):Promise<readonly (T & {phoneNumber?:string|null;displayName?:string|null;contactNameSyncStatus?:"submitted"|null})[]>{
   const whatsapp=conversations.filter(record=>record.channel==="whatsapp"&&UUID.test(record.id));
   if(!whatsapp.length)return conversations;
   if(!UUID.test(tenantId))throw Error("Invalid tenant");
   const db=await this.pools.resolve(tenantId);
   if(db.tenantId!==tenantId)throw Error("Tenant database mismatch");
-  const rows=await db.query(`SELECT r.conversation_id::text AS id,r.phone_e164
-   FROM whatsapp_conversation_routes r JOIN inbox_conversations c
+  const rows=await db.query(`SELECT r.conversation_id::text AS id,r.phone_e164,
+     labels.full_name AS display_name
+   FROM whatsapp_conversation_routes r
+   LEFT JOIN whatsapp_contact_name_labels labels
+    ON labels.tenant_id=r.tenant_id AND labels.account_id=r.account_id
+     AND labels.phone_e164=r.phone_e164
+   JOIN inbox_conversations c
    ON c.tenant_id=r.tenant_id AND c.id=r.conversation_id
    WHERE r.tenant_id=$1::uuid AND c.channel='whatsapp'
    AND r.conversation_id=ANY($2::uuid[])`,[tenantId,whatsapp.map(c=>c.id)]);
-  const known=new Map(rows.rows.map(row=>[String(row.id),typeof row.phone_e164==="string"?row.phone_e164:null]));
-  return conversations.map(c=>c.channel==="whatsapp"?{...c,phoneNumber:known.get(c.id)??null}:c);
+  const known=new Map(rows.rows.map(row=>[String(row.id),{
+   phoneNumber:typeof row.phone_e164==="string"?row.phone_e164:null,
+   displayName:typeof row.display_name==="string"?row.display_name:null
+  }]));
+  return conversations.map(c=>c.channel==="whatsapp"?{
+   ...c,phoneNumber:known.get(c.id)?.phoneNumber??null,
+   displayName:known.get(c.id)?.displayName??null,
+   contactNameSyncStatus:known.get(c.id)?.displayName?"submitted" as const:null
+  }:c);
  }
  /** A trusted Inbox reader can request <=50 older messages from their
   * own phone for one known, account-scoped conversation. A reply arrives
