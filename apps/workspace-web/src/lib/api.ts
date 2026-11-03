@@ -8,6 +8,7 @@ export type Conversation = {
 };
 export type Message = {
   id: string; body: string; direction: string; createdAt?: string; authorId?: string;
+  deliveryStatus?: "pending"|"processing"|"sent"|"failed"|"not_queued";
 };
 export type CrmNote = { id: string; body: string; createdAt: string; createdBy: string };
 export type CrmCapability =
