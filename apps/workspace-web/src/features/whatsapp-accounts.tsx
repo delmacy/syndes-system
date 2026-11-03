@@ -13,6 +13,26 @@ export function WhatsAppAccountsFeature({api}:{api:TenantApi}){
  const [busy,setBusy]=useState(false);
  const refresh=useCallback(async()=>{try{setAccounts(await api.whatsappAccounts())}catch(e){toast.error(e instanceof Error?e.message:"Não foi possível consultar os números")}},[api]);
  useEffect(()=>{void refresh();const handle=window.setInterval(()=>{void refresh()},10000);return()=>window.clearInterval(handle)},[refresh]);
+ // Whatsmeow rotates QR codes before the pairing session ends. Refresh
+ // proactively; the previous QR is invalid once the provider rotates it.
+ useEffect(()=>{
+  if(!pairing)return;
+  const delay=Math.max(1500,Math.min(60000,Date.parse(pairing.expiresAt)-Date.now()-4000));
+  let canceled=false;
+  const timer=window.setTimeout(()=>{
+   void api.pairWhatsAppAccount(pairing.accountId).then(next=>{
+    if(!canceled)setPairing(current=>current?.accountId===pairing.accountId?
+     {...current,code:next.pairingCode,expiresAt:next.expiresAt}:current);
+   }).catch(()=>{
+    if(!canceled){
+     setPairing(null);
+     void refresh();
+     toast.info("Pareamento concluído ou código expirado. Consulte o estado do número.");
+    }
+   });
+  },delay);
+  return()=>{canceled=true;window.clearTimeout(timer)};
+ },[pairing?.accountId,pairing?.expiresAt,api,refresh]);
  const run=async(action:()=>Promise<unknown>)=>{setBusy(true);try{await action();await refresh()}catch(e){toast.error(e instanceof Error?e.message:"Operação indisponível")}finally{setBusy(false)}};
  return <section className="space-y-6">
   <div><p className="eyebrow">Canais</p><h1 className="page-title">Números WhatsApp</h1><p className="page-subtitle">Gerencie somente os números vinculados à sua organização.</p></div>
