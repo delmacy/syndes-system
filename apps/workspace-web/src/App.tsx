@@ -113,8 +113,8 @@ export default function App() {
         <div className="flex items-center gap-3 rounded-xl border border-[#354668] bg-[#1b2944] p-3 group-data-[collapsible=icon]:hidden"><ShieldCheck className="size-5 text-[#a6c3ff]" /><span><strong className="block text-xs text-white">Ambiente protegido</strong><small className="text-[10px] text-[#91a1c0]">Identidade e permissões isoladas</small></span></div>
       </SidebarFooter>
     </Sidebar>
-    <SidebarInset className="min-w-0 bg-[#f6f8fc]">
-      <header className="sticky top-0 z-10 flex h-[72px] items-center justify-between gap-3 border-b border-[#e6eaf1] bg-white/95 px-5 backdrop-blur-md lg:px-9">
+    <SidebarInset className={view==="inbox"&&api?"h-dvh max-h-dvh min-h-0 min-w-0 overflow-hidden bg-[#f6f8fc]":"min-w-0 bg-[#f6f8fc]"}>
+      <header className="sticky top-0 z-10 flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-[#e6eaf1] bg-white/95 px-5 backdrop-blur-md lg:px-9">
         <div className="flex items-center gap-3"><SidebarTrigger className="text-slate-500" /><Separator orientation="vertical" className="h-5" /><div className="flex items-center gap-2 text-sm"><span className="hidden text-slate-400 sm:inline">Workspace</span><span className="hidden text-slate-300 sm:inline">/</span><strong className="font-semibold text-slate-800">{title}</strong></div></div>
         <div className="flex items-center gap-3"><Badge variant="outline" className="hidden gap-1.5 rounded-full border-[#dfe8f6] bg-[#f2f6ff] px-3 py-1.5 text-[#5571a8] sm:inline-flex"><span className="size-1.5 rounded-full bg-emerald-500" /> Desenvolvimento</Badge><Button size="icon-sm" variant="ghost" title="Ajuda e segurança" aria-label="Informações de segurança" onClick={() => navigate("settings")}><CircleHelp className="size-4.5" /></Button><Button size="icon-sm" variant="ghost" title="Notificações serão habilitadas em outro módulo" aria-label="Notificações indisponíveis" disabled><Bell className="size-4.5" /></Button><Separator orientation="vertical" className="h-6" />
           {token ? <><div className="hidden text-right sm:block"><strong className="block text-xs font-semibold text-slate-800">Usuário conectado</strong><small className="text-[10px] text-slate-500">Sessão Keycloak</small></div><Avatar className="size-9"><AvatarFallback className="bg-[#e9efff] text-xs font-bold text-[#395bbc]">SY</AvatarFallback></Avatar><Button variant="ghost" size="icon-sm" title="Sair" aria-label="Sair" onClick={logout}><LogOut className="size-4" /></Button></> :
@@ -132,7 +132,7 @@ export default function App() {
           {!initializing && api && view === "inbox" && <InboxFeature api={api} actorId={actorId} onOpenCrm={() => navigate("crm")} />}
         </div>
       </div>
-      <footer className="flex items-center justify-between gap-4 border-t border-[#e6eaf1] bg-white/70 px-5 py-3 text-[11px] text-slate-400 lg:px-9"><span>© Syndes · Workspace</span><span className="flex items-center gap-1"><ShieldCheck className="size-3" /> Controle de acesso pelo Core Host</span></footer>
+      <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-[#e6eaf1] bg-white/70 px-5 py-3 text-[11px] text-slate-400 lg:px-9"><span>© Syndes · Workspace</span><span className="flex items-center gap-1"><ShieldCheck className="size-3" /> Controle de acesso pelo Core Host</span></footer>
     </SidebarInset>
     <Toaster richColors position="bottom-right" closeButton />
   </SidebarProvider></TooltipProvider>;
