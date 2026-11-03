@@ -3,6 +3,7 @@ import {
   ArrowLeft, Bot, CircleCheck, LoaderCircle,
   MessageCircle, Plus, RefreshCw, Search, Send, UserMinus, UserRoundCheck,
   UsersRound, StickyNote, FlaskConical, UserRoundPlus, PanelRightOpen,
+  Star, Users, Archive, History, MessageSquare, MailOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -38,8 +39,8 @@ function timeLabel(date: string | undefined): string {
   return value.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-export function inboxCallerLabel(record:Pick<Conversation,"channel"|"phoneNumber"|"subject">):string{
-  if(record.channel!=="whatsapp")return record.subject;
+export function inboxCallerLabel(record:Pick<Conversation,"channel"|"phoneNumber"|"subject"|"isGroup">):string{
+  if(record.channel!=="whatsapp"||record.isGroup)return record.subject;
   const number=record.phoneNumber;
   if(!number||!/^\+[1-9][0-9]{9,14}$/.test(number))return "Número não disponível";
   const d=number.slice(1);
@@ -54,6 +55,11 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   const [thread, setThread] = useState<Message[]>([]);
   const [filter, setFilter] = useState<"" | Status>("");
   const [queue, setQueue] = useState<QueueFilter>("all");
+  const [chatScope,setChatScope]=useState<"all"|"unread"|"favorites"|"groups"|"archived">("all");
+  const [debouncedSearch,setDebouncedSearch]=useState("");
+  const [moreAvailable,setMoreAvailable]=useState(false);
+  const [loadingMore,setLoadingMore]=useState(false);
+  const [syncingHistory,setSyncingHistory]=useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -81,13 +87,18 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   const threadRequest = useRef(0);
   const busy = useRef(false);
 
+  useEffect(()=>{
+   const timer=window.setTimeout(()=>setDebouncedSearch(search.trim()),300);
+   return()=>window.clearTimeout(timer);
+  },[search]);
   const refresh = useCallback(async (showLoading = false) => {
     const requestId = ++listRequest.current;
     if (showLoading) setLoading(true);
     try {
-      const result = await api.conversations(filter, queue);
+      const result = await api.conversations(filter,queue,chatScope,0,debouncedSearch);
       if (requestId !== listRequest.current) return;
       setRecords(result);
+      setMoreAvailable(result.length===100);
       setListError(false);
       const current = result.find(item => item.id === activeId.current);
       if (current) setSelected(current);
@@ -98,8 +109,23 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     } finally {
       if (requestId === listRequest.current) setLoading(false);
     }
-  }, [api, filter, queue]);
+  }, [api, filter, queue,chatScope,debouncedSearch]);
 
+  const loadMore = async ()=>{
+   if(loadingMore||!moreAvailable)return;
+   setLoadingMore(true);
+   const requestId=listRequest.current;
+   try{
+    const page=await api.conversations(filter,queue,chatScope,records.length,debouncedSearch);
+    if(requestId!==listRequest.current)return;
+    setRecords(previous=>{
+     const known=new Set(previous.map(item=>item.id));
+     return [...previous,...page.filter(item=>!known.has(item.id))];
+    });
+    setMoreAvailable(page.length===100);
+   }catch(error){toast.error(error instanceof Error?error.message:"Falha ao carregar outras conversas.")}
+   finally{setLoadingMore(false)}
+  };
   const readThread = useCallback(async (id: string, showLoading = false) => {
     const requestId = ++threadRequest.current;
     if (showLoading) setReading(true);
@@ -172,6 +198,12 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     setContextOpen(false);
     setContactOpen(false);
     void readThread(conversation.id, true);
+    if(conversation.channel==="whatsapp"&&Number(conversation.unreadCount??0)>0){
+      void api.markConversationRead(conversation.id).then(updated=>{
+        setRecords(previous=>previous.map(c=>c.id===updated.id?{...c,unreadCount:0}:c));
+        setSelected(current=>current?.id===updated.id?{...current,unreadCount:0}:current);
+      }).catch(()=>{/* Reading remains available even without write permission. */});
+    }
   };
   const closeMobileThread = () => {
     activeId.current = null;
@@ -271,6 +303,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
       setLinkedPersonId("");
       setFilter("");
       setQueue("all");
+      setChatScope("all");
       setRecords(previous => [record, ...previous.filter(item => item.id !== record.id)]);
       choose(record);
       if (!filter && queue === "all") void refresh();
@@ -286,11 +319,21 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   const currentDraftKey = selected ? draftKey(selected.id, composerMode) : "";
   const composer = drafts[currentDraftKey] ?? "";
   const updateComposer = (text: string) => setDrafts(previous => setDraft(previous, currentDraftKey, text));
-  const matching = records.filter(item => (inboxCallerLabel(item)+" "+(item.channel==="whatsapp"?"WhatsApp":"Simulação")).toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")));
+  const matching=records; // Filtered by the server before pagination and authorization.
   const replyReason = replyBlockReason(selected, actorId);
   const replyDisabled = composerMode !== "simulator/inbound" && Boolean(replyReason);
   const mine = isMine(selected, actorId);
   const showThread = Boolean(selected);
+  const syncOlderHistory=async()=>{
+    if(!selected||selected.channel!=="whatsapp"||syncingHistory)return;
+    setSyncingHistory(true);
+    try{
+      const result=await api.requestConversationHistory(selected.id);
+      toast.info(result.note);
+    }catch(error){
+      toast.error(error instanceof Error?error.message:"Não foi possível solicitar o histórico.");
+    }finally{setSyncingHistory(false)}
+  };
   const newConversation = () => {
     setSubject("");
     setLinkedPersonId("");
@@ -335,6 +378,17 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 md:grid-cols-[minmax(250px,300px)_minmax(0,1fr)]">
       <div className={(showThread?"hidden ":"flex ")+"min-h-0 flex-col border-r border-border bg-white md:flex"}>
         <div className="shrink-0 space-y-2 border-b border-border p-3">
+          <div role="group" aria-label="Filtros do WhatsApp" className="flex flex-wrap gap-1">
+            {([
+             ["all","Todas",MessageSquare],["unread","Não lidas",MailOpen],
+             ["favorites","Favoritas",Star],["groups","Grupos",Users],["archived","Arquivadas",Archive],
+            ] as const).map(([value,label,Icon])=><button key={value} type="button" aria-pressed={chatScope===value}
+              onClick={()=>setChatScope(value)}
+              className={"flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold "+
+               (chatScope===value?"bg-[#e8efff] text-indigo-700":"bg-muted/50 text-slate-500 hover:bg-muted")}>
+              <Icon className="size-3.5"/>{label}
+            </button>)}
+          </div>
           <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Filtrar conversas por responsável">
             {([["mine","Minhas"],["unassigned","Não atribuídas"],["all","Todas"]] as [QueueFilter,string][]).map(([value,label])=>
               <button type="button" key={value} aria-pressed={queue===value} className={"rounded-lg px-1 py-2 text-xs font-medium "+(queue===value?"bg-white text-indigo-700 shadow-sm":"text-slate-600")} onClick={()=>setQueue(value)}>{label}</button>)}
@@ -353,18 +407,24 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
             aria-current={selected?.id===record.id?"true":undefined}
             className={"flex w-full items-start gap-3 border-b border-border px-3 py-3.5 text-left hover:bg-muted/40 "+(selected?.id===record.id?"bg-[#eef3ff]":"")}>
             <span className={"flex size-9 shrink-0 items-center justify-center rounded-full "+(record.channel==="whatsapp"?"bg-emerald-50 text-emerald-600":"bg-indigo-50 text-indigo-600")}>
-              <MessageCircle className="size-5"/>
+              {record.isGroup?<Users className="size-5"/>:<MessageCircle className="size-5"/>}
             </span>
             <span className="min-w-0 flex-1">
               <strong className="block truncate text-sm" title={inboxCallerLabel(record)}>{inboxCallerLabel(record)}</strong>
               <span className="mt-1 block truncate text-xs text-muted-foreground">{record.assignedTo?(record.assignedTo===actorId?"Com você":"Outro atendente"):"Sem atendente"} · {record.handoff==="bot"?"Bot":"Humano"}</span>
               <span className="mt-1 block text-[11px] text-muted-foreground">{timeLabel(record.updatedAt)} · {record.channel==="whatsapp"?"WhatsApp":"Simulação"}</span>
-              {record.channel==="whatsapp"&&!record.crmPersonId&&<span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-indigo-600"><UserRoundPlus className="size-3"/> Contato não cadastrado</span>}
+              {Number(record.unreadCount??0)>0&&<Badge className="mt-1 border-0 bg-emerald-500 text-white">{record.unreadCount} não lidas</Badge>}
+              {record.isFavorite&&<Star className="mt-1 size-3.5 fill-amber-400 text-amber-500" aria-label="Favorita"/>}
+              {record.channel==="whatsapp"&&!record.isGroup&&!record.crmPersonId&&<span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-indigo-600"><UserRoundPlus className="size-3"/> Contato não cadastrado</span>}
             </span>
             <Badge variant={statusVariant[record.status]} className="shrink-0 text-[10px]">{statusLabel[record.status]}</Badge>
           </button>)}
+          {moreAvailable&&<button type="button" className="w-full border-t px-3 py-3 text-center text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+            onClick={()=>void loadMore()} disabled={loadingMore}>
+            {loadingMore?"Carregando...":"Carregar mais conversas"}
+          </button>}
         </div>
-        <p className="shrink-0 border-t border-border px-3 py-2 text-[11px] text-muted-foreground">WhatsApp e simulação · até 100 conversas</p>
+        <p className="shrink-0 border-t border-border px-3 py-2 text-[11px] text-muted-foreground">WhatsApp e simulação · {records.length} conversas carregadas</p>
       </div>
       <div className={(showThread?"flex ":"hidden ")+"min-h-0 min-w-0 flex-col bg-[#f7f9fd] md:flex"}>
         {!selected&&<div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
@@ -373,14 +433,26 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
         {selected&&<>
           <div className="flex min-h-16 shrink-0 items-center gap-2 border-b border-border bg-white px-3 py-2 lg:px-5">
             <Button type="button" size="icon-sm" variant="ghost" className="md:hidden" title="Voltar à lista" aria-label="Voltar às conversas" onClick={closeMobileThread}><ArrowLeft className="size-4"/></Button>
+            {selected.isGroup&&<Badge variant="secondary">Grupo</Badge>}
             {selected.channel==="whatsapp"&&<Badge className="border-0 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">WhatsApp</Badge>}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-slate-900" title={inboxCallerLabel(selected)}>{inboxCallerLabel(selected)}</p>
               <p className="truncate text-[11px] text-muted-foreground">{selected.crmPersonId?"Contato vinculado ao CRM":"Sem contato vinculado"}</p>
             </div>
-            {selected.channel==="whatsapp"&&!selected.crmPersonId&&<Button type="button" size="sm" variant="outline"
+            {selected.channel==="whatsapp"&&!selected.isGroup&&!selected.crmPersonId&&<Button type="button" size="sm" variant="outline"
               className="gap-1.5 text-indigo-700" onClick={()=>openContactDialog(selected)}>
               <UserRoundPlus className="size-4"/> <span className="hidden sm:inline">Cadastrar contato</span><span className="sm:hidden">Cadastrar</span>
+            </Button>}
+            {selected.channel==="whatsapp"&&<Button type="button" size="icon-sm" variant="ghost"
+              title={selected.isFavorite?"Remover dos favoritos":"Adicionar aos favoritos"}
+              aria-label={selected.isFavorite?"Remover dos favoritos":"Adicionar aos favoritos"}
+              onClick={()=>void mutate(()=>api.setConversationFavorite(selected.id,!selected.isFavorite),"Favoritos atualizados.")}>
+              <Star className={"size-4 "+(selected.isFavorite?"fill-amber-400 text-amber-500":"text-slate-500")}/>
+            </Button>}
+            {selected.channel==="whatsapp"&&<Button type="button" size="icon-sm" variant="ghost"
+              title="Carregar até 50 mensagens anteriores" aria-label="Sincronizar histórico anterior"
+              onClick={()=>void syncOlderHistory()} disabled={syncingHistory}>
+              {syncingHistory?<LoaderCircle className="size-4 animate-spin"/>:<History className="size-4"/>}
             </Button>}
             <Button type="button" size="icon-sm" variant="outline" aria-label="Abrir inspetor de contato" title="Abrir inspetor CRM"
               onClick={()=>setContextOpen(true)}><PanelRightOpen className="size-4"/></Button>
@@ -400,6 +472,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
               <p className="whitespace-pre-wrap break-words">{message.body}</p>
               {selected.channel==="whatsapp"&&message.direction==="outbound"&&<p className="mt-2 text-[10px] font-semibold opacity-85" role="status">{
                 message.deliveryStatus==="sent"?"Enviada pelo WhatsApp":
+                message.deliveryStatus==="synced"?"Sincronizada do WhatsApp":
                 message.deliveryStatus==="pending"?"Na fila de envio":
                 message.deliveryStatus==="processing"?"Enviando pelo WhatsApp":
                 message.deliveryStatus==="failed"?"Falha no envio · não reenviada automaticamente":
