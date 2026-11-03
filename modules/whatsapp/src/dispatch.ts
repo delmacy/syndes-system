@@ -16,10 +16,29 @@ export class WhatsAppInboxProjection {
     WHERE tenant_id=$1::uuid AND processed_at IS NULL AND failed_at IS NULL ORDER BY id LIMIT 1`,[tenantId]);
   const row=pending.rows[0] as {id?:unknown;payload?:unknown}|undefined;
   if(!row)return "empty";
+  // WhatsApp may report the same direct chat as a @lid (live messages)
+  // or @s.whatsapp.net (historical sync). A verified phone is the only
+  // evidence allowed to reconcile those JIDs; never derive a phone from LID.
+  // Selecting the existing route also preserves the working outbound JID,
+  // assigned operator, CRM link and existing conversation ID.
+  const canonicalChat=async(accountId:string,chatId:string,phone:string|undefined,isGroup:boolean):Promise<string>=>{
+   if(isGroup||!phone)return chatId;
+   const matches=await db.query(`SELECT r.recipient_external_id
+     FROM whatsapp_conversation_routes r
+     JOIN inbox_conversations c ON c.tenant_id=r.tenant_id AND c.id=r.conversation_id
+     WHERE r.tenant_id=$1::uuid AND r.account_id=$2::uuid
+       AND r.phone_e164=$3 AND c.channel='whatsapp' AND c.is_group=false
+     ORDER BY CASE WHEN r.recipient_external_id LIKE '%@lid' THEN 0 ELSE 1 END,
+       c.created_at ASC,c.id ASC LIMIT 1`,[tenantId,accountId,phone]);
+   const existing=matches.rows[0]?.recipient_external_id;
+   return typeof existing==="string"&&existing.length<=256?existing:chatId;
+  };
   if(validChatEnvelope(tenantId,row.payload)){
    const event=row.payload,chat=event.chat;
    const isGroup=chat.isGroup;
    const phone=!isGroup&&/^([1-9][0-9]{9,14})@s\.whatsapp\.net$/.exec(chat.chatExternalId)?.[1];
+   const phoneE164=phone?"+"+phone:undefined;
+   const chosenChat=await canonicalChat(event.accountId,chat.chatExternalId,phoneE164,isGroup);
    const title=(chat.name?.trim()||(isGroup?"Grupo WhatsApp":phone?"WhatsApp · +"+phone:"Contato sem número disponível")).slice(0,160);
    const result=await db.query(`
     WITH incoming AS (
@@ -54,8 +73,8 @@ export class WhatsAppInboxProjection {
      FROM incoming WHERE e.id=incoming.id AND e.tenant_id=incoming.tenant_id
        AND EXISTS(SELECT 1 FROM route) RETURNING e.id
     ) SELECT id FROM acknowledged
-   `,[tenantId,row.id,randomUUID(),title,hash(event.accountId,chat.chatExternalId),isGroup,
-     chat.unreadCount??0,chat.archived??false,chat.occurredAt??null,chat.chatExternalId,phone?"+"+phone:null]);
+   `,[tenantId,row.id,randomUUID(),title,hash(event.accountId,chosenChat),isGroup,
+     chat.unreadCount??0,chat.archived??false,chat.occurredAt??null,chosenChat,phoneE164??null]);
    return result.rows.length===1?"delivered":"invalid";
   }
   if(!validIncomingEnvelope(tenantId,row.payload)){
@@ -69,7 +88,8 @@ export class WhatsAppInboxProjection {
   const historical=m.source==="history";
   const outgoing=m.fromMe===true;
   const eligible=botEligible(m);
-  const thread=hash(event.accountId,chat);
+  const chosenChat=await canonicalChat(event.accountId,chat,m.senderPhone,group);
+  const thread=hash(event.accountId,chosenChat);
   const externalId=hash(event.accountId,m.externalMessageId);
   const subject=(group?m.chatName?.trim()||"Grupo WhatsApp":"WhatsApp · "+(m.senderPhone??"Número não disponível")).slice(0,160);
   const inboxBody=m.body.slice(0,5000);
@@ -123,7 +143,7 @@ export class WhatsAppInboxProjection {
     RETURNING e.id
    ) SELECT id FROM acknowledged
   `,[tenantId,row.id,randomUUID(),subject,thread,randomUUID(),inboxBody,
-     m.senderExternalId,externalId,group,m.occurredAt,chat,m.senderPhone??null,
+     m.senderExternalId,externalId,group,m.occurredAt,chosenChat,m.senderPhone??null,
      outgoing?"outbound":"inbound",historical?"history":"live",eligible,m.externalMessageId,m.senderExternalId]);
   return result.rows.length===1?"delivered":"invalid";
  }
