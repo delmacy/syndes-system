@@ -39,6 +39,8 @@ jobs:
         run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
       - name: Build Inbox
         run: cd modules/inbox && npm ci --no-audit --no-fund && npm run build
+      - name: Build WhatsApp plugin required by installed Core Host
+        run: cd modules/whatsapp && npm install --no-audit --no-fund --package-lock=false && npm run build
       - name: Build CRM plugin and install Host dependencies
         run: |
           cd modules/core-crm && npm ci --no-audit --no-fund && npm run build
