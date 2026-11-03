@@ -108,3 +108,16 @@ test("delivery status distinguishes sent, queued and older local-only replies",a
  const result=await new WhatsAppReplyQueue(provider).decorate(tenantId,messages);
  assert.deepEqual(result.map(m=>m.deliveryStatus),["sent","processing","not_queued"]);
 });
+test('decorates WhatsApp conversations with verified per-tenant phone without mixing tenant rows',async()=>{
+ const calls=[];
+ const provider={resolve:async()=>({tenantId,query:async(sql,args)=>{
+  calls.push({sql,args});return {rows:[{id:conversationId,phone_e164:"+5551976471234"}]};
+ }})};
+ const records=[{id:conversationId,channel:"whatsapp",subject:"old lid"},{id:accountId,channel:"simulation",subject:"simulated"}];
+ const output=await new WhatsAppReplyQueue(provider).decorateConversations(tenantId,records);
+ assert.equal(output[0].phoneNumber,"+5551976471234");
+ assert.equal(output[1].phoneNumber,undefined);
+ assert.match(calls[0].sql,/r.tenant_id=\$1::uuid/);
+ assert.match(calls[0].sql,/r.conversation_id=ANY\(\$2::uuid\[\]\)/);
+ assert.deepEqual(calls[0].args,[tenantId,[conversationId]]);
+});
