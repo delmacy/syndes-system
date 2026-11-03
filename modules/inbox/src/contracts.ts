@@ -25,6 +25,7 @@ export interface InboxRepository {
  assign(tenantId:string,id:string,actorId:string,assignee:string|null):Promise<Conversation|null>;
  status(tenantId:string,id:string,actorId:string,status:ConversationStatus):Promise<Conversation|null>;
  handoff(tenantId:string,id:string,actorId:string,mode:HandoffMode):Promise<Conversation|null>;
+ linkContact(tenantId:string,id:string,actorId:string,personId:string):Promise<Conversation|null>;
  append(tenantId:string,id:string,actorId:string,message:Readonly<{
     id:string;direction:Message["direction"];body:string;externalMessageId:string|null;
  }>):Promise<Message|null>;
