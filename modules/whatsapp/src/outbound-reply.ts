@@ -1,5 +1,6 @@
 import {createHash,randomUUID} from "node:crypto";
 import {Inject,Injectable} from "@nestjs/common";
+import {WhatsAppGatewayClient} from "./gateway-client.js";
 import type {TrustedTenantDatabaseProvider,TenantDatabase} from "@syndes/core-kernel";
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -61,9 +62,41 @@ export class WhatsAppReplyQueue{
   const known=new Map(rows.rows.map(row=>[String(row.id),typeof row.phone_e164==="string"?row.phone_e164:null]));
   return conversations.map(c=>c.channel==="whatsapp"?{...c,phoneNumber:known.get(c.id)??null}:c);
  }
+ /** A trusted Inbox reader can request <=50 older messages from their
+  * own phone for one known, account-scoped conversation. A reply arrives
+  * asynchronously as an ON_DEMAND history chunk; never as bot input. */
+ async requestHistory(ctx:Context,conversationId:string):Promise<{requested:boolean;note:string}>{
+  if(!UUID.test(ctx.tenantId)||!UUID.test(conversationId))throw Error("Invalid history context");
+  const db=await this.pools.resolve(ctx.tenantId);
+  if(db.tenantId!==ctx.tenantId)throw Error("Tenant database mismatch");
+  const result=await db.query(`SELECT r.account_id::text,r.recipient_external_id,
+    e.payload->'message'->>'externalMessageId' AS message_id,
+    e.payload->'message'->>'occurredAt' AS occurred_at,
+    COALESCE((e.payload->'message'->>'fromMe')::boolean,false) AS from_me
+   FROM whatsapp_conversation_routes r
+   JOIN whatsapp_accounts a ON a.tenant_id=r.tenant_id AND a.id=r.account_id
+   JOIN inbox_conversations c ON c.tenant_id=r.tenant_id AND c.id=r.conversation_id
+   JOIN whatsapp_inbound_events e ON e.tenant_id=r.tenant_id AND e.account_id=r.account_id
+   WHERE r.tenant_id=$1::uuid AND r.conversation_id=$2::uuid
+      AND c.channel='whatsapp' AND a.service_enabled=true
+      AND e.event_type='whatsapp.message.received' AND e.processed_at IS NOT NULL
+      AND COALESCE(e.payload->'message'->>'chatExternalId',
+        e.payload->'message'->>'senderExternalId')=r.recipient_external_id
+   ORDER BY (e.payload->'message'->>'occurredAt')::timestamptz ASC,e.id ASC LIMIT 1`,
+   [ctx.tenantId,conversationId]);
+  const row=result.rows[0];
+  if(!row)return {requested:false,note:"Histórico anterior indisponível: não existe mensagem de referência nesta conversa."};
+  const msgID=String(row.message_id??""),timestamp=String(row.occurred_at??"");
+  if(!msgID||!Number.isFinite(Date.parse(timestamp)))return {requested:false,note:"Mensagem de referência inválida."};
+  await new WhatsAppGatewayClient().requestHistory(ctx.tenantId,String(row.account_id),{
+   chatExternalId:String(row.recipient_external_id),messageId:msgID,
+   timestamp,fromMe:row.from_me===true,count:50
+  });
+  return {requested:true,note:"Solicitação enviada ao telefone. O WhatsApp pode disponibilizar até 50 mensagens anteriores."};
+ }
  /** Decorates only messages already selected by an authorized Inbox read.
   * Missing outbox rows expose old local-only replies instead of implying delivery. */
- async decorate<T extends {id:string;direction:string}>(tenantId:string,messages:readonly T[]):Promise<readonly (T & {deliveryStatus?:"pending"|"processing"|"sent"|"failed"|"not_queued"})[]>{
+ async decorate<T extends {id:string;direction:string}>(tenantId:string,messages:readonly T[]):Promise<readonly (T & {deliveryStatus?:"pending"|"processing"|"sent"|"failed"|"not_queued"|"synced"})[]>{
   if(!UUID.test(tenantId))throw Error("Invalid tenant");
   const outgoing=messages.filter(message=>message.direction==="outbound"&&UUID.test(message.id));
   if(!outgoing.length)return messages;
@@ -75,7 +108,8 @@ export class WhatsAppReplyQueue{
   return messages.map(message=>{
    if(message.direction!=="outbound")return message;
    const state=known.get(message.id);
-   const deliveryStatus=state==="pending"||state==="processing"||state==="sent"||state==="failed"?state:"not_queued";
+   const deliveryStatus=state==="pending"||state==="processing"||state==="sent"||state==="failed"?state:
+      ("source" in message && (message.source==="live"||message.source==="history"))?"synced":"not_queued";
    return {...message,deliveryStatus};
   });
  }
