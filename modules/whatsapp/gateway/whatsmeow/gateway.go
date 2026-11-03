@@ -22,15 +22,17 @@ import (
 )
 
 type whatsmeowGateway struct {
-	mu        sync.RWMutex
-	container *sqlstore.Container
-	db        *sql.DB
-	callback  *callbackClient
-	clients   map[string]*whatsmeow.Client
+	mu         sync.RWMutex
+	container  *sqlstore.Container
+	db         *sql.DB
+	callback   *callbackClient
+	clients    map[string]*whatsmeow.Client
+	qrMu       sync.Mutex
+	qrSessions map[string]*qrSession
 }
 
 func newWhatsmeowGateway(container *sqlstore.Container, db *sql.DB, callback *callbackClient) *whatsmeowGateway {
-	return &whatsmeowGateway{container: container, db: db, callback: callback, clients: make(map[string]*whatsmeow.Client)}
+	return &whatsmeowGateway{container: container, db: db, callback: callback, clients: make(map[string]*whatsmeow.Client), qrSessions: make(map[string]*qrSession)}
 }
 
 func (gateway *whatsmeowGateway) restore(ctx context.Context) error {
@@ -61,6 +63,110 @@ func (gateway *whatsmeowGateway) restore(ctx context.Context) error {
 	return rows.Err()
 }
 
+// qrSession owns the WhatsApp QR stream independently of the HTTP request that
+// started it. In whatsmeow, cancelling GetQRChannel's context disconnects the
+// client, so the request context MUST NOT be passed to GetQRChannel.
+type qrSession struct {
+	mu        sync.RWMutex
+	code      string
+	expiresAt time.Time
+	finished  bool
+	failure   error
+	changed   chan struct{}
+	cancel    context.CancelFunc
+}
+
+func newQRSession(cancel context.CancelFunc) *qrSession {
+	return &qrSession{changed: make(chan struct{}), cancel: cancel}
+}
+
+func (session *qrSession) publish(code string, ttl time.Duration) {
+	session.mu.Lock()
+	defer session.mu.Unlock()
+	if session.finished {
+		return
+	}
+	session.code = code
+	session.expiresAt = time.Now().Add(ttl)
+	close(session.changed)
+	session.changed = make(chan struct{})
+}
+
+func (session *qrSession) finish(err error) {
+	session.mu.Lock()
+	defer session.mu.Unlock()
+	if session.finished {
+		return
+	}
+	session.finished = true
+	session.failure = err
+	close(session.changed)
+}
+
+func (session *qrSession) latest(ctx context.Context) (pairingResponse, error) {
+	wait := time.NewTimer(15 * time.Second)
+	defer wait.Stop()
+	for {
+		session.mu.RLock()
+		code, expiry, finished, failure, changed := session.code, session.expiresAt, session.finished, session.failure, session.changed
+		session.mu.RUnlock()
+		if code != "" && time.Until(expiry) > 2*time.Second && !finished {
+			return pairingResponse{PairingCode: code, ExpiresAt: expiry}, nil
+		}
+		if finished {
+			if failure == nil {
+				failure = errors.New("pairing session ended")
+			}
+			return pairingResponse{}, failure
+		}
+		select {
+		case <-changed:
+		case <-ctx.Done():
+			return pairingResponse{}, ctx.Err()
+		case <-wait.C:
+			return pairingResponse{}, errors.New("pairing QR unavailable")
+		}
+	}
+}
+
+func (gateway *whatsmeowGateway) consumeQR(accountID string, session *qrSession, ch <-chan whatsmeow.QRChannelItem) {
+	var failure error
+	for item := range ch {
+		if item.Event == whatsmeow.QRChannelEventCode && item.Code != "" {
+			session.publish(item.Code, item.Timeout)
+			continue
+		}
+		if item.Event == whatsmeow.QRChannelEventError && item.Error != nil {
+			failure = item.Error
+			break
+		}
+		if item.Event == whatsmeow.QRChannelSuccess.Event {
+			failure = errors.New("already paired")
+			break
+		}
+		failure = fmt.Errorf("pairing event %s", item.Event)
+		break
+	}
+	session.finish(failure)
+	session.cancel()
+	gateway.qrMu.Lock()
+	if gateway.qrSessions[accountID] == session {
+		delete(gateway.qrSessions, accountID)
+	}
+	gateway.qrMu.Unlock()
+}
+
+func (gateway *whatsmeowGateway) stopQR(accountID string) {
+	gateway.qrMu.Lock()
+	session := gateway.qrSessions[accountID]
+	delete(gateway.qrSessions, accountID)
+	gateway.qrMu.Unlock()
+	if session != nil {
+		session.finish(errors.New("pairing canceled"))
+		session.cancel()
+	}
+}
+
 func (gateway *whatsmeowGateway) Pair(ctx context.Context, accountID string) (pairingResponse, error) {
 	client, err := gateway.client(ctx, accountID)
 	if err != nil {
@@ -69,24 +175,36 @@ func (gateway *whatsmeowGateway) Pair(ctx context.Context, accountID string) (pa
 	if client.Store.ID != nil {
 		return pairingResponse{}, errors.New("already paired")
 	}
-	channel, err := client.GetQRChannel(ctx)
+	gateway.qrMu.Lock()
+	if session := gateway.qrSessions[accountID]; session != nil {
+		gateway.qrMu.Unlock()
+		return session.latest(ctx)
+	}
+	// Reinitialize only if the previous QR session has ended, never while
+	// another pairing request is still active for this account.
+	if client.IsConnected() {
+		client.Disconnect()
+	}
+	sessionCtx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ch, err := client.GetQRChannel(sessionCtx)
 	if err != nil {
+		cancel()
+		gateway.qrMu.Unlock()
 		return pairingResponse{}, providerError("create QR channel", err)
 	}
-	if err := client.Connect(); err != nil {
+	session := newQRSession(cancel)
+	gateway.qrSessions[accountID] = session
+	go gateway.consumeQR(accountID, session, ch)
+	err = client.Connect()
+	if err != nil {
+		delete(gateway.qrSessions, accountID)
+		session.finish(err)
+		cancel()
+		gateway.qrMu.Unlock()
 		return pairingResponse{}, providerError("pair connect", err)
 	}
-	select {
-	case item := <-channel:
-		if item.Event != "code" || item.Code == "" {
-			return pairingResponse{}, fmt.Errorf("pairing event %s", item.Event)
-		}
-		return pairingResponse{PairingCode: item.Code, ExpiresAt: time.Now().Add(160 * time.Second)}, nil
-	case <-ctx.Done():
-		return pairingResponse{}, ctx.Err()
-	case <-time.After(15 * time.Second):
-		return pairingResponse{}, errors.New("pairing timeout")
-	}
+	gateway.qrMu.Unlock()
+	return session.latest(ctx)
 }
 
 func (gateway *whatsmeowGateway) Connect(ctx context.Context, accountID string) (connectResponse, error) {
@@ -110,6 +228,7 @@ func (gateway *whatsmeowGateway) Connect(ctx context.Context, accountID string) 
 
 // Pause stops an already registered client after the gateway registry is disabled.
 func (gateway *whatsmeowGateway) Pause(accountID string) {
+	gateway.stopQR(accountID)
 	gateway.mu.RLock()
 	client := gateway.clients[accountID]
 	gateway.mu.RUnlock()
@@ -119,6 +238,7 @@ func (gateway *whatsmeowGateway) Pause(accountID string) {
 }
 
 func (gateway *whatsmeowGateway) Disconnect(ctx context.Context, accountID string) error {
+	gateway.stopQR(accountID)
 	client, err := gateway.client(ctx, accountID)
 	if err != nil {
 		return err
