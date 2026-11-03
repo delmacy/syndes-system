@@ -79,8 +79,10 @@ test("owner queue filters are sent to the tenant-scoped API, never chosen via ac
   const api=new TenantApi("tenant-a","signed-token",()=>assert.fail("Unexpected logout"));
   await api.conversations("pending","mine");
   await api.conversations("","unassigned");
-  assert.equal(seen[0].url,"/v1/tenants/tenant-a/inbox/conversations?limit=100&status=pending&queue=mine");
-  assert.equal(seen[1].url,"/v1/tenants/tenant-a/inbox/conversations?limit=100&queue=unassigned");
+  await api.conversations("","all","groups",100,"grupo de suporte");
+  assert.equal(seen[0].url,"/v1/tenants/tenant-a/inbox/conversations?limit=100&status=pending&queue=mine&scope=all&offset=0&q=");
+  assert.equal(seen[1].url,"/v1/tenants/tenant-a/inbox/conversations?limit=100&queue=unassigned&scope=all&offset=0&q=");
+  assert.equal(seen[2].url,"/v1/tenants/tenant-a/inbox/conversations?limit=100&queue=all&scope=groups&offset=100&q=grupo%20de%20suporte");
   assert.equal(seen[0].options.headers.Authorization,"Bearer signed-token");
   assert.ok(!seen[0].url.includes("assigneeId"));
 });
