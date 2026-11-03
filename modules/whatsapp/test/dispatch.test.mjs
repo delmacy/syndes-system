@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {WhatsAppInboxProjection,botEligible} from '../dist/dispatch.js';
 const tenantId='00000000-0000-4000-8000-000000000001';
 const accountId='00000000-0000-4000-8000-000000000011';
@@ -28,15 +29,19 @@ test('rejects foreign tenant database',async()=>{
 test('preserves WhatsApp routing JID while storing verified phone only as display metadata',async()=>{
  const calls=[];
  const payload={...event,message:{...event.message,senderExternalId:'76467123456789@lid',senderPhone:'+5551976471234'}};
- const db={tenantId,query:async(sql,args)=>{calls.push({sql,args});return {rows:calls.length===1?[{id:42,payload}]:[{id:42}]}}};
+ const db={tenantId,query:async(sql,args)=>{calls.push({sql,args});return {
+   rows:calls.length===1?[{id:42,payload}]:sql.includes('SELECT r.recipient_external_id')?[]:[{id:42}]
+ }}}; 
  const projection=new WhatsAppInboxProjection({resolve:async()=>db});
  assert.equal(await projection.deliverNext(tenantId),'delivered');
- const sql=calls[1].sql;
+ const projectionSQL=calls.at(-1);
+ const sql=projectionSQL.sql;
+ assert.match(calls[1].sql,/r.account_id=\$2::uuid/);
  assert.match(sql,/recipient_external_id,phone_e164/);
- assert.equal(calls[1].args[11],'76467123456789@lid');
- assert.equal(calls[1].args[12],'+5551976471234');
+ assert.equal(projectionSQL.args[11],'76467123456789@lid');
+ assert.equal(projectionSQL.args[12],'+5551976471234');
  assert.match(sql,/COALESCE\(EXCLUDED.phone_e164,whatsapp_conversation_routes.phone_e164\)/);
- assert.equal(calls[1].args[3],'WhatsApp · +5551976471234');
+ assert.equal(projectionSQL.args[3],'WhatsApp · +5551976471234');
 });
 
 
@@ -76,4 +81,39 @@ test('bot safety applies to only live direct inbound text',()=>{
   {source:'live',fromMe:true,isGroup:false},
   {source:'live',fromMe:false,isGroup:true},
  ]) assert.equal(botEligible(val),false);
+});
+
+test('historical PN chat reuses verified LID thread and original outbound route',async()=>{
+ const calls=[],lid='76467123456789@lid',pn='5551976471234@s.whatsapp.net';
+ const payload={...event,message:{...event.message,chatExternalId:pn,
+   senderExternalId:pn,senderPhone:'+5551976471234',source:'history'}};
+ const db={tenantId,query:async(sql,args)=>{
+  calls.push({sql,args});
+  if(calls.length===1)return {rows:[{id:42,payload}]};
+  if(sql.includes('SELECT r.recipient_external_id'))return {rows:[{recipient_external_id:lid}]};
+  return {rows:[{id:42}]};
+ }};
+ assert.equal(await new WhatsAppInboxProjection({resolve:async()=>db}).deliverNext(tenantId),'delivered');
+ const mutation=calls.at(-1);
+ assert.equal(mutation.args[4],createHash('sha256').update(accountId+'|'+lid).digest('hex'));
+ assert.equal(mutation.args[11],lid);
+ assert.equal(mutation.args[12],'+5551976471234');
+ assert.equal(mutation.args[14],'history');
+ assert.equal(mutation.args[15],false);
+ assert.match(calls[1].sql,/r.tenant_id=\$1::uuid AND r.account_id=\$2::uuid/);
+ assert.match(calls[1].sql,/r.phone_e164=\$3/);
+});
+test('historical PN chat snapshot reuses the same verified direct thread',async()=>{
+ const calls=[],lid='76467123456789@lid',pn='5551976471234@s.whatsapp.net';
+ const payload={version:'1',type:'whatsapp.chat.snapshot',tenantId,accountId,
+   chat:{accountId,chatExternalId:pn,isGroup:false,unreadCount:0,archived:false}};
+ const db={tenantId,query:async(sql,args)=>{
+  calls.push({sql,args});
+  if(calls.length===1)return {rows:[{id:42,payload}]};
+  if(sql.includes('SELECT r.recipient_external_id'))return {rows:[{recipient_external_id:lid}]};
+  return {rows:[{id:42}]};
+ }};
+ assert.equal(await new WhatsAppInboxProjection({resolve:async()=>db}).deliverNext(tenantId),'delivered');
+ assert.equal(calls.at(-1).args[4],createHash('sha256').update(accountId+'|'+lid).digest('hex'));
+ assert.equal(calls.at(-1).args[9],lid);
 });
