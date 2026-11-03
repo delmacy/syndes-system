@@ -84,6 +84,23 @@ export class WhatsAppGatewayClient {
   if(response.status!==202)throw Error("Historical sync request unavailable ("+response.status+")");
   return response.json() as Promise<{requested:boolean}>;
  }
+ async setContactName(tenantId:string,accountId:string,input:{
+   contactJid:string;fullName:string;saveOnPrimaryAddressbook:boolean
+ }):Promise<{submitted:true;confirmedOnPhone:false}>{
+   if(!this.base||!this.secret)throw Error("WhatsApp gateway not configured");
+   const url=new URL(this.base);
+   if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||
+      url.username||url.password||url.search||url.hash||url.pathname!=="/")
+    throw Error("Invalid gateway private URL");
+   const token=createHmac("sha256",this.secret)
+     .update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+   const res=await fetch(new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/contacts/name",url),{
+    method:"PATCH",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+    body:JSON.stringify(input),signal:AbortSignal.timeout(18000),redirect:"error"
+   });
+   if(res.status!==202)throw Error("WhatsApp contact change was not accepted ("+res.status+")");
+   return res.json() as Promise<{submitted:true;confirmedOnPhone:false}>;
+ }
  pair(tenantId:string,accountId:string){return this.request(tenantId,accountId,"pairing")}
  connect(tenantId:string,accountId:string){return this.request(tenantId,accountId,"connect")}
  disconnect(tenantId:string,accountId:string){return this.request(tenantId,accountId,"disconnect")}
