@@ -121,8 +121,8 @@ export default function App() {
             <Button size="sm" onClick={() => config && void beginLogin(config)} disabled={!config || initializing} className="gap-1.5"><LogIn className="size-4" /> Entrar</Button>}
         </div>
       </header>
-      <div className="flex-1 px-5 py-7 lg:px-9 lg:py-9">
-        <div className="mx-auto w-full max-w-[1380px]">
+      <div className={view==="inbox"&&api?"min-h-0 flex-1 overflow-hidden p-0":"flex-1 px-5 py-7 lg:px-9 lg:py-9"}>
+        <div className={view==="inbox"&&api?"h-full w-full min-h-0":"mx-auto w-full max-w-[1380px]"}>
           {loginError && <div role="alert" className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><LockKeyhole className="mt-0.5 size-4 shrink-0" /><span>{loginError}</span><Button variant="outline" size="xs" className="ml-auto" onClick={() => window.location.reload()}>Tentar novamente</Button></div>}
           {initializing && <div className="flex min-h-72 items-center justify-center text-sm text-muted-foreground"><Sparkles className="mr-2 size-4 animate-pulse" /> Carregando Workspace Syndes...</div>}
           {!initializing && view === "overview" && <Overview api={api} name={tenantName} onNavigate={navigate} />}
