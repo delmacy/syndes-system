@@ -2,7 +2,7 @@
 # Stop these shadow services to restore the original Traefik routes.
 services:
   core-host-whatsapp:
-    image: syndes/core-host:inbox-ux-20261103
+    image: syndes/core-host:whatsapp-history-20261103
     container_name: syndes-core-host-whatsapp-v2
     restart: unless-stopped
     env_file:
@@ -25,9 +25,9 @@ services:
     container_name: syndes-workspace-whatsapp-v2
     restart: unless-stopped
     volumes:
-      - /home/delmacy/syndes-releases/inbox-ux-20261103/workspace-dist:/usr/share/nginx/html:ro
-      - /home/delmacy/syndes-releases/inbox-ux-20261103/workspace-runtime.json:/etc/nginx/workspace-runtime.json:ro
-      - /home/delmacy/syndes-releases/inbox-ux-20261103/workspace-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /home/delmacy/syndes-releases/whatsapp-history-20261103/workspace-dist:/usr/share/nginx/html:ro
+      - /home/delmacy/syndes-releases/whatsapp-history-20261103/workspace-runtime.json:/etc/nginx/workspace-runtime.json:ro
+      - /home/delmacy/syndes-releases/whatsapp-history-20261103/workspace-nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks: [infra-proxy, syndes-web]
     labels:
       traefik.enable: "true"
