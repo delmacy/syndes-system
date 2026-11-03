@@ -29,6 +29,44 @@ func authorizedTenant(header, master, tenantID string) bool {
 	return subtle.ConstantTimeCompare([]byte(token), []byte(tenantToken(master, tenantID))) == 1
 }
 func installAccountRoutes(mux *http.ServeMux, db *sql.DB, provider gateway, master string) {
+	mux.HandleFunc("POST /v1/tenants/{tenantId}/accounts/{accountId}/contacts/lookup", func(w http.ResponseWriter, r *http.Request) {
+        tenantID, accountID := r.PathValue("tenantId"), r.PathValue("accountId")
+        if !authorizedTenant(r.Header.Get("Authorization"), master, tenantID) {
+            writeJSON(w, http.StatusUnauthorized, map[string]string{"code":"unauthorized"})
+            return
+        }
+        if !validUUID(accountID) {
+            writeJSON(w, http.StatusBadRequest, map[string]string{"code":"invalid_account"})
+            return
+        }
+        var active bool
+        err := db.QueryRowContext(r.Context(), `SELECT enabled AND device_jid IS NOT NULL
+          FROM syndes_whatsapp_accounts WHERE tenant_id=$1 AND account_id=$2`, tenantID, accountID).Scan(&active)
+        if err != nil || !active {
+            writeJSON(w, http.StatusNotFound, map[string]string{"code":"account_unavailable"})
+            return
+        }
+        var body struct { JIDs []string `json:"jids"` }
+        decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 10240))
+        decoder.DisallowUnknownFields()
+        if err := decoder.Decode(&body); err != nil || len(body.JIDs) == 0 || len(body.JIDs) > 100 {
+            writeJSON(w, http.StatusBadRequest, map[string]string{"code":"invalid_request"})
+            return
+        }
+        reader, ok := provider.(interface {
+            LookupContactNames(context.Context, string, []string) (map[string]string, error)
+        })
+        if !ok {
+            writeJSON(w, http.StatusNotImplemented, map[string]string{"code":"lookup_unavailable"})
+            return
+        }
+        names, err := reader.LookupContactNames(r.Context(), accountID, body.JIDs)
+        if err != nil {
+            writeJSON(w, http.StatusBadRequest, map[string]string{"code":"lookup_failed"})
+            return
+        }
+        writeJSON(w, http.StatusOK, map[string]any{"names": names})
+    })
 	mux.HandleFunc("PATCH /v1/tenants/{tenantId}/accounts/{accountId}/contacts/name", func(w http.ResponseWriter, r *http.Request) {
 		tenantID, accountID := r.PathValue("tenantId"), r.PathValue("accountId")
 		if !authorizedTenant(r.Header.Get("Authorization"), master, tenantID) {
