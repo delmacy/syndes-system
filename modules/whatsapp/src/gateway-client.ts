@@ -68,6 +68,22 @@ export class WhatsAppGatewayClient {
    throw Error("Invalid gateway external message ID");
   return {status:value.status as "pending"|"processing"|"sent"|"failed",...(typeof value.externalMessageId==="string"?{externalMessageId:value.externalMessageId}:{})};
  }
+ async requestHistory(tenantId:string,accountId:string,history:{
+  chatExternalId:string;messageId:string;timestamp:string;fromMe:boolean;count:number
+ }):Promise<{requested:boolean}>{
+  if(!this.base||!this.secret)throw Error("WhatsApp gateway not configured");
+  const url=new URL(this.base);
+  if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||
+    url.username||url.password||url.search||url.hash||url.pathname!=="/")throw Error("Invalid gateway private URL");
+  const token=createHmac("sha256",this.secret)
+    .update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const response=await fetch(new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/history",url),{
+   method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+   body:JSON.stringify(history),signal:AbortSignal.timeout(18000),redirect:"error"
+  });
+  if(response.status!==202)throw Error("Historical sync request unavailable ("+response.status+")");
+  return response.json() as Promise<{requested:boolean}>;
+ }
  pair(tenantId:string,accountId:string){return this.request(tenantId,accountId,"pairing")}
  connect(tenantId:string,accountId:string){return this.request(tenantId,accountId,"connect")}
  disconnect(tenantId:string,accountId:string){return this.request(tenantId,accountId,"disconnect")}
