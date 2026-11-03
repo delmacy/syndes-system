@@ -92,6 +92,25 @@ export class PgInboxRepository implements InboxRepository {
  handoff(tenantId:string,key:string,actorId:string,mode:HandoffMode):Promise<Conversation|null>{
   return this.change(tenantId,key,actorId,"handoff",mode,"handoff");
  }
+ async linkContact(tenantId:string,key:string,actorId:string,personId:string):Promise<Conversation|null>{
+  this.check(tenantId);
+  const rows=(await this.db.query(`
+   WITH valid_person AS (
+    SELECT id FROM crm_people WHERE tenant_id=$1::uuid AND id=$3::uuid AND archived_at IS NULL
+   ), changed AS (
+    UPDATE inbox_conversations c SET crm_person_id=$3::uuid,updated_at=clock_timestamp()
+    WHERE c.tenant_id=$1::uuid AND c.id=$2::uuid AND c.channel='whatsapp'
+      AND EXISTS(SELECT 1 FROM valid_person)
+    RETURNING *
+   ), audit AS (
+    INSERT INTO inbox_events(tenant_id,conversation_id,actor_id,action,detail)
+    SELECT tenant_id,id,$4,'contact_linked',jsonb_build_object('personId',$3::text)
+    FROM changed RETURNING id
+   )
+   SELECT changed.* FROM changed JOIN audit ON TRUE
+  `,[tenantId,key,personId,actorId])).rows;
+  return rows[0]?conversation(rows[0]):null;
+ }
  async append(tenantId:string,key:string,actorId:string,item:Readonly<{id:string;direction:Message["direction"];body:string;externalMessageId:string|null}>):Promise<Message|null>{
   this.check(tenantId);
   const rows=(await this.db.query(`
