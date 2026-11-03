@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, Bot, CircleCheck, Clock3, Inbox, LoaderCircle,
+  ArrowLeft, Bot, CircleCheck, LoaderCircle,
   MessageCircle, Plus, RefreshCw, Search, Send, UserMinus, UserRoundCheck,
-  UsersRound, StickyNote, FlaskConical, ContactRound,
+  UsersRound, StickyNote, FlaskConical, UserRoundPlus, PanelRightOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +38,16 @@ function timeLabel(date: string | undefined): string {
   return value.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+export function inboxCallerLabel(record:Pick<Conversation,"channel"|"phoneNumber"|"subject">):string{
+  if(record.channel!=="whatsapp")return record.subject;
+  const number=record.phoneNumber;
+  if(!number||!/^\+[1-9][0-9]{9,14}$/.test(number))return "Número não disponível";
+  const d=number.slice(1);
+  if(d.startsWith("55")&&d.length===13)return "+55 "+d.slice(2,4)+" "+d.slice(4,9)+"-"+d.slice(9);
+  if(d.startsWith("55")&&d.length===12)return "+55 "+d.slice(2,4)+" "+d.slice(4,8)+"-"+d.slice(8);
+  return number;
+}
+
 export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; actorId: string; onOpenCrm: () => void }) {
   const [records, setRecords] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<Conversation | null>(null);
@@ -59,6 +68,14 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   const [subject, setSubject] = useState("");
   const [linkedPersonId, setLinkedPersonId] = useState("");
   const [people, setPeople] = useState<Person[]>([]);
+  const [contactOpen,setContactOpen]=useState(false);
+  const [contactName,setContactName]=useState("");
+  const [contactPhone,setContactPhone]=useState("");
+  const [contactExistingId,setContactExistingId]=useState("");
+  const [contactMatches,setContactMatches]=useState<Person[]>([]);
+  const [contactCreatedId,setContactCreatedId]=useState<string|null>(null);
+  const [contactBusy,setContactBusy]=useState(false);
+
   const activeId = useRef<string | null>(null);
   const listRequest = useRef(0);
   const threadRequest = useRef(0);
@@ -153,6 +170,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     setThreadError(false);
     setComposerMode("replies");
     setContextOpen(false);
+    setContactOpen(false);
     void readThread(conversation.id, true);
   };
   const closeMobileThread = () => {
@@ -208,6 +226,40 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
       setSending(false);
     }
   };
+  const openContactDialog = (conv:Conversation) => {
+    setContactName("");
+    setContactPhone(conv.phoneNumber??"");
+    setContactExistingId("");
+    setContactCreatedId(null);
+    setContactMatches([]);
+    setContactOpen(true);
+    if(conv.phoneNumber)void api.people(conv.phoneNumber,0,25).then(setContactMatches).catch(()=>{
+      toast.info("A busca por contatos existentes não está disponível.");
+    });
+  };
+  const saveContact = async () => {
+    if(!selected||selected.channel!=="whatsapp"||contactBusy)return;
+    if(!contactExistingId&&!contactCreatedId&&!contactName.trim())return;
+    setContactBusy(true);
+    try{
+      let id=contactExistingId||contactCreatedId;
+      if(!id){
+        const data=await api.createPerson({
+          name:contactName.trim(),...(contactPhone.trim()?{phone:contactPhone.trim()}:{}),
+        });
+        id=data.id;
+        setContactCreatedId(id);
+      }
+      const linked=await api.linkConversationContact(selected.id,id);
+      setSelected(linked);
+      setRecords(previous=>previous.map(c=>c.id===linked.id?linked:c));
+      setContactOpen(false);
+      toast.success("Contato cadastrado e vinculado à conversa.");
+      await refresh();
+    }catch(error){
+      toast.error(error instanceof Error?error.message:"Não foi possível vincular o contato.");
+    }finally{setContactBusy(false)}
+  };
   const create = async () => {
     if (!subject.trim() || busy.current) return;
     busy.current = true;
@@ -234,7 +286,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   const currentDraftKey = selected ? draftKey(selected.id, composerMode) : "";
   const composer = drafts[currentDraftKey] ?? "";
   const updateComposer = (text: string) => setDrafts(previous => setDraft(previous, currentDraftKey, text));
-  const matching = records.filter(item => item.subject.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")));
+  const matching = records.filter(item => (inboxCallerLabel(item)+" "+(item.channel==="whatsapp"?"WhatsApp":"Simulação")).toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")));
   const replyReason = replyBlockReason(selected, actorId);
   const replyDisabled = composerMode !== "simulator/inbound" && Boolean(replyReason);
   const mine = isMine(selected, actorId);
@@ -249,161 +301,140 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     });
   };
 
-  return <section className="flex min-h-0 flex-col gap-4 md:h-[calc(100dvh-205px)] md:min-h-[620px]">
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <div><p className="eyebrow">Central de atendimento</p><h1 className="page-title">Inbox</h1>
-        <p className="page-subtitle">Acompanhe, atribua e responda conversas em um único espaço.</p></div>
-      <div className="flex items-center gap-2">
-        <span className="hidden text-xs text-muted-foreground sm:inline" role="status">{live?"Atualização em tempo real":"Reconectando · consulta a cada 10 s"}</span>
-        <Button variant="outline" size="icon-lg" aria-label="Atualizar fila" title="Atualizar fila" onClick={() => void refresh(true)}><RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} /></Button>
-        <Button size="lg" onClick={newConversation}><Plus className="size-4" /> Nova conversa</Button>
+  return <section className="flex h-full min-h-0 min-w-0 flex-col bg-white" aria-label="Inbox">
+    <div className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-[#e6eaf1] bg-white px-3 py-2 lg:px-5" role="toolbar" aria-label="Ações da Inbox">
+      <div className="relative min-w-[185px] flex-1 sm:max-w-[310px]">
+        <Search className="pointer-events-none absolute top-2.5 left-3 size-4 text-slate-400" />
+        <Input aria-label="Pesquisar conversas" className="h-9 pl-9" placeholder="Pesquisar conversas..." value={search} onChange={e=>setSearch(e.target.value)}/>
+      </div>
+      <span className="mx-1 hidden h-6 w-px bg-border sm:block"/>
+      <Button type="button" size="icon-sm" variant="outline" title="Atualizar fila" aria-label="Atualizar fila" onClick={()=>void refresh(true)}>
+        <RefreshCw className={loading?"size-4 animate-spin":"size-4"}/>
+      </Button>
+      <Button type="button" size="icon-sm" title="Nova conversa" aria-label="Nova conversa" onClick={newConversation}><Plus className="size-4"/></Button>
+      <Button type="button" size="icon-sm" variant="outline" title={mine?"Liberar atendimento":"Assumir atendimento"}
+        aria-label={mine?"Liberar atendimento":"Assumir atendimento"} disabled={!selected||sending||!actorId}
+        onClick={()=>{if(selected)void mutate(()=>api.setAssignment(selected.id,mine?null:actorId),mine?"Conversa liberada.":"Atendimento assumido.")}}>
+        {mine?<UserMinus className="size-4"/>:<UserRoundCheck className="size-4"/>}
+      </Button>
+      <Button type="button" size="icon-sm" variant="outline" title={selected?.handoff==="bot"?"Transferir ao humano":"Transferir ao bot"}
+        aria-label={selected?.handoff==="bot"?"Transferir ao humano":"Transferir ao bot"} disabled={!selected||sending}
+        onClick={()=>{if(selected)void mutate(()=>api.setHandoff(selected.id,selected.handoff==="human"?"bot":"human"),"Modo de atendimento atualizado.")}}>
+        {selected?.handoff==="bot"?<UsersRound className="size-4"/>:<Bot className="size-4"/>}
+      </Button>
+      <label className="flex items-center gap-1.5 rounded-lg border border-input bg-white px-2 py-1.5 text-xs">
+        <span className="sr-only">Estado do atendimento</span>
+        <CircleCheck className="size-4 text-slate-500"/>
+        <select aria-label="Estado do atendimento" className="min-w-0 max-w-27 bg-transparent text-xs outline-none" value={selected?.status??""}
+          disabled={!selected||sending} onChange={e=>{if(selected)void mutate(()=>api.setStatus(selected.id,e.target.value as Status),"Status atualizado.")}}>
+          <option value="">Estado</option><option value="open">Aberta</option><option value="pending">Pendente</option><option value="resolved">Resolvida</option>
+        </select>
+      </label>
+      <span className="ml-auto hidden text-[11px] text-muted-foreground xl:inline" role="status">{live?"● Tempo real":"Atualização periódica"}</span>
+    </div>
+    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 md:grid-cols-[minmax(250px,300px)_minmax(0,1fr)]">
+      <div className={(showThread?"hidden ":"flex ")+"min-h-0 flex-col border-r border-border bg-white md:flex"}>
+        <div className="shrink-0 space-y-2 border-b border-border p-3">
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Filtrar conversas por responsável">
+            {([["mine","Minhas"],["unassigned","Não atribuídas"],["all","Todas"]] as [QueueFilter,string][]).map(([value,label])=>
+              <button type="button" key={value} aria-pressed={queue===value} className={"rounded-lg px-1 py-2 text-xs font-medium "+(queue===value?"bg-white text-indigo-700 shadow-sm":"text-slate-600")} onClick={()=>setQueue(value)}>{label}</button>)}
+          </div>
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Filtrar conversas por status">
+            {filters.map(item=><button type="button" key={item.value} aria-pressed={filter===item.value}
+              className={"rounded-full px-3 py-1.5 text-xs "+(filter===item.value?"bg-[#e8efff] text-[#345bd2]":"bg-muted/50 text-muted-foreground")}
+              onClick={()=>setFilter(item.value)}>{item.label}</button>)}
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto" aria-label="Lista de conversas">
+          {listError&&<div role="alert" className="border-b border-amber-200 bg-amber-50 p-3 text-xs">Falha ao atualizar a fila. <button className="underline" onClick={()=>void refresh(true)}>Tentar novamente</button></div>}
+          {loading&&records.length===0&&<p className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/> Carregando...</p>}
+          {!loading&&!listError&&matching.length===0&&<p className="p-7 text-center text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>}
+          {matching.map(record=><button type="button" key={record.id} onClick={()=>choose(record)}
+            aria-current={selected?.id===record.id?"true":undefined}
+            className={"flex w-full items-start gap-3 border-b border-border px-3 py-3.5 text-left hover:bg-muted/40 "+(selected?.id===record.id?"bg-[#eef3ff]":"")}>
+            <span className={"flex size-9 shrink-0 items-center justify-center rounded-full "+(record.channel==="whatsapp"?"bg-emerald-50 text-emerald-600":"bg-indigo-50 text-indigo-600")}>
+              <MessageCircle className="size-5"/>
+            </span>
+            <span className="min-w-0 flex-1">
+              <strong className="block truncate text-sm" title={inboxCallerLabel(record)}>{inboxCallerLabel(record)}</strong>
+              <span className="mt-1 block truncate text-xs text-muted-foreground">{record.assignedTo?(record.assignedTo===actorId?"Com você":"Outro atendente"):"Sem atendente"} · {record.handoff==="bot"?"Bot":"Humano"}</span>
+              <span className="mt-1 block text-[11px] text-muted-foreground">{timeLabel(record.updatedAt)} · {record.channel==="whatsapp"?"WhatsApp":"Simulação"}</span>
+              {record.channel==="whatsapp"&&!record.crmPersonId&&<span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-indigo-600"><UserRoundPlus className="size-3"/> Contato não cadastrado</span>}
+            </span>
+            <Badge variant={statusVariant[record.status]} className="shrink-0 text-[10px]">{statusLabel[record.status]}</Badge>
+          </button>)}
+        </div>
+        <p className="shrink-0 border-t border-border px-3 py-2 text-[11px] text-muted-foreground">WhatsApp e simulação · até 100 conversas</p>
+      </div>
+      <div className={(showThread?"flex ":"hidden ")+"min-h-0 min-w-0 flex-col bg-[#f7f9fd] md:flex"}>
+        {!selected&&<div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+          <MessageCircle className="size-9 text-indigo-300"/><p className="text-sm font-medium">Selecione uma conversa para atender.</p>
+        </div>}
+        {selected&&<>
+          <div className="flex min-h-16 shrink-0 items-center gap-2 border-b border-border bg-white px-3 py-2 lg:px-5">
+            <Button type="button" size="icon-sm" variant="ghost" className="md:hidden" title="Voltar à lista" aria-label="Voltar às conversas" onClick={closeMobileThread}><ArrowLeft className="size-4"/></Button>
+            {selected.channel==="whatsapp"&&<Badge className="border-0 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">WhatsApp</Badge>}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-slate-900" title={inboxCallerLabel(selected)}>{inboxCallerLabel(selected)}</p>
+              <p className="truncate text-[11px] text-muted-foreground">{selected.crmPersonId?"Contato vinculado ao CRM":"Sem contato vinculado"}</p>
+            </div>
+            {selected.channel==="whatsapp"&&!selected.crmPersonId&&<Button type="button" size="sm" variant="outline"
+              className="gap-1.5 text-indigo-700" onClick={()=>openContactDialog(selected)}>
+              <UserRoundPlus className="size-4"/> <span className="hidden sm:inline">Cadastrar contato</span><span className="sm:hidden">Cadastrar</span>
+            </Button>}
+            <Button type="button" size="icon-sm" variant="outline" aria-label="Abrir inspetor de contato" title="Abrir inspetor CRM"
+              onClick={()=>setContextOpen(true)}><PanelRightOpen className="size-4"/></Button>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 lg:p-6" aria-label="Histórico de mensagens" aria-live="polite">
+            {reading&&<p className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/> Carregando histórico...</p>}
+            {threadError&&<p role="alert" className="text-sm text-amber-900">Falha ao ler o histórico. <button className="underline" onClick={()=>void readThread(selected.id,true)}>Tentar novamente</button></p>}
+            {!reading&&!threadError&&!thread.length&&<p className="my-auto text-center text-sm text-muted-foreground">Esta conversa ainda não tem mensagens.</p>}
+            {thread.map(message=><div key={message.id}
+              className={"max-w-[90%] rounded-2xl px-4 py-3 text-sm shadow-xs sm:max-w-[68%] "+(
+                message.direction==="outbound"?"ml-auto bg-[#3b61db] text-white":
+                message.direction==="internal"?"border border-amber-200 bg-amber-50 text-amber-950":"border border-border bg-white")}>
+              <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide opacity-75">
+                {message.direction==="internal"?"Nota interna":message.direction==="outbound"?"Equipe":"Cliente"}
+                <time className="ml-auto font-normal normal-case">{timeLabel(message.createdAt)}</time>
+              </div>
+              <p className="whitespace-pre-wrap break-words">{message.body}</p>
+              {selected.channel==="whatsapp"&&message.direction==="outbound"&&<p className="mt-2 text-[10px] font-semibold opacity-85" role="status">{
+                message.deliveryStatus==="sent"?"Enviada pelo WhatsApp":
+                message.deliveryStatus==="pending"?"Na fila de envio":
+                message.deliveryStatus==="processing"?"Enviando pelo WhatsApp":
+                message.deliveryStatus==="failed"?"Falha no envio · não reenviada automaticamente":
+                "Não enviada pelo gateway · registro anterior"
+              }</p>}
+            </div>)}
+          </div>
+          <div className="shrink-0 space-y-2 border-t border-border bg-white px-3 py-3 lg:px-5">
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tipo de mensagem">
+              {composerModes.map(mode=><button type="button" key={mode.value} aria-pressed={composerMode===mode.value}
+                className={"flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium "+(composerMode===mode.value?"bg-[#e8efff] text-[#345bd2]":"bg-muted/50 text-muted-foreground")}
+                onClick={()=>setComposerMode(mode.value)}><mode.icon className="size-3.5"/>{mode.label}</button>)}
+            </div>
+            {composerMode!=="simulator/inbound"&&replyReason&&<p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{replyReason}</p>}
+            {composerMode==="simulator/inbound"&&<p className="text-[11px] text-muted-foreground">Teste interno: não envia mensagens externas.</p>}
+            <form onSubmit={e=>{e.preventDefault();void send()}} className="space-y-1.5">
+              <label htmlFor="inbox-composer" className="sr-only">Mensagem</label>
+              <div className="flex items-end gap-2">
+                <Textarea id="inbox-composer" rows={2} maxLength={5000} value={composer}
+                  disabled={sending||replyDisabled} className="min-h-16 flex-1 resize-none"
+                  placeholder={composerMode==="notes"?"Nota visível apenas à equipe...":composerMode==="simulator/inbound"?"Simular mensagem recebida...":"Digite sua resposta..."}
+                  onChange={e=>updateComposer(e.target.value)}
+                  onKeyDown={e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter"&&!e.nativeEvent.isComposing){e.preventDefault();if(!sending&&!replyDisabled&&composer.trim())void send()}}}/>
+                <Button type="submit" size="icon-lg" className="mb-1 shrink-0" title={composerMode==="notes"?"Registrar nota":"Enviar mensagem"}
+                  aria-label={composerMode==="notes"?"Registrar nota":composerMode==="simulator/inbound"?"Simular entrada":"Enviar resposta"}
+                  disabled={sending||replyDisabled||!composer.trim()}>
+                  {sending?<LoaderCircle className="size-4 animate-spin"/>:<Send className="size-4"/>}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">{composer.length}/5000 · Ctrl/⌘ + Enter envia</p>
+            </form>
+          </div>
+        </>}
       </div>
     </div>
-    <Card className="min-h-0 flex-1 overflow-hidden border-[#e6eaf1] py-0 shadow-[0_5px_28px_-12px_#29334f25]">
-      <CardContent className="grid h-full min-h-[560px] grid-cols-1 p-0 md:min-h-0 md:grid-cols-[310px_minmax(0,1fr)] xl:grid-cols-[285px_minmax(0,1fr)_260px]">
-        <div className={(showThread ? "hidden " : "flex ") + "min-h-0 flex-col border-border md:flex md:border-r"}>
-          <div className="space-y-3 border-b border-border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold">Fila de conversas</h2>
-              <Badge variant="secondary">{records.length} conversas</Badge>
-            </div>
-            <div className="relative"><Search className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground" />
-              <Input aria-label="Pesquisar conversas" className="pl-9" placeholder="Pesquisar por assunto..." value={search} onChange={event => setSearch(event.target.value)} />
-            </div>
-            <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Filtrar conversas por responsável">
-              {([
-                ["mine", "Minhas"], ["unassigned", "Não atribuídas"], ["all", "Todas"],
-              ] as [QueueFilter, string][]).map(([value, label]) => <button type="button" key={value} aria-pressed={queue === value}
-                className={"min-w-0 rounded-lg px-1.5 py-2 text-[11px] font-semibold transition-colors " + (queue === value ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600 hover:text-indigo-700")}
-                onClick={() => setQueue(value)}>{label}</button>)}
-            </div>
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar conversas por status">
-              {filters.map(item => <button type="button" key={item.value} aria-pressed={filter === item.value}
-                className={"rounded-full px-3 py-1.5 text-xs font-medium transition " + (filter === item.value ? "bg-[#e8efff] text-[#345bd2]" : "bg-muted/50 text-muted-foreground hover:bg-muted")}
-                onClick={() => setFilter(item.value)}>{item.label}</button>)}
-            </div>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto" aria-label="Lista de conversas">
-            {listError && <div role="alert" className="border-b border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Não foi possível atualizar a fila. <button className="font-semibold underline" onClick={() => void refresh(true)}>Tentar novamente</button></div>}
-            {loading && records.length === 0 && <p className="flex items-center gap-2 p-5 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Carregando conversas...</p>}
-            {!loading && !listError && matching.length === 0 && <div className="flex flex-col items-center gap-2 p-10 text-center">
-              <Inbox className="size-8 text-muted-foreground/40" /><p className="text-sm font-semibold">Nenhuma conversa encontrada</p>
-              <p className="text-xs text-muted-foreground">Ajuste o filtro ou abra um novo atendimento.</p>
-            </div>}
-            {matching.map(record => <button type="button" key={record.id} aria-current={selected?.id === record.id ? "true" : undefined}
-              onClick={() => choose(record)}
-              className={"flex w-full items-start gap-3 border-b border-border px-4 py-4 text-left transition-colors " + (selected?.id === record.id ? "bg-[#eef3ff]" : "hover:bg-muted/40")}>
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e5ecff] text-[#476bd0]"><MessageCircle className="size-5" /></span>
-              <span className="min-w-0 flex-1">
-                <strong className="block truncate text-sm">{record.subject}</strong>
-                <span className="mt-1 block truncate text-xs text-muted-foreground">{record.assignedTo ? (record.assignedTo === actorId ? "Com você" : "Com outro atendente") : "Sem atendente"} · {record.handoff === "bot" ? "Bot" : "Humano"}</span>
-                <span className="mt-1 block text-[11px] text-muted-foreground">{timeLabel(record.updatedAt)}</span>
-              </span>
-              <Badge variant={statusVariant[record.status]} className="text-[10px]">{statusLabel[record.status]}</Badge>
-            </button>)}
-          </div>
-          <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">Canais: WhatsApp e simulação · Até 100 desta fila por consulta</p>
-        </div>
-
-        <div className={(showThread ? "flex " : "hidden ") + "min-h-0 min-w-0 flex-col bg-[#fcfdff] md:flex"}>
-          {!selected && <div className="flex h-full min-h-[480px] flex-col items-center justify-center gap-3 p-8 text-center">
-            <span className="rounded-2xl bg-[#eaf0ff] p-5 text-[#4264c8]"><MessageCircle className="size-8" /></span>
-            <h3 className="font-semibold">Selecione um atendimento</h3>
-            <p className="max-w-sm text-sm text-muted-foreground">Abra uma conversa na fila para ver o histórico, assumir o atendimento ou responder.</p>
-          </div>}
-          {selected && <>
-            <div className="space-y-3 border-b border-border bg-card px-4 py-4 lg:px-5">
-              <div className="flex flex-wrap items-start gap-2">
-                <Button variant="ghost" size="icon-sm" className="md:hidden" aria-label="Voltar para conversas" onClick={closeMobileThread}><ArrowLeft className="size-4" /></Button>
-                <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-bold">{selected.subject}</h2>
-                  <p className="text-xs text-muted-foreground">{selected.crmPersonId ? "Vinculada a contato CRM" : "Sem contato CRM"} · {selected.channel}</p></div>
-                <Button size="sm" variant="outline" className="gap-1.5 xl:hidden" onClick={() => setContextOpen(true)} aria-label="Ver contexto CRM">
-                  <ContactRound className="size-4"/> Contato CRM
-                </Button>
-                <Badge variant={statusVariant[selected.status]}>{statusLabel[selected.status]}</Badge>
-                <Badge variant="outline" className="gap-1">{selected.handoff === "bot" ? <Bot className="size-3.5" /> : <UsersRound className="size-3.5" />}{selected.handoff === "bot" ? "Bot" : "Humano"}</Badge>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {(["open", "pending", "resolved"] as const).map(status =>
-                  <Button key={status} variant={selected.status === status ? "secondary" : "outline"} size="sm"
-                    disabled={sending || selected.status === status}
-                    onClick={() => void mutate(() => api.setStatus(selected.id, status), "Status atualizado.")}>
-                    {status === "open" ? <MessageCircle className="size-3.5" /> : status === "pending" ? <Clock3 className="size-3.5" /> : <CircleCheck className="size-3.5" />}
-                    {statusLabel[status]}
-                  </Button>)}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {actorId && <Button size="sm" variant="outline" disabled={sending}
-                  onClick={() => void mutate(() => api.setAssignment(selected.id, mine ? null : actorId), mine ? "Conversa liberada." : "Atendimento assumido.")}>
-                  {mine ? <UserMinus className="size-3.5" /> : <UserRoundCheck className="size-3.5" />}
-                  {mine ? "Liberar" : "Assumir"}
-                </Button>}
-                <Button size="sm" variant="outline" disabled={sending}
-                  onClick={() => void mutate(() => api.setHandoff(selected.id, selected.handoff === "human" ? "bot" : "human"), "Modo de atendimento atualizado.")}>
-                  {selected.handoff === "human" ? <Bot className="size-3.5" /> : <UsersRound className="size-3.5" />}
-                  {selected.handoff === "human" ? "Transferir ao bot" : "Transferir ao humano"}
-                </Button>
-                <span className="ml-auto text-xs text-muted-foreground">{mine ? "Atribuída a você" : selected.assignedTo ? "Atribuída a outro atendente" : "Não atribuída"}</span>
-              </div>
-            </div>
-            <div className="flex min-h-[240px] flex-1 flex-col gap-3 overflow-y-auto bg-[#f7f9fd] p-4 lg:p-5" aria-label="Histórico de mensagens" aria-live="polite">
-              {reading && <p className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Carregando histórico...</p>}
-              {threadError && <p role="alert" className="text-sm text-amber-900">Falha ao ler o histórico. <button className="underline" onClick={() => void readThread(selected.id, true)}>Tentar novamente</button></p>}
-              {!reading && !threadError && thread.length === 0 && <p className="my-auto text-center text-sm text-muted-foreground">Esta conversa ainda não tem mensagens.</p>}
-              {thread.map(message => <div key={message.id} className={"max-w-[90%] rounded-2xl px-4 py-3 text-sm shadow-xs sm:max-w-[75%] " + (
-                message.direction === "outbound" ? "ml-auto bg-[#3b61db] text-white" :
-                  message.direction === "internal" ? "border border-amber-200 bg-amber-50 text-amber-950" : "border border-border bg-white"
-              )}>
-                <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide opacity-75">
-                  {message.direction === "internal" ? "Nota interna" : message.direction === "outbound" ? "Equipe" : "Cliente"}
-                  <time className="ml-auto font-normal normal-case">{timeLabel(message.createdAt)}</time>
-                </div>
-                <p className="whitespace-pre-wrap break-words">{message.body}</p>
-                {selected.channel === "whatsapp" && message.direction === "outbound" && <p className="mt-2 text-[10px] font-semibold opacity-85" role="status">{
-                  message.deliveryStatus === "sent" ? "Enviada pelo WhatsApp" :
-                  message.deliveryStatus === "pending" ? "Na fila de envio" :
-                  message.deliveryStatus === "processing" ? "Enviando pelo WhatsApp" :
-                  message.deliveryStatus === "failed" ? "Falha no envio · reenvie manualmente" :
-                  "Não enviada pelo gateway · registro anterior"
-                }</p>}
-              </div>)}
-            </div>
-            <div className="space-y-3 border-t border-border bg-card p-4">
-              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tipo de mensagem">
-                {composerModes.map(mode => <button type="button" key={mode.value} aria-pressed={composerMode === mode.value}
-                  className={"flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors " + (composerMode === mode.value ? "bg-[#e8efff] text-[#345bd2]" : "bg-muted/50 text-muted-foreground hover:bg-muted")}
-                  onClick={() => setComposerMode(mode.value)}><mode.icon className="size-3.5" />{mode.label}</button>)}
-              </div>
-              {composerMode !== "simulator/inbound" && replyReason && <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{replyReason}</p>}
-              {composerMode === "simulator/inbound" && <p className="text-xs text-muted-foreground">Teste interno: não envia mensagens para um canal externo.</p>}
-              <form onSubmit={event => { event.preventDefault(); void send(); }} className="space-y-2">
-                <label htmlFor="inbox-composer" className="sr-only">{composerMode === "notes" ? "Nota interna" : "Mensagem"}</label>
-                <Textarea id="inbox-composer" rows={2} maxLength={5000} value={composer} disabled={sending || replyDisabled}
-                  placeholder={composerMode === "notes" ? "Nota visível apenas à equipe..." : composerMode === "simulator/inbound" ? "Simular mensagem recebida..." : "Digite sua resposta..."}
-                  onChange={event => updateComposer(event.target.value)}
-                  onKeyDown={event => {
-                    if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && !event.nativeEvent.isComposing) {
-                      event.preventDefault();
-                      if (!sending && !replyDisabled && composer.trim()) void send();
-                    }
-                  }}
-                  className="min-h-18 resize-y" />
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-muted-foreground">{composer.length}/5000 · Ctrl/⌘ + Enter envia</span>
-                  <Button type="submit" disabled={sending || replyDisabled || !composer.trim()}><Send className="size-4" />
-                    {sending ? "Processando..." : composerMode === "notes" ? "Registrar nota" : composerMode === "simulator/inbound" ? "Simular entrada" : "Enviar resposta"}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </>}
-        </div>
-        <div className="hidden min-h-0 border-l border-border xl:flex xl:flex-col">
-          {selected ? <CustomerContextPanel key={selected.crmPersonId ?? "unlinked"} api={api} personId={selected.crmPersonId} onOpenCrm={onOpenCrm}/> :
-            <div className="p-5 text-sm text-muted-foreground">Selecione uma conversa para ver o contexto CRM.</div>}
-        </div>
-      </CardContent>
-    </Card>
 
     <Sheet open={contextOpen && Boolean(selected)} onOpenChange={setContextOpen}>
       <SheetContent side="right" className="gap-0 p-0">
@@ -413,6 +444,34 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
           onOpenCrm={() => { setContextOpen(false); onOpenCrm(); }}/>}
       </SheetContent>
     </Sheet>
+    <Dialog open={contactOpen} onOpenChange={setContactOpen}><DialogContent>
+      <DialogHeader><DialogTitle>Cadastrar contato WhatsApp</DialogTitle>
+        <DialogDescription>Cadastre uma pessoa ou vincule um contato existente a esta conversa. O vínculo respeita as permissões do CRM e do tenant.</DialogDescription></DialogHeader>
+      <form className="space-y-4" onSubmit={e=>{e.preventDefault();void saveContact()}}>
+        {contactMatches.length>0&&<div className="space-y-1.5"><label htmlFor="contact-existing" className="text-sm font-semibold">Contato existente (opcional)</label>
+          <select id="contact-existing" className="h-10 w-full rounded-lg border border-input bg-white px-3 text-sm"
+            value={contactExistingId} onChange={e=>setContactExistingId(e.target.value)}>
+            <option value="">Criar novo contato</option>
+            {contactMatches.map(p=><option key={p.id} value={p.id}>{p.name}{p.phone?" · "+p.phone:""}</option>)}
+          </select>
+        </div>}
+        {!contactExistingId&&<><div className="space-y-1.5"><label htmlFor="contact-name" className="text-sm font-semibold">Nome</label>
+          <Input id="contact-name" autoComplete="name" value={contactName} maxLength={160} required={!contactCreatedId}
+            placeholder="Nome do contato" onChange={e=>setContactName(e.target.value)} disabled={Boolean(contactCreatedId)}/>
+        </div>
+        <div className="space-y-1.5"><label htmlFor="contact-phone" className="text-sm font-semibold">Telefone</label>
+          <Input id="contact-phone" type="tel" autoComplete="tel" value={contactPhone} maxLength={32}
+            placeholder="+55..." onChange={e=>setContactPhone(e.target.value)} disabled={Boolean(contactCreatedId)}/>
+          <p className="text-[11px] text-muted-foreground">{selected?.phoneNumber?"Número verificado pelo gateway WhatsApp.":"Número não fornecido pelo WhatsApp; confira antes de preencher."}</p>
+        </div></>}
+        {contactCreatedId&&<p className="text-xs text-amber-800">Contato já criado; o próximo passo tentará apenas vinculá-lo.</p>}
+        <DialogFooter><Button type="button" variant="outline" onClick={()=>setContactOpen(false)}>Cancelar</Button>
+          <Button type="submit" disabled={contactBusy||(!contactExistingId&&!contactCreatedId&&!contactName.trim())}>
+            {contactBusy?"Salvando...":contactExistingId||contactCreatedId?"Vincular contato":"Cadastrar e vincular"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent></Dialog>
     <Dialog open={dialog} onOpenChange={setDialog}><DialogContent>
       <DialogHeader><DialogTitle>Nova conversa</DialogTitle>
         <DialogDescription>Crie uma conversa de demonstração no tenant atual. Nenhuma mensagem será enviada ao WhatsApp.</DialogDescription></DialogHeader>
