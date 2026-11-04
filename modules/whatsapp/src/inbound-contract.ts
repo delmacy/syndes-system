@@ -11,6 +11,12 @@ export type IncomingWhatsAppContact={accountId:string;contactExternalId:string;n
 export type IncomingWhatsAppContactEnvelope={
  version:string;type:"whatsapp.contact.name";tenantId:string;accountId:string;contact:IncomingWhatsAppContact;
 };
+export type IncomingWhatsAppReceipt={
+ accountId:string;providerMessageId:string;chatExternalId:string;status:"delivered"|"read";
+};
+export type IncomingWhatsAppReceiptEnvelope={
+ version:string;type:"whatsapp.message.receipt";tenantId:string;accountId:string;receipt:IncomingWhatsAppReceipt;
+};
 export type IncomingWhatsAppChatEnvelope={
  version:string;type:"whatsapp.chat.snapshot";tenantId:string;accountId:string;chat:IncomingWhatsAppChat;
 };
@@ -19,6 +25,14 @@ export type IncomingWhatsAppEnvelope={
 };
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const safeJID=(s:unknown)=>typeof s==="string"&&s.length>3&&s.length<=256&&/^[a-zA-Z0-9._:-]+@(s\.whatsapp\.net|lid|g\.us)$/.test(s);
+export function validReceiptEnvelope(tenantId:string,value:unknown):value is IncomingWhatsAppReceiptEnvelope{
+ if(!value||typeof value!=="object")return false;
+ const e=value as Partial<IncomingWhatsAppReceiptEnvelope>,receipt=e.receipt;
+ return e.version==="1"&&e.type==="whatsapp.message.receipt"&&e.tenantId===tenantId&&uuid.test(tenantId)&&
+   uuid.test(String(e.accountId))&&!!receipt&&receipt.accountId===e.accountId&&
+   typeof receipt.providerMessageId==="string"&&receipt.providerMessageId.length>0&&receipt.providerMessageId.length<=256&&
+   safeJID(receipt.chatExternalId)&&(receipt.status==="delivered"||receipt.status==="read");
+}
 export function validContactEnvelope(tenantId:string,value:unknown):value is IncomingWhatsAppContactEnvelope{
  if(!value||typeof value!=="object")return false;
  const e=value as Partial<IncomingWhatsAppContactEnvelope>,c=e.contact;

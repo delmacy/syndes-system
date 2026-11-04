@@ -318,6 +318,29 @@ func (gateway *whatsmeowGateway) registerClientHandler(accountID, tenantID strin
 			// Fetch the current authoritative name after any group metadata
 			// notification; do not trust an unconfirmed local mutation.
 			go gateway.syncSingleGroup(tenantID, accountID, event.JID)
+		case *events.Receipt:
+			// Receipt from the provider is the only proof of delivery/read.
+			// Persist each message ID in the same durable inbound outbox.
+			receiptStatus := ""
+			switch event.Type {
+			case events.ReceiptTypeDelivered:
+				receiptStatus = "delivered"
+			case events.ReceiptTypeRead:
+				receiptStatus = "read"
+			}
+			if receiptStatus != "" && (event.Chat.Server == types.DefaultUserServer || event.Chat.Server == types.HiddenUserServer) {
+				for _, id := range event.MessageIDs {
+					if id == "" || len(id) > 256 {
+						continue
+					}
+					key := "receipt:" + string(id) + ":" + receiptStatus
+					gateway.enqueueInbound(context.Background(), tenantID, accountID, inboundEvent{
+						AccountID: accountID, ExternalMessageID: key, EventType: "whatsapp.message.receipt",
+						Receipt: &receiptEvent{AccountID: accountID, ProviderMessageID: string(id),
+							ChatExternalID: event.Chat.String(), Status: receiptStatus},
+					})
+				}
+			}
 		case *events.HistorySync:
 			gateway.historyForEvent(tenantID, accountID, client, event)
 		case *events.Message:
@@ -530,6 +553,7 @@ type inboundEvent struct {
 	EventType         string        `json:"eventType,omitempty"`
 	Chat              *chatEvent    `json:"chat,omitempty"`
 	Contact           *contactEvent `json:"contact,omitempty"`
+	Receipt           *receiptEvent `json:"receipt,omitempty"`
 }
 
 type callbackClient struct {
@@ -541,7 +565,8 @@ type callbackClient struct {
 func (callback *callbackClient) deliver(ctx context.Context, tenantID string, event inboundEvent) error {
 	eventType := "whatsapp.message.received"
 	if (event.EventType == "whatsapp.chat.snapshot" && event.Chat != nil) ||
-		(event.EventType == "whatsapp.contact.name" && event.Contact != nil) {
+		(event.EventType == "whatsapp.contact.name" && event.Contact != nil) ||
+		(event.EventType == "whatsapp.message.receipt" && event.Receipt != nil) {
 		eventType = event.EventType
 	}
 	var msg *inboundEvent
@@ -556,8 +581,9 @@ func (callback *callbackClient) deliver(ctx context.Context, tenantID string, ev
 		Message   *inboundEvent `json:"message,omitempty"`
 		Chat      *chatEvent    `json:"chat,omitempty"`
 		Contact   *contactEvent `json:"contact,omitempty"`
+		Receipt   *receiptEvent `json:"receipt,omitempty"`
 	}{Version: "1", Type: eventType, TenantID: tenantID, AccountID: event.AccountID,
-		Message: msg, Chat: event.Chat, Contact: event.Contact})
+		Message: msg, Chat: event.Chat, Contact: event.Contact, Receipt: event.Receipt})
 
 	if err != nil {
 		return err

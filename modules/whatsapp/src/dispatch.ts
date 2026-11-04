@@ -1,6 +1,6 @@
 import {createHash,randomUUID} from "node:crypto";
 import type {TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
-import {validIncomingEnvelope,validChatEnvelope,validContactEnvelope} from "./inbound-contract.js";
+import {validIncomingEnvelope,validChatEnvelope,validContactEnvelope,validReceiptEnvelope} from "./inbound-contract.js";
 
 const hash=(account:string,key:string)=>createHash("sha256").update(account+"|"+key).digest("hex");
 // History, groups, reactions and outgoing messages must never activate bots.
@@ -33,6 +33,33 @@ export class WhatsAppInboxProjection {
    const existing=matches.rows[0]?.recipient_external_id;
    return typeof existing==="string"&&existing.length<=256?existing:chatId;
   };
+  if(validReceiptEnvelope(tenantId,row.payload)){
+   const event=row.payload,receipt=event.receipt;
+   // Receipt may arrive before the outbound worker polls the send result.
+   // Persist independently; join against the known provider message ID later.
+   // No conversation/message is created by a receipt.
+   const result=await db.query(`
+     WITH incoming AS (
+       SELECT e.id,e.tenant_id,e.account_id FROM whatsapp_inbound_events e
+       WHERE e.tenant_id=$1::uuid AND e.id=$2 AND e.processed_at IS NULL FOR UPDATE
+     ), stored AS (
+       INSERT INTO whatsapp_delivery_receipts
+         (tenant_id,account_id,provider_message_id,chat_external_id,status)
+       SELECT tenant_id,account_id,$3,$4,$5 FROM incoming
+       ON CONFLICT(tenant_id,account_id,provider_message_id)
+       DO UPDATE SET status=CASE WHEN whatsapp_delivery_receipts.status='read'
+         OR EXCLUDED.status='read' THEN 'read' ELSE 'delivered' END,
+         confirmed_at=clock_timestamp()
+       RETURNING tenant_id
+     ), acknowledged AS (
+       UPDATE whatsapp_inbound_events e SET processed_at=clock_timestamp()
+       FROM incoming WHERE e.id=incoming.id AND e.tenant_id=incoming.tenant_id
+         AND EXISTS(SELECT 1 FROM stored)
+       RETURNING e.id
+     ) SELECT id FROM acknowledged
+   `,[tenantId,row.id,receipt.providerMessageId,receipt.chatExternalId,receipt.status]);
+   return result.rows.length===1?"delivered":"invalid";
+  }
   if(validContactEnvelope(tenantId,row.payload)){
    const event=row.payload,contact=event.contact;
    const phone=/^([1-9][0-9]{9,14})@s\.whatsapp\.net$/.exec(contact.contactExternalId)?.[1];

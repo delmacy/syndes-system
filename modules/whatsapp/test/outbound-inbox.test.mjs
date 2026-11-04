@@ -100,7 +100,7 @@ test("delivery status distinguishes sent, queued and older local-only replies",a
  const ids=["00000000-0000-4000-8000-000000000040","00000000-0000-4000-8000-000000000041","00000000-0000-4000-8000-000000000042"];
  const messages=ids.map(id=>({id,direction:"outbound",body:"test"}));
  const provider={resolve:async()=>({tenantId,query:async(sql,args)=>{
-  assert.match(sql,/inbox_message_id=ANY\(\$2::uuid\[\]\)/);
+  assert.match(sql,/m.id=ANY\(\$2::uuid\[\]\)/);
   assert.equal(args[0],tenantId);
   assert.deepEqual(args[1],ids);
   return {rows:[{message_id:ids[0],status:"sent"},{message_id:ids[1],status:"processing"}]};

@@ -1,11 +1,11 @@
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowLeft, Bot, CircleCheck, LoaderCircle,
   MessageCircle, Plus, RefreshCw, Search, Send, UserMinus, UserRoundCheck,
   UsersRound, StickyNote, FlaskConical, UserRoundPlus, PanelRightOpen,
   Star, Users, Archive, History, MailOpen, Pencil, MoreHorizontal, SlidersHorizontal,
-  Inbox as InboxIcon, UserCheck, UserX, ListFilter, Clock3, CircleDot, CheckCheck,
+  Inbox as InboxIcon, UserCheck, UserX, ListFilter, Clock3, CircleDot, Check, CheckCheck, AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +54,22 @@ export function inboxCallerLabel(record:Pick<Conversation,"channel"|"phoneNumber
   if(d.startsWith("55")&&d.length===13)return "+55 "+d.slice(2,4)+" "+d.slice(4,9)+"-"+d.slice(9);
   if(d.startsWith("55")&&d.length===12)return "+55 "+d.slice(2,4)+" "+d.slice(4,8)+"-"+d.slice(8);
   return number;
+}
+
+export function WhatsAppDeliveryIndicator({status}:{status?:Message["deliveryStatus"]}){
+ if(!status)return null;
+ const label=status==="read"?"Lida":status==="delivered"?"Entregue":
+   status==="sent"?"Enviada pelo WhatsApp":status==="synced"?"Sincronizada do WhatsApp":
+   status==="pending"?"Na fila de envio":status==="processing"?"Enviando pelo WhatsApp":
+   status==="failed"?"Falha no envio; reenvio automático desativado":"Registro anterior sem confirmação do gateway";
+ const Icon=status==="read"||status==="delivered"?CheckCheck:
+   status==="sent"||status==="synced"?Check:
+   status==="failed"?AlertCircle:Clock3;
+ return <span role="status" aria-label={label} title={label} className={"inline-flex items-center gap-1 "+
+   (status==="read"?"text-sky-200":status==="failed"?"text-rose-200":"text-white/85")}>
+   <Icon className="size-3.5" aria-hidden="true"/>
+   {(status==="failed"||status==="not_queued")&&<span className="text-[10px]">{label}</span>}
+ </span>;
 }
 
 export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; actorId: string; onOpenCrm: () => void }) {
@@ -107,6 +123,24 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   const listRequest = useRef(0);
   const threadRequest = useRef(0);
   const busy = useRef(false);
+  const messagesViewport=useRef<HTMLDivElement|null>(null);
+  const initialScrollFor=useRef<string|null>(null);
+  const stickToBottom=useRef(true);
+  const onMessagesScroll=()=>{
+    const el=messagesViewport.current;
+    if(el)stickToBottom.current=el.scrollHeight-el.scrollTop-el.clientHeight<=100;
+  };
+  useLayoutEffect(()=>{
+    const el=messagesViewport.current;
+    if(!el||!selected||reading)return;
+    const first=initialScrollFor.current===selected.id;
+    if(first||stickToBottom.current){
+      el.scrollTop=el.scrollHeight;
+      if(first)initialScrollFor.current=null;
+      stickToBottom.current=true;
+    }
+  },[selected?.id,thread,reading]);
+
 
   useEffect(()=>{
    const timer=window.setTimeout(()=>setDebouncedSearch(search.trim()),300);
@@ -212,6 +246,8 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
 
   const choose = (conversation: Conversation) => {
     activeId.current = conversation.id;
+    initialScrollFor.current=conversation.id;
+    stickToBottom.current=true;
     setSelected(conversation);
     setThread([]);
     setThreadError(false);
@@ -229,6 +265,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   };
   const closeMobileThread = () => {
     activeId.current = null;
+    initialScrollFor.current=null;
     threadRequest.current += 1;
     setSelected(null);
     setThread([]);
@@ -566,7 +603,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
             <Button type="button" size="icon-sm" variant="outline" aria-label="Abrir inspetor de contato" title="Abrir inspetor CRM"
               onClick={()=>setContextOpen(true)}><PanelRightOpen className="size-4"/></Button>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 lg:p-6" data-scroll-pane="messages" aria-label="Histórico de mensagens" aria-live="polite">
+          <div ref={messagesViewport} onScroll={onMessagesScroll} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 lg:p-6" data-scroll-pane="messages" aria-label="Histórico de mensagens" aria-live="polite">
             {reading&&<p className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/> Carregando histórico...</p>}
             {threadError&&<p role="alert" className="text-sm text-amber-900">Falha ao ler o histórico. <button className="underline" onClick={()=>void readThread(selected.id,true)}>Tentar novamente</button></p>}
             {!reading&&!threadError&&!thread.length&&<p className="my-auto text-center text-sm text-muted-foreground">Esta conversa ainda não tem mensagens.</p>}
@@ -579,14 +616,8 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
                 <time className="ml-auto font-normal normal-case">{timeLabel(message.createdAt)}</time>
               </div>
               <p className="whitespace-pre-wrap break-words">{message.body}</p>
-              {selected.channel==="whatsapp"&&message.direction==="outbound"&&<p className="mt-2 text-[10px] font-semibold opacity-85" role="status">{
-                message.deliveryStatus==="sent"?"Enviada pelo WhatsApp":
-                message.deliveryStatus==="synced"?"Sincronizada do WhatsApp":
-                message.deliveryStatus==="pending"?"Na fila de envio":
-                message.deliveryStatus==="processing"?"Enviando pelo WhatsApp":
-                message.deliveryStatus==="failed"?"Falha no envio · não reenviada automaticamente":
-                "Não enviada pelo gateway · registro anterior"
-              }</p>}
+              {selected.channel==="whatsapp"&&message.direction==="outbound"&&
+                <div className="mt-1 flex justify-end"><WhatsAppDeliveryIndicator status={message.deliveryStatus}/></div>}
             </div>)}
           </div>
           <div className="shrink-0 space-y-2 border-t border-border bg-white px-3 py-3 lg:px-5">

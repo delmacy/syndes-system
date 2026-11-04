@@ -57,7 +57,16 @@ try {
       response=scope==="groups"?[group]:[person,group];
     } else if(path==="/inbox/conversations/"+personalId)response=person;
     else if(path==="/inbox/conversations/"+groupId)response=group;
-    else if(path?.endsWith("/messages"))response=[{id:"m-1",body:"Mensagem real sincronizada",direction:"inbound",createdAt:"2026-11-03T10:00:00Z"}];
+    else if(path?.endsWith("/messages")){
+      if(path.includes(personalId)){
+        response=Array.from({length:45},(_,i)=>({
+         id:"sample-"+i,body:i===44?"Mensagem real sincronizada":"Histórico de teste "+i+" — ".repeat(7),
+         direction:i%3===0?"outbound":"inbound",
+         deliveryStatus:i===0?"sent":i===3?"delivered":i===6?"read":"synced",
+         createdAt:new Date(Date.UTC(2026,10,3,10,i)).toISOString(),
+        }));
+      }else response=[{id:"g-1",body:"Mensagem real sincronizada",direction:"inbound",createdAt:"2026-11-03T10:00:00Z"}];
+    }
     else if(path==="/inbox/metrics")response={open:2,pending:0,resolved:0,unassigned:2};
     return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(response)});
   });
@@ -84,6 +93,14 @@ try {
   assert.equal(await page.getByRole("button",{name:/Equipe WhatsApp/}).count(),0,"Groups must not leak into phone tab");
   await page.getByRole("button",{name:/Maria WhatsApp/}).click();
   await page.getByText("Mensagem real sincronizada").waitFor();
+  const viewport=page.getByLabel("Histórico de mensagens");
+  await page.waitForFunction(()=>{const el=document.querySelector('[data-scroll-pane="messages"]');return el&&el.scrollHeight>el.clientHeight*2});
+  const atBottom=()=>viewport.evaluate(el=>el.scrollHeight-el.scrollTop-el.clientHeight);
+  assert.ok(await atBottom()<3,"Opening a conversation must start at its latest message");
+  assert.equal(await viewport.getByRole("status",{name:"Enviada pelo WhatsApp"}).count(),1,"Sent is not delivered");
+  assert.equal(await viewport.getByRole("status",{name:"Entregue"}).count(),1,"Delivery receipt shows dual gray check");
+  assert.equal(await viewport.getByRole("status",{name:"Lida"}).count(),1,"Read receipt shows dual blue check");
+  console.log("PASS latest-first scroll and provider-confirmed double-check icons");
   await page.getByRole("button",{name:/Grupos/}).click();
   await page.getByRole("button",{name:/Equipe WhatsApp/}).waitFor();
   await sidebar.locator('[data-avatar-for="'+groupId+'"]').waitFor();

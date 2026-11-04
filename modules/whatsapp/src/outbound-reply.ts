@@ -118,19 +118,31 @@ export class WhatsAppReplyQueue{
  }
  /** Decorates only messages already selected by an authorized Inbox read.
   * Missing outbox rows expose old local-only replies instead of implying delivery. */
- async decorate<T extends {id:string;direction:string}>(tenantId:string,messages:readonly T[]):Promise<readonly (T & {deliveryStatus?:"pending"|"processing"|"sent"|"failed"|"not_queued"|"synced"})[]>{
+ async decorate<T extends {id:string;direction:string}>(tenantId:string,messages:readonly T[]):Promise<readonly (T & {deliveryStatus?:"pending"|"processing"|"sent"|"failed"|"not_queued"|"synced"|"delivered"|"read"})[]>{
   if(!UUID.test(tenantId))throw Error("Invalid tenant");
   const outgoing=messages.filter(message=>message.direction==="outbound"&&UUID.test(message.id));
   if(!outgoing.length)return messages;
   const db=await this.pools.resolve(tenantId);
   if(db.tenantId!==tenantId)throw Error("Tenant database mismatch");
-  const result=await db.query(`SELECT inbox_message_id::text AS message_id,status
-   FROM whatsapp_outbox WHERE tenant_id=$1::uuid AND inbox_message_id=ANY($2::uuid[])`,[tenantId,outgoing.map(m=>m.id)]);
+  const result=await db.query(`SELECT m.id::text AS message_id,
+     CASE WHEN o.id IS NOT NULL THEN
+       CASE WHEN o.status='sent' AND d.status IN ('read','delivered') THEN d.status ELSE o.status END
+     WHEN m.source IN ('live','history') THEN COALESCE(d.status,'synced')
+     ELSE 'not_queued' END AS status
+   FROM inbox_messages m
+   LEFT JOIN whatsapp_outbox o ON o.tenant_id=m.tenant_id AND o.inbox_message_id=m.id
+   LEFT JOIN whatsapp_conversation_routes r
+     ON r.tenant_id=m.tenant_id AND r.conversation_id=m.conversation_id
+   LEFT JOIN whatsapp_delivery_receipts d
+     ON d.tenant_id=m.tenant_id AND d.account_id=r.account_id
+     AND d.provider_message_id=COALESCE(o.external_message_id,m.provider_message_id)
+   WHERE m.tenant_id=$1::uuid AND m.direction='outbound'
+     AND m.id=ANY($2::uuid[])`,[tenantId,outgoing.map(m=>m.id)]);
   const known=new Map(result.rows.map(row=>[String(row.message_id),String(row.status)]));
   return messages.map(message=>{
    if(message.direction!=="outbound")return message;
    const state=known.get(message.id);
-   const deliveryStatus=state==="pending"||state==="processing"||state==="sent"||state==="failed"?state:
+   const deliveryStatus=state==="pending"||state==="processing"||state==="sent"||state==="failed"||state==="delivered"||state==="read"?state:
       ("source" in message && (message.source==="live"||message.source==="history"))?"synced":"not_queued";
    return {...message,deliveryStatus};
   });
