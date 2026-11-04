@@ -429,33 +429,33 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Tipo de conversa">
             {([["all","Telefones",MessageCircle],["groups","Grupos",Users]] as const).map(([value,label,Icon])=><button key={value} type="button" aria-pressed={chatScope===value} onClick={()=>{setScopeTab(value === "groups" ? "groups" : "phones");setChatScope(value)}} className={"flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-medium "+((scopeTab === "groups" ? "groups" : "all")===value?"bg-blue-600 text-white":"text-slate-600")}><Icon className="size-4"/>{label}</button>)}
           </div>
-          <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1" aria-label="Filtros de conversas">
-            <div role="group" aria-label="Filtros do WhatsApp" className="flex min-w-0 flex-1 items-center justify-around gap-0.5">
+          <div className="grid w-full min-w-0 grid-cols-[4fr_1px_3fr_1px_4fr] items-center gap-1 overflow-hidden rounded-xl border border-white/10 bg-white/5 p-1" aria-label="Filtros de conversas">
+            <div role="group" aria-label="Filtros do WhatsApp" className="grid min-w-0 grid-cols-4 items-center justify-items-center gap-0.5">
               {([
                 ["all","Todas",InboxIcon],["unread","Não lidas",MailOpen],
                 ["favorites","Favoritas",Star],["archived","Arquivadas",Archive],
               ] as const).map(([value,label,Icon])=><button key={value} type="button" aria-label={label} title={label} aria-pressed={chatScope===value}
                 onClick={()=>{setChatScope(value);setScopeTab("phones");}}
-                className={"flex size-5 shrink-0 items-center justify-center rounded-md transition-colors "+
+                className={"flex h-6 w-full max-w-6 min-w-0 items-center justify-center rounded-md transition-colors "+
                   (chatScope===value?"bg-blue-600 text-white shadow-sm":"text-slate-400 hover:bg-white/10 hover:text-white")}>
                 <Icon className="size-4"/>
               </button>)}
             </div>
-            <span className="h-5 w-px shrink-0 bg-white/15" aria-hidden="true"/>
-            <div role="group" aria-label="Filtrar conversas por responsável" className="flex min-w-0 flex-1 items-center justify-around gap-0.5">
+            <span className="h-5 w-px bg-white/15" aria-hidden="true"/>
+            <div role="group" aria-label="Filtrar conversas por responsável" className="grid min-w-0 grid-cols-3 items-center justify-items-center gap-0.5">
               {([["mine","Minhas",UserCheck],["unassigned","Não atribuídas",UserX],["all","Todas as atribuições",Users]] as const).map(([value,label,Icon])=>
                 <button type="button" key={value} title={label} aria-label={label} aria-pressed={queue===value}
-                  className={"flex size-5 shrink-0 items-center justify-center rounded-md transition-colors "+
+                  className={"flex h-6 w-full max-w-6 min-w-0 items-center justify-center rounded-md transition-colors "+
                    (queue===value?"bg-blue-600 text-white shadow-sm":"text-slate-400 hover:bg-white/10 hover:text-white")} onClick={()=>setQueue(value)}>
                   <Icon className="size-4"/>
                 </button>)}
             </div>
-            <span className="h-5 w-px shrink-0 bg-white/15" aria-hidden="true"/>
-            <div role="group" aria-label="Filtrar conversas por status" className="flex min-w-0 flex-1 items-center justify-around gap-0.5">
+            <span className="h-5 w-px bg-white/15" aria-hidden="true"/>
+            <div role="group" aria-label="Filtrar conversas por status" className="grid min-w-0 grid-cols-4 items-center justify-items-center gap-0.5">
               {([["","Todos os estados",ListFilter],["open","Abertas",CircleDot],
                  ["pending","Pendentes",Clock3],["resolved","Resolvidas",CheckCheck]] as const).map(([value,label,Icon])=>
                 <button type="button" key={value} title={label} aria-label={label} aria-pressed={filter===value}
-                  className={"flex size-5 shrink-0 items-center justify-center rounded-md transition-colors "+
+                  className={"flex h-6 w-full max-w-6 min-w-0 items-center justify-center rounded-md transition-colors "+
                    (filter===value?"bg-blue-600 text-white shadow-sm":"text-slate-400 hover:bg-white/10 hover:text-white")} onClick={()=>setFilter(value)}>
                   <Icon className="size-4"/>
                 </button>)}
