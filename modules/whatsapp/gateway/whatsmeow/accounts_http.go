@@ -29,44 +29,118 @@ func authorizedTenant(header, master, tenantID string) bool {
 	return subtle.ConstantTimeCompare([]byte(token), []byte(tenantToken(master, tenantID))) == 1
 }
 func installAccountRoutes(mux *http.ServeMux, db *sql.DB, provider gateway, master string) {
-	mux.HandleFunc("POST /v1/tenants/{tenantId}/accounts/{accountId}/contacts/lookup", func(w http.ResponseWriter, r *http.Request) {
-        tenantID, accountID := r.PathValue("tenantId"), r.PathValue("accountId")
-        if !authorizedTenant(r.Header.Get("Authorization"), master, tenantID) {
-            writeJSON(w, http.StatusUnauthorized, map[string]string{"code":"unauthorized"})
-            return
-        }
-        if !validUUID(accountID) {
-            writeJSON(w, http.StatusBadRequest, map[string]string{"code":"invalid_account"})
-            return
-        }
-        var active bool
-        err := db.QueryRowContext(r.Context(), `SELECT enabled AND device_jid IS NOT NULL
-          FROM syndes_whatsapp_accounts WHERE tenant_id=$1 AND account_id=$2`, tenantID, accountID).Scan(&active)
-        if err != nil || !active {
-            writeJSON(w, http.StatusNotFound, map[string]string{"code":"account_unavailable"})
-            return
-        }
-        var body struct { JIDs []string `json:"jids"` }
-        decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 10240))
-        decoder.DisallowUnknownFields()
-        if err := decoder.Decode(&body); err != nil || len(body.JIDs) == 0 || len(body.JIDs) > 100 {
-            writeJSON(w, http.StatusBadRequest, map[string]string{"code":"invalid_request"})
-            return
-        }
-        reader, ok := provider.(interface {
-            LookupContactNames(context.Context, string, []string) (map[string]string, error)
-        })
-        if !ok {
-            writeJSON(w, http.StatusNotImplemented, map[string]string{"code":"lookup_unavailable"})
-            return
-        }
-        names, err := reader.LookupContactNames(r.Context(), accountID, body.JIDs)
-        if err != nil {
-            writeJSON(w, http.StatusBadRequest, map[string]string{"code":"lookup_failed"})
-            return
-        }
-        writeJSON(w, http.StatusOK, map[string]any{"names": names})
-    })
+	// Internal-only endpoints. A scoped token is not sufficient by itself:
+	// the caller must also use an enabled, paired tenant-owned account.
+	mux.HandleFunc("GET /v1/tenants/{tenantId}/accounts/{accountId}/avatar", func(w http.ResponseWriter, r *http.Request) {
+		tenantID, accountID := r.PathValue("tenantId"), r.PathValue("accountId")
+		if !authorizedTenant(r.Header.Get("Authorization"), master, tenantID) {
+			writeJSON(w, 401, map[string]string{"code": "unauthorized"})
+			return
+		}
+		if !validUUID(accountID) {
+			writeJSON(w, 400, map[string]string{"code": "invalid_account"})
+			return
+		}
+		var active bool
+		if db.QueryRowContext(r.Context(), `SELECT enabled AND device_jid IS NOT NULL FROM syndes_whatsapp_accounts WHERE tenant_id=$1 AND account_id=$2`, tenantID, accountID).Scan(&active) != nil || !active {
+			writeJSON(w, 404, map[string]string{"code": "account_unavailable"})
+			return
+		}
+		jid := r.URL.Query().Get("jid")
+		if _, err := avatarJID(jid); err != nil {
+			writeJSON(w, 400, map[string]string{"code": "invalid_contact"})
+			return
+		}
+		reader, ok := provider.(interface {
+			GetAvatar(context.Context, string, string) (avatarResult, error)
+		})
+		if !ok {
+			writeJSON(w, 501, map[string]string{"code": "avatar_unavailable"})
+			return
+		}
+		result, err := reader.GetAvatar(r.Context(), accountID, jid)
+		if err != nil {
+			writeJSON(w, 503, map[string]string{"code": "avatar_temporarily_unavailable"})
+			return
+		}
+		w.Header().Set("Cache-Control", "private, max-age=300")
+		writeJSON(w, 200, result)
+	})
+	mux.HandleFunc("GET /v1/tenants/{tenantId}/accounts/{accountId}/groups/info", func(w http.ResponseWriter, r *http.Request) {
+		tenantID, accountID := r.PathValue("tenantId"), r.PathValue("accountId")
+		if !authorizedTenant(r.Header.Get("Authorization"), master, tenantID) {
+			writeJSON(w, 401, map[string]string{"code": "unauthorized"})
+			return
+		}
+		if !validUUID(accountID) {
+			writeJSON(w, 400, map[string]string{"code": "invalid_account"})
+			return
+		}
+		var active bool
+		if db.QueryRowContext(r.Context(), `SELECT enabled AND device_jid IS NOT NULL FROM syndes_whatsapp_accounts WHERE tenant_id=$1 AND account_id=$2`, tenantID, accountID).Scan(&active) != nil || !active {
+			writeJSON(w, 404, map[string]string{"code": "account_unavailable"})
+			return
+		}
+		jid := r.URL.Query().Get("jid")
+		if _, err := groupJID(jid); err != nil {
+			writeJSON(w, 400, map[string]string{"code": "invalid_group"})
+			return
+		}
+		reader, ok := provider.(interface {
+			GetGroupDetails(context.Context, string, string) (groupDetails, error)
+		})
+		if !ok {
+			writeJSON(w, 501, map[string]string{"code": "group_unavailable"})
+			return
+		}
+		result, err := reader.GetGroupDetails(r.Context(), accountID, jid)
+		if err != nil {
+			writeJSON(w, 503, map[string]string{"code": "whatsapp_group_unavailable"})
+			return
+		}
+		writeJSON(w, 200, result)
+	})
+	mux.HandleFunc("PATCH /v1/tenants/{tenantId}/accounts/{accountId}/groups/info", func(w http.ResponseWriter, r *http.Request) {
+		tenantID, accountID := r.PathValue("tenantId"), r.PathValue("accountId")
+		if !authorizedTenant(r.Header.Get("Authorization"), master, tenantID) {
+			writeJSON(w, 401, map[string]string{"code": "unauthorized"})
+			return
+		}
+		if !validUUID(accountID) {
+			writeJSON(w, 400, map[string]string{"code": "invalid_account"})
+			return
+		}
+		var active bool
+		if db.QueryRowContext(r.Context(), `SELECT enabled AND device_jid IS NOT NULL FROM syndes_whatsapp_accounts WHERE tenant_id=$1 AND account_id=$2`, tenantID, accountID).Scan(&active) != nil || !active {
+			writeJSON(w, 404, map[string]string{"code": "account_unavailable"})
+			return
+		}
+		jid := r.URL.Query().Get("jid")
+		if _, err := groupJID(jid); err != nil {
+			writeJSON(w, 400, map[string]string{"code": "invalid_group"})
+			return
+		}
+		var body groupChange
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&body) != nil || validGroupChange(body) != nil {
+			writeJSON(w, 400, map[string]string{"code": "invalid_group_change"})
+			return
+		}
+		writer, ok := provider.(interface {
+			UpdateGroupDetails(context.Context, string, string, groupChange) (groupDetails, error)
+		})
+		if !ok {
+			writeJSON(w, 501, map[string]string{"code": "group_write_unavailable"})
+			return
+		}
+		result, err := writer.UpdateGroupDetails(r.Context(), accountID, jid, body)
+		if err != nil {
+			writeJSON(w, 503, map[string]string{"code": "whatsapp_group_change_unconfirmed"})
+			return
+		}
+		writeJSON(w, 200, result)
+	})
 	mux.HandleFunc("PATCH /v1/tenants/{tenantId}/accounts/{accountId}/contacts/name", func(w http.ResponseWriter, r *http.Request) {
 		tenantID, accountID := r.PathValue("tenantId"), r.PathValue("accountId")
 		if !authorizedTenant(r.Header.Get("Authorization"), master, tenantID) {

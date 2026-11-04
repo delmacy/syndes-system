@@ -5,6 +5,7 @@ on:
       - "apps/core-host/**"
       - "modules/core-crm/**"
       - "modules/inbox/**"
+      - "modules/whatsapp/**"
       - "packages/core-kernel/**"
       - "infra/**"
       - "tests/platform/**"
@@ -14,6 +15,7 @@ on:
       - "apps/core-host/**"
       - "modules/core-crm/**"
       - "modules/inbox/**"
+      - "modules/whatsapp/**"
       - "infra/**"
       - "tests/platform/**"
       - ".github/workflows/core-host-infra.yml"
@@ -33,8 +35,8 @@ jobs:
         run: cd modules/core-crm && npm ci --no-audit --no-fund && npm run build
       - name: Build Inbox business module
         run: cd modules/inbox && npm ci --no-audit --no-fund && npm run build
-      - name: Build WhatsApp plugin
-        run: cd modules/whatsapp && npm install --no-package-lock --no-audit --no-fund && npm run build
+      - name: Build WhatsApp channel module
+        run: cd modules/whatsapp && npm ci --no-audit --no-fund && npm run build
       - name: Install host dependencies
         run: cd apps/core-host && npm ci --no-audit --no-fund
       - name: Strict type checks

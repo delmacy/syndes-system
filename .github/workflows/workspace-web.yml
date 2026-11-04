@@ -34,3 +34,8 @@ jobs:
         run: npm test
       - name: Lint
         run: npm run lint
+
+      - name: Install Chromium for real compiled UI regression
+        run: npx playwright install --with-deps chromium
+      - name: WhatsApp sidebar, phone and group UI regression
+        run: npm run test:whatsapp-ui

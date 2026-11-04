@@ -31,7 +31,7 @@ test('preserves WhatsApp routing JID while storing verified phone only as displa
  const payload={...event,message:{...event.message,senderExternalId:'76467123456789@lid',senderPhone:'+5551976471234'}};
  const db={tenantId,query:async(sql,args)=>{calls.push({sql,args});return {
    rows:calls.length===1?[{id:42,payload}]:sql.includes('SELECT r.recipient_external_id')?[]:[{id:42}]
- }}}; 
+ }}};
  const projection=new WhatsAppInboxProjection({resolve:async()=>db});
  assert.equal(await projection.deliverNext(tenantId),'delivered');
  const projectionSQL=calls.at(-1);
@@ -116,4 +116,22 @@ test('historical PN chat snapshot reuses the same verified direct thread',async(
  assert.equal(await new WhatsAppInboxProjection({resolve:async()=>db}).deliverNext(tenantId),'delivered');
  assert.equal(calls.at(-1).args[4],createHash('sha256').update(accountId+'|'+lid).digest('hex'));
  assert.equal(calls.at(-1).args[9],lid);
+});
+
+test("contact sync only updates existing authorized direct thread without inserting a conversation or message",async()=>{
+ const calls=[];
+ const payload={version:"1",type:"whatsapp.contact.name",tenantId,accountId,
+  contact:{accountId,contactExternalId:"5551999999999@s.whatsapp.net",name:"Maria Agenda"}};
+ const db={tenantId,query:async(sql,args)=>{
+  calls.push({sql,args});
+  return {rows:calls.length===1?[{id:88,payload}]:[{id:88}]};
+ }};
+ assert.equal(await new WhatsAppInboxProjection({resolve:async()=>db}).deliverNext(tenantId),"delivered");
+ const query=calls[1];
+ assert.match(query.sql,/UPDATE inbox_conversations c SET subject/);
+ assert.doesNotMatch(query.sql,/INSERT INTO inbox_conversations|INSERT INTO inbox_messages/);
+ assert.match(query.sql,/r.account_id=\$3::uuid/);
+ assert.match(query.sql,/c.is_group=false/);
+ assert.equal(query.args[4],"Maria Agenda");
+ assert.equal(query.args[5],"+5551999999999");
 });

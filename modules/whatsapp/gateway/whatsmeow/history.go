@@ -33,7 +33,7 @@ func validChatJID(jid types.JID) bool {
 func (gateway *whatsmeowGateway) storeChatEvent(ctx context.Context, tenantID, accountID string, event inboundEvent) {
 	if event.Chat != nil {
 		event.EventType = "whatsapp.chat.snapshot"
-		event.ExternalMessageID = "chat:" + event.Chat.ChatExternalID
+		event.ExternalMessageID = chatSnapshotKey(*event.Chat)
 	}
 	gateway.enqueueInbound(ctx, tenantID, accountID, event)
 }
@@ -47,8 +47,9 @@ func (gateway *whatsmeowGateway) handleHistory(tenantID, accountID string, clien
 	if history == nil {
 		return
 	}
-	// Initial and ON_DEMAND history both carry chat metadata + message snapshots.
-	// Other history types (e.g. push names, statuses) are ignored for Inbox.
+	// WhatsApp sends contact names separately from chat and message history.
+	// Names update only existing Inbox threads and never create fake chats.
+	// Initial and ON_DEMAND history carry chat metadata + message snapshots.
 	for _, conversation := range history.GetConversations() {
 		if conversation == nil {
 			continue
@@ -63,6 +64,9 @@ func (gateway *whatsmeowGateway) handleHistory(tenantID, accountID string, clien
 			lastTime = historyTimestamp(conversation.GetLastMsgTimestamp())
 		}
 		name := strings.TrimSpace(conversation.GetName())
+		if !isGroup && name == "" {
+			name = gateway.cachedContactName(client, chatJID)
+		}
 		if len(name) > 160 {
 			name = name[:160]
 		}
@@ -72,6 +76,9 @@ func (gateway *whatsmeowGateway) handleHistory(tenantID, accountID string, clien
 			Archived: conversation.GetArchived(), OccurredAt: lastTime,
 		}}
 		gateway.storeChatEvent(context.Background(), tenantID, accountID, meta)
+		if !isGroup {
+			gateway.syncContactFromCache(tenantID, accountID, client, chatJID)
+		}
 		for _, entry := range conversation.GetMessages() {
 			if entry == nil || entry.GetMessage() == nil {
 				continue
@@ -106,6 +113,18 @@ func (gateway *whatsmeowGateway) handleHistory(tenantID, accountID string, clien
 			gateway.enqueueInbound(context.Background(), tenantID, accountID, payload)
 		}
 	}
+	// Apply push names after chat snapshots, so initial synchronization can
+	// create the thread before a name-only update is processed.
+	for _, entry := range history.GetPushnames() {
+		if entry == nil {
+			continue
+		}
+		jid, err := types.ParseJID(entry.GetID())
+		if err == nil {
+			gateway.publishContactName(tenantID, accountID, jid, entry.GetPushname())
+		}
+	}
+
 }
 
 // The user can request more history for a known chat. WhatsApp sends the reply

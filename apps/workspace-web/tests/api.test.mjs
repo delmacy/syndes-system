@@ -148,3 +148,21 @@ test("SSE stream authenticates via Bearer and only dispatches change-only frames
  assert.equal(seen[0].options.headers.Authorization,"Bearer jwt-token");
  assert.deepEqual(invalidations,["changed"]);
 });
+
+test("group reads and confirmed edits stay in the authenticated tenant WhatsApp scope",async()=>{
+ const calls=[];
+ globalThis.fetch=async(url,options)=>{
+  calls.push({url,options});
+  return Response.json({jid:"120363012345678901@g.us",name:"Grupo WhatsApp",description:"",participantCount:5,canEdit:true,locked:false,announce:false});
+ };
+ const api=new TenantApi("tenant-a","authorized",()=>assert.fail("Unexpected logout"));
+ await api.whatsappGroupInfo("conversation-id");
+ await api.updateWhatsAppGroup("conversation-id",{name:"Novo grupo"});
+ await api.updateWhatsAppGroup("conversation-id",{description:"Nova descrição"});
+ assert.equal(calls[0].url,"/v1/tenants/tenant-a/whatsapp/conversations/conversation-id/group");
+ assert.equal(calls[0].options.method,"GET");
+ assert.equal(calls[1].options.method,"PATCH");
+ assert.deepEqual(JSON.parse(calls[1].options.body),{name:"Novo grupo"});
+ assert.deepEqual(JSON.parse(calls[2].options.body),{description:"Nova descrição"});
+ assert.ok(calls.every(c=>c.options.headers.Authorization==="Bearer authorized"));
+});

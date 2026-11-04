@@ -308,6 +308,16 @@ func (gateway *whatsmeowGateway) registerClientHandler(accountID, tenantID strin
 			if client.Store.ID != nil {
 				_ = gateway.saveMapping(context.Background(), accountID, client.Store.ID.String())
 			}
+			// Restore known contact names after reconnect, without creating chats.
+			go gateway.syncCachedContactNames(tenantID, accountID, client)
+			go gateway.syncJoinedGroups(tenantID, accountID)
+		case *events.GroupInfo:
+			if event.JID.Server != types.GroupServer {
+				return
+			}
+			// Fetch the current authoritative name after any group metadata
+			// notification; do not trust an unconfirmed local mutation.
+			go gateway.syncSingleGroup(tenantID, accountID, event.JID)
 		case *events.HistorySync:
 			gateway.historyForEvent(tenantID, accountID, client, event)
 		case *events.Message:
@@ -336,6 +346,7 @@ func (gateway *whatsmeowGateway) registerClientHandler(accountID, tenantID strin
 						phone = senderPhoneForMessage(client, types.MessageSource{Sender: chat})
 					}
 				}
+				gateway.syncContactFromCache(tenantID, accountID, client, chat)
 				gateway.enqueueInbound(context.Background(), tenantID, accountID, inboundEvent{
 					AccountID: accountID, ExternalMessageID: event.Info.ID,
 					SenderExternalID: sender.String(), SenderPhone: phone, Body: body,
@@ -505,19 +516,20 @@ type chatEvent struct {
 	OccurredAt     string `json:"occurredAt,omitempty"`
 }
 type inboundEvent struct {
-	AccountID         string     `json:"accountId"`
-	ExternalMessageID string     `json:"externalMessageId"`
-	SenderExternalID  string     `json:"senderExternalId"`
-	SenderPhone       string     `json:"senderPhone,omitempty"`
-	Body              string     `json:"body"`
-	OccurredAt        string     `json:"occurredAt"`
-	ChatExternalID    string     `json:"chatExternalId,omitempty"`
-	FromMe            bool       `json:"fromMe"`
-	IsGroup           bool       `json:"isGroup"`
-	Source            string     `json:"source,omitempty"`
-	ChatName          string     `json:"chatName,omitempty"`
-	EventType         string     `json:"eventType,omitempty"`
-	Chat              *chatEvent `json:"chat,omitempty"`
+	AccountID         string        `json:"accountId"`
+	ExternalMessageID string        `json:"externalMessageId"`
+	SenderExternalID  string        `json:"senderExternalId"`
+	SenderPhone       string        `json:"senderPhone,omitempty"`
+	Body              string        `json:"body"`
+	OccurredAt        string        `json:"occurredAt"`
+	ChatExternalID    string        `json:"chatExternalId,omitempty"`
+	FromMe            bool          `json:"fromMe"`
+	IsGroup           bool          `json:"isGroup"`
+	Source            string        `json:"source,omitempty"`
+	ChatName          string        `json:"chatName,omitempty"`
+	EventType         string        `json:"eventType,omitempty"`
+	Chat              *chatEvent    `json:"chat,omitempty"`
+	Contact           *contactEvent `json:"contact,omitempty"`
 }
 
 type callbackClient struct {
@@ -528,7 +540,8 @@ type callbackClient struct {
 
 func (callback *callbackClient) deliver(ctx context.Context, tenantID string, event inboundEvent) error {
 	eventType := "whatsapp.message.received"
-	if event.EventType == "whatsapp.chat.snapshot" && event.Chat != nil {
+	if (event.EventType == "whatsapp.chat.snapshot" && event.Chat != nil) ||
+		(event.EventType == "whatsapp.contact.name" && event.Contact != nil) {
 		eventType = event.EventType
 	}
 	var msg *inboundEvent
@@ -542,8 +555,9 @@ func (callback *callbackClient) deliver(ctx context.Context, tenantID string, ev
 		AccountID string        `json:"accountId"`
 		Message   *inboundEvent `json:"message,omitempty"`
 		Chat      *chatEvent    `json:"chat,omitempty"`
+		Contact   *contactEvent `json:"contact,omitempty"`
 	}{Version: "1", Type: eventType, TenantID: tenantID, AccountID: event.AccountID,
-		Message: msg, Chat: event.Chat})
+		Message: msg, Chat: event.Chat, Contact: event.Contact})
 
 	if err != nil {
 		return err

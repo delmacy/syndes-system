@@ -144,3 +144,16 @@ test('linking CRM contacts requires both Inbox write and CRM read and stays tena
  assert.deepEqual(calls[2],[].constructor===Array?calls[2]:calls[2]);
  assert.equal(calls[2].tenant,tenant);
 });
+
+test("Inbox paginated conversations are ordered by latest message activity",async()=>{
+ const {PgInboxRepository}=await import("../dist/postgres.js");
+ let sql="",params;
+ const db={tenantId:A,query:async(statement,values)=>{sql=statement;params=values;return {rows:[]}}};
+ const repo=new PgInboxRepository(db);
+ assert.deepEqual(await repo.list(A,null,30,"all","alice","groups",0,""),[]);
+ assert.match(sql,/ORDER BY COALESCE\(\(SELECT m\.created_at FROM inbox_messages m/);
+ assert.match(sql,/m\.tenant_id=c\.tenant_id AND m\.conversation_id=c\.id/);
+ assert.match(sql,/ORDER BY m\.created_at DESC,m\.id DESC LIMIT 1/);
+ assert.match(sql,/c\.id DESC LIMIT \$3 OFFSET \$7/);
+ assert.deepEqual(params,[A,null,30,"all","alice","groups",0,""]);
+});

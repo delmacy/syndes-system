@@ -1,6 +1,6 @@
 import {createHash,randomUUID} from "node:crypto";
 import type {TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
-import {validIncomingEnvelope,validChatEnvelope} from "./inbound-contract.js";
+import {validIncomingEnvelope,validChatEnvelope,validContactEnvelope} from "./inbound-contract.js";
 
 const hash=(account:string,key:string)=>createHash("sha256").update(account+"|"+key).digest("hex");
 // History, groups, reactions and outgoing messages must never activate bots.
@@ -33,6 +33,34 @@ export class WhatsAppInboxProjection {
    const existing=matches.rows[0]?.recipient_external_id;
    return typeof existing==="string"&&existing.length<=256?existing:chatId;
   };
+  if(validContactEnvelope(tenantId,row.payload)){
+   const event=row.payload,contact=event.contact;
+   const phone=/^([1-9][0-9]{9,14})@s\.whatsapp\.net$/.exec(contact.contactExternalId)?.[1];
+   // A contact metadata event must NEVER create a conversation or message.
+   // Match an existing tenant+account route by trusted JID or verified PN.
+   const result=await db.query(`
+    WITH incoming AS (
+     SELECT e.id,e.tenant_id FROM whatsapp_inbound_events e
+     WHERE e.tenant_id=$1::uuid AND e.id=$2 AND e.processed_at IS NULL FOR UPDATE
+    ), updated AS (
+     UPDATE inbox_conversations c SET subject=$5
+     FROM whatsapp_conversation_routes r,incoming i
+     WHERE c.tenant_id=i.tenant_id AND r.tenant_id=c.tenant_id
+       AND r.conversation_id=c.id AND r.account_id=$3::uuid
+       AND c.channel='whatsapp' AND c.is_group=false
+       AND (r.recipient_external_id=$4 OR ($6::text IS NOT NULL AND r.phone_e164=$6))
+       AND (c.subject LIKE 'WhatsApp · %' OR c.subject IN
+        ('Contato sem número disponível','Número não disponível'))
+     RETURNING c.id
+    ), acknowledged AS (
+     UPDATE whatsapp_inbound_events e SET processed_at=clock_timestamp()
+     FROM incoming WHERE e.id=incoming.id AND e.tenant_id=incoming.tenant_id
+     RETURNING e.id
+    ) SELECT id FROM acknowledged
+   `,[tenantId,row.id,event.accountId,contact.contactExternalId,contact.name.trim(),
+      phone?"+"+phone:null]);
+   return result.rows.length===1?"delivered":"invalid";
+  }
   if(validChatEnvelope(tenantId,row.payload)){
    const event=row.payload,chat=event.chat;
    const isGroup=chat.isGroup;
@@ -53,8 +81,9 @@ export class WhatsAppInboxProjection {
      ON CONFLICT(tenant_id,channel,external_thread_id) WHERE external_thread_id IS NOT NULL
      DO UPDATE SET is_group=EXCLUDED.is_group,
        unread_count=GREATEST(inbox_conversations.unread_count,EXCLUDED.unread_count),
-       is_archived=EXCLUDED.is_archived,history_sync_at=clock_timestamp(),
-       subject=CASE WHEN inbox_conversations.subject LIKE 'WhatsApp · %'
+       is_archived=CASE WHEN $9::timestamptz IS NULL THEN inbox_conversations.is_archived ELSE EXCLUDED.is_archived END,history_sync_at=clock_timestamp(),
+       subject=CASE WHEN ($6::boolean=true AND BTRIM($4)<>'Grupo WhatsApp')
+         OR inbox_conversations.subject LIKE 'WhatsApp · %'
          OR inbox_conversations.subject IN ('Contato sem número disponível','Grupo WhatsApp')
          THEN EXCLUDED.subject ELSE inbox_conversations.subject END
      RETURNING tenant_id,id

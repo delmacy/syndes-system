@@ -1,3 +1,4 @@
+export type WhatsAppGroupInfo={jid:string;name:string;description:string;participantCount:number;canEdit:boolean;locked:boolean;announce:boolean};
 import {createHmac} from "node:crypto";
 export class WhatsAppGatewayClient {
  constructor(private readonly base=process.env.WHATSAPP_GATEWAY_URL,
@@ -84,29 +85,44 @@ export class WhatsAppGatewayClient {
   if(response.status!==202)throw Error("Historical sync request unavailable ("+response.status+")");
   return response.json() as Promise<{requested:boolean}>;
  }
- async lookupContactNames(tenantId:string,accountId:string,jids:readonly string[]):Promise<Record<string,string>> {
-  if(!this.base||!this.secret||jids.length===0||jids.length>100)throw Error("Invalid contact lookup");
+ async avatar(tenantId:string,accountId:string,contactJid:string):Promise<{available:boolean;imageData?:string}>{
+  if(!this.base||!this.secret)throw Error("WhatsApp gateway not configured");
   const url=new URL(this.base);
   if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||
-    url.username||url.password||url.search||url.hash||url.pathname!=="/")
-   throw Error("Invalid gateway private URL");
-  const token=createHmac("sha256",this.secret)
-    .update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
-  const response=await fetch(new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/contacts/lookup",url),{
-   method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
-   body:JSON.stringify({jids}),signal:AbortSignal.timeout(6000),redirect:"error"
-  });
-  if(!response.ok)throw Error("WhatsApp contacts unavailable ("+response.status+")");
-  const payload=await response.json() as {names?:unknown};
-  if(!payload.names||typeof payload.names!=="object"||Array.isArray(payload.names))
-   throw Error("Invalid WhatsApp contact response");
-  const permitted=new Set(jids);
-  const out:Record<string,string>={};
-  for(const [jid,name] of Object.entries(payload.names)){
-   if(permitted.has(jid)&&typeof name==="string"&&name.trim()&&[...name].length<=160)
-     out[jid]=name.trim();
-  }
-  return out;
+     url.username||url.password||url.search||url.hash||url.pathname!=="/")throw Error("Invalid private gateway URL");
+  const token=createHmac("sha256",this.secret).update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const endpoint=new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/avatar",url);
+  endpoint.searchParams.set("jid",contactJid);
+  const response=await fetch(endpoint,{headers:{Authorization:"Bearer "+token},signal:AbortSignal.timeout(13000),redirect:"error"});
+  if(!response.ok)throw Error("WhatsApp avatar unavailable");
+  const value=await response.json() as {available?:unknown;imageData?:unknown};
+  if(value.available!==true)return {available:false};
+  if(typeof value.imageData!=="string"||value.imageData.length>180000||
+   !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(value.imageData))throw Error("Invalid WhatsApp avatar response");
+  return {available:true,imageData:value.imageData};
+ }
+ async groupInfo(tenantId:string,accountId:string,groupJid:string):Promise<WhatsAppGroupInfo>{
+  const url=new URL(this.base??"");
+  if(!this.secret||url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||url.username||url.password||url.pathname!=="/"||url.search||url.hash)
+   throw Error("Invalid private WhatsApp gateway URL");
+  const token=createHmac("sha256",this.secret).update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const endpoint=new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/groups/info",url);
+  endpoint.searchParams.set("jid",groupJid);
+  const response=await fetch(endpoint,{headers:{Authorization:"Bearer "+token},signal:AbortSignal.timeout(15000),redirect:"error"});
+  if(!response.ok)throw Error("WhatsApp canonical group details unavailable ("+response.status+")");
+  return response.json() as Promise<WhatsAppGroupInfo>;
+ }
+ async updateGroup(tenantId:string,accountId:string,groupJid:string,change:{name?:string;description?:string}):Promise<WhatsAppGroupInfo>{
+  const url=new URL(this.base??"");
+  if(!this.secret||url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||url.username||url.password||url.pathname!=="/"||url.search||url.hash)
+   throw Error("Invalid private WhatsApp gateway URL");
+  const token=createHmac("sha256",this.secret).update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const endpoint=new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/groups/info",url);
+  endpoint.searchParams.set("jid",groupJid);
+  const response=await fetch(endpoint,{method:"PATCH",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+   body:JSON.stringify(change),signal:AbortSignal.timeout(20000),redirect:"error"});
+  if(!response.ok)throw Error("WhatsApp group change was not confirmed ("+response.status+")");
+  return response.json() as Promise<WhatsAppGroupInfo>;
  }
  async setContactName(tenantId:string,accountId:string,input:{
    contactJid:string;fullName:string;saveOnPrimaryAddressbook:boolean
