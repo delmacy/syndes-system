@@ -64,7 +64,10 @@ export class PgInboxRepository implements InboxRepository {
     AND ($8::text='' OR c.subject ILIKE '%'||$8||'%'
        OR COALESCE(r.phone_e164,'') ILIKE '%'||$8||'%'
        )
-    ORDER BY c.updated_at DESC,c.id DESC LIMIT $3 OFFSET $7
+    ORDER BY COALESCE((SELECT m.created_at FROM inbox_messages m
+      WHERE m.tenant_id=c.tenant_id AND m.conversation_id=c.id
+      ORDER BY m.created_at DESC,m.id DESC LIMIT 1),c.updated_at) DESC,
+      c.id DESC LIMIT $3 OFFSET $7
   `,[tenantId,status,limit,queue,actorId,scope,offset,search])).rows;
   return rows.map(conversation);
  }

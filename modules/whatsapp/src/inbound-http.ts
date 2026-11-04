@@ -1,7 +1,7 @@
 import {createHash,timingSafeEqual} from "node:crypto";
 import {Body,Controller,Headers,HttpException,Inject,Injectable,Module,Param,Post} from "@nestjs/common";
 import type {TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
-import {validIncomingEnvelope,validChatEnvelope,type IncomingWhatsAppEnvelope,type IncomingWhatsAppChatEnvelope} from "./inbound-contract.js";
+import {validIncomingEnvelope,validChatEnvelope,validContactEnvelope,validReceiptEnvelope,type IncomingWhatsAppEnvelope,type IncomingWhatsAppChatEnvelope,type IncomingWhatsAppContactEnvelope,type IncomingWhatsAppReceiptEnvelope} from "./inbound-contract.js";
 
 export function verifyWebhookToken(configured:string|undefined,header:string|undefined):boolean{
  if(!configured||!header?.startsWith("Bearer "))return false;
@@ -12,7 +12,7 @@ export function verifyWebhookToken(configured:string|undefined,header:string|und
 }
 export class WhatsAppInboundStore{
  constructor(private readonly pools:TrustedTenantDatabaseProvider){}
- async persist(tenantId:string,event:IncomingWhatsAppEnvelope|IncomingWhatsAppChatEnvelope){
+ async persist(tenantId:string,event:IncomingWhatsAppEnvelope|IncomingWhatsAppChatEnvelope|IncomingWhatsAppContactEnvelope|IncomingWhatsAppReceiptEnvelope){
   const db=await this.pools.resolve(tenantId);
   if(db.tenantId!==tenantId)throw new Error("Tenant database mismatch");
   // Account membership and insertion are enforced together, avoiding a check/write race.
@@ -22,12 +22,20 @@ export class WhatsAppInboundStore{
     WHERE a.tenant_id=$1::uuid AND a.id=$2::uuid AND a.service_enabled=true
     ON CONFLICT(tenant_id,account_id,external_message_id) DO NOTHING
     RETURNING id`,[tenantId,event.accountId,
-     event.type==="whatsapp.chat.snapshot"?"chat:"+event.chat.chatExternalId:event.message.externalMessageId,
+     event.type==="whatsapp.chat.snapshot"?"chat:"+createHash("sha256").update(
+       event.chat.chatExternalId+"|"+(event.chat.name??"")+"|"+String(event.chat.unreadCount??0)+"|"+String(event.chat.archived??false)).digest("hex"):
+     event.type==="whatsapp.message.receipt"?"receipt:"+createHash("sha256").update(event.receipt.providerMessageId+"|"+event.receipt.status).digest("hex"):
+     event.type==="whatsapp.contact.name"?"contact:"+createHash("sha256").update(event.contact.contactExternalId+"|"+event.contact.name).digest("hex"):
+     event.message.externalMessageId,
      event.type,JSON.stringify(event)]);
   if(result.rows.length===1)return {accepted:true,duplicate:false};
   const existing=await db.query(`SELECT 1 FROM whatsapp_inbound_events WHERE tenant_id=$1::uuid
    AND account_id=$2::uuid AND external_message_id=$3`,[tenantId,event.accountId,
-     event.type==="whatsapp.chat.snapshot"?"chat:"+event.chat.chatExternalId:event.message.externalMessageId]);
+     event.type==="whatsapp.chat.snapshot"?"chat:"+createHash("sha256").update(
+       event.chat.chatExternalId+"|"+(event.chat.name??"")+"|"+String(event.chat.unreadCount??0)+"|"+String(event.chat.archived??false)).digest("hex"):
+     event.type==="whatsapp.message.receipt"?"receipt:"+createHash("sha256").update(event.receipt.providerMessageId+"|"+event.receipt.status).digest("hex"):
+     event.type==="whatsapp.contact.name"?"contact:"+createHash("sha256").update(event.contact.contactExternalId+"|"+event.contact.name).digest("hex"):
+     event.message.externalMessageId]);
   if(existing.rows.length===1)return {accepted:true,duplicate:true};
   throw new HttpException("WhatsApp account unavailable",404);
  }
@@ -36,7 +44,7 @@ export class WhatsAppInboundStore{
 export class WhatsAppInboundService{
  private readonly store:WhatsAppInboundStore;
  constructor(@Inject("SYNDES_TENANT_DB")pools:TrustedTenantDatabaseProvider){this.store=new WhatsAppInboundStore(pools)}
- async receive(tenantId:string,event:IncomingWhatsAppEnvelope|IncomingWhatsAppChatEnvelope){return this.store.persist(tenantId,event)}
+ async receive(tenantId:string,event:IncomingWhatsAppEnvelope|IncomingWhatsAppChatEnvelope|IncomingWhatsAppContactEnvelope|IncomingWhatsAppReceiptEnvelope){return this.store.persist(tenantId,event)}
 }
 @Controller("api/v1/internal/whatsapp/events")
 export class WhatsAppInboundController{
@@ -44,7 +52,7 @@ export class WhatsAppInboundController{
  @Post(":tenantId")
  async receive(@Param("tenantId")tenantId:string,@Headers("authorization")header:string|undefined,@Body()event:unknown){
   if(!verifyWebhookToken(process.env.WHATSAPP_WEBHOOK_TOKEN,header))throw new HttpException("Unauthorized",401);
-  if(!validIncomingEnvelope(tenantId,event)&&!validChatEnvelope(tenantId,event))throw new HttpException("Invalid inbound event",400);
+  if(!validIncomingEnvelope(tenantId,event)&&!validChatEnvelope(tenantId,event)&&!validContactEnvelope(tenantId,event)&&!validReceiptEnvelope(tenantId,event))throw new HttpException("Invalid inbound event",400);
   try{return await this.service.receive(tenantId,event)}
   catch(error){if(error instanceof HttpException)throw error;throw new HttpException("Inbound storage unavailable",503)}
  }

@@ -54,51 +54,30 @@ export class WhatsAppReplyQueue{
   if(!UUID.test(tenantId))throw Error("Invalid tenant");
   const db=await this.pools.resolve(tenantId);
   if(db.tenantId!==tenantId)throw Error("Tenant database mismatch");
-  const rows=await db.query(`SELECT r.conversation_id::text AS id,r.account_id::text AS account_id,
-     r.phone_e164,labels.full_name AS edited_name,
-     person.name AS crm_name
+  const rows=await db.query(`SELECT r.conversation_id::text AS id,r.phone_e164,
+     NULLIF(BTRIM(labels.full_name),'') AS saved_name,
+     COALESCE(NULLIF(BTRIM(labels.full_name),''),
+       CASE WHEN c.is_group=false AND BTRIM(c.subject) NOT LIKE 'WhatsApp · %'
+          AND BTRIM(c.subject) NOT IN ('Contato sem número disponível','Número não disponível','Grupo WhatsApp','')
+        THEN BTRIM(c.subject) ELSE NULL END) AS display_name
    FROM whatsapp_conversation_routes r
    LEFT JOIN whatsapp_contact_name_labels labels
     ON labels.tenant_id=r.tenant_id AND labels.account_id=r.account_id
      AND labels.phone_e164=r.phone_e164
-   JOIN inbox_conversations c ON c.tenant_id=r.tenant_id AND c.id=r.conversation_id
-   LEFT JOIN crm_people person ON person.tenant_id=c.tenant_id
-    AND person.id=c.crm_person_id AND person.archived_at IS NULL
+   JOIN inbox_conversations c
+   ON c.tenant_id=r.tenant_id AND c.id=r.conversation_id
    WHERE r.tenant_id=$1::uuid AND c.channel='whatsapp'
-    AND r.conversation_id=ANY($2::uuid[])`,[tenantId,whatsapp.map(c=>c.id)]);
-  type ContactRow={id:unknown;account_id:unknown;phone_e164:unknown;edited_name:unknown;crm_name:unknown};
-  const known=new Map<string,ContactRow>(rows.rows.map(row=>[String(row.id),row as ContactRow]));
-  // The names cached by whatsmeow are scoped to the linked account. Never
-  // use bare LIDs as phone numbers, and never return the full contact book.
-  const accountJids=new Map<string,Set<string>>();
-  for(const record of known.values()){
-   const account=String(record.account_id),phone=record.phone_e164;
-   if(!UUID.test(account)||typeof phone!=="string"||!/^\+[1-9][0-9]{9,14}$/.test(phone))continue;
-   if(!accountJids.has(account))accountJids.set(account,new Set());
-   accountJids.get(account)!.add(phone.slice(1)+"@s.whatsapp.net");
-  }
-  const contactNames=new Map<string,Record<string,string>>();
-  const client=new WhatsAppGatewayClient();
-  await Promise.all([...accountJids].map(async ([account,jids])=>{
-   const names:Record<string,string>={};
-   const ids=[...jids];
-   for(let offset=0;offset<ids.length;offset+=100){
-    try{Object.assign(names,await client.lookupContactNames(tenantId,account,ids.slice(offset,offset+100)))}
-    catch{break} // Keep the Inbox available when the device is offline.
-   }
-   contactNames.set(account,names);
-  }));
-  return conversations.map(c=>{
-   if(c.channel!=="whatsapp")return c;
-   const row=known.get(c.id);
-   const phone=typeof row?.phone_e164==="string"?row.phone_e164:null;
-   const crm=typeof row?.crm_name==="string"&&row.crm_name.trim()?row.crm_name.trim():null;
-   const edited=typeof row?.edited_name==="string"&&row.edited_name.trim()?row.edited_name.trim():null;
-   const jId=phone?phone.slice(1)+"@s.whatsapp.net":"";
-   const synced=phone?contactNames.get(String(row?.account_id))?.[jId]??null:null;
-   const displayName=crm??edited??synced;
-   return {...c,phoneNumber:phone,displayName,contactNameSyncStatus:edited?"submitted" as const:null};
-  });
+   AND r.conversation_id=ANY($2::uuid[])`,[tenantId,whatsapp.map(c=>c.id)]);
+  const known=new Map(rows.rows.map(row=>[String(row.id),{
+   phoneNumber:typeof row.phone_e164==="string"?row.phone_e164:null,
+   displayName:typeof row.display_name==="string"?row.display_name:null,
+   savedName:typeof row.saved_name==="string"?row.saved_name:null
+  }]));
+  return conversations.map(c=>c.channel==="whatsapp"?{
+   ...c,phoneNumber:known.get(c.id)?.phoneNumber??null,
+   displayName:known.get(c.id)?.displayName??null,
+   contactNameSyncStatus:known.get(c.id)?.savedName?"submitted" as const:null
+  }:c);
  }
  /** A trusted Inbox reader can request <=50 older messages from their
   * own phone for one known, account-scoped conversation. A reply arrives
@@ -139,19 +118,31 @@ export class WhatsAppReplyQueue{
  }
  /** Decorates only messages already selected by an authorized Inbox read.
   * Missing outbox rows expose old local-only replies instead of implying delivery. */
- async decorate<T extends {id:string;direction:string}>(tenantId:string,messages:readonly T[]):Promise<readonly (T & {deliveryStatus?:"pending"|"processing"|"sent"|"failed"|"not_queued"|"synced"})[]>{
+ async decorate<T extends {id:string;direction:string}>(tenantId:string,messages:readonly T[]):Promise<readonly (T & {deliveryStatus?:"pending"|"processing"|"sent"|"failed"|"not_queued"|"synced"|"delivered"|"read"})[]>{
   if(!UUID.test(tenantId))throw Error("Invalid tenant");
   const outgoing=messages.filter(message=>message.direction==="outbound"&&UUID.test(message.id));
   if(!outgoing.length)return messages;
   const db=await this.pools.resolve(tenantId);
   if(db.tenantId!==tenantId)throw Error("Tenant database mismatch");
-  const result=await db.query(`SELECT inbox_message_id::text AS message_id,status
-   FROM whatsapp_outbox WHERE tenant_id=$1::uuid AND inbox_message_id=ANY($2::uuid[])`,[tenantId,outgoing.map(m=>m.id)]);
+  const result=await db.query(`SELECT m.id::text AS message_id,
+     CASE WHEN o.id IS NOT NULL THEN
+       CASE WHEN o.status='sent' AND d.status IN ('read','delivered') THEN d.status ELSE o.status END
+     WHEN m.source IN ('live','history') THEN COALESCE(d.status,'synced')
+     ELSE 'not_queued' END AS status
+   FROM inbox_messages m
+   LEFT JOIN whatsapp_outbox o ON o.tenant_id=m.tenant_id AND o.inbox_message_id=m.id
+   LEFT JOIN whatsapp_conversation_routes r
+     ON r.tenant_id=m.tenant_id AND r.conversation_id=m.conversation_id
+   LEFT JOIN whatsapp_delivery_receipts d
+     ON d.tenant_id=m.tenant_id AND d.account_id=r.account_id
+     AND d.provider_message_id=COALESCE(o.external_message_id,m.provider_message_id)
+   WHERE m.tenant_id=$1::uuid AND m.direction='outbound'
+     AND m.id=ANY($2::uuid[])`,[tenantId,outgoing.map(m=>m.id)]);
   const known=new Map(result.rows.map(row=>[String(row.message_id),String(row.status)]));
   return messages.map(message=>{
    if(message.direction!=="outbound")return message;
    const state=known.get(message.id);
-   const deliveryStatus=state==="pending"||state==="processing"||state==="sent"||state==="failed"?state:
+   const deliveryStatus=state==="pending"||state==="processing"||state==="sent"||state==="failed"||state==="delivered"||state==="read"?state:
       ("source" in message && (message.source==="live"||message.source==="history"))?"synced":"not_queued";
    return {...message,deliveryStatus};
   });

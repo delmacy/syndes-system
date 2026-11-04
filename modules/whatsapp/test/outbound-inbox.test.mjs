@@ -100,7 +100,7 @@ test("delivery status distinguishes sent, queued and older local-only replies",a
  const ids=["00000000-0000-4000-8000-000000000040","00000000-0000-4000-8000-000000000041","00000000-0000-4000-8000-000000000042"];
  const messages=ids.map(id=>({id,direction:"outbound",body:"test"}));
  const provider={resolve:async()=>({tenantId,query:async(sql,args)=>{
-  assert.match(sql,/inbox_message_id=ANY\(\$2::uuid\[\]\)/);
+  assert.match(sql,/m.id=ANY\(\$2::uuid\[\]\)/);
   assert.equal(args[0],tenantId);
   assert.deepEqual(args[1],ids);
   return {rows:[{message_id:ids[0],status:"sent"},{message_id:ids[1],status:"processing"}]};
@@ -120,4 +120,28 @@ test('decorates WhatsApp conversations with verified per-tenant phone without mi
  assert.match(calls[0].sql,/r.tenant_id=\$1::uuid/);
  assert.match(calls[0].sql,/r.conversation_id=ANY\(\$2::uuid\[\]\)/);
  assert.deepEqual(calls[0].args,[tenantId,[conversationId]]);
+});
+
+test("WhatsApp Inbox uses synced chat title without falsely marking a contact name write",async()=>{
+ const queries=[];
+ const provider={resolve:async()=>({tenantId,query:async(sql,args)=>{
+  queries.push({sql,args});
+  return {rows:[{id:conversationId,phone_e164:"+5551999999999",
+   display_name:"Maria Sincronizada",saved_name:null}]};
+ }})};
+ const result=await new WhatsAppReplyQueue(provider).decorateConversations(tenantId,
+  [{id:conversationId,channel:"whatsapp",subject:"Maria Sincronizada"}]);
+ assert.equal(result[0].displayName,"Maria Sincronizada");
+ assert.equal(result[0].phoneNumber,"+5551999999999");
+ assert.equal(result[0].contactNameSyncStatus,null);
+ assert.match(queries[0].sql,/BTRIM\(c.subject\)/);
+ assert.match(queries[0].sql,/r.tenant_id=\$1::uuid/);
+});
+test("explicitly saved WhatsApp name takes priority over synced name",async()=>{
+ const provider={resolve:async()=>({tenantId,query:async()=>({rows:[{
+  id:conversationId,phone_e164:"+5551999999999",
+  display_name:"Maria Cadastrada",saved_name:"Maria Cadastrada"}]})})};
+ const [record]=await new WhatsAppReplyQueue(provider).decorateConversations(tenantId,[{id:conversationId,channel:"whatsapp"}]);
+ assert.equal(record.displayName,"Maria Cadastrada");
+ assert.equal(record.contactNameSyncStatus,"submitted");
 });

@@ -1,3 +1,7 @@
+export type WhatsAppGroupInfo={
+  jid:string;name:string;description:string;participantCount:number;
+  canEdit:boolean;locked:boolean;announce:boolean;
+};
 export type WhatsAppAccount={id:string;tenantId:string;displayName:string;phoneExternalId:string|null;deviceJid:string|null;state:string;serviceEnabled:boolean};
 export type Person = { id: string; name: string; email?: string | null; phone?: string | null };
 export type Organization = { id: string; legalName: string; tradeName?: string | null; taxId?: string | null };
@@ -10,7 +14,7 @@ export type Conversation = {
 };
 export type Message = {
   id: string; body: string; direction: string; createdAt?: string; authorId?: string;
-  deliveryStatus?: "pending"|"processing"|"sent"|"failed"|"not_queued"|"synced";source?:"local"|"live"|"history";
+  deliveryStatus?: "pending"|"processing"|"sent"|"failed"|"not_queued"|"synced"|"delivered"|"read";source?:"local"|"live"|"history";
 };
 export type CrmNote = { id: string; body: string; createdAt: string; createdBy: string };
 export type CrmCapability =
@@ -74,6 +78,16 @@ export class TenantApi {
     return this.request<{submitted:true;confirmedOnPhone:false;fullName:string;phoneNumber:string}>("whatsapp",
       "/conversations/"+encodeURIComponent(conversationId)+"/contact-name","PATCH",
       {fullName,saveOnPrimaryAddressbook});
+  }
+  whatsappAvatar(conversationId:string){
+    return this.request<{available:boolean;imageData?:string}>("whatsapp",
+      "/conversations/"+encodeURIComponent(conversationId)+"/avatar");
+  }
+  whatsappGroupInfo(conversationId:string){
+    return this.request<WhatsAppGroupInfo>("whatsapp","/conversations/"+encodeURIComponent(conversationId)+"/group");
+  }
+  updateWhatsAppGroup(conversationId:string,change:{name?:string;description?:string}){
+    return this.request<WhatsAppGroupInfo>("whatsapp","/conversations/"+encodeURIComponent(conversationId)+"/group","PATCH",change);
   }
   pairWhatsAppAccount(accountId:string){return this.request<{pairingCode:string;expiresAt:string}>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/pair","POST")}
   connectWhatsAppAccount(accountId:string){return this.request<{phoneExternalId:string}>("whatsapp","/accounts/"+encodeURIComponent(accountId)+"/connect","POST")}

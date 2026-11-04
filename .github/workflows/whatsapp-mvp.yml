@@ -1,0 +1,72 @@
+name: WhatsApp MVP Gate
+
+on:
+  push:
+    paths:
+      - "modules/whatsapp/**"
+      - "modules/inbox/**"
+      - "apps/core-host/**"
+      - "apps/workspace-web/**"
+      - ".github/workflows/whatsapp-mvp.yml"
+  pull_request:
+    paths:
+      - "modules/whatsapp/**"
+      - "modules/inbox/**"
+      - "apps/core-host/**"
+      - "apps/workspace-web/**"
+      - ".github/workflows/whatsapp-mvp.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: whatsapp-mvp-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  whatsapp-typescript:
+    name: WhatsApp TS contracts, isolation and outbound
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Build trusted Core Kernel
+        run: |
+          cd packages/core-kernel
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: Install WhatsApp package dependencies
+        run: |
+          cd modules/whatsapp
+          npm ci --no-audit --no-fund
+      - name: Check and execute WhatsApp domain regressions
+        run: |
+          cd modules/whatsapp
+          npm run check
+          npm test
+      - name: Verify module publication manifest
+        run: cd modules/whatsapp && npm pack --dry-run
+
+  whatsapp-go:
+    name: Whatsmeow Go provider, race and safety
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: modules/whatsapp/gateway/whatsmeow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: modules/whatsapp/gateway/whatsmeow/go.mod
+          cache-dependency-path: modules/whatsapp/gateway/whatsmeow/go.sum
+      - name: Verify dependency integrity
+        run: go mod verify
+      - name: Unit tests with race detection
+        run: go test -race -count=1 ./...
+      - name: Static analysis
+        run: go vet ./...
+      - name: Build the production gateway
+        run: CGO_ENABLED=0 go build -trimpath -o /tmp/syndes-whatsapp-ci .

@@ -3,6 +3,8 @@ import {AccessDeniedError,type Actor,type CoreKernel,type TrustedTenantDatabaseP
 import {WhatsAppAccounts} from "./accounts.js";
 import {WhatsAppGatewayClient} from "./gateway-client.js";
 import {WhatsAppContactNames} from "./contact-name.js";
+import {WhatsAppGroupService} from "./groups.js";
+import {WhatsAppAvatars} from "./avatars.js";
 
 type Runtime={kernel:CoreKernel;verifier:{verify(value:string|undefined):Promise<Actor>}};
 @Injectable()
@@ -10,9 +12,13 @@ export class WhatsAppHost {
  readonly accounts:WhatsAppAccounts;
  readonly gateway=new WhatsAppGatewayClient();
  readonly contactNames:WhatsAppContactNames;
+ readonly groups:WhatsAppGroupService;
+ readonly avatars:WhatsAppAvatars;
  constructor(@Inject("SYNDES_CORE_API")private readonly core:Runtime,
  @Inject("SYNDES_TENANT_DB")pools:TrustedTenantDatabaseProvider){
   this.contactNames=new WhatsAppContactNames(pools,this.gateway);
+  this.groups=new WhatsAppGroupService(pools,this.gateway);
+  this.avatars=new WhatsAppAvatars(pools,this.gateway);
   this.accounts=new WhatsAppAccounts(async tenantId=>{
    const db=await pools.resolve(tenantId);
    if(db.tenantId!==tenantId)throw new Error("Tenant database mismatch");
@@ -21,6 +27,11 @@ export class WhatsAppHost {
     return {rows:result.rows as T[]};
    }};
   });
+ }
+ async avatarAuthorized(tenantId:string,authorization:string|undefined,conversationId:string){
+  const actor=await this.core.verifier.verify(authorization);
+  return this.core.kernel.execute({tenantId,actor,resource:"inbox:conversations",action:"read"},
+   ()=>this.avatars.get(tenantId,conversationId));
  }
  async runContactName<T>(tenantId:string,authorization:string|undefined,fn:(actor:Actor)=>Promise<T>):Promise<T>{
   let actor:Actor;
@@ -147,5 +158,24 @@ export class WhatsAppContactNamesController {
       body?.fullName,body?.saveOnPrimaryAddressbook??false));
  }
 }
-@Module({providers:[WhatsAppHost],controllers:[WhatsAppAccountsController,WhatsAppContactNamesController]})
+@Controller("v1/tenants/:tenantId/whatsapp/conversations")
+export class WhatsAppGroupsController{
+ constructor(private readonly host:WhatsAppHost){}
+ @Get(":conversationId/avatar")
+ avatar(@Param("tenantId")tenantId:string,@Param("conversationId")conversationId:string,
+   @Headers("authorization")authorization:string|undefined){
+   return this.host.run(tenantId,authorization,"read",()=>this.host.avatarAuthorized(tenantId,authorization,conversationId));
+ }
+ @Get(":conversationId/group")
+ info(@Param("tenantId")tenantId:string,@Param("conversationId")conversationId:string,
+  @Headers("authorization")authorization:string|undefined){
+  return this.host.run(tenantId,authorization,"read",()=>this.host.groups.info(tenantId,conversationId));
+ }
+ @Patch(":conversationId/group")
+ update(@Param("tenantId")tenantId:string,@Param("conversationId")conversationId:string,
+  @Headers("authorization")authorization:string|undefined,@Body()body:unknown){
+  return this.host.run(tenantId,authorization,"write",()=>this.host.groups.update(tenantId,conversationId,body));
+ }
+}
+@Module({providers:[WhatsAppHost],controllers:[WhatsAppAccountsController,WhatsAppContactNamesController,WhatsAppGroupsController]})
 export class WhatsAppHttpModule{}
