@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { CustomerContextPanel } from "@/features/inbox-context";
 import { WhatsAppAvatar } from "@/features/whatsapp-avatar";
+import { reconcileInboxThread } from "@/features/inbox-thread";
 import { isMine, replyBlockReason } from "@/features/inbox-rules";
 import { clearSentDraft, draftKey, setDraft, type ComposerMode } from "@/features/inbox-drafts";
 import type { Conversation, Message, Person, TenantApi, QueueFilter, WhatsAppGroupInfo } from "@/lib/api";
@@ -190,15 +191,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
       setSelected(conversation);
       // Receipt updates may arrive while the SSE stream stays connected.
       // Skip unchanged state to preserve scroll position and avoid rerenders.
-      setThread(previous=>{
-        if(previous.length===messages.length && previous.every((old,index)=>{
-          const latest=messages[index];
-          return old.id===latest.id && old.deliveryStatus===latest.deliveryStatus &&
-            old.body===latest.body && old.createdAt===latest.createdAt &&
-            old.direction===latest.direction;
-        }))return previous;
-        return messages;
-      });
+      setThread(previous=>reconcileInboxThread(previous,messages) as Message[]);
       setThreadError(false);
     } catch (error) {
       if (requestId !== threadRequest.current || activeId.current !== id) return;

@@ -3,11 +3,13 @@ on:
   push:
     paths:
       - "modules/inbox/**"
+      - "modules/whatsapp/**"
       - ".github/workflows/core-inbox.yml"
       - "packages/core-kernel/**"
   pull_request:
     paths:
       - "modules/inbox/**"
+      - "modules/whatsapp/**"
       - ".github/workflows/core-inbox.yml"
       - "packages/core-kernel/**"
 permissions:
