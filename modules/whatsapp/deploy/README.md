@@ -131,3 +131,11 @@ A sincronização inicial completa depende do que o WhatsApp envia durante o par
 - Testes: 57 testes WhatsApp (incluindo recibos, deduplicação e leitura após entrega), browser Playwright para scroll inicial e ícones, e integração PostgreSQL/HTTP em banco descartável. Teste SQL de consulta de recibos no banco real com `EXPLAIN` passou sem ler conteúdo das mensagens.
 - Implantação: Core `syndes/core-host:inbox-receipts-scroll-r2-20261104`, gateway `syndes/whatsapp-gateway:inbox-receipts-scroll-20261104`, frontend servido no Workspace existente. Migração 007 aplicada no tenant de homologação após verificação de esquema; `/home/delmacy/syndes-releases/inbox-receipts-scroll-20261104/` contém overlays reversíveis e backup anterior do frontend. A sessão WhatsApp permaneceu conectada.
 - Homologação ainda pendente: enviar uma **nova mensagem autorizada** a outro dispositivo e confirmar a recepção dos recibos de entrega e leitura reais. Não alteramos conversas nem enviamos mensagens de clientes nos testes.
+
+## Reconciliação do duplo check com WhatsApp canônico — 2026-11-04
+
+Falha observada: a mensagem real estava marcada `sent` no outbox e `delivered` na tabela de recibos WhatsApp, mas a Inbox permanecia com ícone de relógio. A causa foi o fluxo SSE: ao conectar, a Inbox suspendia o polling e recibos de entrega não geravam necessariamente o evento de invalidação da lista. A atualização de status era persistida corretamente no banco, mas a conversa aberta podia ficar desatualizada.
+
+Correção: enquanto uma conversa estiver aberta e a aba visível, a Inbox verifica o estado a cada 8 segundos, independente do SSE, sem reenviar mensagens, modificar status canônicos ou atualizar conversas ocultas. Se a lista recebida estiver inalterada, mantém a referência React e o scroll. Quando o WhatsApp confirmar `delivered` ou `read`, o ícone corresponde ao estado persistido pelo backend.
+
+Teste de regressão Playwright: simula status `processing` seguido de `delivered` sem nova mensagem ou evento SSE, valida atualização automática para duplo check e preservação do scroll; os testes anteriores permanecem ativos. Deploy do frontend em `inbox-dedupe-20261103/workspace-dist` com backup anterior em `syndes-releases/receipt-live-refresh-backup-20261104/workspace-dist`. Nenhuma alteração de sessão ou reenvio real foi realizado.

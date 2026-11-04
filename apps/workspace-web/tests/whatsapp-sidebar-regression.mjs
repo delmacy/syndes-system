@@ -29,6 +29,8 @@ try {
   await page.route("**/workspace-runtime.json",route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({issuer:"https://idp.fixture.invalid/realms/syndes",clientId:"syndes-workspace-ui",tenantId:tenant,tenantLabel:"Lab"})}));
   await page.route("https://idp.fixture.invalid/**",route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({access_token:token})}));
   let unavailable=false;
+  let liveDeliveryStatus="processing";
+  let messageReadRequests=0;
   let groupDetails={jid:"120363012345678901@g.us",name:"Equipe WhatsApp",
     description:"Descrição antiga",participantCount:7,canEdit:true,locked:false,announce:false};
   await page.route("**/v1/tenants/**",route=>{
@@ -59,10 +61,11 @@ try {
     else if(path==="/inbox/conversations/"+groupId)response=group;
     else if(path?.endsWith("/messages")){
       if(path.includes(personalId)){
+        messageReadRequests++;
         response=Array.from({length:45},(_,i)=>({
          id:"sample-"+i,body:i===44?"Mensagem real sincronizada":"Histórico de teste "+i+" — ".repeat(7),
          direction:i%3===0?"outbound":"inbound",
-         deliveryStatus:i===0?"sent":i===3?"delivered":i===6?"read":"synced",
+         deliveryStatus:i===0?liveDeliveryStatus:i===3?"delivered":i===6?"read":"synced",
          createdAt:new Date(Date.UTC(2026,10,3,10,i)).toISOString(),
         }));
       }else response=[{id:"g-1",body:"Mensagem real sincronizada",direction:"inbound",createdAt:"2026-11-03T10:00:00Z"}];
@@ -97,10 +100,18 @@ try {
   await page.waitForFunction(()=>{const el=document.querySelector('[data-scroll-pane="messages"]');return el&&el.scrollHeight>el.clientHeight*2});
   const atBottom=()=>viewport.evaluate(el=>el.scrollHeight-el.scrollTop-el.clientHeight);
   assert.ok(await atBottom()<3,"Opening a conversation must start at its latest message");
-  assert.equal(await viewport.getByRole("status",{name:"Enviada pelo WhatsApp"}).count(),1,"Sent is not delivered");
+  assert.equal(await viewport.getByRole("status",{name:"Enviando pelo WhatsApp"}).count(),1,"Pending is not delivered");
   assert.equal(await viewport.getByRole("status",{name:"Entregue"}).count(),1,"Delivery receipt shows dual gray check");
   assert.equal(await viewport.getByRole("status",{name:"Lida"}).count(),1,"Read receipt shows dual blue check");
-  console.log("PASS latest-first scroll and provider-confirmed double-check icons");
+  // No new message and no SSE event: the provider status changes independently.
+  // The open conversation must reconcile it on the receipt timer.
+  const initialReadRequests=messageReadRequests;
+  liveDeliveryStatus="delivered";
+  await viewport.getByRole("status",{name:"Entregue"}).nth(1).waitFor({timeout:15000});
+  assert.ok(messageReadRequests>initialReadRequests,"Active chat must poll confirmed provider status without an SSE event");
+  assert.equal(await viewport.getByRole("status",{name:"Enviando pelo WhatsApp"}).count(),0,"Pending indicator must disappear after canonical delivery");
+  assert.ok(await atBottom()<3,"Receipt-only changes must preserve the bottom scroll");
+  console.log("PASS canonical receipt polling, double-check status and latest-first scroll");
   await page.getByRole("button",{name:/Grupos/}).click();
   await page.getByRole("button",{name:/Equipe WhatsApp/}).waitFor();
   await sidebar.locator('[data-avatar-for="'+groupId+'"]').waitFor();

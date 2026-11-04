@@ -188,7 +188,17 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
       const [conversation, messages] = await Promise.all([api.conversation(id), api.messages(id)]);
       if (requestId !== threadRequest.current || activeId.current !== id) return;
       setSelected(conversation);
-      setThread(messages);
+      // Receipt updates may arrive while the SSE stream stays connected.
+      // Skip unchanged state to preserve scroll position and avoid rerenders.
+      setThread(previous=>{
+        if(previous.length===messages.length && previous.every((old,index)=>{
+          const latest=messages[index];
+          return old.id===latest.id && old.deliveryStatus===latest.deliveryStatus &&
+            old.body===latest.body && old.createdAt===latest.createdAt &&
+            old.direction===latest.direction;
+        }))return previous;
+        return messages;
+      });
       setThreadError(false);
     } catch (error) {
       if (requestId !== threadRequest.current || activeId.current !== id) return;
@@ -229,12 +239,21 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     };
     void connect();
     const timer = window.setInterval(()=>{if(!liveStream)reload();},FALLBACK_INTERVAL_MS);
+    // Provider receipts (sent/delivered/read) update WhatsApp metadata without
+    // necessarily creating a new Inbox message or SSE invalidation event.
+    // Refresh an open chat even while the SSE connection is healthy.
+    const receiptTimer=window.setInterval(()=>{
+      if(document.visibilityState!=="visible"||busy.current)return;
+      const current=activeId.current;
+      if(current)void readThread(current);
+    },8000);
     const visible = () => {if(document.visibilityState==="visible")reload();};
     document.addEventListener("visibilitychange",visible);
     return ()=>{
       abort.abort();
       if(retry)clearTimeout(retry);
       window.clearInterval(timer);
+      window.clearInterval(receiptTimer);
       document.removeEventListener("visibilitychange",visible);
     };
   }, [api,refresh,readThread]);
