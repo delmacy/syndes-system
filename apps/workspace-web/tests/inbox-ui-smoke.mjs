@@ -84,8 +84,8 @@ async function mockWorkspace(page) {
   const navigation = page.getByRole("button", { name: "Inbox", exact: true }).first();
   if (await navigation.isVisible()) await navigation.click();
   else await page.evaluate(() => { window.location.hash = "inbox"; });
-  await page.getByRole("heading", { name: "Inbox", exact: true }).waitFor();
-  await page.getByText("Fila de conversas").waitFor();
+  await page.getByRole("region", { name: "Inbox" }).waitFor();
+  await page.getByLabel("Lista de conversas").first().waitFor();
   return { records, threads };
 }
 
@@ -98,6 +98,8 @@ try {
   const errors = [];
   desktop.on("pageerror", error => errors.push(error.message));
   await mockWorkspace(desktop);
+  assert.equal(await desktop.locator("#syndes-inbox-toolbar").getByRole("button", {name:"Nova conversa"}).count(),1,"Inbox actions belong to global header");
+  assert.equal(await desktop.locator(".syndes-sidebar").getByRole("button",{name:"Configurações"}).count(),1,"Global settings belong to sidebar footer");
   await desktop.getByRole("button", { name: "Minhas" }).click();
   await desktop.getByRole("button", { name: /Pedido inicial/ }).waitFor();
   assert.equal(await desktop.getByRole("button", { name: /Conversa resolvida/ }).count(), 0);
@@ -107,11 +109,18 @@ try {
   await desktop.getByRole("group", { name: "Filtrar conversas por responsável" }).getByRole("button", { name: "Todas" }).click();
   await desktop.getByRole("button", { name: /Pedido inicial/ }).click();
   await desktop.getByText("Olá, preciso de ajuda").waitFor();
+  await desktop.getByRole("button", {name:"Abrir inspetor de contato"}).click();
   await desktop.getByRole("heading", { name: "Ana Exemplo" }).waitFor();
   await desktop.getByText("Prefere contato pela manhã").waitFor();
   await desktop.getByText("Empresa Exemplo", { exact: true }).waitFor();
   await desktop.getByText("VIP", { exact: true }).waitFor();
-  console.log("PASS: server-filtered Mine/Unassigned/All queues and authorized CRM notes/context");
+  await desktop.getByRole("button",{name:"Atendimento",exact:true}).click();
+  await desktop.getByText("Atendimento atual", {exact:true}).waitFor();
+  await desktop.getByRole("button",{name:"Atividade",exact:true}).click();
+  await desktop.getByText("Histórico da conversa").waitFor();
+  await desktop.getByRole("button",{name:"Contato",exact:true}).click();
+  await desktop.getByRole("button", {name:"Close",exact:true}).click();
+  console.log("PASS: server-filtered queues and authorized Inspector tabs");
   assert.equal(await desktop.locator("#inbox-composer").isDisabled(), false);
   console.log("PASS: Desktop Inbox opens thread with authorized agent composer");
 
@@ -143,19 +152,30 @@ try {
   console.log("PASS: failed API send preserves draft; retry clears only after success");
 
 
-  await desktop.getByRole("button", { name: "Liberar" }).click();
+  const actionMenu = desktop.locator("#syndes-inbox-toolbar details");
+  const runMenuAction = async (name) => {
+    await actionMenu.locator("summary").click();
+    await actionMenu.getByRole("button", { name }).click();
+    await actionMenu.locator("summary").click();
+  };
+  const setConversationStatus = async (status) => {
+    await actionMenu.locator("summary").click();
+    await actionMenu.getByRole("combobox", { name: "Estado do atendimento" }).selectOption(status);
+    await actionMenu.locator("summary").click();
+  };
+  await runMenuAction("Liberar atendimento");
   await desktop.getByText(/Assuma a conversa antes de responder/).waitFor();
   assert.equal(await desktop.locator("#inbox-composer").isDisabled(), true);
-  await desktop.getByRole("button", { name: "Assumir" }).click();
+  await runMenuAction("Assumir atendimento");
   await desktop.waitForFunction(() => !document.querySelector("#inbox-composer")?.disabled);
   console.log("PASS: release and reclaim conversation gates reply composer");
 
-  await desktop.getByRole("button", { name: "Pendente", exact: true }).click();
-  await desktop.getByRole("button", { name: "Aberta", exact: true }).click();
-  await desktop.getByRole("button", { name: "Transferir ao bot" }).click();
+  await setConversationStatus("pending");
+  await setConversationStatus("open");
+  await runMenuAction("Transferir ao bot");
   await desktop.getByText(/Transfira o atendimento do bot/).waitFor();
   assert.equal(await desktop.locator("#inbox-composer").isDisabled(), true);
-  await desktop.getByRole("button", { name: "Transferir ao humano" }).click();
+  await runMenuAction("Transferir ao humano");
   await desktop.waitForFunction(() => !document.querySelector("#inbox-composer")?.disabled);
   console.log("PASS: status and human/bot handoff state changes");
 
@@ -168,16 +188,16 @@ try {
   await desktop.getByRole("button", { name: "Simular entrada" }).last().click();
   await desktop.getByText("Mensagem simulada QA").waitFor();
   console.log("PASS: note and inbound simulation rendered in history");
-  await desktop.getByRole("button", { name: "Resolvida", exact: true }).click();
+  await setConversationStatus("resolved");
   await desktop.getByRole("button", { name: "Resposta" }).click();
   assert.equal(await desktop.locator("#inbox-composer").isDisabled(), true);
-  await desktop.getByRole("button", { name: "Aberta", exact: true }).click();
+  await setConversationStatus("open");
   console.log("PASS: resolved conversation blocks replies until reopen");
 
   await desktop.getByRole("button", { name: "Nova conversa" }).click();
   await desktop.getByRole("dialog").getByLabel("Assunto").fill("Teste de criação na Inbox");
   await desktop.getByRole("dialog").getByRole("button", { name: "Criar conversa" }).click();
-  await desktop.getByRole("heading", { name: "Teste de criação na Inbox" }).waitFor();
+  await desktop.getByText("Teste de criação na Inbox", { exact: true }).first().waitFor();
   await desktop.getByRole("button", { name: /Teste de criação na Inbox/ }).waitFor();
   assert.deepEqual(errors, [], "No browser JavaScript errors");
   console.log("PASS: create conversation opens new thread and updates queue without reload");
@@ -185,11 +205,11 @@ try {
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await mockWorkspace(mobile);
   await mobile.getByRole("button", { name: /Pedido inicial/ }).click();
-  await mobile.getByRole("button", { name: "Ver contexto CRM" }).click();
+  await mobile.getByRole("button", { name: "Abrir inspetor de contato" }).click();
   await mobile.getByRole("heading", { name: "Ana Exemplo" }).waitFor();
   await mobile.getByRole("button", { name: "Close", exact: true }).click();
-  await mobile.getByRole("button", { name: "Voltar para conversas" }).waitFor();
-  await mobile.getByRole("button", { name: "Voltar para conversas" }).click();
+  await mobile.getByRole("button", { name: "Voltar às conversas" }).waitFor();
+  await mobile.getByRole("button", { name: "Voltar às conversas" }).click();
   await mobile.getByRole("button", { name: /Pedido inicial/ }).waitFor();
   const sizes = await mobile.evaluate(() => ({ scroll: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   assert.ok(sizes.scroll <= sizes.viewport + 3, "No horizontal viewport overflow");

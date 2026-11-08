@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Clock3, ContactRound, Mail, NotebookText, Phone, RefreshCw, UserRoundX, Building2, Tags } from "lucide-react";
+import { ArrowUpRight, CalendarPlus, Clock3, ContactRound, Mail, NotebookText, Phone, RefreshCw, UserRoundX, Building2, Tags, Headset, History } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { CrmNote, CrmTimelineEvent, CrmTag, Organization, Person, TenantApi } from "@/lib/api";
+import type { Conversation, CrmNote, CrmTimelineEvent, CrmTag, Organization, Person, TenantApi } from "@/lib/api";
 
 type State = {
   person: Person | null;
@@ -127,5 +127,58 @@ export function CustomerContextPanel({ api, personId, onOpenCrm }: {
         <p className="border-t border-border pt-3 text-[11px] text-muted-foreground">Dados consultados diretamente no CRM, conforme as permissões do atendente.</p>
       </>}
     </div>
+  </aside>;
+}
+
+
+/**
+ * The same CRM surface is reused by the Inbox and CRM module.
+ * Contextual tools must never invent a protocol, presence or appointment
+ * before their tenant-authorized backend modules exist.
+ */
+export function InboxInspectorPanel({api, conversation, onOpenCrm}: {
+  api: TenantApi;
+  conversation: Conversation;
+  onOpenCrm: () => void;
+}) {
+  const [tab, setTab] = useState<"contact"|"service"|"activity">("contact");
+  const buttons: {id: typeof tab; label: string}[] = [
+    {id:"contact",label:"Contato"},
+    {id:"service",label:"Atendimento"},
+    {id:"activity",label:"Atividade"},
+  ];
+  return <aside aria-label="Inspector da Inbox" className="flex h-full min-h-0 flex-col bg-white">
+    <nav aria-label="Seções do Inspector" className="flex shrink-0 border-b border-border px-2 pt-3">
+      {buttons.map(item=><button type="button" key={item.id} aria-current={tab===item.id?"page":undefined}
+        className={"flex-1 border-b-2 px-1 pb-3 text-xs font-semibold "+(tab===item.id?"border-blue-600 text-blue-700":"border-transparent text-slate-500 hover:text-slate-800")}
+        onClick={()=>setTab(item.id)}>{item.label}</button>)}
+    </nav>
+    {tab==="contact"&&<div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="border-b border-border p-4">
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">Ações do contato</p>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onOpenCrm}><ContactRound className="size-4"/> Abrir CRM</Button>
+          <Button type="button" variant="outline" size="sm" disabled title="Agenda ainda não instalada">
+            <CalendarPlus className="size-4"/> Agendar (em breve)
+          </Button>
+        </div>
+      </div>
+      <CustomerContextPanel api={api} personId={conversation.crmPersonId} onOpenCrm={onOpenCrm}/>
+    </div>}
+    {tab==="service"&&<div className="space-y-4 overflow-y-auto p-4 text-sm">
+      <div className="flex items-center gap-2 font-semibold text-slate-800"><Headset className="size-4"/> Atendimento atual</div>
+      <dl className="space-y-3 rounded-xl border border-border p-4 text-xs">
+        <div className="flex justify-between gap-3"><dt className="text-slate-500">Estado</dt><dd className="font-semibold">{conversation.status==="open"?"Aberto":conversation.status==="pending"?"Pendente":"Resolvido"}</dd></div>
+        <div className="flex justify-between gap-3"><dt className="text-slate-500">Responsável</dt><dd className="max-w-[60%] break-all text-right">{conversation.assignedTo||"Não atribuído"}</dd></div>
+        <div className="flex justify-between gap-3"><dt className="text-slate-500">Modo</dt><dd>{conversation.handoff==="bot"?"Bot":"Humano"}</dd></div>
+        <div className="flex justify-between gap-3"><dt className="text-slate-500">Canal</dt><dd>{conversation.channel}</dd></div>
+      </dl>
+      <p className="text-xs leading-relaxed text-muted-foreground">Protocolos individuais, transferências entre operadores online e eventos de abertura/encerramento dependem do módulo de atendimentos. Esta tela não atribui um número fictício de protocolo.</p>
+    </div>}
+    {tab==="activity"&&<div className="space-y-3 overflow-y-auto p-4 text-sm">
+      <div className="flex items-center gap-2 font-semibold text-slate-800"><History className="size-4"/> Histórico da conversa</div>
+      <p className="text-xs leading-relaxed text-muted-foreground">A conversa mantém seu histórico contínuo. A linha do tempo de protocolos e transferências aparecerá quando os eventos auditáveis estiverem disponíveis na API.</p>
+      {conversation.updatedAt&&<p className="rounded-xl border border-border p-3 text-xs">Última atividade: {displayDate(conversation.updatedAt)}</p>}
+    </div>}
   </aside>;
 }
