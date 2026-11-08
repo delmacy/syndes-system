@@ -22,7 +22,7 @@ import { SecurityInfo } from "@/features/settings";
 import { WhatsAppAccountsFeature } from "@/features/whatsapp-accounts";
 import { InboxFeature } from "@/features/inbox";
 import { TenantApi } from "@/lib/api";
-import { actorFromToken, beginLogin, finishLogin, getWorkspaceConfig, type WorkspaceConfig } from "@/lib/auth";
+import { actorFromToken, autoLoginAllowed, beginLogin, finishLogin, getWorkspaceConfig, markSignedOut, type WorkspaceConfig } from "@/lib/auth";
 import type { View } from "@/lib/views";
 
 const moduleNavigation: { id: View; title: string; subtitle: string; icon: typeof InboxIcon }[] = [
@@ -58,7 +58,7 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [loginError, setLoginError] = useState("");
-  const logout = useCallback(() => { setToken(null); toast.info("Sessão local encerrada."); }, []);
+  const logout = useCallback(() => { markSignedOut(); setToken(null); toast.info("Sessão local encerrada."); }, []);
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -68,6 +68,11 @@ export default function App() {
         setConfig(value);
         const jwt = await finishLogin(value);
         if (active && jwt) { setToken(jwt); toast.success("Autenticado com Keycloak."); }
+        else if (active && !jwt && autoLoginAllowed()) {
+          // Keycloak is the single entry point for the entire Workspace.
+          // No separate login gate for the Inbox/CRM modules.
+          await beginLogin(value);
+        }
       } catch (e) { if (active) setLoginError(e instanceof Error ? e.message : "Falha ao inicializar."); }
       finally { if (active) setInitializing(false); }
     })();
@@ -131,7 +136,7 @@ export default function App() {
           {initializing && <div className="flex min-h-72 items-center justify-center text-sm text-muted-foreground"><Sparkles className="mr-2 size-4 animate-pulse" /> Carregando Workspace Syndes...</div>}
           {!initializing && view === "overview" && <Overview api={api} name={tenantName} onNavigate={navigate} />}
           {!initializing && view === "settings" && config && <><SecurityInfo config={config} />{api&&<WhatsAppAccountsFeature api={api} />}</>}
-          {!initializing && (view === "crm" || view === "inbox") && !api && <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-4 rounded-3xl border border-[#e3eaf6] bg-white p-10 text-center shadow-sm"><div className="rounded-2xl bg-[#eaf0ff] p-5 text-[#4d6ed3]"><LockKeyhole className="size-8" /></div><h2 className="text-xl font-bold">Acesso protegido</h2><p className="text-sm leading-relaxed text-muted-foreground">Para trabalhar no {title}, autentique-se com sua conta. O Keycloak validará sua identidade e as permissões serão conferidas no servidor.</p><Button size="lg" onClick={() => config && void beginLogin(config)}><LogIn className="size-4" /> Entrar com Keycloak</Button></div>}
+          {!initializing && (view === "crm" || view === "inbox") && !api && <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-4 rounded-3xl border border-[#e3eaf6] bg-white p-10 text-center shadow-sm"><div className="rounded-2xl bg-[#eaf0ff] p-5 text-[#4d6ed3]"><LockKeyhole className="size-8" /></div><h2 className="text-xl font-bold">Acesso protegido</h2><p className="text-sm leading-relaxed text-muted-foreground">Uma única autenticação dá acesso aos módulos autorizados do Workspace. As permissões continuam sendo verificadas pelo servidor.</p><Button size="lg" onClick={() => config && void beginLogin(config)}><LogIn className="size-4" /> Entrar com Keycloak</Button></div>}
           {!initializing && api && view === "crm" && <CrmFeature api={api} />}
           {!initializing && api && view === "inbox" && <InboxFeature api={api} actorId={actorId} onOpenCrm={() => navigate("crm")} />}
         </div>

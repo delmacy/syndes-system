@@ -6,6 +6,16 @@ export type WorkspaceConfig = Readonly<{
 }>;
 
 const pendingKey = "syndes.workspace.pkce";
+const signedOutKey = "syndes.workspace.signed-out";
+
+export function autoLoginAllowed(): boolean {
+  return sessionStorage.getItem(signedOutKey) !== "1";
+}
+
+export function markSignedOut(): void {
+  sessionStorage.setItem(signedOutKey, "1");
+}
+
 const callbackUri = () => window.location.origin + "/";
 
 function base64url(value: Uint8Array): string {
@@ -15,10 +25,11 @@ function base64url(value: Uint8Array): string {
 }
 
 export async function beginLogin(config: WorkspaceConfig) {
+  sessionStorage.removeItem(signedOutKey);
   const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
   const state = base64url(crypto.getRandomValues(new Uint8Array(24)));
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
-  sessionStorage.setItem(pendingKey, JSON.stringify({ verifier, state, created: Date.now() }));
+  sessionStorage.setItem(pendingKey, JSON.stringify({ verifier, state, created: Date.now(), returnHash: window.location.hash }));
   const uri = new URL(config.issuer + "/protocol/openid-connect/auth");
   uri.search = new URLSearchParams({
     client_id: config.clientId,
@@ -51,7 +62,7 @@ async function exchangeCallback(config: WorkspaceConfig): Promise<string | null>
   sessionStorage.removeItem(pendingKey);
   if (query.has("error")) throw new Error("Login cancelado ou não autorizado pelo Keycloak.");
   if (!entry) throw new Error("Sessão de autenticação não encontrada. Entre novamente.");
-  let stored: { verifier: string; state: string; created: number };
+  let stored: { verifier: string; state: string; created: number; returnHash?: string };
   try { stored = JSON.parse(entry) as typeof stored; }
   catch { throw new Error("Sessão OIDC inválida."); }
   if (!stored.state || stored.state !== query.get("state") ||
@@ -72,6 +83,9 @@ async function exchangeCallback(config: WorkspaceConfig): Promise<string | null>
   const json: unknown = await result.json();
   const token = (json as { access_token?: unknown })?.access_token;
   if (typeof token !== "string" || !token) throw new Error("Resposta de login inválida.");
+  if (stored.returnHash && /^#(overview|inbox|crm|settings)$/.test(stored.returnHash)) {
+    window.location.hash = stored.returnHash;
+  }
   return token;
 }
 
