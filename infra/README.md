@@ -1,16 +1,17 @@
 # Syndes Infrastructure — PostgreSQL + Security and Access + Core Host
 
-There are **three independent Compose projects**, not one container per module:
+There are **four independent Compose projects** (including the unreleased Platform Manager), not one container per module:
 - `syndes-postgres`: one PostgreSQL server, databases `syndes_control`, `syndes_keycloak`, `syndes_openfga`, plus independently provisioned `syndes_tenant_<uuid>` databases.
 - `syndes-security-access`: OpenBao (its own Raft volume), Keycloak, OpenFGA.
 - Core Host (NestJS): one process for the business modules, built on `@syndes/core-kernel`.
+- Platform Manager (draft/not deployed): isolated control-plane API and frontend, on dedicated admin-only data/identity networks.
 
 ## Bootstrap without persistent password environment files
 
 OpenBao must be **started alone and unsealed before** any service that requires a password is launched. This avoids a database/secret-manager startup cycle.
 
 1. On the authorized Linux host, provision private TLS cert/key with DNS SAN `openbao`, under `infra/security-access/openbao/tls/` (gitignored).
-2. Ensure the private PostgreSQL Docker network exists, even though the database is not started yet: `docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data`. The stack itself owns that named network when brought up.
+2. Ensure the three private Docker networks exist **before** bringing up PostgreSQL, Keycloak, or OpenBao: `for name in syndes-data syndes-master-data syndes-master-identity; do docker network inspect "$name" >/dev/null 2>&1 || docker network create --internal "$name"; done`. The two `syndes-master-*` networks are exclusive to the Platform Manager data/identity paths. Do not attach Core Host, OpenFGA, Whatsmeow or Workspace to either.
 3. Start **only OpenBao**: `docker compose --env-file infra/.env -f infra/security-access/compose.yaml up -d openbao`. The `.env` file contains only non-sensitive hostnames/audience/store identifiers; secrets are not read from it.
 4. Initialize/unseal OpenBao through the approved operator procedure; never use a 1-of-1 unseal key or log the recovery material in production. Enable KV v2 and AppRole. Use `infra/security-access/openbao/policies/runtime-delivery.hcl` for a dedicated **runtime-delivery** identity, provision its role-id and secret-id out of band to protected `/run/syndes/approle/runtime-delivery/` files. The CI smoke test exercises this actual API and policy.
 5. Populate the following OpenBao KV v2 paths using a privileged operator with unique randomly generated strong credentials:
@@ -49,7 +50,7 @@ No tenant is activated or granted membership automatically. Activation and FGA t
 ## Operations
 
 - Avoid publishing PostgreSQL, OpenFGA APIs, Keycloak admin port or Core Host directly to the internet.
-- PostgreSQL runs on the dedicated private `syndes-data` Docker network. Keycloak and OpenFGA share `syndes-security-access`. OpenBao is restricted to the separate internal `syndes-secrets` network; no OpenBao ports are published.
+- PostgreSQL remains on private `syndes-data` and additionally connects to `syndes-master-data`; Keycloak remains on `syndes-security-access` and additionally connects to `syndes-master-identity`. The Platform Manager API attaches **only** to these two new dedicated networks plus `master-private`, while its frontend attaches only to `master-private`. Core Host, OpenFGA, Whatsmeow and Workspace must NOT attach to the dedicated networks. Docker network isolation limits paths to the Core Host, but the PostgreSQL service is shared at the same IP: dedicated least-privilege DB roles and denial of tenant CONNECT remain mandatory. OpenBao is restricted to `syndes-secrets`, with no published ports.
 - Pin version tags, avoid `latest`, and review security updates periodically.
 - Back up ALL databases using consistent `pg_dump` snapshots, including roles, and test restoration; one database per tenant does not mean one PostgreSQL server failure cannot affect everyone.
 - Set conservative memory pools; monitor actual RSS under realistic load before setting replica counts.

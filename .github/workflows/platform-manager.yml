@@ -5,10 +5,14 @@ on:
       - "apps/master-admin-api/**"
       - "apps/master-admin-web/**"
       - "infra/master-admin/**"
+      - "infra/postgres/compose.yaml"
+      - "infra/security-access/compose.yaml"
+      - "apps/core-host/compose.yaml"
       - "infra/postgres/bootstrap/control-admin.schema"
       - "apps/core-host/src/adapters.ts"
       - "apps/core-host/test/verifier-cross-client.test.mjs"
       - "tests/platform/platform-manager-postgres-smoke.sh"
+      - "tests/platform/platform-manager-network-smoke.py"
       - "docs/engineering/*PLATFORM-MANAGER*"
       - ".github/workflows/platform-manager.yml"
   pull_request:
@@ -16,10 +20,14 @@ on:
       - "apps/master-admin-api/**"
       - "apps/master-admin-web/**"
       - "infra/master-admin/**"
+      - "infra/postgres/compose.yaml"
+      - "infra/security-access/compose.yaml"
+      - "apps/core-host/compose.yaml"
       - "infra/postgres/bootstrap/control-admin.schema"
       - "apps/core-host/src/adapters.ts"
       - "apps/core-host/test/verifier-cross-client.test.mjs"
       - "tests/platform/platform-manager-postgres-smoke.sh"
+      - "tests/platform/platform-manager-network-smoke.py"
       - "docs/engineering/*PLATFORM-MANAGER*"
       - ".github/workflows/platform-manager.yml"
 permissions:
@@ -87,6 +95,8 @@ jobs:
         run: docker build -f apps/master-admin-api/Dockerfile -t syndes/master-admin-api:ci .
       - name: Build independent UI image
         run: docker build -f apps/master-admin-web/Dockerfile -t syndes/master-admin-web:ci .
+      - name: Validate network topology and real Docker bridge isolation (disposable)
+        run: python3 tests/platform/platform-manager-network-smoke.py
       - name: Validate independent Compose structure without production secrets
         run: |
           printf 'MASTER_KEYCLOAK_ISSUER=https://id.example.test/realms/syndes\nMASTER_KEYCLOAK_AUDIENCE=syndes-master-api\nMASTER_KEYCLOAK_CLIENT_ID=syndes-master-admin\nMASTER_KEYCLOAK_JWKS_URL=https://id.example.test/realms/syndes/protocol/openid-connect/certs\nMASTER_PUBLIC_ORIGIN=https://master.example.test\nMASTER_CONTROL_DB_URL_FILE=/run/secrets/master_db_url\n' >/tmp/syndes-master-ci.env

@@ -32,6 +32,18 @@ test("Master and Workspace are independent frontend origins, bundles and session
  assert.match(compose,/healthcheck:/);
  assert.match(compose,/condition: service_healthy/);
  assert.match(compose,/MASTER_DB_URL_FILE/);
+ const [postgresCompose,keycloakCompose,coreCompose]=await Promise.all([
+  read("infra/postgres/compose.yaml"),
+  read("infra/security-access/compose.yaml"),
+  read("apps/core-host/compose.yaml"),
+ ]);
+ assert.match(compose,/syndes-master-data/);
+ assert.match(compose,/syndes-master-identity/);
+ assert.doesNotMatch(compose,/\bsyndes-data\b|\bsyndes-security-access\b/,
+  "Manager must not share general Core Host networks");
+ assert.match(postgresCompose,/syndes-master-data/);
+ assert.match(keycloakCompose,/syndes-master-identity/);
+ assert.doesNotMatch(coreCompose,/syndes-master-data|syndes-master-identity/);
  assert.doesNotMatch(compose,/syndes-core-host-whatsapp/);
  assert.doesNotMatch(compose,/8082/);
  assert.doesNotMatch(host,/PlatformAdminController|PlatformAdminService/);

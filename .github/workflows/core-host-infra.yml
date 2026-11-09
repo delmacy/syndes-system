@@ -53,8 +53,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Create private Docker data network
-        run: docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data
+      - name: Create private Docker data and Platform Manager networks
+        run: |
+          for name in syndes-data syndes-master-data syndes-master-identity; do
+            docker network inspect "$name" >/dev/null 2>&1 || docker network create --internal "$name"
+          done
       - name: Prepare throwaway Docker Secret files on CI runner
         run: |
           sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/syndes /run/syndes/runtime
@@ -127,8 +130,11 @@ jobs:
           cd ../../modules/core-crm && npm ci --no-audit --no-fund && npm run build
           cd ../../modules/inbox && npm ci --no-audit --no-fund && npm run build
           cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run build
-      - name: Create private Docker data network
-        run: docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data
+      - name: Create private Docker data and Platform Manager networks
+        run: |
+          for name in syndes-data syndes-master-data syndes-master-identity; do
+            docker network inspect "$name" >/dev/null 2>&1 || docker network create --internal "$name"
+          done
       - name: Prepare throwaway Docker Secret files on CI runner
         run: |
           sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/syndes /run/syndes/runtime
