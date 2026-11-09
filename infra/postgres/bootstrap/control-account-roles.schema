@@ -1,0 +1,130 @@
+-- DC-2 / issue #49: Account-level delegation is NOT an Organization or Workspace grant.
+-- Run only against syndes_control under an approved DB operator, after control.schema.
+-- Additive and idempotent. No role is automatically granted and no tenant DB is touched.
+-- Do NOT add this script to automatic production migrations until Product Gate review.
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS tenant_account_role_grants (
+ tenant_id UUID NOT NULL,
+ principal_id TEXT NOT NULL CHECK (length(principal_id) BETWEEN 1 AND 256),
+ role TEXT NOT NULL CHECK (role IN ('owner','admin')),
+ state TEXT NOT NULL DEFAULT 'active' CHECK (state IN ('active','revoked')),
+ granted_by TEXT NOT NULL CHECK (length(granted_by) BETWEEN 1 AND 256),
+ granted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_by TEXT NOT NULL CHECK (length(updated_by) BETWEEN 1 AND 256),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ revoked_by TEXT,
+ revoked_at TIMESTAMPTZ,
+ PRIMARY KEY (tenant_id,principal_id),
+ FOREIGN KEY (tenant_id,principal_id)
+   REFERENCES tenant_memberships(tenant_id,principal_id) ON DELETE RESTRICT,
+ CONSTRAINT tenant_account_revoke_pair CHECK (
+   (state='active' AND revoked_by IS NULL AND revoked_at IS NULL)
+   OR
+   (state='revoked' AND revoked_by IS NOT NULL AND revoked_at IS NOT NULL)
+ ),
+ CONSTRAINT tenant_account_revoke_actor CHECK (
+   revoked_by IS NULL OR length(revoked_by) BETWEEN 1 AND 256
+ )
+);
+CREATE INDEX IF NOT EXISTS tenant_account_roles_by_tenant
+ ON tenant_account_role_grants(tenant_id,role)
+ WHERE state='active';
+
+-- Immutable append-only audit: a trusted mutation is always paired to an event.
+CREATE TABLE IF NOT EXISTS tenant_account_role_audit (
+ id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ tenant_id UUID NOT NULL,
+ principal_id TEXT NOT NULL,
+ role TEXT NOT NULL CHECK(role IN ('owner','admin')),
+ event TEXT NOT NULL CHECK(event IN ('granted','role_changed','revoked','reactivated')),
+ actor_id TEXT NOT NULL CHECK(length(actor_id) BETWEEN 1 AND 256),
+ occurred_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ FOREIGN KEY(tenant_id,principal_id)
+   REFERENCES tenant_account_role_grants(tenant_id,principal_id) ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS tenant_account_role_audit_by_account
+ ON tenant_account_role_audit(tenant_id,occurred_at DESC,id DESC);
+
+-- Enrollment requires a verified *active* low-level account membership.
+-- A membership can later be revoked by existing tenancy code; effective access
+-- is always a live INNER JOIN to tenant_memberships.state='active'.
+CREATE OR REPLACE FUNCTION tenant_account_role_guard()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER
+SET search_path = pg_catalog,public AS $guard$
+DECLARE owner_count INT;
+BEGIN
+ IF TG_OP='DELETE' THEN
+   RAISE EXCEPTION 'Account roles must be revoked, not deleted' USING ERRCODE='42501';
+ END IF;
+ IF TG_OP='UPDATE' THEN
+   IF NEW.tenant_id <> OLD.tenant_id OR NEW.principal_id <> OLD.principal_id THEN
+     RAISE EXCEPTION 'Account grant identity is immutable' USING ERRCODE='42501';
+   END IF;
+   IF NEW.role=OLD.role AND NEW.state=OLD.state THEN
+     RAISE EXCEPTION 'No account role transition requested' USING ERRCODE='22023';
+   END IF;
+   IF NEW.updated_by IS NULL OR NEW.updated_at <= OLD.updated_at THEN
+     RAISE EXCEPTION 'Role transition requires an accountable actor and fresh timestamp'
+       USING ERRCODE='22023';
+   END IF;
+   IF OLD.role='owner' AND OLD.state='active' AND
+      (NEW.role<>'owner' OR NEW.state<>'active') THEN
+     -- Last-owner protection is scoped to this account, never other tenants.
+     -- Serialize transitions even when separate owner rows are updated.
+     PERFORM pg_advisory_xact_lock(hashtextextended(OLD.tenant_id::text,9317));
+     SELECT count(*) INTO owner_count FROM tenant_account_role_grants g
+      JOIN tenant_memberships m USING(tenant_id,principal_id)
+      WHERE g.tenant_id=OLD.tenant_id AND g.role='owner' AND g.state='active'
+        AND m.state='active' AND g.principal_id<>OLD.principal_id;
+     IF owner_count=0 THEN
+       RAISE EXCEPTION 'Cannot revoke the last active account owner'
+         USING ERRCODE='23514';
+     END IF;
+   END IF;
+ END IF;
+ IF NEW.state='active' AND NOT EXISTS (
+   SELECT 1 FROM tenant_memberships m
+   WHERE m.tenant_id=NEW.tenant_id AND m.principal_id=NEW.principal_id
+     AND m.state='active'
+ ) THEN
+   RAISE EXCEPTION 'Active tenant membership required for account grant'
+     USING ERRCODE='42501';
+ END IF;
+ RETURN NEW;
+END $guard$;
+
+CREATE OR REPLACE FUNCTION tenant_account_role_audit_change()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER
+SET search_path = pg_catalog,public AS $audit$
+BEGIN
+ INSERT INTO tenant_account_role_audit(tenant_id,principal_id,role,event,actor_id)
+ VALUES (
+   NEW.tenant_id,NEW.principal_id,NEW.role,
+   CASE WHEN TG_OP='INSERT' THEN 'granted'
+        WHEN OLD.state='active' AND NEW.state='revoked' THEN 'revoked'
+        WHEN OLD.state='revoked' AND NEW.state='active' THEN 'reactivated'
+        ELSE 'role_changed' END,
+   CASE WHEN TG_OP='INSERT' THEN NEW.granted_by ELSE NEW.updated_by END
+ );
+ RETURN NEW;
+END $audit$;
+
+DROP TRIGGER IF EXISTS tenant_account_roles_guard ON tenant_account_role_grants;
+CREATE TRIGGER tenant_account_roles_guard
+ BEFORE INSERT OR UPDATE OR DELETE ON tenant_account_role_grants
+ FOR EACH ROW EXECUTE FUNCTION tenant_account_role_guard();
+DROP TRIGGER IF EXISTS tenant_account_roles_audit ON tenant_account_role_grants;
+CREATE TRIGGER tenant_account_roles_audit
+ AFTER INSERT OR UPDATE ON tenant_account_role_grants
+ FOR EACH ROW EXECUTE FUNCTION tenant_account_role_audit_change();
+
+REVOKE ALL ON tenant_account_role_grants,tenant_account_role_audit FROM PUBLIC;
+REVOKE ALL ON tenant_account_role_grants,tenant_account_role_audit FROM syndes_core;
+REVOKE ALL ON FUNCTION tenant_account_role_guard() FROM PUBLIC;
+REVOKE ALL ON FUNCTION tenant_account_role_audit_change() FROM PUBLIC;
+-- In this phase only the database operator can write or even read the new
+-- tables. A future backend must be explicitly granted SELECT and must still
+-- prove JWT, tenant membership, OpenFGA and resource scope; never GRANT DML
+-- directly to an API/tenant runtime role.
+COMMIT;
