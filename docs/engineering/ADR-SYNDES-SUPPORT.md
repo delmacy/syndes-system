@@ -34,3 +34,6 @@ Usar banco central Control Plane (vaza conteúdo operacional), anexar tickets no
 
 ## Release/rollback
 Migration 001 aditiva, sem `DROP`/alteração de dados atuais. Desativar módulo manifest ou retirar rota após rollback do Host, **não** reverter SQL com dados; preservar trilha. Restore ensaiado em PostgreSQL descartável antes de autorizar instalação no tenant Syndes. `main` e #27 não são alteradas.
+
+## Proteção do instalador multi-tenant (revisão posterior ao PR inicial)
+O Core Host monta os plugins globalmente, inclusive Support, e o instalador genérico percorre todas as migrações. Por isso a fronteira de dados não pode depender da negação HTTP. `infra/postgres/bootstrap/migrate-modules-tenant.sh` agora carrega a função testada `syndes_module_migration_allowed`, que **omite** a migração `support/*` salvo quando `TENANT_ID` coincide com `SYNDES_SUPPORT_TENANT_ID` válida e explicitamente configurada. Outros módulos continuam sendo migrados normalmente. Nenhuma tabela Support deve ser criada nos bancos comerciais durante a instalação padrão. Testes negativos: `tests/platform/support-migration-gate.test.sh`. A configuração da identidade do tenant permanece uma aprovação operacional — não uma variável escolhida pelo navegador.

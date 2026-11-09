@@ -45,3 +45,6 @@ Reverter imagem do Host e UI para o release imutável anterior, remover rota da 
 
 ## Monitoramento
 Não ligar log de corpo de mensagens, contatos, tokens, secrets ou payloads de tickets. Reportar apenas status HTTP, erro por classe, latência, disponibilidade e eventos de autorização agregados sem identificadores pessoais. Contrato seguro de agregados para Platform Manager é **outra** issue; não reutilizar consultas de Case para isso.
+
+## Gate adicional de migração — tenant exclusivo
+O instalador genérico agora **pula** a migração Support para qualquer tenant diferente de `SYNDES_SUPPORT_TENANT_ID`; também pula se essa variável estiver ausente ou inválida. Para migrar o próprio tenant Syndes, o operador autorizado deve definir `TENANT_ID` e `SYNDES_SUPPORT_TENANT_ID` com a **mesma** UUID operacional previamente conferida no registry e executar o instalador habitual, mantendo `SYNDES_CORE_HOST_IMAGE` pinada. A liberação de SQL é testada em `tests/platform/support-migration-gate.test.sh`, executado na CI. O gate protege contra instalação acidental em tenants comerciais e **não** substitui a revisão do ID escolhido nem a autorização de mudança em produção.

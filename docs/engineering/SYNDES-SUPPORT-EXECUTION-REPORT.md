@@ -26,3 +26,6 @@ Base verificada: `integration/workspace-org-crm-c2-20261109` @ `8e2fb5d1f0e0bc11
 5. Revisão independente do PR e autorização formal de release. #31 não deve ser ativada por este PR.
 
 **Sem go-live.** PR: https://github.com/delmacy/syndes-system/pull/34 (draft). Commit corretivo: `9685fc3ae53a138decb0aa40eb7ee1c69a5a36a9`. No commit funcional `9685fc3`, CI final com **22 checks PASS, zero FAIL e 1 SKIP esperado** (job exclusivo de PR ignorado no push); inclui Core Host, integração de identidade, Inbox, WhatsApp, organizações, PostgreSQL descartável e infraestrutura. O commit de documentação posterior não altera código. Ainda faltam E2E reais de interface/IdP em homologação e gates operacionais.
+
+## Retificação de isolamento detectada na revisão pós-PR
+A auditoria de continuidade identificou que o instalador genérico enumerava a migration `support/001_support_cases` para todos os tenants. Corrigida a elegibilidade em `infra/postgres/bootstrap/support-migration-gate.sh` e em `migrate-modules-tenant.sh`, com teste negativo dedicado (sem configuração, UUID inválida, tenant comercial, tenant Syndes e módulos legados). O teste Git Bash local passa. A confirmação de CI será registrada separadamente; não houve migração de banco de clientes.

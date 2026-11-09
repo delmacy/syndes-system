@@ -103,6 +103,8 @@ jobs:
           print("Keycloak .conf extension, file-backed secrets: PASS")
           print("PostgreSQL/Keycloak/OpenFGA: no sensitive env in Compose")
           PY
+      - name: Verify operational tenant-only Support migration gate
+        run: bash tests/platform/support-migration-gate.test.sh
       - name: Start isolated PostgreSQL
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
       - name: Wait for isolated PostgreSQL TCP readiness
@@ -147,6 +149,8 @@ jobs:
         run: |
           sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/syndes /run/syndes/runtime
           python3 tests/platform/ci-secret-fixtures.py
+      - name: Verify operational tenant-only Support migration gate
+        run: bash tests/platform/support-migration-gate.test.sh
       - name: Start isolated PostgreSQL
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
       - name: Generate disposable OpenBao TLS certificate
