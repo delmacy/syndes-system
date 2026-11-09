@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {CoreKernel,AccessDeniedError} from "@syndes/core-kernel";
 import {InboxDefaultContextGuard} from "../dist/context-guard.js";
-import {InboxTenantMismatchError} from "../dist/contracts.js";
+import {InboxTenantMismatchError,InboxValidationError} from "../dist/contracts.js";
+import {InboxService} from "../dist/service.js";
 import {InboxChangeBus} from "../dist/realtime.js";
 const tenant="11111111-1111-4111-8111-111111111111";
 const different="22222222-2222-4222-8222-222222222222";
@@ -75,4 +76,19 @@ test("SSE isolation separates tenants, organizations and workspaces, including l
  assert.throws(()=>bus.publish({tenantId:tenant}),/Verified Inbox event scope/);
  offs.forEach(fn=>fn());
  assert.equal(bus.count(a),0);
+});
+
+test("incomplete or empty trusted service scope cannot fall back to tenant-only SQL",()=>{
+ let resolved=0;
+ const service=new InboxService({execute:async (_q,handler)=>handler()},
+  async()=>{resolved++;throw Error("Must not resolve DB");});
+ for(const parts of [
+  {organizationId:org},
+  {organizationId:org,workspaceId:""},
+  {organizationId:"",workspaceId:""},
+  {workspaceId:workspace},
+ ]){
+  assert.throws(()=>service.list({tenantId:tenant,actor,...parts}),/Incomplete Inbox organization\/workspace/);
+ }
+ assert.equal(resolved,0);
 });

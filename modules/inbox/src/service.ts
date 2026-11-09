@@ -12,7 +12,10 @@ export class InboxService {
  constructor(private readonly kernel:CoreKernel,
              private readonly storeForTenant:(tenantId:string,scope?:Readonly<{organizationId:string;workspaceId:string}>)=>Promise<InboxRepository>){}
  private execute<T>(ctx:InboxContext,action:string,resource:string,handler:(store:InboxRepository)=>Promise<T>):Promise<T>{
-   if((ctx.organizationId===undefined)!==(ctx.workspaceId===undefined))
+   // A partially supplied or empty scope cannot downgrade a trusted
+   // internal caller to the legacy tenant-only repository path.
+   const scoped=ctx.organizationId!==undefined||ctx.workspaceId!==undefined;
+   if(scoped&&(!ctx.organizationId||!ctx.workspaceId))
      throw new InboxValidationError("Incomplete Inbox organization/workspace context");
    return this.kernel.execute({actor:ctx.actor,tenantId:ctx.tenantId,action,resource},
      async()=>handler(await this.storeForTenant(ctx.tenantId,ctx.organizationId&&ctx.workspaceId?{organizationId:ctx.organizationId,workspaceId:ctx.workspaceId}:undefined)));
