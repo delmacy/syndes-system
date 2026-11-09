@@ -8,7 +8,7 @@ Base verificada: `integration/workspace-org-crm-c2-20261109` @ `8e2fb5d1f0e0bc11
 - **WBS 4.2–4.4:** caso externo por conversa WhatsApp Syndes e contato CRM Syndes, conta configurada no servidor, operações de status, nota interna jamais outbound, reabertura. **4.1 não provisionado**: conta WhatsApp Syndes real requer gate operacional.
 - **WBS 5.1–5.3:** formulário interno autenticado, filas privadas, autorização de solicitante/agente e histórico segregado.
 - **WBS 6.1–6.4:** `apps/support-web` independente, PKCE Keycloak com client ID exclusivo, lista/filtros/detalhe/histórico/formulários reais, ações de operador autorizadas por backend; sem dados fictícios distribuídos, menus novos ou dashboards inventados.
-- **WBS 7.1,7.3:** regressão local; **7.2** PostgreSQL integration codificada mas a execução real está pendente de CI; **7.4** E2E real de navegador e IdP pendente; **7.5** workflows criados/alterados, confirmação em CI pendente.
+- **WBS 7.1,7.3:** regressão local; **7.2** PostgreSQL real **PASS** em GitHub Actions; **7.4** E2E real de navegador e IdP pendente; **7.5** CI de suporte, UI, Inbox e infraestrutura passou; demais jobs de Core Host/identidade requerem confirmação final.
 - **WBS 8.1–8.4:** docs de operação e rollback criadas, sem execução de rollback real porque nenhum deploy foi feito.
 
 ## Evidência local
@@ -25,4 +25,4 @@ Base verificada: `integration/workspace-org-crm-c2-20261109` @ `8e2fb5d1f0e0bc11
 4. Revisar provisionamento de tenant Syndes e conta WA exclusiva, OpenFGA/memberships filas e isolamento frontend no reverse proxy; sem privilégios implícitos.
 5. Revisão independente do PR e autorização formal de release. #31 não deve ser ativada por este PR.
 
-**Sem go-live.** Relatório será atualizado com o link da PR e status CI após publicação.
+**Sem go-live.** PR: https://github.com/delmacy/syndes-system/pull/34 (draft). Commit corretivo: `9685fc3ae53a138decb0aa40eb7ee1c69a5a36a9`. CI de PostgreSQL/Support/UI/Inbox e infraestrutura passou na PR; não declarar CI completamente verde enquanto Core Host/identidade ainda estiverem executando.
