@@ -41,6 +41,20 @@ try {
   assert.equal((await a.listPeople(A,"VIP",10)).length,1);
   assert.equal((await a.listPeople(A,"Acme",10)).length,1);
   assert.equal((await a.listPeople(A,"12345678000190",10)).length,1);
+  assert.deepEqual((await ex.listPersonOrganizations(A,created.id,25)).map(x=>x.id),[organization.id]);
+  assert.deepEqual((await ex.listPersonTags(A,created.id,25)).map(x=>x.label),["VIP"]);
+  assert.deepEqual(await bx.listPersonOrganizations(B,created.id,25),[]);
+  assert.deepEqual(await bx.listPersonTags(B,created.id,25),[]);
+  assert.deepEqual((await ex.listTags(A,100)).map(x=>x.label),["VIP"]);
+  assert.deepEqual(await bx.listTags(B,100),[]);
+  assert.equal(await bx.unlinkOrganization(B,"bob",created.id,organization.id),false);
+  assert.equal(await bx.unlinkTag(B,"bob",created.id,tag.id),false);
+  assert.equal(await ex.unlinkOrganization(A,"alice",created.id,organization.id),true);
+  assert.equal(await ex.unlinkTag(A,"alice",created.id,tag.id),true);
+  assert.deepEqual(await ex.listPersonOrganizations(A,created.id,25),[]);
+  assert.deepEqual(await ex.listPersonTags(A,created.id,25),[]);
+  assert.equal(await ex.unlinkTag(A,"alice",created.id,tag.id),false);
+
   const note=await a.createNote(A,"alice",randomUUID(),created.id,"Cliente pediu retorno");
   assert.equal(note.personId,created.id);
   assert.equal((await a.listTimeline(A,created.id,10))[0].action,"noted");
@@ -64,6 +78,8 @@ try {
   assert.deepEqual(await bx.duplicates(B,"carlos@example.com",null,null),[]);
   const employee=await ex.createEmployee(A,"alice",randomUUID(),second.id,"Atendente");
   assert.equal(employee.jobTitle,"Atendente");
+  assert.equal((await ex.getPersonEmployee(A,second.id)).jobTitle,"Atendente");
+  assert.equal(await bx.getPersonEmployee(B,second.id),null);
   await assert.rejects(bx.createEmployee(B,"bob",randomUUID(),second.id,"Invasor"));
   const channel=await ex.linkChannel(A,"alice",randomUUID(),second.id,"whatsapp","551199998888","Nome externo");
   assert.equal(channel.personId,second.id);
@@ -71,6 +87,10 @@ try {
   await assert.rejects(bx.linkChannel(B,"bob",randomUUID(),second.id,"whatsapp","other",null));
   const imported=parseContactsCsv('name,email,phone\n"Pessoa, Importada",importada@example.com,551199991111\n');
   assert.equal(await ex.importPeople(A,"alice",imported.map(x=>({...x,id:randomUUID()}))),1);
+  assert.equal((await a.listPeople(A,null,1,0)).length,1);
+  assert.equal((await a.listPeople(A,null,1,1)).length,1);
+  assert.equal((await ex.listOrganizations(A,null,1,0)).length,1);
+  assert.equal((await ex.listOrganizations(A,null,1,1)).length,1);
   const exported=contactsToCsv(await ex.listExportPeople(A,1000));
   assert.match(exported,/Pessoa, Importada/);
   assert.equal(await ex.archiveOrganization(A,"alice",organization.id),true);
@@ -79,7 +99,7 @@ try {
   const audit=await pool.query(
     "SELECT action, actor_id FROM crm_audit WHERE tenant_id=$1 ORDER BY id", [A]);
   assert.deepEqual(audit.rows.map(x=>x.action),[
-    "created","created","linked_organization","created","tagged","noted","archived",
+    "created","created","linked_organization","created","tagged","organization_unlinked","tag_unlinked","noted","archived",
     "created","updated","updated","employee_created","channel_linked","imported","archived"
   ]);
   assert.ok(audit.rows.every(x=>x.actor_id==="alice"));

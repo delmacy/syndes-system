@@ -109,7 +109,7 @@ export class PgCrmRepository implements CrmRepository {
     return result.rows[0]?person(result.rows[0]):null;
   }
 
-  async listPeople(tenantId:string,query:string|null,limit:number):Promise<readonly Person[]>{
+  async listPeople(tenantId:string,query:string|null,limit:number,offset=0):Promise<readonly Person[]>{
     this.check(tenantId);
     const result=await this.db.query(`
       SELECT id,tenant_id,name,email,phone,archived_at FROM crm_people
@@ -134,7 +134,7 @@ export class PgCrmRepository implements CrmRepository {
                OR o.trade_name ILIKE '%' || $2::text || '%' ESCAPE '\\'
                OR o.tax_id ILIKE '%' || $2::text || '%' ESCAPE '\\')
          ))
-      ORDER BY name,id LIMIT $3`,[tenantId,query,limit]);
+      ORDER BY name,id LIMIT $3 OFFSET $4`,[tenantId,query,limit,offset]);
     return result.rows.map(person);
   }
 

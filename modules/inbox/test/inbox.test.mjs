@@ -12,7 +12,7 @@ class MemoryStore{
   this.conversations.set(value.id,c);this.history.set(value.id,[]);
   return c;
  }
- async list(tenantId,status,limit){return [...this.conversations.values()].filter(c=>c.tenantId===tenantId&&(!status||c.status===status)).slice(0,limit)}
+ async list(tenantId,status,limit,queue="all",actorId=""){return [...this.conversations.values()].filter(c=>c.tenantId===tenantId&&(!status||c.status===status)&&(queue==="all"||(queue==="mine"&&c.assignedTo===actorId)||(queue==="unassigned"&&c.assignedTo===null))).slice(0,limit)}
  async get(tenantId,key){const c=this.conversations.get(key);return c?.tenantId===tenantId?c:null}
  async messages(tenantId,key,limit){const c=await this.get(tenantId,key);return c?this.history.get(key).slice(-limit):null}
  async change(tenantId,key,field,value){const c=await this.get(tenantId,key);if(!c)return null;Object.assign(c,{[field]:value});return c}
@@ -113,4 +113,18 @@ test("simulation adapter accepts only its channel envelope",async()=>{
  assert.equal(inbound.direction,"inbound");
  await assert.rejects(adapter.receive(alice,{channel:"whatsapp",conversationId:c.id,body:"untrusted",externalMessageId:"adapter-2"}),InboxValidationError);
  assert.equal((await inbox.messages(alice,c.id)).length,1);
+});
+
+test("queue filters use verified actor and enforce tenant isolation before repository lease",async()=>{
+ const {inbox,selects}=await setup();
+ const first=await inbox.create(alice,{subject:"Assigned Alice"});
+ const second=await inbox.create(alice,{subject:"Unassigned"});
+ await inbox.assign(alice,first.id,"alice");
+ assert.deepEqual((await inbox.list(alice,null,100,"mine")).map(c=>c.id),[first.id]);
+ assert.deepEqual((await inbox.list(alice,null,100,"unassigned")).map(c=>c.id),[second.id]);
+ assert.equal((await inbox.list(alice,null,100,"all")).length,2);
+ assert.throws(()=>inbox.list(alice,null,100,"other"),InboxValidationError);
+ const before=selects();
+ await assert.rejects(inbox.list({...alice,tenantId:B},null,100,"mine"),AccessDeniedError);
+ assert.equal(selects(),before);
 });

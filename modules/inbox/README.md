@@ -42,3 +42,16 @@ Run `npm run test:ui` to execute the actual `public/app.js` in a minimal DOM mod
 ## Core Host + PostgreSQL HTTP integration
 
 `modules/inbox/test/postgres-integration.sh` provisions a disposable PostgreSQL container, applies CRM/Inbox migrations twice (idempotency), runs the Inbox repository integration and then `node --test apps/core-host/test/inbox-pg-http.integration.mjs`. This boots an **actual NestJS application** using installed Host plugin descriptors and the real PostgreSQL repository behind a test-only verifier/membership/FGA port; no production credentials, servers or graphical browsers. The HTTP suite asserts mounted assets/routes, input limits, missing records, auth, cross-tenant denials before DB leasing, CRM tenant-qualified FK, append retry/409, assignment/reply/handoff/status, metrics and audit. Production Keycloak/OpenFGA adapter end-to-end remains a separate gate.
+
+
+## Filtros de fila por responsável
+
+``GET /v1/tenants/:tenantId/inbox/conversations?status=open&queue=mine&limit=100`` permite ``queue`` opcional: ``all`` (padrão, compatível com clientes antigos), ``mine`` e ``unassigned``. O serviço resolve ``mine`` usando o ``actor.id`` verificado pelo Host, **não** aceita ``assigneeId`` na query string; o repositório aplica filtro por tenant, status e responsável **antes de LIMIT**, sem SQL dinâmico vindo do usuário. A permissão ``inbox:conversations/read`` continua exigida. Esta evolução não implementa paginação acima de 100 nem novas permissões automáticas.
+
+## Atualização em tempo real (SSE) — primeira implementação do MVP (2026-11-02)
+
+O endpoint `GET /v1/tenants/:tenantId/inbox/events` envia apenas eventos `changed`, **sem nomes, números, contatos ou mensagens no corpo**. Para estabelecer o stream o Core Host verifica JWT, membership do tenant e `inbox:conversations/read` no kernel/OpenFGA **antes** de escrever headers e sem selecionar banco. Os listeners são organizados por `tenantId` validado, limitados a 60 conexões por tenant. A conexão é encerrada pelo servidor após 60 segundos e precisa ser reautenticada, evitando autorização indefinida. Heartbeat periódico minimiza timeout intermediário. Mutação somente publica invalidation **após** API/DB confirmar sucesso.
+
+O cliente usa `fetch` com header Bearer (o `EventSource` nativo não permite headers arbitrários) e, ao receber invalidation, consulta a lista e a conversa selecionada pelas rotas previamente autorizadas. Quando não há conexão SSE, reverte à consulta HTTP de 10 segundos, com reconexão em 5 segundos. Isso preserva a funcionalidade sem vazamento de dados através do barramento.
+
+**Limitação:** transporte e barramento somente na memória de uma instância Core Host (nossa configuração de desenvolvimento atual). **Não funciona corretamente com múltiplas réplicas ou workers sem broker compartilhado**, nem garante entrega quando o cliente esteve offline. Nesse cenário a reconexão deve reconstruir o estado via API HTTP e, antes de escalar, será necessário Redis pub/sub ou equivalente. As mensagens continuam persistidas no banco do tenant; SSE não armazena dados.

@@ -51,10 +51,36 @@ export class CrmController{
  private run<T>(t:string,b:string|undefined,fn:(c:CrmContext)=>Promise<T>){
    return this.host.run(t,b,fn);
  }
+ // UI affordances only. Every action still passes through server-side CoreKernel.
+ @Get("capabilities")
+ capabilities(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined){
+   return this.run(t,b,async c=>{
+     const permissions=[
+       ["people.read","crm:people","read"],["people.write","crm:people","write"],
+       ["organizations.read","crm:organizations","read"],["organizations.write","crm:organizations","write"],
+       ["relationships.write","crm:relationships","write"],
+       ["tags.read","crm:tags","read"],["tags.write","crm:tags","write"],
+       ["notes.read","crm:notes","read"],["notes.write","crm:notes","write"],
+       ["employees.read","crm:employees","read"],["employees.write","crm:employees","write"],
+       ["channels.read","crm:channels","read"],["channels.write","crm:channels","write"],
+     ] as const;
+     const entries=await Promise.all(permissions.map(async ([name,resource,action])=>{
+       try{
+         await this.host.core.kernel.execute({actor:c.actor,tenantId:c.tenantId,resource,action},async()=>true);
+         return [name,true] as const;
+       }catch(error){
+         if(error instanceof AccessDeniedError)return [name,false] as const;
+         // Outages do not accidentally grant access or silently claim a policy denial.
+         throw error;
+       }
+     }));
+     return Object.fromEntries(entries);
+   });
+ }
  @Get("people")
  people(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
-   @Query("q")q:string|undefined,@Query("limit")limit:string|undefined){
-   return this.run(t,b,c=>this.host.crm.listPeople(c,q??null,limit===undefined?25:Number(limit)));
+   @Query("q")q:string|undefined,@Query("limit")limit:string|undefined,@Query("offset")offset:string|undefined){
+   return this.run(t,b,c=>this.host.crm.listPeople(c,q??null,limit===undefined?25:Number(limit),offset===undefined?0:Number(offset)));
  }
  @Post("people")
  createPerson(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
@@ -77,8 +103,8 @@ export class CrmController{
    @Param("id")id:string){return this.run(t,b,c=>this.host.crm.archivePerson(c,id))}
  @Get("organizations")
  organizations(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
-   @Query("q")q:string|undefined,@Query("limit")limit:string|undefined){
-   return this.run(t,b,c=>this.host.extra.listOrganizations(c,q??null,limit===undefined?25:Number(limit)));
+   @Query("q")q:string|undefined,@Query("limit")limit:string|undefined,@Query("offset")offset:string|undefined){
+   return this.run(t,b,c=>this.host.extra.listOrganizations(c,q??null,limit===undefined?25:Number(limit),offset===undefined?0:Number(offset)));
  }
  @Post("organizations")
  createOrganization(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
@@ -101,6 +127,20 @@ export class CrmController{
    @Param("id")id:string,@Body()body:{organizationId:string}){
    return this.run(t,b,c=>this.host.crm.linkPerson(c,id,body?.organizationId));
  }
+ @Get("tags")
+ listTags(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined){
+   return this.run(t,b,c=>this.host.extra.listTags(c));
+ }
+ @Delete("people/:id/organizations/:organizationId")
+ unlinkOrganization(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
+   @Param("id")personId:string,@Param("organizationId")orgId:string){
+   return this.run(t,b,c=>this.host.extra.unlinkOrganization(c,personId,orgId));
+ }
+ @Delete("people/:id/tags/:tagId")
+ unlinkTag(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
+   @Param("id")personId:string,@Param("tagId")tagId:string){
+   return this.run(t,b,c=>this.host.extra.unlinkTag(c,personId,tagId));
+ }
  @Post("tags")
  tag(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
    @Body()body:{label:string}){return this.run(t,b,c=>this.host.crm.createTag(c,body?.label))}
@@ -117,9 +157,24 @@ export class CrmController{
  @Get("people/:id/notes")
  notes(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
    @Param("id")id:string){return this.run(t,b,c=>this.host.crm.listNotes(c,id))}
+ @Get("people/:id/organizations")
+ personOrganizations(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
+   @Param("id")personId:string){
+   return this.run(t,b,c=>this.host.extra.listPersonOrganizations(c,personId));
+ }
+ @Get("people/:id/tags")
+ personTags(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
+   @Param("id")personId:string){
+   return this.run(t,b,c=>this.host.extra.listPersonTags(c,personId));
+ }
  @Get("people/:id/channels")
  channels(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
    @Param("id")id:string){return this.run(t,b,c=>this.host.extra.listChannels(c,id))}
+ @Get("people/:id/employee")
+ personEmployee(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined,
+   @Param("id")personId:string){
+   return this.run(t,b,c=>this.host.extra.getPersonEmployee(c,personId));
+ }
  @Get("employees")
  employees(@Param("tenantId")t:string,@Headers("authorization")b:string|undefined){
    return this.run(t,b,c=>this.host.extra.listEmployees(c))
