@@ -90,3 +90,55 @@ Units and reserved publishing Sites.
 
 **Do not close #21 yet:** the database gate is a safety precursor, not the
 full organization/workspace isolation migration.
+
+
+## Stage B implemented in code PR (2026-11-08; pending PostgreSQL CI)
+
+Migration modules/organizations/sql/003_legacy_ownership.sql adds **nullable,
+FK-constrained** platform_organization_id to crm_people, crm_organizations
+(CRM contact companies), crm_tags and whatsapp_accounts; and
+platform_organization_id, platform_origin_workspace_id,
+platform_current_workspace_id to inbox_conversations. The legacy rows keep
+their original IDs, relationships, messages, events, channel identities and
+provider delivery receipts. Child records inherit their parent's owner,
+not a newly created duplicate person/message.
+
+The owner fields are prefixed with platform_ to distinguish platform company
+scope from CRM contact-company IDs. Triggers assign the verified default
+Organization/Workspace to **new records** after bootstrap; before bootstrap
+they may remain NULL (compatibility with existing tenant data). Updating a
+previously assigned company owner or original workspace is rejected. Compound
+foreign keys ensure that conversation origin and current workspace always
+belong to the same tenant and company, once non-NULL. The SQL is idempotent.
+
+The explicit administrative operation is:
+POST /v1/tenants/:tenantId/platform/default-context/backfill
+
+It requires verified Keycloak actor, tenant membership, OpenFGA
+organizations:bootstrap/write and **active admin memberships in BOTH the
+default organization and default workspace**. It invokes
+platform_backfill_legacy_ownership(tenantId) only when the authorized row
+exists; SQL uses MATERIALIZED + LATERAL to prevent side effects without
+membership. The function checks the single-context guard before any update,
+locks per tenant, fails on conflicting owners, and updates all five parent
+tables atomically. It returns counts, not personal or messaging content.
+
+**Operator sequence after successful PR CI/review**:
+1. Apply CRM, Inbox, WhatsApp, Organizations migrations through the trusted
+   migration process; the 002 guard must be present before 003.
+2. Bootstrap once as authorized administrator, granting default org/workspace
+   memberships to that person. Do not re-enroll another actor on retry.
+3. Invoke the authenticated backfill endpoint; record ONLY table counts. Run
+   again and expect all zero without data loss. Never copy customer data into
+   logs.
+4. Validate that all CRM/Inbox/WhatsApp top-level records in the intended
+   tenant have a valid owner. NULLs require investigation before enabling
+   multi-org. Do not update another tenant from this operation.
+5. Observe realtime, history and provider state; no outbound WhatsApp tests.
+6. Keep 002 indexes installed. Stage C must explicitly select authorized
+   context in ALL CRM/Inbox/WhatsApp API and SSE paths and convert owner
+   columns to NOT NULL/validated FKs before stage D removes the indexes.
+
+**Known limitation:** This is an *ownership scaffold* plus migration. It does
+NOT constrain legacy CRM/Inbox REST, CSV, SSE or WhatsApp account routes to
+the owner scopes. All those paths remain tenant-wide until Stage C.

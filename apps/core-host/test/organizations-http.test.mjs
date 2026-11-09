@@ -56,18 +56,28 @@ test("Organizations HTTP auth, tenant and role denials prevent database access",
   const noWrite=await fetch(base+basePath+"/bootstrap",{method:"POST",headers:{authorization:"Bearer ci-viewer"}});
   assert.equal(noWrite.status,403);
   assert.equal(resolutions.length,1,"Denied FGA write before tenant DB");
+  const unprivilegedBackfill=await fetch(base+basePath+"/default-context/backfill",{
+   method:"POST",headers:{authorization:"Bearer ci-viewer"}});
+  assert.equal(unprivilegedBackfill.status,403);
+  assert.equal(resolutions.length,1,"Backfill denied before DB for viewer");
+  const noDefaultMembership=await fetch(base+basePath+"/default-context/backfill",{
+   method:"POST",headers});
+  assert.equal(noDefaultMembership.status,403,"FGA writer without active org and workspace admin is denied");
+  assert.equal(queries[1].params[0],A);
+  assert.equal(queries[1].params[1],"admin");
+  assert.match(queries[1].sql,/CROSS JOIN LATERAL/);
   const invalid=await fetch(base+basePath+"/organizations/"+O+"/units",{
    method:"POST",headers:{...headers,"content-type":"application/json"},
    body:JSON.stringify({name:"Matriz",kind:"site"})});
   assert.equal(invalid.status,400);
-  assert.equal(resolutions.length,1,"Unit validation before DB");
+  assert.equal(resolutions.length,2,"Unit validation before DB");
   const noMember=await fetch(base+basePath+"/organizations/"+O+"/units",{
    method:"POST",headers:{...headers,"content-type":"application/json"},
    body:JSON.stringify({name:"Matriz",kind:"headquarters"})});
   assert.equal(noMember.status,404,"No org member means no unit creation");
-  assert.equal(queries.length,2);
-  assert.equal(queries[1].params[0],A);
-  assert.equal(queries[1].params[1],O);
-  assert.equal(queries[1].params.at(-1),"admin");
+  assert.equal(queries.length,3);
+  assert.equal(queries[2].params[0],A);
+  assert.equal(queries[2].params[1],O);
+  assert.equal(queries[2].params.at(-1),"admin");
  }finally{await app.close();}
 });

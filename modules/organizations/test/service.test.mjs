@@ -72,3 +72,21 @@ test("invalid IDs and unit fields are rejected without DB",async()=>{
   assert.throws(()=>f.service.listOrganizations({...ctx,tenantId:"fake"}),OrgInputError);
   assert.deepEqual(f.queries,[]);
 });
+
+test("legacy ownership backfill requires FGA before DB and active default admin role in SQL",async()=>{
+  const denied=fake({denied:true});
+  await assert.rejects(denied.service.backfillDefaultOwnership(ctx),AccessDeniedError);
+  assert.deepEqual(denied.resolutions,[]);
+  const fakeRows=[{entity_type:"crm_people",updated_count:"2"},{entity_type:"inbox_conversations",updated_count:"0"}];
+  const f=fake({rows:fakeRows});
+  const result=await f.service.backfillDefaultOwnership(ctx);
+  assert.deepEqual(result,[{entityType:"crm_people",updatedCount:2},{entityType:"inbox_conversations",updatedCount:0}]);
+  assert.equal(f.checks[0].resource,"organizations:bootstrap");
+  assert.equal(f.checks[0].action,"write");
+  assert.match(f.queries[0].sql,/WITH allowed AS MATERIALIZED/);
+  assert.match(f.queries[0].sql,/m\.role='admin'/);
+  assert.match(f.queries[0].sql,/wm\.role='admin'/);
+  assert.match(f.queries[0].sql,/CROSS JOIN LATERAL/);
+  assert.match(f.queries[0].sql,/platform_backfill_legacy_ownership\(a\.tenant_id\)/);
+  assert.deepEqual(f.queries[0].params,[tenant,ctx.actor.id]);
+});

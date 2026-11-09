@@ -18,6 +18,9 @@ export const syndesPlugin=defineSyndesModule({
   },{
     id:"002_legacy_single_context_gate",
     fileUrl:new URL("../sql/002_legacy_single_context_gate.sql",import.meta.url).href,
+  },{
+    id:"003_legacy_ownership",
+    fileUrl:new URL("../sql/003_legacy_ownership.sql",import.meta.url).href,
   }],
   assets:[],
 });

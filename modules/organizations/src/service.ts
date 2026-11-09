@@ -67,6 +67,39 @@ export class OrganizationService{
       return {initialized:result.rows.length===1};
     });
   }
+  /** Bind legacy CRM, Inbox and WhatsApp records to the verified default.
+   *  A MATERIALIZED authorized row is the only input to the volatile function;
+   *  a caller without active org AND workspace admin membership cannot invoke it.
+   *  FGA 'organizations:bootstrap/write' and tenant membership run first. */
+  backfillDefaultOwnership(ctx:OrgContext):Promise<readonly {entityType:string;updatedCount:number}[]|null>{
+    return this.execute(ctx,"write","organizations:bootstrap",async db=>{
+      const result=await db.query(`
+        WITH allowed AS MATERIALIZED (
+          SELECT o.tenant_id
+          FROM platform_organizations o
+          INNER JOIN platform_org_memberships m
+            ON m.tenant_id=o.tenant_id AND m.organization_id=o.id
+          INNER JOIN platform_workspaces w
+            ON w.tenant_id=o.tenant_id AND w.organization_id=o.id
+          INNER JOIN platform_workspace_memberships wm
+            ON wm.tenant_id=w.tenant_id AND wm.organization_id=w.organization_id
+               AND wm.workspace_id=w.id AND wm.principal_id=m.principal_id
+          WHERE o.tenant_id=$1::uuid AND o.is_default AND o.status='active'
+            AND w.is_default AND w.status='active'
+            AND m.principal_id=$2 AND m.state='active' AND m.role='admin'
+            AND wm.state='active' AND wm.role='admin'
+          LIMIT 1
+        )
+        SELECT scope.entity_type,scope.updated_count
+        FROM allowed a CROSS JOIN LATERAL
+          platform_backfill_legacy_ownership(a.tenant_id) scope
+      `,[ctx.tenantId,ctx.actor.id]);
+      if(!result.rows.length)return null;
+      return result.rows.map(row=>({
+        entityType:String(row.entity_type),updatedCount:Number(row.updated_count),
+      }));
+    });
+  }
   listOrganizations(ctx:OrgContext):Promise<readonly Record<string,unknown>[]>{
     return this.execute(ctx,"read","organizations:directory",async db=>{
       const r=await db.query(`

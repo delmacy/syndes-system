@@ -33,6 +33,14 @@ export class OrganizationController{
   bootstrap(@Param("tenantId")id:string,@Headers("authorization")auth:string|undefined){
     return this.host.run(id,auth,ctx=>this.host.service.bootstrap(ctx));
   }
+  @Post("default-context/backfill")
+  backfill(@Param("tenantId")id:string,@Headers("authorization")auth:string|undefined){
+    return this.host.run(id,auth,async ctx=>{
+      const result=await this.host.service.backfillDefaultOwnership(ctx);
+      if(!result)throw new HttpException("Default context admin required",403);
+      return {bound:result};
+    });
+  }
   @Get("organizations")
   organizations(@Param("tenantId")id:string,@Headers("authorization")auth:string|undefined){
     return this.host.run(id,auth,ctx=>this.host.service.listOrganizations(ctx));
