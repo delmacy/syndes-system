@@ -4,6 +4,7 @@ import {randomUUID} from "node:crypto";
 import {readFile} from "node:fs/promises";
 import pg from "pg";
 import {OrganizationService} from "../dist/service.js";
+import {AccessDeniedError} from "@syndes/core-kernel";
 
 const url=process.env.SYNDES_ORG_TEST_PG_URL;
 const tenant="11111111-1111-4111-8111-111111111111";
@@ -14,6 +15,8 @@ const stripTransactions=s=>s.replace(/^\s*(?:BEGIN|COMMIT);\s*$/gim,"");
 test("legacy CRM, Inbox and WhatsApp owner migration is idempotent, atomic, role-gated and preserves IDs",{
  skip:!url&&"requires disposable PostgreSQL"
 },async()=>{
+ // Load CRM only for the cross-module PostgreSQL integration, not unit tests.
+ const {CrmDefaultContextGuard}=await import("../../core-crm/dist/context-guard.js");
  const client=new pg.Client({connectionString:url});
  await client.connect();
  const schema="org_legacy_"+randomUUID().replaceAll("-","").slice(0,15);
@@ -60,9 +63,15 @@ test("legacy CRM, Inbox and WhatsApp owner migration is idempotent, atomic, role
   }};
   const kernel={execute:async(_q,callback)=>callback()};
   const svc=new OrganizationService(kernel,{resolve:async()=>db});
+  const crmGuard=new CrmDefaultContextGuard(kernel,{
+    resolve:async t=>t===tenant?db:{tenantId:t,query:db.query}
+  });
   // First check: no administrator or default context means NO backfill.
   assert.equal(await svc.backfillDefaultOwnership(actor("alice")),null);
   assert.deepEqual(await svc.bootstrap(actor("alice")),{initialized:true});
+  // A tenant-wide CRM entrypoint must deny even the bootstrap admin until
+  // legacy data has a verified default owner and the audit records backfill.
+  await assert.rejects(crmGuard.resolve(tenant,actor("alice").actor),AccessDeniedError);
   const [org]=await svc.listOrganizations(actor("alice"));
   const [ws]=await svc.listWorkspaces(actor("alice"),org.id);
   assert.equal(await svc.backfillDefaultOwnership(actor("bob")),null);
@@ -78,6 +87,15 @@ test("legacy CRM, Inbox and WhatsApp owner migration is idempotent, atomic, role
     {entityType:"inbox_conversations",updatedCount:1},
     {entityType:"whatsapp_accounts",updatedCount:1}
   ]);
+  const crmScope=await crmGuard.resolve(tenant,actor("alice").actor);
+  assert.equal(crmScope.organizationId,org.id);
+  assert.equal(crmScope.workspaceId,ws.id);
+  await assert.rejects(crmGuard.resolve(tenant,actor("bob").actor),AccessDeniedError);
+  // Revocation takes effect on the next business request, including CSV.
+  await client.query("UPDATE platform_workspace_memberships SET state='revoked' WHERE tenant_id=$1 AND workspace_id=$2 AND principal_id='alice'",[tenant,ws.id]);
+  await assert.rejects(crmGuard.resolve(tenant,actor("alice").actor),AccessDeniedError);
+  await client.query("UPDATE platform_workspace_memberships SET state='active' WHERE tenant_id=$1 AND workspace_id=$2 AND principal_id='alice'",[tenant,ws.id]);
+  assert.equal((await crmGuard.resolve(tenant,actor("alice").actor)).organizationId,org.id);
   assert.deepEqual((await svc.backfillDefaultOwnership(actor("alice"))).map(x=>x.updatedCount),[0,0,0,0,0]);
   const backfillAudit=await client.query(
     "SELECT tenant_id,organization_id,actor_id,counts FROM platform_legacy_backfill_runs ORDER BY id");

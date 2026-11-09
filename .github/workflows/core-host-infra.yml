@@ -221,6 +221,8 @@ jobs:
           node-version: "22"
       - name: Build shared kernel
         run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Build CRM business module for scope-gate PostgreSQL integration
+        run: cd modules/core-crm && npm ci --no-audit --no-fund && npm run build
       - name: Typecheck and test organization foundation on disposable PostgreSQL
         env:
           SYNDES_ORG_TEST_PG_URL: postgresql://postgres:ci-only-disposable@localhost:5432/postgres

@@ -146,3 +146,52 @@ this audit row.
 **Known limitation:** This is an *ownership scaffold* plus migration. It does
 NOT constrain legacy CRM/Inbox REST, CSV, SSE or WhatsApp account routes to
 the owner scopes. All those paths remain tenant-wide until Stage C.
+
+
+## Stage C1 — CRM HTTP default-context access gate (PR #25 / 2026-11-09)
+
+This first Stage C increment is intentionally limited to the ONE default
+Organization and Workspace permitted by the
+002_legacy_single_context_gate.sql migration. It does NOT unlock multiple
+organizations or claim full per-record organization/workspace filtering.
+
+All CRM Nest HTTP endpoints (people, contact companies, employees, tags,
+relationships, notes, timelines, channel identities, duplicate search,
+CSV import/export and UI capabilities) enter through CrmHost.context()
+and CrmDefaultContextGuard before any CRM business query.
+
+1. The Host validates Keycloak JWT; the actor is not caller-selectable.
+2. CoreKernel checks tenant membership AND the new crm:context/read FGA grant
+   BEFORE the tenant database is resolved.
+3. The database checks active platform_org_memberships and
+   platform_workspace_memberships for that actor on the default org/workspace.
+4. An audited legacy backfill row must exist in platform_legacy_backfill_runs.
+5. The legacy single-context UNIQUE indexes must still be installed.
+   Removing either immediately denies CRM entry until fully scoped SQL takes
+   over, preventing accidental unsafe multi-org activation.
+6. A verified organizationId and workspaceId are available in CrmContext.
+
+Missing membership responds 403 (not 401); bad bearer 401; missing DB service
+fails closed with 503. The client cannot request a different organization
+in this increment. The crm:context permission was added to the CRM plugin
+metadata. OpenFGA tuples must be explicitly granted to intended CRM roles;
+tenant membership alone must not allow CRM access.
+
+**Mandatory future rollout order to avoid user lockouts**:
+- Apply all three organization migrations to the approved tenant;
+- Bootstrap default organization/workspace as approved tenant admin;
+- Run default-context/backfill at least once and verify the audit row;
+- Provision crm:context/read to authorized CRM roles via trusted FGA admin,
+  alongside existing resource-specific action permissions;
+- ONLY THEN release the CRM Host image and verify member access and
+  same-tenant nonmember denial (especially CSV export and capabilities).
+
+**Not yet finished:** All legacy CRM repository SQL remains tenant scoped,
+and this gate only works as a cross-organization boundary because Stage A
+forbids any second organization/workspace. An organization-aware SQL query
+layer (including exports, nested contact/employee/channel associations,
+writes and actor permission checks in-transaction), CRM-to-Inbox and
+WhatsApp provider paths, and appropriate channel sharing policy still must
+be implemented and tested before removing the indexes. Direct repository
+calls outside the Nest HTTP controller are not covered by the HTTP guard.
+No merge, customer migration, FGA admin change or deploy is included.

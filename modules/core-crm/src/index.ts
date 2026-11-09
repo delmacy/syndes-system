@@ -1,4 +1,6 @@
 export { crmModule, CrmService } from "./service.js";
+export { CrmDefaultContextGuard } from "./context-guard.js";
+export type { AuthorizedCrmDefaultContext } from "./context-guard.js";
 export { PgCrmRepository, PgCrmRepositoryFactory } from "./postgres.js";
 export { CrmValidationError, TenantDatabaseMismatchError } from "./contracts.js";
 export { isUuid } from "./validation.js";

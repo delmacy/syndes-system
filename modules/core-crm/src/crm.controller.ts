@@ -2,6 +2,7 @@ import {Body,Controller,Delete,Get,Header,Headers,HttpException,HttpStatus,Injec
 import {Inject} from "@nestjs/common";
 import {AccessDeniedError} from "@syndes/core-kernel";
 import {CrmService,CrmExtras,PgCrmRepositoryFactory,PgCrmExtrasFactory,CrmValidationError,TenantDatabaseMismatchError} from "./index.js";
+import {CrmDefaultContextGuard} from "./context-guard.js";
 import type {CrmContext,CreatePerson,CreateOrganization} from "./contracts.js";
 import {isUuid} from "./validation.js";
 import {CORE_RUNTIME,TENANT_DATABASES,type CrmHostRuntime,type TrustedTenantDatabaseProvider} from "./runtime.js";
@@ -10,6 +11,7 @@ import {CORE_RUNTIME,TENANT_DATABASES,type CrmHostRuntime,type TrustedTenantData
 export class CrmHost {
  readonly crm:CrmService;
  readonly extra:CrmExtras;
+ readonly scope:CrmDefaultContextGuard;
  constructor(
    @Inject(CORE_RUNTIME) readonly core:CrmHostRuntime,
    @Inject(TENANT_DATABASES) private readonly pools:TrustedTenantDatabaseProvider
@@ -18,21 +20,23 @@ export class CrmHost {
    const extras=new PgCrmExtrasFactory(pools);
    this.crm=new CrmService(core.kernel,id=>repos.forTenant(id));
    this.extra=new CrmExtras(core.kernel,id=>extras.forTenant(id));
+   this.scope=new CrmDefaultContextGuard(core.kernel,pools);
  }
  async context(tenantId:string,bearer:string|undefined):Promise<CrmContext>{
    if(!isUuid(tenantId))throw new HttpException("Invalid tenant ID",400);
-   try{
-     const actor=await this.core.verifier.verify(bearer);
-     return {actor,tenantId};
-   }catch{
-     throw new HttpException("Authentication required",401);
-   }
+   let actor;
+   try{actor=await this.core.verifier.verify(bearer)}
+   catch{throw new HttpException("Authentication required",401)}
+   // The context guard performs both FGA and active org/workspace checks.
+   // Context denial MUST NOT be misclassified as an authentication failure.
+   return this.scope.resolve(tenantId,actor);
  }
  async run<T>(tenantId:string,bearer:string|undefined,
    task:(context:CrmContext)=>Promise<T>):Promise<T>{
-   const ctx=await this.context(tenantId,bearer);
-   try{return await task(ctx)}
-   catch(e){
+   try{
+     const ctx=await this.context(tenantId,bearer);
+     return await task(ctx);
+   }catch(e){
      if(e instanceof HttpException)throw e;
      if(e instanceof CrmValidationError)throw new HttpException(e.message,400);
      if(e instanceof AccessDeniedError)throw new HttpException("Forbidden",403);
