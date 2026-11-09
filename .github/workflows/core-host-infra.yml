@@ -210,6 +210,40 @@ jobs:
           docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml down -v --remove-orphans || true
           sudo rm -rf /run/syndes/approle /run/syndes/runtime
 
+  account-delegation-e2e:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-only-disposable
+          POSTGRES_DB: syndes_control
+        ports:
+          - 15433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d syndes_control"
+          --health-interval 3s --health-timeout 4s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dedicated API dependencies
+        run: cd apps/account-access-api && npm ci --no-audit --no-fund
+      - name: Prepare ephemeral CI-only runtime secret mount
+        run: sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/secrets
+      - name: Real HTTP + RS256 OIDC + FGA fixture + PostgreSQL least-privilege E2E
+        env:
+          CI_ACCOUNT_PG: '1'
+          CI_PG_ADMIN_URL: postgresql://postgres:ci-only-disposable@127.0.0.1:15433/syndes_control
+        run: node apps/account-access-api/test/pg-e2e.mjs
+      - name: Cleanup ephemeral integration credential files
+        if: always()
+        run: |
+          sudo rm -f /run/secrets/ci-account-db-url /run/secrets/ci-account-fga-token
+
   organizations-postgres:
     runs-on: ubuntu-latest
     services:
