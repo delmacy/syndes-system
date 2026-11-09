@@ -124,7 +124,19 @@ test("DC-2c real PostgreSQL: scoped staff identities, explicit roles, teams, FGA
    "No duplicate audit for unchanged designation");
   assert.equal(await service.assignWorkspaceRole(own,O1,W1,"viewer-a","supervisor"),false,
    "Technical viewer may not be promoted through a business label");
+  await assert.rejects(db.query(
+   "INSERT INTO platform_workspace_staff_roles(tenant_id,organization_id,workspace_id,principal_id,business_role,assigned_by,changed_by) VALUES($1,$2,$3,$4,'supervisor','forged','forged')",
+   [T1,O1,W1,"viewer-a"]),e=>e.code==="42501",
+   "Direct SQL must not turn a technical viewer into supervisor");
   assert.equal(await service.assignWorkspaceRole(own,O1,W1,"viewer-a","viewer"),true);
+  await assert.rejects(db.query(
+   "UPDATE platform_workspace_staff_roles SET principal_id='other-agent-a',changed_by='forged' WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id='viewer-a'",
+   [T1,O1,W1]),e=>e.code==="42501",
+   "Direct SQL cannot rewrite the subject of a designation");
+  await assert.rejects(db.query(
+   "DELETE FROM platform_workspace_staff_roles WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id='viewer-a'",
+   [T1,O1,W1]),e=>e.code==="42501",
+   "Designation history must be revoked, not deleted");
   assert.equal((await service.myProfile(viewer,O1,W1)).businessRole,"viewer");
 
   // Explicit teams organize staff; a team row never creates a workspace grant.
@@ -168,7 +180,7 @@ test("DC-2c real PostgreSQL: scoped staff identities, explicit roles, teams, FGA
   await assert.rejects(db.query(
    "INSERT INTO platform_staff_identity_links(tenant_id,organization_id,id,employee_id,principal_id,bound_by) VALUES($1,$2,$3,$4,$5,$6)",
    [T1,O1,randomUUID(),personOfDifferentOrg,"other-agent-a","owner-a"]),
-   e=>e.code==="23503","Cross-tenant CRM employee FK");
+   e=>e.code==="23503"||e.code==="42501","Cross-tenant employee binding denied by trigger or FK");
   await assert.rejects(db.query("DELETE FROM platform_staff_access_audit WHERE tenant_id=$1",[T1]),
    e=>e.code==="42501","Workforce audit may not be deleted");
   await assert.rejects(db.query("INSERT INTO platform_organizations(tenant_id,id,display_name) VALUES($1,$2,'Other')",

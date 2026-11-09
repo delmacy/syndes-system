@@ -162,8 +162,9 @@ BEGIN
  IF TG_OP='UPDATE' THEN
   IF NEW.tenant_id<>OLD.tenant_id OR NEW.organization_id<>OLD.organization_id OR
      NEW.id<>OLD.id OR NEW.principal_id<>OLD.principal_id OR
-     NEW.employee_id<>OLD.employee_id OR OLD.state='revoked' OR
-     NEW.state<>'revoked' THEN
+     NEW.employee_id<>OLD.employee_id OR
+     NEW.bound_by<>OLD.bound_by OR NEW.bound_at<>OLD.bound_at OR
+     OLD.state='revoked' OR NEW.state<>'revoked' THEN
    RAISE EXCEPTION 'Staff identity links are immutable, only revoke'
     USING ERRCODE='42501';
   END IF;
@@ -211,6 +212,58 @@ DROP TRIGGER IF EXISTS staff_identity_audit ON platform_staff_identity_links;
 CREATE TRIGGER staff_identity_audit
  AFTER INSERT OR UPDATE ON platform_staff_identity_links
  FOR EACH ROW EXECUTE FUNCTION platform_staff_identity_audit();
+
+CREATE OR REPLACE FUNCTION platform_staff_role_validate()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER
+SET search_path=pg_catalog,public AS $role$
+BEGIN
+ IF TG_OP='DELETE' THEN
+  RAISE EXCEPTION 'Staff designations must be revoked, not deleted'
+   USING ERRCODE='42501';
+ END IF;
+ IF TG_OP='UPDATE' THEN
+  IF NEW.tenant_id<>OLD.tenant_id OR
+     NEW.organization_id<>OLD.organization_id OR
+     NEW.workspace_id<>OLD.workspace_id OR
+     NEW.principal_id<>OLD.principal_id OR
+     NEW.assigned_by<>OLD.assigned_by OR
+     NEW.assigned_at<>OLD.assigned_at OR
+     (NEW.state=OLD.state AND NEW.business_role=OLD.business_role) THEN
+   RAISE EXCEPTION 'Invalid staff designation transition'
+    USING ERRCODE='42501';
+  END IF;
+ END IF;
+ IF NEW.state='active' AND NOT EXISTS (
+  SELECT 1 FROM platform_workspace_memberships wm
+  JOIN platform_org_memberships om ON om.tenant_id=wm.tenant_id
+   AND om.organization_id=wm.organization_id AND om.principal_id=wm.principal_id
+   AND om.state='active'
+  JOIN platform_staff_identity_links l ON l.tenant_id=om.tenant_id
+   AND l.organization_id=om.organization_id AND l.principal_id=om.principal_id
+   AND l.state='active'
+  JOIN crm_employees e ON e.tenant_id=l.tenant_id
+   AND e.id=l.employee_id AND e.active=true
+  JOIN crm_people p ON p.tenant_id=e.tenant_id AND p.id=e.person_id
+   AND p.archived_at IS NULL AND p.platform_organization_id=l.organization_id
+  JOIN platform_organizations o ON o.tenant_id=om.tenant_id
+   AND o.id=om.organization_id AND o.status='active'
+  JOIN platform_workspaces w ON w.tenant_id=wm.tenant_id
+   AND w.organization_id=wm.organization_id AND w.id=wm.workspace_id
+   AND w.status='active'
+  WHERE wm.tenant_id=NEW.tenant_id AND wm.organization_id=NEW.organization_id
+   AND wm.workspace_id=NEW.workspace_id AND wm.principal_id=NEW.principal_id
+   AND wm.state='active'
+   AND (NEW.business_role='viewer' OR wm.role IN ('admin','editor'))
+ ) THEN
+  RAISE EXCEPTION 'Designation requires active employee and authorized scope'
+   USING ERRCODE='42501';
+ END IF;
+ RETURN NEW;
+END $role$;
+DROP TRIGGER IF EXISTS staff_role_validate ON platform_workspace_staff_roles;
+CREATE TRIGGER staff_role_validate
+ BEFORE INSERT OR UPDATE OR DELETE ON platform_workspace_staff_roles
+ FOR EACH ROW EXECUTE FUNCTION platform_staff_role_validate();
 
 CREATE OR REPLACE FUNCTION platform_staff_role_audit()
 RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER
