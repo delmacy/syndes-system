@@ -37,6 +37,12 @@ test('separate manager UI change includes API and infrastructure boundary', () =
   ]);
 });
 
+test('account delegation endpoint selects dedicated SQL/JWT suite and infrastructure', () => {
+  assert.deepEqual(names(['apps/account-access-api/src/server.mjs']), [
+    'account-access', 'infra',
+  ]);
+});
+
 test('only available, installed component suites are scheduled', () => {
   assert.deepEqual(names(['modules/support/src/contract.ts'], 'impact', ['support']), ['support']);
 });

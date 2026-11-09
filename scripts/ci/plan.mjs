@@ -17,6 +17,7 @@ export const catalog = [
   { suite: 'support-web', marker: 'apps/support-web/package-lock.json', node: '24' },
   { suite: 'platform-api', marker: 'apps/master-admin-api/package-lock.json', node: '22' },
   { suite: 'platform-web', marker: 'apps/master-admin-web/package-lock.json', node: '24' },
+  { suite: 'account-access', marker: 'apps/account-access-api/package-lock.json', node: '22' },
   { suite: 'infra', marker: 'infra/.env.ci', node: '22' },
 ];
 
@@ -48,6 +49,8 @@ export function selectSuites(changedPaths, available = all, mode = 'impact') {
       add(affected, 'support', 'host', 'support-web');
     } else if (file.startsWith('apps/core-host/')) {
       add(affected, ...all);
+    } else if (file.startsWith('apps/account-access-api/')) {
+      add(affected, 'account-access', 'infra');
     } else if (file.startsWith('apps/workspace-web/')) {
       add(affected, 'workspace');
     } else if (file.startsWith('apps/support-web/')) {
