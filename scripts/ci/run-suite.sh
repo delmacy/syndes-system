@@ -101,7 +101,12 @@ case "$suite" in
       npm test &&
       npm run lint &&
       npx playwright install --with-deps chromium &&
-      npm run test:whatsapp-ui)
+      npm run test:ui-anon &&
+      npm run test:inbox-ui &&
+      npm run test:crm-ui)
+    if [[ -f modules/whatsapp/package-lock.json ]]; then
+      (cd apps/workspace-web && npm run test:whatsapp-ui)
+    fi
     ;;
   support)
     build_kernel
