@@ -35,4 +35,8 @@ check alice can_read "resource:$ra" true
 check alice can_write "resource:$ra" false
 check alice can_read "resource:$rb" false
 check bob can_read "resource:$ra" false
+if [[ "$GITHUB_ACTIONS" == "true" && "$CI_RUNTIME_SMOKE" == "1" ]]; then
+  printf '%s\n' "$store_id" > /run/syndes/runtime/core_host_fga_store
+  chmod 0600 /run/syndes/runtime/core_host_fga_store
+fi
 echo "OpenFGA model: grants expected access, denies cross-tenant and unauthorized writes."

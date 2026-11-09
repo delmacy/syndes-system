@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Syndes | Inbox</title>
+<link rel="stylesheet" href="/inbox/styles.css">
+<script src="/inbox/app.js" defer></script>
+</head><body>
+<header><div><strong class="brand">Syndes</strong><span class="tag">Core Inbox</span></div>
+<div class="session"><span id="identity">Não autenticado</span><button id="login">Entrar</button><button id="logout" hidden>Sair</button></div></header>
+<div class="toolbar"><label for="tenant">Tenant UUID</label><input id="tenant" autocomplete="off" placeholder="UUID do tenant">
+<button id="refresh">Atualizar</button><button id="new">+ Conversa simulada</button>
+<span id="metrics" aria-live="polite"></span></div>
+<p id="notice" role="status" aria-live="polite">Entre com Keycloak para começar.</p>
+<main>
+<aside><div class="queue-head"><strong>Conversas</strong><select id="filter" aria-label="Filtrar status">
+<option value="">Todas</option><option value="open">Abertas</option>
+<option value="pending">Pendentes</option><option value="resolved">Resolvidas</option>
+</select></div><div id="queue" aria-label="Fila de conversas"><p class="muted">Sem dados.</p></div></aside>
+<section class="thread"><div id="empty">Selecione uma conversa para abrir o atendimento.</div>
+<div id="workspace" hidden>
+<div class="thread-head"><h1 id="subject"></h1><p id="context"></p>
+<div class="actions"><button id="assign-me">Assumir</button><button id="transfer">Transferir</button>
+<button id="pending">Pendente</button><button id="resolve">Resolver</button><button id="reopen">Reabrir</button>
+<button id="handoff">Handoff</button></div></div>
+<div id="history" aria-label="Histórico de mensagens"></div>
+<form id="compose"><label for="body">Mensagem ou nota</label><textarea id="body" maxlength="5000" rows="3" required></textarea>
+<div class="actions"><button type="submit" id="reply">Responder</button><button type="button" id="note">Nota interna</button>
+<button type="button" id="simulate">Simular recebimento</button></div></form>
+</div></section></main>
+</body></html>
