@@ -1,66 +1,48 @@
 # Syndes System
 
-Codinome interno do produto SaaS atualmente em desenvolvimento.
+Plataforma SaaS modular e multi-tenant em desenvolvimento. A **`main` é a linha canônica de código integrado**; branches de trabalho são temporárias. Uma funcionalidade estar no código da `main` **não** significa que tenha sido implantada ou homologada em produção.
 
-## Estado
+## Estado do código — 09/11/2026
 
-- MVP scope: **FROZEN**
-- Fase funcional atual: **PRD-002 Inbox** (priorização explícita de 2026-11-01; **Core CRM permanece incompleto, especialmente no frontend**)
-- Estratégia: **um módulo funcional por vez**
-- Arquitetura de negócio: **monólito modular**, salvo separação comprovadamente necessária
-- Regra de escopo: toda nova ideia é classificada como `BLOCKER`, `BUG`, `MVP` ou `POST-MVP`
+Após a consolidação da [PR #47](https://github.com/delmacy/syndes-system/pull/47), a `main` contém a fundação do **Core Kernel**, **Core Host**, **Organizations/Workspace**, **CRM**, **Inbox**, **WhatsApp** (contratos TypeScript e gateway Go), **Syndes Support** e **Platform Manager** (API e frontend segregados). A integração também mantém suites automatizadas para contratos, isolamento entre tenants, autorização, PostgreSQL, Keycloak, OpenFGA, OpenBao e testes de navegador.
 
-## Ordem funcional aprovada
+Esse é o estado do **repositório de desenvolvimento**. Não significa que todas as jornadas estejam aceitas, que o multi-org esteja ativado nem que Support/Platform Manager tenham sido liberados em operação real. O **Product Gate #31** continua mantendo a trava SQL 002. Os releases operacionais possuem requisitos específicos.
 
-1. Core CRM
-2. Inbox
-3. WhatsApp
-4. Scheduling
-5. AI First-Level Assistant
-6. Documents
-7. Email
-8. Onboarding
-9. Subscription & Billing
-10. Commercial Website
-11. Release Candidate
-12. Launch
+### Direção do MVP
 
-Instagram, Google Calendar, Automation Platform, AI Advanced, ERP, estoque, financeiro empresarial, múltiplos números e demais expansões permanecem fora do MVP.
+O escopo aprovado continua sob controle: classificar qualquer nova demanda como `BLOCKER`, `BUG`, `MVP` ou `POST-MVP`. Priorizar o produto utilizável e a integração das áreas existentes, não criar novas frentes desnecessárias. O próximo trabalho funcional depende de aceite explícito por módulo.
 
-## Organização atual
+A ordem originalmente planejada abrange CRM, Inbox, WhatsApp, Agendamento, Assistente IA N1, Documentos, Email, Onboarding, Billing, Website Comercial e Release Candidate. Essa ordem é **roadmap**, não declaração de funcionalidades concluídas.
 
-O repositório contém o Core Host modular, os pacotes aprovados (incluindo CRM e Inbox), infraestrutura reprodutível e o Workspace React para tenants. A implantação atual no DevServer01 é de desenvolvimento, **não de produção**.
+## Fluxo de engenharia: sempre para main
 
-- `AGENTS.md`: regras globais para agentes e contribuidores
-- `modules/*/AGENTS.md`: contrato de trabalho de cada módulo
-- `docs/product/`: baseline de produto
-- `docs/engineering/`: práticas de engenharia e testes
-- `tests/`: estratégia e harnesses de integridade, segurança e performance
-- `.github/workflows/`: gates automatizados de CI
+1. Partir da `main` atual; preferir PRs curtos e integrá-los rapidamente. Evitar cadeias permanentes de branches.
+2. Executar o **Syndes Mainline CI**: `.github/workflows/syndes-ci.yml` orquestra testes impactados no PR e testes completos no push da `main`; as suítes reais de Support e Platform Manager permanecem reutilizáveis pelo orquestrador.
+3. O check agregado `Syndes CI Gate` informa o estado da validação. **A main está intencionalmente sem branch protection administrativa durante esta fase**, por decisão do proprietário. Revisões obrigatórias e restrições administrativas serão consideradas posteriormente, não antecipadas por agentes.
+4. Produção é uma decisão separada: release rastreável por SHA/digest, staging, smoke, backup, rollback e aceite operacional. Merge não dispara autorização irrestrita de deploy.
 
-Leia o `AGENTS.md` raiz antes de alterar qualquer parte do repositório.
+A política detalhada está em [MAINLINE-CI-POLICY.md](docs/engineering/MAINLINE-CI-POLICY.md). A [Issue #38](https://github.com/delmacy/syndes-system/issues/38) acompanha consolidação histórica e pendências. PRs históricos já absorvidos foram encerrados sem excluir branches; alterações ainda não integradas continuam separadas.
 
+## Estrutura
 
-## Workspace dos tenants — entrega em desenvolvimento
+- `packages/core-kernel/`: contratos e inicialização modular
+- `apps/core-host/`: APIs, autenticação, autorização e composição dos módulos
+- `modules/`: CRM, Inbox, WhatsApp, Organizations, Support e demais contratos de produto
+- `apps/workspace-web/`: interface de operação de clientes/tenants
+- `apps/support-web/`: interface segregada da central de atendimento Syndes
+- `apps/master-admin-api/` e `apps/master-admin-web/`: APIs e frontend segregados do Platform Manager
+- `infra/`: bancos, identidade, segredos e manifests de infraestrutura
+- `scripts/ci/`, `tests/` e `.github/workflows/`: planejador, suites e gates automatizados
+- `docs/`: PRDs, ADRs, WBS, critérios de aceite e runbooks
 
-- `apps/workspace-web/`: Shell React/TypeScript + Tailwind CSS + shadcn/ui com dashboard, CRM, Inbox e configurações.
-- **Um único login Keycloak** (OIDC com PKCE S256); a janela HTTP Basic foi removida do Workspace. O Core Host segue protegendo todas as APIs com token e autorização server-side OpenFGA.
-- Ingress de desenvolvimento via Tailscale Serve/Traefik; Nginx interno apenas serve os arquivos estáticos.
-- PR #9 (`feat/workspace-shell-v1`, **draft**) depende da base `feat/core-inbox-foundation`/PR #8. **Nenhum merge ou release de produção foi declarado.**
-- Registro das stacks Komodo propositalmente adiado, sem bloquear a evolução funcional do MVP.
+## Documentos fundamentais
 
-**Documentação de continuidade:**
+- [Contrato global de engenharia](AGENTS.md)
+- [Estratégia de testes](docs/engineering/TEST-STRATEGY.md)
+- [Política de integração mainline](docs/engineering/MAINLINE-CI-POLICY.md)
+- [Candidato integrado e evidências](docs/engineering/INTEGRATED-RELEASE-CANDIDATE-20261109.md)
+- [Product Gate multi-organização #31](https://github.com/delmacy/syndes-system/issues/31)
+- [Release Gate Syndes Support](docs/engineering/SYNDES-SUPPORT-RELEASE-GATE.md)
+- [Release Gate Platform Manager](docs/engineering/PLATFORM-MANAGER-RELEASE.md)
 
-- [Arquitetura do Workspace e decisões de autenticação](docs/engineering/WORKSPACE-SHELL-ARCHITECTURE.md)
-- [Runbook DevServer01: verificação, publicação e rollback](docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md)
-- [Handoff do Workspace e gate para o próximo módulo](docs/product/WORKSPACE-MVP-HANDOFF.md)
-- [README da aplicação Workspace](apps/workspace-web/README.md)
-
-**Próxima fase funcional:** Inbox (PRD-002), autorizada pelo responsável pelo produto com pendências abertas no frontend CRM. Ambos exigirão aceite antes de lançamento.
-
-- [Progresso da Inbox no Workspace e pendências de aceite](docs/product/INBOX-FRONTEND-PROGRESS.md)
-
-
-## CRM Workspace — finalização das tarefas de frontend
-
-As tarefas de interface Core CRM foram retomadas por autorização explícita em 2026-11-01 na branch `feat/crm-workspace-completion`. A implementação contempla ficha, operações CRUD, vínculos, paginação, CSV e capacidades consultadas no backend. **Não é release de produção nem Product Gate concluído.** [Checkpoint e critérios](docs/product/CORE-CRM-FRONTEND-COMPLETION.md).
+**Princípio:** `IMPLEMENTED != INTEGRATED != TESTED != PROVEN != DONE`. A `main` contém a integração técnica; os gates operacionais continuam independentes.
