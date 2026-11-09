@@ -191,18 +191,18 @@ export class SupportService{
           WHERE m.tenant_id=c.tenant_id AND m.queue_code=c.queue_code AND m.principal_id=$4)
       FOR UPDATE
      ), changed AS (
-      UPDATE support_cases c SET status=$5,
+      UPDATE support_cases c SET status=$5::text,
        updated_at=clock_timestamp(),
-       resolved_at=CASE WHEN $5='resolved' THEN clock_timestamp()
-         WHEN $5='triage' THEN NULL ELSE c.resolved_at END,
-       closed_at=CASE WHEN $5='closed' THEN clock_timestamp()
-         WHEN $5='triage' THEN NULL ELSE c.closed_at END
+       resolved_at=CASE WHEN $5::text='resolved' THEN clock_timestamp()
+         WHEN $5::text='triage' THEN NULL ELSE c.resolved_at END,
+       closed_at=CASE WHEN $5::text='closed' THEN clock_timestamp()
+         WHEN $5::text='triage' THEN NULL ELSE c.closed_at END
       FROM permitted p WHERE c.tenant_id=$1::uuid AND c.id=p.id
         AND c.status=p.status AND p.status=ANY($6::text[])
       RETURNING c.*
      ), audit AS (
       INSERT INTO support_case_events(tenant_id,case_id,actor_id,action,previous_status,next_status)
-      SELECT c.tenant_id,c.id,$4,'status_changed',p.status,$5
+      SELECT c.tenant_id,c.id,$4,'status_changed',p.status,$5::text
       FROM changed c JOIN permitted p ON p.id=c.id RETURNING case_id
      )
      SELECT c.* FROM changed c JOIN audit a ON a.case_id=c.id
