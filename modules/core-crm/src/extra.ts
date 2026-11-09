@@ -15,7 +15,7 @@ export type ImportResult=Readonly<{imported:number}>;
 export interface ExtraRepository {
   updatePerson(tenant:string,actor:string,personId:string,fields:CreatePerson):Promise<Person|null>;
   getOrganization(tenant:string,orgId:string):Promise<Organization|null>;
-  listOrganizations(tenant:string,query:string|null,limit:number):Promise<readonly Organization[]>;
+  listOrganizations(tenant:string,query:string|null,limit:number,offset?:number):Promise<readonly Organization[]>;
   updateOrganization(tenant:string,actor:string,orgId:string,fields:{legalName:string;tradeName:string|null;taxId:string|null}):Promise<Organization|null>;
   archiveOrganization(tenant:string,actor:string,orgId:string):Promise<boolean>;
   createEmployee(tenant:string,actor:string,employeeId:string,personId:string,jobTitle:string):Promise<Employee>;
@@ -24,7 +24,13 @@ export interface ExtraRepository {
   importPeople(tenant:string,actor:string,people:readonly (CreatePerson&{id:string})[]):Promise<number>;
   listExportPeople(tenant:string,limit:number):Promise<readonly Person[]>;
   listEmployees(tenant:string,limit:number):Promise<readonly Employee[]>;
+  getPersonEmployee(tenant:string,personId:string):Promise<Employee|null>;
   listChannels(tenant:string,personId:string,limit:number):Promise<readonly ChannelIdentity[]>;
+  listPersonOrganizations(tenant:string,personId:string,limit:number):Promise<readonly Organization[]>;
+  listPersonTags(tenant:string,personId:string,limit:number):Promise<readonly {id:string;label:string}[]>;
+  listTags(tenant:string,limit:number):Promise<readonly {id:string;label:string}[]>;
+  unlinkOrganization(tenant:string,actor:string,personId:string,orgId:string):Promise<boolean>;
+  unlinkTag(tenant:string,actor:string,personId:string,tagId:string):Promise<boolean>;
 }
 
 export class CrmExtras {
@@ -42,10 +48,11 @@ export class CrmExtras {
     const org=id(orgId,"organization ID");
     return this.run(ctx,"read","crm:organizations",db=>db.getOrganization(ctx.tenantId,org));
   }
-  listOrganizations(ctx:CrmContext,query:unknown=null,limit=25):Promise<readonly Organization[]>{
+  listOrganizations(ctx:CrmContext,query:unknown=null,limit=25,offset=0):Promise<readonly Organization[]>{
     if(!Number.isInteger(limit)||limit<1||limit>100)throw new CrmValidationError("Invalid page size");
+    if(!Number.isInteger(offset)||offset<0||offset>100000)throw new CrmValidationError("Invalid offset");
     const q=searchQuery(query);
-    return this.run(ctx,"read","crm:organizations",db=>db.listOrganizations(ctx.tenantId,q,limit));
+    return this.run(ctx,"read","crm:organizations",db=>db.listOrganizations(ctx.tenantId,q,limit,offset));
   }
   updateOrganization(ctx:CrmContext,orgId:string,input:{legalName:string;tradeName?:string|null;taxId?:string|null}):Promise<Organization|null>{
     const org=id(orgId,"organization ID");
@@ -82,9 +89,37 @@ export class CrmExtras {
     const parsed=parseContactsCsv(csv).map(x=>({...x,id:randomUUID()}));
     return this.run(ctx,"write","crm:people",async db=>({imported:await db.importPeople(ctx.tenantId,ctx.actor.id,parsed)}));
   }
+  getPersonEmployee(ctx:CrmContext,personId:string):Promise<Employee|null>{
+    const person=id(personId,"person ID");
+    return this.run(ctx,"read","crm:employees",
+      db=>db.getPersonEmployee(ctx.tenantId,person));
+  }
   listEmployees(ctx:CrmContext,limit=100):Promise<readonly Employee[]>{
     if(!Number.isInteger(limit)||limit<1||limit>100)throw new CrmValidationError("Invalid employee page size");
     return this.run(ctx,"read","crm:employees",db=>db.listEmployees(ctx.tenantId,limit));
+  }
+  listPersonOrganizations(ctx:CrmContext,personId:string):Promise<readonly Organization[]>{
+    const person=id(personId,"person ID");
+    return this.run(ctx,"read","crm:organizations",
+      db=>db.listPersonOrganizations(ctx.tenantId,person,25));
+  }
+  listTags(ctx:CrmContext):Promise<readonly {id:string;label:string}[]>{
+    return this.run(ctx,"read","crm:tags",db=>db.listTags(ctx.tenantId,100));
+  }
+  unlinkOrganization(ctx:CrmContext,personId:string,orgId:string):Promise<boolean>{
+    const person=id(personId,"person ID"),org=id(orgId,"organization ID");
+    return this.run(ctx,"write","crm:relationships",
+      db=>db.unlinkOrganization(ctx.tenantId,ctx.actor.id,person,org));
+  }
+  unlinkTag(ctx:CrmContext,personId:string,tagId:string):Promise<boolean>{
+    const person=id(personId,"person ID"),tag=id(tagId,"tag ID");
+    return this.run(ctx,"write","crm:tags",
+      db=>db.unlinkTag(ctx.tenantId,ctx.actor.id,person,tag));
+  }
+  listPersonTags(ctx:CrmContext,personId:string):Promise<readonly {id:string;label:string}[]>{
+    const person=id(personId,"person ID");
+    return this.run(ctx,"read","crm:tags",
+      db=>db.listPersonTags(ctx.tenantId,person,25));
   }
   listChannels(ctx:CrmContext,personId:string):Promise<readonly ChannelIdentity[]>{
     const person=id(personId,"person ID");
@@ -125,14 +160,14 @@ export class PgCrmExtras implements ExtraRepository {
     const r=await this.db.query("SELECT id,tenant_id,legal_name,trade_name,tax_id,archived_at FROM crm_organizations WHERE tenant_id=$1::uuid AND id=$2::uuid AND archived_at IS NULL",[t,id]);
     return r.rows[0]?asOrganization(r.rows[0]):null;
   }
-  async listOrganizations(t:string,q:string|null,limit:number):Promise<readonly Organization[]>{
+  async listOrganizations(t:string,q:string|null,limit:number,offset=0):Promise<readonly Organization[]>{
     this.check(t);
     const r=await this.db.query(`SELECT id,tenant_id,legal_name,trade_name,tax_id,archived_at FROM crm_organizations
       WHERE tenant_id=$1::uuid AND archived_at IS NULL AND
       ($2::text IS NULL OR legal_name ILIKE '%'||$2::text||'%' ESCAPE '\\'
        OR trade_name ILIKE '%'||$2::text||'%' ESCAPE '\\'
        OR tax_id ILIKE '%'||$2::text||'%' ESCAPE '\\')
-      ORDER BY legal_name,id LIMIT $3`,[t,q,limit]);
+      ORDER BY legal_name,id LIMIT $3 OFFSET $4`,[t,q,limit,offset]);
     return r.rows.map(asOrganization);
   }
   async updateOrganization(t:string,a:string,id:string,v:{legalName:string;tradeName:string|null;taxId:string|null}):Promise<Organization|null>{
@@ -214,6 +249,14 @@ export class PgCrmExtras implements ExtraRepository {
     if(count!==people.length)throw new Error("CRM batch import failed");
     return count;
   }
+  async getPersonEmployee(t:string,personId:string):Promise<Employee|null>{
+    this.check(t);
+    const rows=(await this.db.query(
+      "SELECT id,tenant_id,person_id,job_title,active FROM crm_employees WHERE tenant_id=$1::uuid AND person_id=$2::uuid LIMIT 1",
+      [t,personId])).rows;
+    const row=rows[0];return row?{id:String(row.id),tenantId:t,personId,
+      jobTitle:String(row.job_title),active:Boolean(row.active)}:null;
+  }
   async listEmployees(t:string,limit:number):Promise<readonly Employee[]>{
     this.check(t);
     const r=await this.db.query(`SELECT id,tenant_id,person_id,job_title,active FROM crm_employees
@@ -229,6 +272,63 @@ export class PgCrmExtras implements ExtraRepository {
     return r.rows.map(row=>({id:String(row.id),tenantId:t,personId,
       channel:String(row.channel),externalId:String(row.external_id),
       displayName:row.display_name===null?null:String(row.display_name)}));
+  }
+  async listPersonOrganizations(t:string,personId:string,limit:number):Promise<readonly Organization[]>{
+    this.check(t);
+    const r=await this.db.query(`
+      SELECT o.id,o.tenant_id,o.legal_name,o.trade_name,o.tax_id,o.archived_at
+      FROM crm_person_organizations rel
+      JOIN crm_organizations o ON o.tenant_id=rel.tenant_id AND o.id=rel.organization_id
+      JOIN crm_people p ON p.tenant_id=rel.tenant_id AND p.id=rel.person_id
+      WHERE rel.tenant_id=$1::uuid AND rel.person_id=$2::uuid
+        AND p.archived_at IS NULL AND o.archived_at IS NULL
+      ORDER BY o.legal_name,o.id LIMIT $3
+    `,[t,personId,limit]);
+    return r.rows.map(asOrganization);
+  }
+  async listPersonTags(t:string,personId:string,limit:number):Promise<readonly {id:string;label:string}[]>{
+    this.check(t);
+    const r=await this.db.query(`
+      SELECT tag.id,tag.label
+      FROM crm_person_tags rel
+      JOIN crm_tags tag ON tag.tenant_id=rel.tenant_id AND tag.id=rel.tag_id
+      JOIN crm_people p ON p.tenant_id=rel.tenant_id AND p.id=rel.person_id
+      WHERE rel.tenant_id=$1::uuid AND rel.person_id=$2::uuid AND p.archived_at IS NULL
+      ORDER BY tag.label,tag.id LIMIT $3
+    `,[t,personId,limit]);
+    return r.rows.map(row=>({id:String(row.id),label:String(row.label)}));
+  }
+  async listTags(t:string,limit:number):Promise<readonly {id:string;label:string}[]>{
+    this.check(t);
+    const rows=(await this.db.query(
+      "SELECT id,label FROM crm_tags WHERE tenant_id=$1::uuid ORDER BY label,id LIMIT $2",[t,limit])).rows;
+    return rows.map(row=>({id:String(row.id),label:String(row.label)}));
+  }
+  async unlinkOrganization(t:string,a:string,personId:string,orgId:string):Promise<boolean>{
+    this.check(t);
+    const rows=(await this.db.query(`WITH removed AS (
+      DELETE FROM crm_person_organizations rel USING crm_people p
+      WHERE rel.tenant_id=$1::uuid AND rel.person_id=$3::uuid AND rel.organization_id=$4::uuid
+      AND p.tenant_id=rel.tenant_id AND p.id=rel.person_id AND p.archived_at IS NULL
+      RETURNING rel.tenant_id,rel.person_id
+    ), audit AS (
+      INSERT INTO crm_audit(tenant_id,actor_id,entity_type,entity_id,action)
+      SELECT tenant_id,$2,'person',person_id,'organization_unlinked' FROM removed RETURNING id
+    ) SELECT id FROM audit`,[t,a,personId,orgId])).rows;
+    return rows.length>0;
+  }
+  async unlinkTag(t:string,a:string,personId:string,tagId:string):Promise<boolean>{
+    this.check(t);
+    const rows=(await this.db.query(`WITH removed AS (
+      DELETE FROM crm_person_tags rel USING crm_people p
+      WHERE rel.tenant_id=$1::uuid AND rel.person_id=$3::uuid AND rel.tag_id=$4::uuid
+      AND p.tenant_id=rel.tenant_id AND p.id=rel.person_id AND p.archived_at IS NULL
+      RETURNING rel.tenant_id,rel.person_id
+    ), audit AS (
+      INSERT INTO crm_audit(tenant_id,actor_id,entity_type,entity_id,action)
+      SELECT tenant_id,$2,'person',person_id,'tag_unlinked' FROM removed RETURNING id
+    ) SELECT id FROM audit`,[t,a,personId,tagId])).rows;
+    return rows.length>0;
   }
   async listExportPeople(t:string,limit:number):Promise<readonly Person[]>{
     this.check(t);

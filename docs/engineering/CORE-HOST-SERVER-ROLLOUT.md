@@ -1,5 +1,7 @@
 # Core Host — servidor de homologação
 
+> **Atualização 2026-11-01:** a seção abaixo é o roteiro/histórico de rollout do Core Host preparado antes de existir acesso remoto funcional. O Core Host, CRM, Inbox e Workspace **foram instalados e testados no DevServer01 como laboratório**, conforme [Runbook do Workspace](WORKSPACE-DEVSERVER01-RUNBOOK.md) e [Handoff](../product/WORKSPACE-MVP-HANDOFF.md). Não interpretar a observação de equipamentos offline no final deste arquivo como estado atual. **Nenhuma implantação em produção ocorreu.**
+
 ## Evidência de inicialização
 
 O workflow identity-integration executa a imagem Docker de produção e seu processo dist/main.js em ambiente descartável, com PostgreSQL, Keycloak, OpenFGA e OpenBao reais. O teste cobre montagem de CRM/Inbox, TLS/AppRole, conexão ao banco de controle, /readyz, endpoints públicos, negação sem token e ausência de publicação de portas.

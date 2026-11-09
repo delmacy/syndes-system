@@ -5,3 +5,5 @@ export type {InboxContext,Conversation,Message,InboxRepository,ConversationStatu
  HandoffMode,CreateConversation,InboxMetrics} from "./contracts.js";
 export {SimulatedChannelAdapter} from "./channels.js";
 export type {InboundChannelEvent,InboundChannelAdapter} from "./channels.js";
+
+export {InboxChangeBus} from "./realtime.js";
