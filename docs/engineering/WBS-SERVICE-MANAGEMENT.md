@@ -247,3 +247,17 @@ A designação definitiva é **Unidade** (entidade de localização/estrutura op
 **Site** passa a significar exclusivamente uma futura superfície digital de **publicação e navegação**: intranet para colaboradores, extranet/portal para consumidores autenticados ou site público conforme audience e grants. Essa capacidade exige Product Gate e WBS próprios: **não entrar em F1, F2, nem ampliar agora o módulo de Workspaces.** A capacidade futura de Sites deve publicar conteúdo selecionado, jamais abrir acesso direto aos registros internos do Workspace ou das Unidades.
 
 Referência normativa: `docs/engineering/ADR-ACCOUNT-ORGANIZATION-UNIT-WORKSPACE-PROPOSAL.md`.
+
+## 13. Execução — PR #20, início de F1.0 (2026-11-08)
+
+A fundação recebeu implementação inicial na [PR #20](https://github.com/delmacy/syndes-system/pull/20), ainda draft, com base funcional na PR #18. Esta PR #19 continua sendo documental.
+
+| WBS | Implementação e restrições | Estado |
+| --- | --- | --- |
+| F1.0a | Plugin montável `@syndes/core-organizations` com tabelas Organization, Workspace, Unit, memberships, N:N e audit | Código em PR; release pendente |
+| F1.0b | Endpoint autorizado de bootstrap de organização/workspace default, idempotente e atômico; não confere direitos em retries | Parcial; operação e grants FGA pendentes |
+| F1.0c | Autorização testada no módulo novo. Migração de CRM/Inbox legados, SSE, consultas e exportações org/workspace-scoped | **Pendente — bloqueia multi-org** |
+| F1.0d | API de leitura filtrada, criação de Unidade, sem criação de segunda organização/workspace ou seletor UI | Parcial |
+| F0.7–F0.9 | Runbook `docs/engineering/ORGANIZATION-FOUNDATION-IMPLEMENTATION.md` no branch de código, gates de CI e rollout | Revisão e homologação pendentes |
+
+**Gate:** criar tabelas não conclui suporte multi-org. Não habilitar organizações adicionais até que toda leitura e escrita de CRM/Inbox aplique autorização org/workspace no servidor, com testes de negação, sem exposição entre organizações. A PR #20 não autoriza deploy automático.
