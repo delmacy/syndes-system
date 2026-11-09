@@ -1,0 +1,136 @@
+{
+  "schema_version": "1.1",
+  "type_definitions": [
+    {
+      "type": "user"
+    },
+    {
+      "type": "tenant",
+      "relations": {
+        "member": {
+          "this": {}
+        },
+        "admin": {
+          "this": {}
+        }
+      },
+      "metadata": {
+        "relations": {
+          "member": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "admin": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "resource",
+      "relations": {
+        "tenant": {
+          "this": {}
+        },
+        "viewer": {
+          "this": {}
+        },
+        "editor": {
+          "this": {}
+        },
+        "can_read": {
+          "union": {
+            "child": [
+              {
+                "computedUserset": {
+                  "object": "",
+                  "relation": "viewer"
+                }
+              },
+              {
+                "tupleToUserset": {
+                  "tupleset": {
+                    "object": "",
+                    "relation": "tenant"
+                  },
+                  "computedUserset": {
+                    "object": "",
+                    "relation": "member"
+                  }
+                }
+              },
+              {
+                "tupleToUserset": {
+                  "tupleset": {
+                    "object": "",
+                    "relation": "tenant"
+                  },
+                  "computedUserset": {
+                    "object": "",
+                    "relation": "admin"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "can_write": {
+          "union": {
+            "child": [
+              {
+                "computedUserset": {
+                  "object": "",
+                  "relation": "editor"
+                }
+              },
+              {
+                "tupleToUserset": {
+                  "tupleset": {
+                    "object": "",
+                    "relation": "tenant"
+                  },
+                  "computedUserset": {
+                    "object": "",
+                    "relation": "admin"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "relations": {
+          "tenant": {
+            "directly_related_user_types": [
+              {
+                "type": "tenant"
+              }
+            ]
+          },
+          "viewer": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "editor": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

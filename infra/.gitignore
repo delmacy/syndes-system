@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+!.env.ci
+secrets/
+backups/
+
+# OpenBao TLS private keys, certificates and generated recovery material
+security-access/openbao/tls/
+security-access/openbao/operator-output/
