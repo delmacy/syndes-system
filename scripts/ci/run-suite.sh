@@ -101,14 +101,7 @@ case "$suite" in
       npm run build
       npm test
       npm run lint
-      npx playwright install --with-deps chromium
-      # Run every browser regression supported by the checked-out Workspace version.
-      for name in test:smoke test:ui-anon test:inbox-ui test:crm-ui test:whatsapp-ui; do
-        if SCRIPT_NAME="$name" node -e \
-          'const p=require("./package.json");process.exit(Object.hasOwn(p.scripts||{},process.env.SCRIPT_NAME)?0:1)'; then
-          npm run "$name"
-        fi
-      done
+      bash ../../scripts/ci/run-workspace-browser.sh
     )
     ;;
   support)
