@@ -110,13 +110,13 @@ PR8+: SLA, calendars, presença/plantão, priorização e Scheduling reais, cada
 Esta ADR não altera MVP-SCOPE.md automaticamente. Exigir Product Gate antes de comprometer prazo ou habilitar clientes.
 
 
-## 9. Adendo de arquitetura — Account / Organization / Site / Workspace (2026-11-08)
+## 9. Adendo de arquitetura — Account / Organization / Unidade / Workspace (2026-11-08)
 
-Esta ADR continua **proposta**, mas as entidades e APIs anteriores precisam passar pelo escopo definido em `ADR-ACCOUNT-ORGANIZATION-SITE-WORKSPACE-PROPOSAL.md`. Onde a redação anterior diz "por tenant", `tenant_id` passa a significar a **conta do cliente**, não uma empresa/organização ou workspace. O banco permanece por tenant, com `organization_id` e `workspace_id` explicitamente autorizados onde exigidos.
+Esta ADR continua **proposta**, mas as entidades e APIs anteriores precisam passar pelo escopo definido em `ADR-ACCOUNT-ORGANIZATION-UNIT-WORKSPACE-PROPOSAL.md`. Onde a redação anterior diz "por tenant", `tenant_id` passa a significar a **conta do cliente**, não uma empresa/organização ou workspace. O banco permanece por tenant, com `organization_id` e `workspace_id` explicitamente autorizados onde exigidos.
 
 - Funis e suas versões pertencem à **organização**, e o acesso operacional ocorre através de vínculo **N:N** com workspaces (`workspace_funnels`). Grupo de atendimento é uma taxonomia de funis, não uma entidade empresarial.
 - Equipes operacionais podem atuar em vários workspaces autorizados; herdar direitos do tenant é insuficiente. A relação com `crm_employees` e Keycloak exige identidade verificada.
-- Sites/unidades pertencem à organização e podem se vincular N:N aos workspaces; **não** inserir `site_id` obrigatório em `ServiceFunnel` ou `ServiceSession`.
+- Unidades/unidades pertencem à organização e podem se vincular N:N aos workspaces; **não** inserir `unit_id` obrigatório em `ServiceFunnel` ou `ServiceSession`.
 - Uma sessão/protocolo tem owner `organization_id`, `origin_workspace_id` e `current_workspace_id`. Transferências entre workspaces da mesma organização preservam a sessão, desde que haja autorização de origem/destino.
 - Entre organizações distintas do **mesmo tenant**, encaminhamento deve preservar correlação e trilha de auditoria, não presumir identidade única de protocolo público nem conceder leitura do processo de destino. Criar protocolo relacionado na organização de destino quando ela assume a solicitação.
 - Conversas internas entre workspaces/organizações devem ter participantes e ACL próprios; não são mensagens WhatsApp nem os marcadores da Inbox.
@@ -124,3 +124,8 @@ Esta ADR continua **proposta**, mas as entidades e APIs anteriores precisam pass
 - `crm_organizations` são organizações de contatos comerciais, **não** as `platform_organizations` empresariais do cliente Syndes. Não renomear/copiar tabelas CRM como atalho.
 
 **Efeito no sequenciamento:** a fundação mínima de organização/workspace e a migração segura dos endpoints legados passam a ser predecessoras da habilitação de multi-organização e do novo catálogo; não ampliar silenciosamente a F1 sem o Product Gate atualizado.
+
+
+### CR-002 — Unidade operacional versus Site de publicação
+
+A dimensão física/operacional denomina-se **Unidade** (`Unit`), vinculada N:N a Workspaces, sem `unit_id` obrigatório no funil/protocolo. Tabelas `platform_units` e `platform_workspace_units`; rotas administrativas usam `/units`. Não reutilizar o nome `Site` nem `site_id` para filiais. **Sites** serão no futuro superfícies de informação publicada (intranet/portal/website), completamente separadas dos limites de autorização do trabalho operacional. Não criar o módulo de publicação nesta entrega.
