@@ -5,7 +5,7 @@ import {execFileSync,spawnSync} from "node:child_process";
 test("module migration CLI enumerates and emits only installed package migrations",()=>{
  const cli="dist/migrations.js";
  const list=JSON.parse(execFileSync(process.execPath,[cli,"--list"],{encoding:"utf8"}));
- assert.deepEqual(list.map(m=>m.id),["crm","inbox"]);
+ assert.deepEqual(list.map(m=>m.id),["crm","inbox","whatsapp"]);
  assert.equal(list[0].migrations.length,3);
  const sql=execFileSync(process.execPath,[cli,"--emit","crm","001_crm_foundation"],{encoding:"utf8"});
  assert.match(sql,/CREATE TABLE IF NOT EXISTS crm_people/);

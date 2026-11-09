@@ -176,3 +176,15 @@ body { margin: 0; min-width: 320px; overflow-x: hidden; }
     border-left: 1px solid var(--border);
   }
 }
+
+/* Inbox navigation takes over the global sidebar on desktop. */
+.syndes-inbox-queue-dark { color: #e8efff; }
+.syndes-inbox-queue-dark > div:first-child { border-color: #2b3c59; }
+.syndes-inbox-queue-dark input { background: #1d304d; border-color: #405270; color: white; }
+.syndes-inbox-queue-dark input::placeholder { color: #a5b7d2; }
+.syndes-inbox-queue-dark details summary { color: #c6d6f2; }
+.syndes-inbox-queue-dark [aria-label="Lista de conversas"] > button { border-color: #2b3c59; color: #e8efff; }
+.syndes-inbox-queue-dark [aria-label="Lista de conversas"] > button:hover { background: #253f63; }
+.syndes-inbox-queue-dark [aria-label="Lista de conversas"] > button[aria-current="true"] { background: #2b4772; }
+.syndes-inbox-queue-dark [aria-label="Lista de conversas"] .text-muted-foreground { color: #a5b7d2; }
+.syndes-inbox-queue-dark > p:last-child { border-color: #2b3c59; color: #a5b7d2; }

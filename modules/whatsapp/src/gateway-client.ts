@@ -1,0 +1,147 @@
+export type WhatsAppGroupInfo={jid:string;name:string;description:string;participantCount:number;canEdit:boolean;locked:boolean;announce:boolean};
+import {createHmac} from "node:crypto";
+export class WhatsAppGatewayClient {
+ constructor(private readonly base=process.env.WHATSAPP_GATEWAY_URL,
+ private readonly secret=process.env.WHATSAPP_WHATSMEOW_TOKEN){}
+ private token(tenantId:string,accountId:string){
+  if(!this.secret||!this.base)throw Error("WhatsApp gateway not configured");
+  return createHmac("sha256",this.secret).update("syndes-whatsapp-v1:"+tenantId+":"+accountId).digest("hex");
+ }
+ private async request(tenantId:string,accountId:string,operation:string,method="POST",body?:unknown){
+  const url=new URL(this.base!);
+  if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||url.username||url.password||url.search||url.hash||url.pathname!=="/")
+   throw Error("Invalid gateway private URL");
+  const response=await fetch(new URL("/v1/accounts/"+accountId+"/"+operation,url),{
+   method,headers:{Authorization:"Bearer "+this.token(tenantId,accountId),...(body?{"Content-Type":"application/json"}:{})},
+   ...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(18000),redirect:"error",
+  });
+  if(!response.ok)throw Error("WhatsApp gateway operation unavailable ("+response.status+")");
+  return response.status===204?null:response.json();
+ }
+ async register(tenantId:string,accountId:string){
+  const url=new URL(this.base!);
+  if(url.hostname!=="whatsapp-gateway"&&url.hostname!=="127.0.0.1"&&url.hostname!=="localhost")throw Error("Invalid gateway hostname");
+  const token=createHmac("sha256",this.secret??"").update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const res=await fetch(new URL("/v1/tenants/"+tenantId+"/accounts",url),{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({accountId}),signal:AbortSignal.timeout(10000),redirect:"error"});
+  if(!res.ok)throw Error("Gateway registration failed");
+ }
+ async list(tenantId:string):Promise<Array<{accountId:string;tenantId:string;deviceJid:string|null;enabled:boolean;connected:boolean}>>{
+  if(!this.base||!this.secret)throw Error("WhatsApp gateway not configured");
+  const url=new URL(this.base);
+  if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname))throw Error("Invalid gateway URL");
+  const token=createHmac("sha256",this.secret).update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const response=await fetch(new URL("/v1/tenants/"+tenantId+"/accounts",url),{
+   headers:{Authorization:"Bearer "+token},signal:AbortSignal.timeout(10000),redirect:"error"
+  });
+  if(!response.ok)throw Error("Gateway session registry unavailable");
+  return response.json() as Promise<Array<{accountId:string;tenantId:string;deviceJid:string|null;enabled:boolean;connected:boolean}>>;
+ }
+ async setEnabled(tenantId:string,accountId:string,enabled:boolean):Promise<{enabled:boolean}>{
+  if(!this.base||!this.secret)throw Error("WhatsApp gateway not configured");
+  const url=new URL(this.base);
+  if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||url.username||url.password||url.search||url.hash||url.pathname!=="/")throw Error("Invalid gateway private URL");
+  const token=createHmac("sha256",this.secret).update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const response=await fetch(new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/enabled",url),{
+   method:"PATCH",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+   body:JSON.stringify({enabled}),signal:AbortSignal.timeout(10000),redirect:"error",
+  });
+  if(!response.ok)throw Error("Gateway account state unavailable ("+response.status+")");
+  return response.json() as Promise<{enabled:boolean}>;
+ }
+ async sendQueued(tenantId:string,accountId:string,input:{idempotencyKey:string;recipientExternalId:string;body:string}):Promise<{queueId:number}>{
+  const result=await this.request(tenantId,accountId,"messages","POST",input) as {queueId?:unknown};
+  if(!result||!Number.isSafeInteger(result.queueId)||Number(result.queueId)<=0)throw Error("Invalid gateway queue confirmation");
+  return {queueId:Number(result.queueId)};
+ }
+ async outboundStatus(tenantId:string,accountId:string,queueId:number):Promise<{status:"pending"|"processing"|"sent"|"failed";externalMessageId?:string}>{
+  if(!this.base||!this.secret||!Number.isSafeInteger(queueId)||queueId<=0)throw Error("Invalid outbound status query");
+  const url=new URL(this.base);
+  if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||url.username||url.password||url.search||url.hash||url.pathname!=="/")
+   throw Error("Invalid gateway private URL");
+  const token=createHmac("sha256",this.secret).update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const resp=await fetch(new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/outbox/"+queueId,url),{
+   headers:{Authorization:"Bearer "+token},redirect:"error",signal:AbortSignal.timeout(10000)
+  });
+  if(!resp.ok)throw Error("Gateway outbound status unavailable ("+resp.status+")");
+  const value=await resp.json() as {status?:unknown;externalMessageId?:unknown};
+  if(!value||!["pending","processing","sent","failed"].includes(String(value.status)))throw Error("Invalid gateway outbound state");
+  if(value.externalMessageId!==undefined && (typeof value.externalMessageId!=="string"||value.externalMessageId.length>160))
+   throw Error("Invalid gateway external message ID");
+  return {status:value.status as "pending"|"processing"|"sent"|"failed",...(typeof value.externalMessageId==="string"?{externalMessageId:value.externalMessageId}:{})};
+ }
+ async requestHistory(tenantId:string,accountId:string,history:{
+  chatExternalId:string;messageId:string;timestamp:string;fromMe:boolean;count:number
+ }):Promise<{requested:boolean}>{
+  if(!this.base||!this.secret)throw Error("WhatsApp gateway not configured");
+  const url=new URL(this.base);
+  if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||
+    url.username||url.password||url.search||url.hash||url.pathname!=="/")throw Error("Invalid gateway private URL");
+  const token=createHmac("sha256",this.secret)
+    .update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const response=await fetch(new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/history",url),{
+   method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+   body:JSON.stringify(history),signal:AbortSignal.timeout(18000),redirect:"error"
+  });
+  if(response.status!==202)throw Error("Historical sync request unavailable ("+response.status+")");
+  return response.json() as Promise<{requested:boolean}>;
+ }
+ async avatar(tenantId:string,accountId:string,contactJid:string):Promise<{available:boolean;imageData?:string}>{
+  if(!this.base||!this.secret)throw Error("WhatsApp gateway not configured");
+  const url=new URL(this.base);
+  if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||
+     url.username||url.password||url.search||url.hash||url.pathname!=="/")throw Error("Invalid private gateway URL");
+  const token=createHmac("sha256",this.secret).update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const endpoint=new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/avatar",url);
+  endpoint.searchParams.set("jid",contactJid);
+  const response=await fetch(endpoint,{headers:{Authorization:"Bearer "+token},signal:AbortSignal.timeout(13000),redirect:"error"});
+  if(!response.ok)throw Error("WhatsApp avatar unavailable");
+  const value=await response.json() as {available?:unknown;imageData?:unknown};
+  if(value.available!==true)return {available:false};
+  if(typeof value.imageData!=="string"||value.imageData.length>180000||
+   !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(value.imageData))throw Error("Invalid WhatsApp avatar response");
+  return {available:true,imageData:value.imageData};
+ }
+ async groupInfo(tenantId:string,accountId:string,groupJid:string):Promise<WhatsAppGroupInfo>{
+  const url=new URL(this.base??"");
+  if(!this.secret||url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||url.username||url.password||url.pathname!=="/"||url.search||url.hash)
+   throw Error("Invalid private WhatsApp gateway URL");
+  const token=createHmac("sha256",this.secret).update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const endpoint=new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/groups/info",url);
+  endpoint.searchParams.set("jid",groupJid);
+  const response=await fetch(endpoint,{headers:{Authorization:"Bearer "+token},signal:AbortSignal.timeout(15000),redirect:"error"});
+  if(!response.ok)throw Error("WhatsApp canonical group details unavailable ("+response.status+")");
+  return response.json() as Promise<WhatsAppGroupInfo>;
+ }
+ async updateGroup(tenantId:string,accountId:string,groupJid:string,change:{name?:string;description?:string}):Promise<WhatsAppGroupInfo>{
+  const url=new URL(this.base??"");
+  if(!this.secret||url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||url.username||url.password||url.pathname!=="/"||url.search||url.hash)
+   throw Error("Invalid private WhatsApp gateway URL");
+  const token=createHmac("sha256",this.secret).update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+  const endpoint=new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/groups/info",url);
+  endpoint.searchParams.set("jid",groupJid);
+  const response=await fetch(endpoint,{method:"PATCH",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+   body:JSON.stringify(change),signal:AbortSignal.timeout(20000),redirect:"error"});
+  if(!response.ok)throw Error("WhatsApp group change was not confirmed ("+response.status+")");
+  return response.json() as Promise<WhatsAppGroupInfo>;
+ }
+ async setContactName(tenantId:string,accountId:string,input:{
+   contactJid:string;fullName:string;saveOnPrimaryAddressbook:boolean
+ }):Promise<{submitted:true;confirmedOnPhone:false}>{
+   if(!this.base||!this.secret)throw Error("WhatsApp gateway not configured");
+   const url=new URL(this.base);
+   if(url.protocol!=="http:"||!["whatsapp-gateway","127.0.0.1","localhost"].includes(url.hostname)||
+      url.username||url.password||url.search||url.hash||url.pathname!=="/")
+    throw Error("Invalid gateway private URL");
+   const token=createHmac("sha256",this.secret)
+     .update("syndes-whatsapp-v1:"+tenantId+":tenant-registry").digest("hex");
+   const res=await fetch(new URL("/v1/tenants/"+tenantId+"/accounts/"+accountId+"/contacts/name",url),{
+    method:"PATCH",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+    body:JSON.stringify(input),signal:AbortSignal.timeout(18000),redirect:"error"
+   });
+   if(res.status!==202)throw Error("WhatsApp contact change was not accepted ("+res.status+")");
+   return res.json() as Promise<{submitted:true;confirmedOnPhone:false}>;
+ }
+ pair(tenantId:string,accountId:string){return this.request(tenantId,accountId,"pairing")}
+ connect(tenantId:string,accountId:string){return this.request(tenantId,accountId,"connect")}
+ disconnect(tenantId:string,accountId:string){return this.request(tenantId,accountId,"disconnect")}
+}
