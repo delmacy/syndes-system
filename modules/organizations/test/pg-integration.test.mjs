@@ -16,12 +16,23 @@ test("Postgres migrations twice, defaults, org/workspace isolation, unit links a
   await client.connect();
   const schema="org_test_"+randomUUID().replaceAll("-","").slice(0,15);
   const sql=await readFile(new URL("../sql/001_account_hierarchy.sql",import.meta.url),"utf8");
+  const gate=await readFile(new URL("../sql/002_legacy_single_context_gate.sql",import.meta.url),"utf8");
   try{
     await client.query("BEGIN");
     await client.query("CREATE SCHEMA "+schema);
     await client.query("SET LOCAL search_path TO "+schema);
     await client.query(sql);
     await client.query(sql);
+    // Installing this guard on an already multi-org tenant must fail closed
+    // without deleting data (full rollback to the savepoint).
+    const previousOrg=randomUUID(),secondPreviousOrg=randomUUID();
+    await client.query("SAVEPOINT before_gate");
+    await client.query("INSERT INTO platform_organizations(tenant_id,id,display_name) VALUES ($1,$2,'Company A'),($1,$3,'Company B')",
+      [tenantA,previousOrg,secondPreviousOrg]);
+    await assert.rejects(client.query(gate),error=>error.code==="23505");
+    await client.query("ROLLBACK TO SAVEPOINT before_gate");
+    await client.query(gate);
+    await client.query(gate);
     const dbFor=t=>({tenantId:t,async query(text,params){const r=await client.query(text,params);return {rows:r.rows,rowCount:r.rowCount};}});
     const requests=[];
     const kernel={async execute(q,fn){requests.push(q);return fn();}};
@@ -49,17 +60,27 @@ test("Postgres migrations twice, defaults, org/workspace isolation, unit links a
     await client.query(
       "INSERT INTO platform_workspace_units(tenant_id,organization_id,workspace_id,unit_id) VALUES($1,$2,$3,$4)",
       [tenantA,org.id,ws.id,unit.id]);
+    async function expectDatabaseDenial(sql,params,code){
+      await client.query("SAVEPOINT isolation_check");
+      await assert.rejects(client.query(sql,params),error=>error.code===code);
+      await client.query("ROLLBACK TO SAVEPOINT isolation_check");
+    }
     const secondOrg=randomUUID(),secondWs=randomUUID();
-    await client.query("INSERT INTO platform_organizations(tenant_id,id,display_name) VALUES($1,$2,'Second company')",[tenantA,secondOrg]);
-    await client.query("INSERT INTO platform_workspaces(tenant_id,id,organization_id,name,slug) VALUES($1,$2,$3,'Operations','operations')",[tenantA,secondWs,secondOrg]);
-    const sp="isolation_check";
-    await client.query("SAVEPOINT "+sp);
-    await assert.rejects(
-      client.query("INSERT INTO platform_workspace_units(tenant_id,organization_id,workspace_id,unit_id) VALUES($1,$2,$3,$4)",[tenantA,secondOrg,secondWs,unit.id]),
-      e=>e.code==="23503","unit from another organization cannot link to workspace");
-    await client.query("ROLLBACK TO SAVEPOINT "+sp);
-    assert.equal((await svc.listWorkspaces(alice,secondOrg)).length,0);
-    assert.equal((await svc.listUnits(alice,secondOrg)).length,0);
+    await expectDatabaseDenial(
+      "INSERT INTO platform_organizations(tenant_id,id,display_name) VALUES($1,$2,'Second company')",
+      [tenantA,secondOrg],"23505");
+    await expectDatabaseDenial(
+      "INSERT INTO platform_workspaces(tenant_id,id,organization_id,name,slug) VALUES($1,$2,$3,'Other','other')",
+      [tenantA,secondWs,org.id],"23505");
+    // A second tenant still gets its own default organization and unit.
+    assert.deepEqual(await svc.bootstrap(mallory),{initialized:true});
+    const [orgB]=await svc.listOrganizations(mallory);
+    const unitB=await svc.createUnit(mallory,orgB.id,{name:"Remote office",kind:"branch"});
+    await expectDatabaseDenial(
+      "INSERT INTO platform_workspace_units(tenant_id,organization_id,workspace_id,unit_id) VALUES($1,$2,$3,$4)",
+      [tenantA,org.id,ws.id,unitB.id],"23503");
+    assert.equal((await svc.listWorkspaces(alice,orgB.id)).length,0);
+    assert.equal((await svc.listUnits(alice,orgB.id)).length,0);
     const audit=await client.query("SELECT event,actor_id FROM platform_org_audit ORDER BY id");
     assert.deepEqual(audit.rows.map(x=>x.event),["default_context_initialized","unit_created"]);
     assert.equal(audit.rows[0].actor_id,"alice");

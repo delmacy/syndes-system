@@ -15,6 +15,9 @@ export const syndesPlugin=defineSyndesModule({
   migrations:[{
     id:"001_account_hierarchy",
     fileUrl:new URL("../sql/001_account_hierarchy.sql",import.meta.url).href,
+  },{
+    id:"002_legacy_single_context_gate",
+    fileUrl:new URL("../sql/002_legacy_single_context_gate.sql",import.meta.url).href,
   }],
   assets:[],
 });
