@@ -1,11 +1,12 @@
-import {Body,Controller,Get,Headers,HttpException,Inject,Injectable,Param,Patch,Post,Query} from "@nestjs/common";
+import {Body,Controller,Get,Headers,HttpException,Inject,Injectable,Param,Patch,Post,Query,Res} from "@nestjs/common";
 import {AccessDeniedError} from "@syndes/core-kernel";
 import {InboxService} from "./service.js";
 import {SimulatedChannelAdapter} from "./channels.js";
 import {InboxConflictError,PgInboxRepositoryFactory} from "./postgres.js";
 import {InboxTenantMismatchError,InboxValidationError} from "./contracts.js";
-import type {ConversationStatus,HandoffMode,InboxContext,CreateConversation} from "./contracts.js";
+import type {ConversationStatus,ConversationQueue,HandoffMode,InboxContext,CreateConversation} from "./contracts.js";
 import {id} from "./validation.js";
+import {InboxChangeBus,type SseSink} from "./realtime.js";
 import {CORE_RUNTIME,TENANT_DATABASES,type InboxHostRuntime} from "./runtime.js";
 import type {TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 
@@ -13,6 +14,7 @@ import type {TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 export class InboxHost{
  readonly inbox:InboxService;
  readonly simulator:SimulatedChannelAdapter;
+ readonly events=new InboxChangeBus();
  constructor(
   @Inject(CORE_RUNTIME) private readonly core:InboxHostRuntime,
   @Inject(TENANT_DATABASES) pools:TrustedTenantDatabaseProvider
@@ -51,15 +53,25 @@ export class InboxController{
  private run<T>(tenant:string,header:string|undefined,handler:(ctx:InboxContext)=>Promise<T>):Promise<T>{
   return this.host.run(tenant,header,handler);
  }
+ @Get("events")
+ async eventsStream(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
+    @Res()response:SseSink):Promise<void>{
+   // Before writing HTTP headers, verify JWT + tenancy membership + inbox read access.
+   await this.run(t,h,c=>this.host.inbox.watch(c));
+   try{this.host.events.connect(t,response);}
+   catch{throw new HttpException("Too many live connections",429);}
+ }
  @Get("conversations")
  list(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
-      @Query("status")s:string|undefined,@Query("limit")l:string|undefined){
-  return this.run(t,h,c=>this.host.inbox.list(c,(s||null) as ConversationStatus|null,l===undefined?30:Number(l)));
+      @Query("status")s:string|undefined,@Query("limit")l:string|undefined,
+      @Query("queue")queue:string|undefined){
+  return this.run(t,h,c=>this.host.inbox.list(c,(s||null) as ConversationStatus|null,
+    l===undefined?30:Number(l),(queue||"all") as ConversationQueue));
  }
  @Post("conversations")
  create(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
         @Body()b:CreateConversation){
-  return this.run(t,h,c=>this.host.inbox.create(c,b));
+  return this.run(t,h,async c=>{const result=await this.host.inbox.create(c,b);this.host.events.publish(c.tenantId);return result;});
  }
  @Get("conversations/:id")
  get(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@Param("id")key:string){
@@ -73,32 +85,32 @@ export class InboxController{
  @Patch("conversations/:id/assignment")
  assign(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
         @Param("id")key:string,@Body()b:{assigneeId?:string|null}){
-  return this.run(t,h,async c=>found(await this.host.inbox.assign(c,key,b?.assigneeId)));
+  return this.run(t,h,async c=>{const result=found(await this.host.inbox.assign(c,key,b?.assigneeId));this.host.events.publish(c.tenantId);return result;});
  }
  @Patch("conversations/:id/status")
  status(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
         @Param("id")key:string,@Body()b:{status:ConversationStatus}){
-  return this.run(t,h,async c=>found(await this.host.inbox.status(c,key,b?.status)));
+  return this.run(t,h,async c=>{const result=found(await this.host.inbox.status(c,key,b?.status));this.host.events.publish(c.tenantId);return result;});
  }
  @Patch("conversations/:id/handoff")
  handoff(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
          @Param("id")key:string,@Body()b:{mode:HandoffMode}){
-  return this.run(t,h,async c=>found(await this.host.inbox.handoff(c,key,b?.mode)));
+  return this.run(t,h,async c=>{const result=found(await this.host.inbox.handoff(c,key,b?.mode));this.host.events.publish(c.tenantId);return result;});
  }
  @Post("conversations/:id/replies")
  reply(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
        @Param("id")key:string,@Body()b:{body:string}){
-  return this.run(t,h,async c=>found(await this.host.inbox.reply(c,key,b?.body)));
+  return this.run(t,h,async c=>{const result=found(await this.host.inbox.reply(c,key,b?.body));this.host.events.publish(c.tenantId);return result;});
  }
  @Post("conversations/:id/notes")
  note(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
       @Param("id")key:string,@Body()b:{body:string}){
-  return this.run(t,h,async c=>found(await this.host.inbox.note(c,key,b?.body)));
+  return this.run(t,h,async c=>{const result=found(await this.host.inbox.note(c,key,b?.body));this.host.events.publish(c.tenantId);return result;});
  }
  @Post("conversations/:id/simulator/inbound")
  simulate(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
           @Param("id")key:string,@Body()b:{body:string;externalMessageId:string}){
-  return this.run(t,h,async c=>found(await this.host.simulator.receive(c,{channel:"simulation",conversationId:key,body:b?.body,externalMessageId:b?.externalMessageId})));
+  return this.run(t,h,async c=>{const result=found(await this.host.simulator.receive(c,{channel:"simulation",conversationId:key,body:b?.body,externalMessageId:b?.externalMessageId}));this.host.events.publish(c.tenantId);return result;});
  }
  @Get("metrics")
  metrics(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined){

@@ -2,6 +2,7 @@ import type {Actor,TenantDatabase,TrustedTenantDatabaseProvider} from "@syndes/c
 export type {TenantDatabase,TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 export type InboxContext=Readonly<{actor:Actor;tenantId:string}>;
 export type ConversationStatus="open"|"pending"|"resolved";
+export type ConversationQueue="all"|"mine"|"unassigned";
 export type HandoffMode="human"|"bot";
 export type Conversation=Readonly<{
   id:string;tenantId:string;crmPersonId:string|null;subject:string;
@@ -18,7 +19,7 @@ export type CreateConversation=Readonly<{
 export type InboxMetrics=Readonly<{open:number;pending:number;resolved:number;unassigned:number}>;
 export interface InboxRepository {
  create(tenantId:string,actorId:string,record:Readonly<{id:string;subject:string;crmPersonId:string|null;externalThreadId:string|null}>):Promise<Conversation>;
- list(tenantId:string,status:ConversationStatus|null,limit:number):Promise<readonly Conversation[]>;
+ list(tenantId:string,status:ConversationStatus|null,limit:number,queue:ConversationQueue,actorId:string):Promise<readonly Conversation[]>;
  get(tenantId:string,id:string):Promise<Conversation|null>;
  messages(tenantId:string,id:string,limit:number):Promise<readonly Message[]|null>;
  assign(tenantId:string,id:string,actorId:string,assignee:string|null):Promise<Conversation|null>;

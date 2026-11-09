@@ -22,6 +22,10 @@ test("PostgreSQL real migrations, CRM FK, tenant scoping and message idempotency
   assert.deepEqual((await b.list(B,null,50)),[]);
   assert.equal(await b.append(B,KEY,"bob",{id:"c26d5055-814b-41b5-a427-8d0c21e2cdf9",direction:"inbound",body:"no",externalMessageId:"x"}),null);
   await a.assign(A,KEY,"alice","alice");
+  assert.equal((await a.list(A,null,100,"mine","alice")).length,1);
+  assert.deepEqual(await a.list(A,null,100,"mine","bob"),[]);
+  assert.deepEqual(await a.list(A,null,100,"unassigned","alice"),[]);
+  assert.deepEqual(await b.list(B,null,100,"mine","alice"),[]);
   const msg={id:"87f34471-aaac-4d67-b4e6-e15c910632aa",direction:"inbound",body:"Olá",externalMessageId:"rx-001"};
   const first=await a.append(A,KEY,"sim",msg);
   assert.equal(first.direction,"inbound");

@@ -2,9 +2,9 @@
 
 ## Status
 
-**CURRENT MODULE — PRD-001**
+**MÓDULO COM PENDÊNCIAS DE PRODUTO — PRD-001**
 
-Nenhum outro módulo funcional deve avançar para implementação antes do Product Gate do Core CRM.
+O backend CRM possui aceite de desenvolvimento, mas **o módulo não está concluído**, especialmente o frontend e as jornadas de utilização. Em 2026-11-01, o responsável pelo produto autorizou priorizar a **Inbox** antes do fechamento de todas as pendências do CRM. Nenhuma pendência deve ser transformada em DONE automaticamente; retomar os critérios abertos antes do lançamento.
 
 ## Missão
 
@@ -85,3 +85,8 @@ Manter separação entre nome CRM, push name, business name e demais metadados e
 Login → Organization → Person → Relationship → Tags → Note → Search → Timeline → Archive → CSV export.
 
 Tenant B não acessa dados de Tenant A.
+
+
+## Autorização recente de finalização (2026-11-01)
+
+O responsável pelo produto autorizou concluir as tarefas pendentes de frontend Core CRM nesta iteração, mesmo após priorização anterior da Inbox. A implementação do Workspace permanece modular e exige capacidades por ação, formulários, registros relacionados e testes. A branch `feat/crm-workspace-completion` documenta o progresso em `docs/product/CORE-CRM-FRONTEND-COMPLETION.md`. **Não declarar Product Gate fechado apenas com CI ou mocks**.
