@@ -261,3 +261,13 @@ A fundação recebeu implementação inicial na [PR #20](https://github.com/delm
 | F0.7–F0.9 | Runbook `docs/engineering/ORGANIZATION-FOUNDATION-IMPLEMENTATION.md` no branch de código, gates de CI e rollout | Revisão e homologação pendentes |
 
 **Gate:** criar tabelas não conclui suporte multi-org. Não habilitar organizações adicionais até que toda leitura e escrita de CRM/Inbox aplique autorização org/workspace no servidor, com testes de negação, sem exposição entre organizações. A PR #20 não autoriza deploy automático.
+
+## 14. Execução — proteção fail-closed de dados legados (PR #23, 2026-11-08)
+
+**WBS F1.0c — Stage A:** [PR #23](https://github.com/delmacy/syndes-system/pull/23), stack sobre #20, implementa e testa `002_legacy_single_context_gate.sql`. Índices únicos `platform_legacy_single_organization` e `platform_legacy_single_workspace` no PostgreSQL do tenant impedem qualquer segunda organização/workspace até que as rotas legadas sejam efetivamente migradas. O banco rejeita concorrência e SQL direto, não só a interface. A migration encontra duplicidade pré-existente e **falha fechada sem apagar dados**.
+
+**Verificação:** no commit `e55845ec92b9c175ed3c027806f29cec23dea19d`, **13 checks GitHub concluíram com sucesso, zero falha, um skip condicionado**. Inclui PostgreSQL descartável com migração repetida, casos negativos `23505`, FKs cross-tenant, trilhas de auditoria, Host, WhatsApp, Inbox e integração de segurança. Nenhuma migração de cliente real, merge ou deploy.
+
+**Inventário**: `docs/engineering/LEGACY-ORGANIZATION-SCOPE-MIGRATION.md` na PR #23 documenta CRM, Inbox, eventos SSE e WhatsApp que ainda operam no escopo tenant. As etapas B/C/D da #21 permanecem **PENDENTES**: ownership e backfill, todos os caminhos de leitura/escrita com contexto autorizado, testes A/B, e somente após isso remoção intencional da trava e criação de várias organizações.
+
+**Status do pacote F1.0c:** **PARCIAL, bloqueio multi-org mantido**. Não atualizar F1.0d para concluído nem habilitar seletor multi-org enquanto a issue #21 estiver aberta.
