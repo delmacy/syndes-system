@@ -96,6 +96,9 @@ case "$suite" in
     build_host_modules
     install apps/core-host
     (cd apps/core-host && npm run check && npm test)
+    if [[ -f apps/core-host/scripts/verify-org-readiness.mjs ]]; then
+      node --check apps/core-host/scripts/verify-org-readiness.mjs
+    fi
     docker build --file apps/core-host/Dockerfile --tag syndes-core-host:ci .
     ;;
   workspace)
