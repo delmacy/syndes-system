@@ -81,7 +81,8 @@ async function main(){
  }
  for(const username of ["ci-owner","ci-unauthorized"]){
   await json("/admin/realms/"+realm+"/users",{
-   username,enabled:true,emailVerified:true,requiredActions:[],
+   username,enabled:true,firstName:"Syndes",lastName:"CI Operator",
+   email:username+"@example.test",emailVerified:true,requiredActions:[],
    credentials:[{type:"password",value:userPassword,temporary:false}]
   },adminToken);
  }
