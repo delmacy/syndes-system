@@ -52,7 +52,7 @@ jobs:
             -out "$RUNNER_TEMP/syndes-e2e-tls/server.crt" \
             -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" >/dev/null 2>&1
           chmod 0644 "$RUNNER_TEMP/syndes-e2e-tls/server.key"
-          docker run --rm -d --name syndes-support-e2e-keycloak \
+          docker run -d --name syndes-support-e2e-keycloak \
             -p 127.0.0.1:8443:8443 \
             -v "$RUNNER_TEMP/syndes-e2e-tls:/tmp/syndes-e2e-tls:ro" \
             -v "$PWD/apps/support-web/e2e:/opt/keycloak/data/import:ro" \
@@ -71,6 +71,11 @@ jobs:
             if curl -fsSk --max-time 3 \
               https://localhost:8443/realms/syndes-support-e2e/.well-known/openid-configuration \
               >/dev/null 2>&1; then break; fi
+            if [ "$(docker inspect -f '{{.State.Running}}' syndes-support-e2e-keycloak)" != true ]; then
+              echo "Keycloak exited during realm import" >&2
+              docker logs --tail 90 syndes-support-e2e-keycloak >&2
+              exit 1
+            fi
             if [ "$i" -eq 100 ]; then echo "E2E Keycloak unavailable"; exit 1; fi
             sleep 3
           done

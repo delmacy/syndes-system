@@ -32,3 +32,6 @@ A auditoria de continuidade identificou que o instalador genérico enumerava a m
 
 ## Teste do instalador completo (mocks, sem Docker real)
 O teste `tests/platform/support-migration-installer.test.sh` executa o **script operador verdadeiro**, substituindo somente Docker e jq por instrumentos sem rede que capturam as emissões SQL. Verifica CRM preservado no tenant comercial, Support não emitido para tenant comercial ou sem configuração e Support emitido somente para o tenant operacional Syndes. Git Bash local: PASS. Esse teste não utiliza dados reais, e não substitui as integrações PostgreSQL existentes.
+
+## Primeira execução E2E: incidente de fixture resolvido
+O primeiro workflow Playwright falhou na etapa de importação Keycloak, antes de executar código do Support. A reprodução em Keycloak 26.8.1 descartável identificou: `File name / realm name mismatch`. Corrigido o nome para `syndes-support-e2e-realm.json` e adicionada preservação de logs/diagnóstico no workflow. A validação E2E continua condicionada à nova execução; essa falha não foi ocultada como skip.

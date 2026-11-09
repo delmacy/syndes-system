@@ -2,7 +2,7 @@
 Status: automação proposta; nenhuma homologação em dados reais ou deploy.
 
 ## Limites do teste
-`.github/workflows/support-browser-e2e.yml` sobe **serviços exclusivamente do runner GitHub Actions** (PostgreSQL 16, Keycloak 26.8.1 com TLS efêmero, OpenFGA 1.22.1 em memória) e encerra tudo ao final. Os IDs, usuários e senhas fixos em `apps/support-web/e2e/syndes-support-realm.json` são **dados sintéticos exclusivos do teste**, nunca valores de produção. O harness `apps/core-host/test/support-e2e-server.mjs` recusa por código qualquer URL fora do banco `syndes_support_e2e`, issuer `localhost:8443/realms/syndes-support-e2e` e OpenFGA local `127.0.0.1:18080`; escuta HTTP apenas em `127.0.0.1:4180`.
+`.github/workflows/support-browser-e2e.yml` sobe **serviços exclusivamente do runner GitHub Actions** (PostgreSQL 16, Keycloak 26.8.1 com TLS efêmero, OpenFGA 1.22.1 em memória) e encerra tudo ao final. Os IDs, usuários e senhas fixos em `apps/support-web/e2e/syndes-support-e2e-realm.json` são **dados sintéticos exclusivos do teste**, nunca valores de produção. O harness `apps/core-host/test/support-e2e-server.mjs` recusa por código qualquer URL fora do banco `syndes_support_e2e`, issuer `localhost:8443/realms/syndes-support-e2e` e OpenFGA local `127.0.0.1:18080`; escuta HTTP apenas em `127.0.0.1:4180`.
 
 ## O que é exercitado pelo Playwright
 1. O navegador visita frontend isolado, faz login **real** Keycloak por authorization code + PKCE S256 com certificado temporário; backend verifica RS256/JWKS/audience.
