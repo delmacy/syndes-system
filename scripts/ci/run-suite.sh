@@ -140,6 +140,11 @@ case "$suite" in
       npm run test:browser)
     docker build -f apps/master-admin-web/Dockerfile -t syndes/master-admin-web:ci .
     ;;
+  account-access)
+    install apps/account-access-api
+    (cd apps/account-access-api && npm test)
+    bash scripts/ci/run-account-access.sh
+    ;;
   infra)
     bash scripts/ci/run-infra.sh
     ;;
