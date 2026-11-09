@@ -1,0 +1,31 @@
+services:
+  core-host:
+    build: {context: ../.., dockerfile: apps/core-host/Dockerfile}
+    restart: unless-stopped
+    environment:
+      CORE_PORT: "8082"
+      CORE_KEYCLOAK_ISSUER: ${CORE_KEYCLOAK_ISSUER:?}
+      CORE_KEYCLOAK_AUDIENCE: ${CORE_KEYCLOAK_AUDIENCE:?}
+      CORE_KEYCLOAK_JWKS_URL: ${CORE_KEYCLOAK_JWKS_URL:?}
+      CORE_OPENFGA_URL: http://syndes-openfga:8080
+      CORE_OPENFGA_STORE_ID: ${CORE_OPENFGA_STORE_ID:?}
+      CORE_OPENBAO_URL: https://openbao:8200
+      NODE_EXTRA_CA_CERTS: /run/openbao-ca/openbao.crt
+    volumes:
+      - ../../infra/security-access/openbao/tls/server.crt:/run/openbao-ca/openbao.crt:ro
+    secrets:
+      - core_host_role_id
+      - core_host_secret_id
+    networks: [syndes-data, syndes-security-access, syndes-secrets]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    # No ports published; route only via trusted internal services.
+secrets:
+  core_host_role_id:
+    file: /run/syndes/approle/core-host/role-id
+  core_host_secret_id:
+    file: /run/syndes/approle/core-host/secret-id
+networks:
+  syndes-data: {external: true}
+  syndes-security-access: {external: true}
+  syndes-secrets: {external: true}
