@@ -18,6 +18,13 @@ test("module migration CLI enumerates and emits only installed package migration
  assert.match(orgSql,/CREATE TABLE IF NOT EXISTS platform_organizations/);
  assert.match(orgSql,/CREATE TABLE IF NOT EXISTS platform_units/);
  assert.equal(list[0].migrations.length,3);
+ assert.equal(list[3].migrations.some(m=>m.includes("manual")),false,
+  "Physical multi-org index cutover must never run automatically");
+ const integritySql=execFileSync(process.execPath,[cli,"--emit","organizations","005_scoped_relationship_integrity"],{encoding:"utf8"});
+ assert.match(integritySql,/platform_validate_crm_relationship/);
+ assert.match(integritySql,/whatsapp_outbox_platform_guard/);
+ const newAuditSql=execFileSync(process.execPath,[cli,"--emit","organizations","006_context_creation_audit"],{encoding:"utf8"});
+ assert.match(newAuditSql,/workspace_created/);
  const sql=execFileSync(process.execPath,[cli,"--emit","crm","001_crm_foundation"],{encoding:"utf8"});
  assert.match(sql,/CREATE TABLE IF NOT EXISTS crm_people/);
  const inboxSql=execFileSync(process.execPath,[cli,"--emit","inbox","001_inbox_foundation"],{encoding:"utf8"});

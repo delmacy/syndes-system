@@ -55,6 +55,10 @@ test("manual multi-org cutover fails without attestations, preserves owners and 
    "../sql/005_scoped_relationship_integrity.sql",
    "../sql/006_context_creation_audit.sql"
   ])await client.query(strip(await source(migration)));
+  // Migrations 005 and 006 must be safely replayable after an interrupted
+  // deployment. Re-executing them must not relax any owner constraint.
+  await client.query(strip(await source("../sql/005_scoped_relationship_integrity.sql")));
+  await client.query(strip(await source("../sql/006_context_creation_audit.sql")));
   const releaseSql=await source("../sql/manual/activate_multiple_organizations.sql");
   // No bootstrap/backfill and no attestation => one SQL23514, all indexes intact.
   await failed(releaseSql,[],"23514");
