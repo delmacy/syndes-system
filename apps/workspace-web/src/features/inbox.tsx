@@ -450,7 +450,9 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   const currentDraftKey = selected ? draftKey(selected.id, composerMode) : "";
   const composer = drafts[currentDraftKey] ?? "";
   const updateComposer = (text: string) => setDrafts(previous => setDraft(previous, currentDraftKey, text));
-  const matching=scopeTab === "phones" && chatScope === "all" ? records.filter(record=>!record.isGroup) : records; // Tenant-scoped query, with local phone/group tab separation.
+  // The backend refresh is async. Never render cached phone rows in the group
+  // tab (or cached group rows in the phone tab) while the new scope loads.
+  const matching=records.filter(record=>scopeTab==="groups"?Boolean(record.isGroup):!record.isGroup);
   const replyReason = replyBlockReason(selected, actorId);
   const replyDisabled = composerMode !== "simulator/inbound" && Boolean(replyReason);
   const mine = isMine(selected, actorId);
