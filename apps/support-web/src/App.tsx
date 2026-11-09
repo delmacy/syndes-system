@@ -1,4 +1,4 @@
-import {useCallback,useEffect,useMemo,useState,type FormEvent} from "react";
+import {useCallback,useEffect,useMemo,useRef,useState,type FormEvent} from "react";
 import {autoLoginAllowed,beginLogin,finishLogin,markSignedOut,readConfig,type SupportConfig} from "./auth.js";
 import {ALLOWED_NEXT,PRIORITIES,QUEUES,STATUSES,SupportApi,
  type CasePriority,type CaseStatus,type CaseFilters,type CaseEvent,type InboxConversation,
@@ -40,11 +40,19 @@ export default function App(){
  const [assignee,setAssignee]=useState("");
  const [destinationQueue,setDestinationQueue]=useState("");
  const [note,setNote]=useState("");
+ const listRequest=useRef<AbortController|null>(null);
+ const detailRequest=useRef<AbortController|null>(null);
+ const conversationRequest=useRef<AbortController|null>(null);
+ const activeKind=useRef<SupportKind>("internal");
+ const abortReads=useCallback(()=>{
+  listRequest.current?.abort();detailRequest.current?.abort();conversationRequest.current?.abort();
+ },[]);
+ useEffect(()=>()=>abortReads(),[abortReads]);
 
  const signOut=useCallback(()=>{
-  markSignedOut();setToken(null);setItems([]);setSelected(null);setSelectedId(null);
-  setHistory([]);setNotice("");setShowCreate(false);
- },[]);
+  abortReads();markSignedOut();setToken(null);setItems([]);setSelected(null);setSelectedId(null);
+  setHistory([]);setNotice("");setShowCreate(false);setLoading(false);setDetailLoading(false);
+ },[abortReads]);
  const api=useMemo(()=>config&&token?new SupportApi(config.tenantId,token,signOut):null,[config,token,signOut]);
  useEffect(()=>{
   let mounted=true;
@@ -62,51 +70,84 @@ export default function App(){
   })();
   return()=>{mounted=false;};
  },[]);
- useEffect(()=>{
-  setSelected(null);setSelectedId(null);setHistory([]);setItems([]);setShowCreate(false);setFilters({});
- },[kind]);
+ const switchKind=(next:SupportKind)=>{
+  if(next===activeKind.current)return;
+  // Invalidate requests synchronously, before the new audience can render.
+  activeKind.current=next;abortReads();
+  setItems([]);setSelectedId(null);setSelected(null);setHistory([]);
+  setFilters({});setShowCreate(false);setConversations([]);
+  setLoading(false);setDetailLoading(false);setConversationsLoading(false);
+  setOperationError("");setNotice("");setKind(next);
+ };
  const loadCases=useCallback(async()=>{
-  if(!api)return;
+  if(!api||activeKind.current!==kind)return;
+  listRequest.current?.abort();
+  const controller=new AbortController();listRequest.current=controller;
   setLoading(true);setOperationError("");
-  try{setItems(await api.cases(kind,filters));}
-  catch(e){setItems([]);setOperationError(errorText(e));}
-  finally{setLoading(false);}
+  try{
+   const result=await api.cases(kind,filters,controller.signal);
+   if(result.some(c=>c.kind!==kind))throw Error("Resposta de atendimento fora do contexto selecionado.");
+   if(!controller.signal.aborted&&activeKind.current===kind)setItems(result);
+  }catch(e){if(!controller.signal.aborted&&activeKind.current===kind){
+   setItems([]);setOperationError(errorText(e));
+  }}finally{
+   if(!controller.signal.aborted&&activeKind.current===kind)setLoading(false);
+   if(listRequest.current===controller)listRequest.current=null;
+  }
  },[api,kind,filters]);
- useEffect(()=>{void loadCases();},[loadCases]);
+ useEffect(()=>{void loadCases();return()=>{listRequest.current?.abort();};},[loadCases]);
  const loadDetail=useCallback(async(id:string)=>{
-  if(!api)return;
+  if(!api||activeKind.current!==kind)return;
+  detailRequest.current?.abort();
+  const controller=new AbortController();detailRequest.current=controller;
   setDetailLoading(true);setOperationError("");
   try{
-   const [value,events]=await Promise.all([api.get(kind,id),api.events(kind,id)]);
+   const [value,events]=await Promise.all([api.get(kind,id,controller.signal),api.events(kind,id,controller.signal)]);
+   if(value.kind!==kind||value.id!==id)throw Error("Detalhe fora do contexto selecionado.");
+   if(controller.signal.aborted||activeKind.current!==kind)return;
    setSelected(value);setHistory(events);
    setStatusValue(ALLOWED_NEXT[value.status][0]??"triage");
    setAssignee(value.assignedTo??"");
    setDestinationQueue(QUEUES[kind].find(q=>q.code!==value.queue)?.code??value.queue);
-  }catch(e){setSelected(null);setHistory([]);setOperationError(errorText(e));}
-  finally{setDetailLoading(false);}
+  }catch(e){if(!controller.signal.aborted&&activeKind.current===kind){
+   setSelected(null);setHistory([]);setOperationError(errorText(e));
+  }}finally{
+   if(!controller.signal.aborted&&activeKind.current===kind)setDetailLoading(false);
+   if(detailRequest.current===controller)detailRequest.current=null;
+  }
  },[api,kind]);
  useEffect(()=>{
-  if(!selectedId){setSelected(null);setHistory([]);return;}
+  if(!selectedId){detailRequest.current?.abort();setSelected(null);setHistory([]);setDetailLoading(false);return;}
   void loadDetail(selectedId);
+  return()=>{detailRequest.current?.abort();};
  },[selectedId,loadDetail]);
  const modify=async(action:()=>Promise<unknown>,message:string)=>{
+  const requestKind=kind;
   setBusy(true);setOperationError("");setNotice("");
   try{
    await action();
+   if(activeKind.current!==requestKind)return false;
    setNotice(message);
    await loadCases();
    if(selectedId)await loadDetail(selectedId);
-   return true;
-  }catch(e){setOperationError(errorText(e));return false;}
+   return activeKind.current===requestKind;
+  }catch(e){if(activeKind.current===requestKind)setOperationError(errorText(e));return false;}
   finally{setBusy(false);}
  };
  const openCreate=async()=>{
   setShowCreate(true);setOperationError("");
   if(kind!=="external"||!api)return;
+  conversationRequest.current?.abort();
+  const controller=new AbortController();conversationRequest.current=controller;
   setConversationsLoading(true);setConversations([]);setCreateConversation("");
-  try{setConversations(await api.whatsappConversations());}
-  catch(e){setOperationError(errorText(e));}
-  finally{setConversationsLoading(false);}
+  try{
+   const result=await api.whatsappConversations(controller.signal);
+   if(!controller.signal.aborted&&activeKind.current==="external")setConversations(result);
+  }catch(e){if(!controller.signal.aborted&&activeKind.current==="external")setOperationError(errorText(e));}
+  finally{
+   if(!controller.signal.aborted&&activeKind.current==="external")setConversationsLoading(false);
+   if(conversationRequest.current===controller)conversationRequest.current=null;
+  }
  };
  async function create(event:FormEvent<HTMLFormElement>){
   event.preventDefault();if(!api)return;
@@ -134,7 +175,7 @@ export default function App(){
   <div className="workarea">
    <nav aria-label="Público do atendimento" className="audiences">
     {(["external","internal"] as const).map(k=><button key={k} className={kind===k?"current":""}
-      aria-current={kind===k?"page":undefined} onClick={()=>{if(k!==kind)setKind(k);}}>
+      aria-current={kind===k?"page":undefined} onClick={()=>switchKind(k)}>
       {audienceLabel[k]}</button>)}
    </nav>
    <div className="title-row">

@@ -88,6 +88,33 @@ test("real Keycloak + FGA + PostgreSQL: internal requester, restricted notes and
   await expect(agent.page.getByText("WhatsApp").first()).toBeVisible();
   await expect(agent.page.getByRole("heading",{name:"Ações da fila"})).toBeVisible();
 
+  // Real HTTP response delivered out of order must never show internal tickets on the external screen.
+  const externalProtocol=(await externalCase.innerText()).match(CASE_PROTOCOL)?.[0];
+  expect(externalProtocol).toBeTruthy();
+  let releaseInternal,internalCaptured,internalDelivered;
+  const release=new Promise(resolve=>{releaseInternal=resolve;});
+  const captured=new Promise(resolve=>{internalCaptured=resolve;});
+  const delivered=new Promise(resolve=>{internalDelivered=resolve;});
+  await agent.page.route("**/support/internal/cases?*",async route=>{
+   const response=await route.fetch();
+   internalCaptured();
+   await release;
+   try{await route.fulfill({response});}
+   catch(error){
+    // Browser cancellation is the expected result of switching audience.
+    if(!String(error).includes("intercept")&&!String(error).includes("aborted")&&!String(error).includes("closed"))throw error;
+   }finally{internalDelivered();}
+  });
+  await agent.page.getByRole("button",{name:"Solicitações internas"}).click();
+  await captured;
+  await agent.page.getByRole("button",{name:"Atendimento externo"}).click();
+  await expect(agent.page.getByRole("button",{name:new RegExp(externalProtocol)}).first()).toBeVisible();
+  releaseInternal();
+  await delivered;
+  await expect(agent.page.getByRole("button",{name:new RegExp(protocol)})).toHaveCount(0);
+  await expect(agent.page.getByRole("button",{name:new RegExp(externalProtocol)}).first()).toBeVisible();
+  await agent.page.unroute("**/support/internal/cases?*");
+
   // Employee has no external audience grant and no external queue membership.
   await employee.page.getByRole("button",{name:"Atendimento externo"}).click();
   await expect(employee.page.getByRole("alert")).toContainText("permissão");

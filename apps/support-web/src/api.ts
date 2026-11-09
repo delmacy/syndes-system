@@ -39,13 +39,14 @@ export class SupportApi{
  constructor(tenantId:string,bearer:string,onUnauthorized:()=>void){
   this.tenantId=tenantId;this.bearer=bearer;this.onUnauthorized=onUnauthorized;
  }
- private async request<T>(url:string,method="GET",body?:object):Promise<T>{
+ private async request<T>(url:string,method="GET",body?:object,signal?:AbortSignal):Promise<T>{
   const response=await fetch("/v1/tenants/"+encodeURIComponent(this.tenantId)+url,{
    method,headers:{
     Authorization:"Bearer "+this.bearer,
     ...(body?{"Content-Type":"application/json"}:{})
-   },...(body?{body:JSON.stringify(body)}:{}),cache:"no-store"
+   },...(body?{body:JSON.stringify(body)}:{}),cache:"no-store",signal:signal??null
   });
+  if(signal?.aborted)throw new DOMException("Request cancelled","AbortError");
   if(response.status===401)this.onUnauthorized();
   if(!response.ok){
    const detail:unknown=await response.json().catch(()=>null);
@@ -57,17 +58,17 @@ export class SupportApi{
   }
   return await response.json() as T;
  }
- cases(kind:SupportKind,filters:CaseFilters={}){
+ cases(kind:SupportKind,filters:CaseFilters={},signal?:AbortSignal){
   const q=new URLSearchParams();
   for(const [key,value] of Object.entries(filters))
    if(value!==undefined&&value!=="")q.set(key,value);
-  return this.request<SupportCase[]>("/support/"+kind+"/cases?"+q.toString());
+  return this.request<SupportCase[]>("/support/"+kind+"/cases?"+q.toString(),"GET",undefined,signal);
  }
- get(kind:SupportKind,id:string){
-  return this.request<SupportCase>("/support/"+kind+"/cases/"+encodeURIComponent(id));
+ get(kind:SupportKind,id:string,signal?:AbortSignal){
+  return this.request<SupportCase>("/support/"+kind+"/cases/"+encodeURIComponent(id),"GET",undefined,signal);
  }
- events(kind:SupportKind,id:string){
-  return this.request<CaseEvent[]>("/support/"+kind+"/cases/"+encodeURIComponent(id)+"/events");
+ events(kind:SupportKind,id:string,signal?:AbortSignal){
+  return this.request<CaseEvent[]>("/support/"+kind+"/cases/"+encodeURIComponent(id)+"/events","GET",undefined,signal);
  }
  createInternal(queue:string,priority:CasePriority,description:string){
   return this.request<SupportCase>("/support/internal/cases","POST",{queue,priority,description});
@@ -87,8 +88,8 @@ export class SupportApi{
  note(kind:SupportKind,id:string,body:string){
   return this.request<CaseEvent>("/support/"+kind+"/cases/"+encodeURIComponent(id)+"/notes","POST",{body});
  }
- async whatsappConversations(){
-  const conversations=await this.request<InboxConversation[]>("/inbox/conversations?limit=100&scope=all");
+ async whatsappConversations(signal?:AbortSignal){
+  const conversations=await this.request<InboxConversation[]>("/inbox/conversations?limit=100&scope=all","GET",undefined,signal);
   return conversations.filter(c=>c.channel==="whatsapp"&&typeof c.crmPersonId==="string"&&c.crmPersonId.length>0);
  }
 }

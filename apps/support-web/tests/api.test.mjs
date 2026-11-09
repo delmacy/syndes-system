@@ -51,3 +51,32 @@ test("external Inbox picker offers only actual WhatsApp conversations linked to 
   assert.deepEqual(list.map(x=>x.id),["one"]);
  }finally{globalThis.fetch=original;}
 });
+
+test("list, detail, history and Inbox requests support cancellation without session loss",async()=>{
+ const previous=globalThis.fetch;
+ const seen=[];let ended=0;
+ globalThis.fetch=async(_url,options={})=>{
+  seen.push(options.signal);
+  return await new Promise((_resolve,reject)=>{
+   if(options.signal?.aborted)return reject(new DOMException("Aborted","AbortError"));
+   options.signal?.addEventListener("abort",()=>reject(new DOMException("Aborted","AbortError")),{once:true});
+  });
+ };
+ try{
+  const api=new SupportApi(T,TOKEN,()=>ended++);
+  for(const request of [
+    (signal)=>api.cases("internal",{},signal),
+    (signal)=>api.get("external",T,signal),
+    (signal)=>api.events("internal",T,signal),
+    (signal)=>api.whatsappConversations(signal),
+  ]){
+   const controller=new AbortController();
+   const pending=request(controller.signal);
+   controller.abort();
+   await assert.rejects(pending,e=>e.name==="AbortError");
+   assert.equal(seen.at(-1),controller.signal);
+  }
+  assert.equal(seen.length,4);
+  assert.equal(ended,0,"an aborted response must not trigger Keycloak logout");
+ }finally{globalThis.fetch=previous;}
+});
