@@ -90,3 +90,38 @@ test("legacy ownership backfill requires FGA before DB and active default admin 
   assert.match(f.queries[0].sql,/platform_backfill_legacy_ownership\(a\.tenant_id,\$2\)/);
   assert.deepEqual(f.queries[0].params,[tenant,ctx.actor.id]);
 });
+
+
+test("creating additional organization/workspace is flag-gated, role-gated and atomic",async()=>{
+ const previous=process.env.SYNDES_MULTI_ORG_ENABLED;
+ const f=fake();
+ try{
+  delete process.env.SYNDES_MULTI_ORG_ENABLED;
+  assert.throws(()=>f.service.createOrganization(ctx,{displayName:"Second"}),OrgInputError);
+  assert.throws(()=>f.service.createWorkspace(ctx,org,{name:"Sales",slug:"sales"}),OrgInputError);
+  assert.deepEqual(f.queries,[],"no unauthorized DB lease");
+  process.env.SYNDES_MULTI_ORG_ENABLED="true";
+  assert.equal(await f.service.createOrganization(ctx,{displayName:"Second"}),null);
+  assert.equal(f.checks[0].resource,"organizations:bootstrap");
+  assert.match(f.queries[0].sql,/om.role='admin'/);
+  assert.match(f.queries[0].sql,/wm.role='admin'/);
+  assert.match(f.queries[0].sql,/platform_legacy_single_organization/);
+  assert.match(f.queries[0].sql,/organization_created/);
+  assert.match(f.queries[0].sql,/workspace_member/);
+  assert.equal(f.queries[0].params[4],ctx.actor.id);
+  assert.equal(await f.service.createWorkspace(ctx,org,{name:"Sales",slug:"sales"}),null);
+  assert.equal(f.checks[1].resource,"organizations:workspaces");
+  assert.equal(f.checks[1].action,"write");
+  assert.match(f.queries[1].sql,/m.role='admin'/);
+  assert.match(f.queries[1].sql,/workspace_created/);
+  assert.match(f.queries[1].sql,/grant_creator/);
+  assert.equal(f.queries[1].params[5],ctx.actor.id);
+  assert.throws(()=>f.service.createWorkspace(ctx,org,{name:"Sales",slug:"INVALID"}),OrgInputError);
+  const denied=fake({denied:true});
+  await assert.rejects(denied.service.createOrganization(ctx,{displayName:"Second"}),AccessDeniedError);
+  assert.deepEqual(denied.queries,[]);
+ }finally{
+  if(previous===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
+  else process.env.SYNDES_MULTI_ORG_ENABLED=previous;
+ }
+});

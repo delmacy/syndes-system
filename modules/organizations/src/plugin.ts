@@ -11,6 +11,7 @@ export const syndesPlugin=defineSyndesModule({
     {resource:"organizations:directory",actions:["read"]},
     {resource:"organizations:bootstrap",actions:["write"]},
     {resource:"organizations:units",actions:["read","write"]},
+    {resource:"organizations:workspaces",actions:["write"]},
   ],
   migrations:[{
     id:"001_account_hierarchy",
@@ -27,6 +28,9 @@ export const syndesPlugin=defineSyndesModule({
   },{
     id:"005_scoped_relationship_integrity",
     fileUrl:new URL("../sql/005_scoped_relationship_integrity.sql",import.meta.url).href,
+  },{
+    id:"006_context_creation_audit",
+    fileUrl:new URL("../sql/006_context_creation_audit.sql",import.meta.url).href,
   }],
   assets:[],
 });

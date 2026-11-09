@@ -100,6 +100,117 @@ export class OrganizationService{
       }));
     });
   }
+  /** Tenant administrator creates an additional legal organization only
+   * after physical 002 release and a reviewed server enablement flag.
+   * The creator becomes an admin in the new default workspace in ONE SQL
+   * statement; failed steps cannot leave an orphan/undiscoverable org.
+   */
+  createOrganization(ctx:OrgContext,input:unknown):Promise<Record<string,unknown>|null>{
+    if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true")
+      throw new OrgInputError("Multi-context operations are disabled");
+    const displayName=typeof input==="object"&&input!==null&&!Array.isArray(input)
+      ?(input as {displayName?:unknown}).displayName:null;
+    if(typeof displayName!=="string"||!displayName.trim()||
+      displayName.trim().length>160||/[\u0000-\u001f]/.test(displayName))
+      throw new OrgInputError("Invalid platform organization name");
+    const newOrg=randomUUID(),newWs=randomUUID();
+    return this.execute(ctx,"write","organizations:bootstrap",async db=>{
+      const result=await db.query(`
+        WITH authorized AS MATERIALIZED (
+          SELECT o.tenant_id
+          FROM platform_organizations o
+          JOIN platform_org_memberships om ON om.tenant_id=o.tenant_id
+            AND om.organization_id=o.id AND om.principal_id=$5
+            AND om.state='active' AND om.role='admin'
+          JOIN platform_workspaces w ON w.tenant_id=o.tenant_id
+            AND w.organization_id=o.id AND w.is_default AND w.status='active'
+          JOIN platform_workspace_memberships wm ON wm.tenant_id=w.tenant_id
+            AND wm.organization_id=w.organization_id AND wm.workspace_id=w.id
+            AND wm.principal_id=$5 AND wm.state='active' AND wm.role='admin'
+          WHERE o.tenant_id=$1::uuid AND o.is_default AND o.status='active'
+            AND EXISTS(SELECT 1 FROM platform_legacy_backfill_runs audit
+              WHERE audit.tenant_id=o.tenant_id AND audit.organization_id=o.id)
+            AND NOT EXISTS(SELECT 1 FROM pg_indexes
+              WHERE schemaname=current_schema() AND indexname IN(
+                'platform_legacy_single_organization','platform_legacy_single_workspace'))
+          LIMIT 1
+        ), created_org AS (
+          INSERT INTO platform_organizations(tenant_id,id,display_name,is_default)
+          SELECT tenant_id,$2::uuid,$4,false FROM authorized
+          RETURNING tenant_id,id,display_name
+        ), created_ws AS (
+          INSERT INTO platform_workspaces(tenant_id,id,organization_id,name,slug,is_default)
+          SELECT tenant_id,$3::uuid,id,'Principal','principal',true FROM created_org
+          RETURNING tenant_id,organization_id,id
+        ), org_member AS (
+          INSERT INTO platform_org_memberships(tenant_id,organization_id,principal_id,role)
+          SELECT tenant_id,id,$5,'admin' FROM created_org
+          RETURNING tenant_id,organization_id
+        ), workspace_member AS (
+          INSERT INTO platform_workspace_memberships
+            (tenant_id,organization_id,workspace_id,principal_id,role)
+          SELECT w.tenant_id,w.organization_id,w.id,$5,'admin'
+          FROM created_ws w JOIN org_member om ON om.organization_id=w.organization_id
+          RETURNING workspace_id
+        ), audited AS (
+          INSERT INTO platform_org_audit(tenant_id,organization_id,actor_id,event,entity_id)
+          SELECT o.tenant_id,o.id,$5,'organization_created',o.id
+          FROM created_org o JOIN workspace_member wm ON wm.workspace_id=$3::uuid
+          RETURNING entity_id
+        )
+        SELECT o.id,o.display_name,w.id AS default_workspace_id
+        FROM created_org o JOIN created_ws w ON w.organization_id=o.id
+          JOIN audited a ON a.entity_id=o.id
+      `,[ctx.tenantId,newOrg,newWs,displayName.trim(),ctx.actor.id]);
+      return result.rows[0]??null;
+    });
+  }
+  /** An org admin can open a nondefault workspace; only the creating actor
+   * receives membership, never any tenant user implicitly.
+   */
+  createWorkspace(ctx:OrgContext,organizationId:string,input:unknown):Promise<Record<string,unknown>|null>{
+    if(!validUUID(organizationId))throw new OrgInputError("Invalid organization ID");
+    if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true")
+      throw new OrgInputError("Multi-context operations are disabled");
+    const o=input as {name?:unknown;slug?:unknown}|null;
+    const name=o&&typeof o.name==="string"?o.name.trim():"";
+    const slug=o&&typeof o.slug==="string"?o.slug.trim():"";
+    if(!name||name.length>160||/[\u0000-\u001f]/.test(name)||
+       !/^[a-z][a-z0-9-]{0,62}$/.test(slug))throw new OrgInputError("Invalid workspace");
+    const newWorkspace=randomUUID();
+    return this.execute(ctx,"write","organizations:workspaces",async db=>{
+      const result=await db.query(`
+        WITH allowed AS MATERIALIZED (
+          SELECT o.tenant_id,o.id AS organization_id
+          FROM platform_organizations o
+          JOIN platform_org_memberships m ON m.tenant_id=o.tenant_id
+             AND m.organization_id=o.id AND m.principal_id=$6
+             AND m.state='active' AND m.role='admin'
+          WHERE o.tenant_id=$1::uuid AND o.id=$2::uuid AND o.status='active'
+            AND NOT EXISTS(SELECT 1 FROM pg_indexes
+              WHERE schemaname=current_schema() AND indexname IN(
+                'platform_legacy_single_organization','platform_legacy_single_workspace'))
+        ), created AS (
+          INSERT INTO platform_workspaces(tenant_id,id,organization_id,name,slug,is_default)
+          SELECT tenant_id,$3::uuid,organization_id,$4,$5,false FROM allowed
+          RETURNING tenant_id,id,organization_id,name,slug
+        ), grant_creator AS (
+          INSERT INTO platform_workspace_memberships
+            (tenant_id,organization_id,workspace_id,principal_id,role)
+          SELECT tenant_id,organization_id,id,$6,'admin' FROM created
+          RETURNING workspace_id
+        ), audit AS (
+          INSERT INTO platform_org_audit(tenant_id,organization_id,actor_id,event,entity_id)
+          SELECT c.tenant_id,c.organization_id,$6,'workspace_created',c.id
+          FROM created c JOIN grant_creator m ON m.workspace_id=c.id RETURNING entity_id
+        )
+        SELECT c.id,c.organization_id,c.name,c.slug FROM created c
+        JOIN audit a ON a.entity_id=c.id
+      `,[ctx.tenantId,organizationId,newWorkspace,name,slug,ctx.actor.id]);
+      return result.rows[0]??null;
+    });
+  }
+
   listOrganizations(ctx:OrgContext):Promise<readonly Record<string,unknown>[]>{
     return this.execute(ctx,"read","organizations:directory",async db=>{
       const r=await db.query(`

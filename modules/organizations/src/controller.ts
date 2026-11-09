@@ -21,6 +21,8 @@ export class OrganizationHost{
       if(error instanceof OrgInputError)throw new HttpException(error.message,400);
       if(error instanceof AccessDeniedError)throw new HttpException("Forbidden",403);
       if(error instanceof OrgTenantMismatchError)throw new HttpException("Tenant database unavailable",503);
+      if(typeof error==="object"&&error!==null&&"code" in error&&error.code==="23505")
+        throw new HttpException("Organization or workspace already exists",409);
       // Includes FGA, PostgreSQL and OpenBao faults; never grant access on errors.
       throw new HttpException("Organization service unavailable",503);
     }
@@ -39,6 +41,24 @@ export class OrganizationController{
       const result=await this.host.service.backfillDefaultOwnership(ctx);
       if(!result)throw new HttpException("Default context admin required",403);
       return {bound:result};
+    });
+  }
+  @Post("organizations")
+  createOrganization(@Param("tenantId")id:string,@Headers("authorization")auth:string|undefined,
+    @Body()body:unknown){
+    return this.host.run(id,auth,async ctx=>{
+      const created=await this.host.service.createOrganization(ctx,body);
+      if(!created)throw new HttpException("Tenant administrator required",403);
+      return created;
+    });
+  }
+  @Post("organizations/:organizationId/workspaces")
+  createWorkspace(@Param("tenantId")id:string,@Param("organizationId")org:string,
+    @Headers("authorization")auth:string|undefined,@Body()body:unknown){
+    return this.host.run(id,auth,async ctx=>{
+      const created=await this.host.service.createWorkspace(ctx,org,body);
+      if(!created)throw new HttpException("Organization admin required",403);
+      return created;
     });
   }
   @Get("organizations")
