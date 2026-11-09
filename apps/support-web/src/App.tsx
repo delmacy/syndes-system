@@ -44,14 +44,16 @@ export default function App(){
  const detailRequest=useRef<AbortController|null>(null);
  const conversationRequest=useRef<AbortController|null>(null);
  const activeKind=useRef<SupportKind>("internal");
+ const operationEpoch=useRef(0);
  const abortReads=useCallback(()=>{
   listRequest.current?.abort();detailRequest.current?.abort();conversationRequest.current?.abort();
  },[]);
  useEffect(()=>()=>abortReads(),[abortReads]);
 
  const signOut=useCallback(()=>{
+  ++operationEpoch.current;
   abortReads();markSignedOut();setToken(null);setItems([]);setSelected(null);setSelectedId(null);
-  setHistory([]);setNotice("");setShowCreate(false);setLoading(false);setDetailLoading(false);
+  setHistory([]);setNotice("");setShowCreate(false);setLoading(false);setDetailLoading(false);setBusy(false);
  },[abortReads]);
  const api=useMemo(()=>config&&token?new SupportApi(config.tenantId,token,signOut):null,[config,token,signOut]);
  useEffect(()=>{
@@ -73,10 +75,10 @@ export default function App(){
  const switchKind=(next:SupportKind)=>{
   if(next===activeKind.current)return;
   // Invalidate requests synchronously, before the new audience can render.
-  activeKind.current=next;abortReads();
+  activeKind.current=next;++operationEpoch.current;abortReads();
   setItems([]);setSelectedId(null);setSelected(null);setHistory([]);
   setFilters({});setShowCreate(false);setConversations([]);
-  setLoading(false);setDetailLoading(false);setConversationsLoading(false);
+  setLoading(false);setDetailLoading(false);setConversationsLoading(false);setBusy(false);
   setOperationError("");setNotice("");setKind(next);
  };
  const loadCases=useCallback(async()=>{
@@ -122,17 +124,18 @@ export default function App(){
   return()=>{detailRequest.current?.abort();};
  },[selectedId,loadDetail]);
  const modify=async(action:()=>Promise<unknown>,message:string)=>{
-  const requestKind=kind;
+  const requestKind=kind,requestEpoch=++operationEpoch.current;
+  const stillCurrent=()=>activeKind.current===requestKind&&operationEpoch.current===requestEpoch;
   setBusy(true);setOperationError("");setNotice("");
   try{
    await action();
-   if(activeKind.current!==requestKind)return false;
+   if(!stillCurrent())return false;
    setNotice(message);
    await loadCases();
-   if(selectedId)await loadDetail(selectedId);
-   return activeKind.current===requestKind;
-  }catch(e){if(activeKind.current===requestKind)setOperationError(errorText(e));return false;}
-  finally{setBusy(false);}
+   if(stillCurrent()&&selectedId)await loadDetail(selectedId);
+   return stillCurrent();
+  }catch(e){if(stillCurrent())setOperationError(errorText(e));return false;}
+  finally{if(operationEpoch.current===requestEpoch)setBusy(false);}
  };
  const openCreate=async()=>{
   setShowCreate(true);setOperationError("");
@@ -151,13 +154,17 @@ export default function App(){
  };
  async function create(event:FormEvent<HTMLFormElement>){
   event.preventDefault();if(!api)return;
+  let createdId:string|null=null;
   const created=await modify(async()=>{
    const result=kind==="internal"
     ?await api.createInternal(createQueue,createPriority,createDescription)
     :await api.createExternal(createConversation,createPriority);
-   setSelectedId(result.id);
+   createdId=result.id;
   },"Chamado registrado.");
-  if(created){setShowCreate(false);setCreateDescription("");setCreateConversation("");}
+  if(created&&createdId){
+   // A response from a previous audience must not select a case in this one.
+   setSelectedId(createdId);setShowCreate(false);setCreateDescription("");setCreateConversation("");
+  }
  }
  if(booting)return <main className="center" role="status">Carregando autenticação da Syndes…</main>;
  if(!config||accessError)return <main className="center"><h1>Syndes Support</h1><p role="alert">{accessError||"Configuração indisponível."}</p></main>;

@@ -115,6 +115,43 @@ test("real Keycloak + FGA + PostgreSQL: internal requester, restricted notes and
   await expect(agent.page.getByRole("button",{name:new RegExp(externalProtocol)}).first()).toBeVisible();
   await agent.page.unroute("**/support/internal/cases?*");
 
+  // A POST that completes after an audience switch still writes its case in PostgreSQL,
+  // but must never select that internal case in the external screen.
+  let releasePost,postCaptured,postDelivered,createdProtocol;
+  const postRelease=new Promise(resolve=>{releasePost=resolve;});
+  const postCapture=new Promise(resolve=>{postCaptured=resolve;});
+  const postDelivery=new Promise(resolve=>{postDelivered=resolve;});
+  await agent.page.route("**/support/internal/cases",async route=>{
+   if(route.request().method()!=="POST"){await route.continue();return;}
+   const response=await route.fetch();
+   expect(response.ok()).toBeTruthy();
+   createdProtocol=(await response.json()).protocol;
+   postCaptured();
+   await postRelease;
+   try{await route.fulfill({response});}
+   catch(error){
+    if(!String(error).includes("intercept")&&!String(error).includes("aborted")&&!String(error).includes("closed"))throw error;
+   }finally{postDelivered();}
+  });
+  await agent.page.getByRole("button",{name:"Solicitações internas"}).click();
+  await agent.page.getByRole("button",{name:"Novo chamado"}).click();
+  const delayedForm=agent.page.getByRole("region",{name:"Criar chamado"});
+  await delayedForm.getByLabel("Fila").selectOption("it_infra");
+  await delayedForm.getByLabel("Descrição").fill("E2E POST lento antes de trocar para atendimento externo");
+  await agent.page.getByRole("button",{name:"Registrar",exact:true}).click();
+  await postCapture;
+  expect(createdProtocol).toMatch(CASE_PROTOCOL);
+  await agent.page.getByRole("button",{name:"Atendimento externo"}).click();
+  await expect(agent.page.getByRole("button",{name:new RegExp(externalProtocol)}).first()).toBeVisible();
+  releasePost();
+  await postDelivery;
+  await expect(agent.page.getByText("Chamado registrado.",{exact:true})).toHaveCount(0);
+  await expect(agent.page.getByRole("heading",{name:createdProtocol})).toHaveCount(0);
+  await expect(agent.page.getByRole("button",{name:new RegExp(createdProtocol)})).toHaveCount(0);
+  await agent.page.unroute("**/support/internal/cases");
+  await agent.page.getByRole("button",{name:"Solicitações internas"}).click();
+  await expect(agent.page.getByRole("button",{name:new RegExp(createdProtocol)}).first()).toBeVisible();
+
   // Employee has no external audience grant and no external queue membership.
   await employee.page.getByRole("button",{name:"Atendimento externo"}).click();
   await expect(employee.page.getByRole("alert")).toContainText("permissão");
