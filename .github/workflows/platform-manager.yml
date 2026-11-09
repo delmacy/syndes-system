@@ -56,8 +56,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: JWT cross-client, tenant denial and routes
         run: npm test
-      - name: Scoped OpenBao and first-owner bootstrap tests
-        run: cd ../.. && python3 tests/platform/test-master-secret-render.py && python3 tests/platform/test-owner-bootstrap.py && bash -n infra/master-admin/openbao/run-renderer.sh
+      - name: Scoped OpenBao, owner bootstrap and fail-closed deploy script checks
+        run: cd ../.. && python3 tests/platform/test-master-secret-render.py && python3 tests/platform/test-owner-bootstrap.py && bash -n infra/master-admin/openbao/run-renderer.sh infra/master-admin/homolog-deploy.sh infra/master-admin/homolog-stop.sh
 
   admin-web:
     runs-on: ubuntu-latest
