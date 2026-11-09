@@ -133,16 +133,7 @@ case "$suite" in
     docker build -f apps/master-admin-web/Dockerfile -t syndes/master-admin-web:ci .
     ;;
   infra)
-    bash -n tests/platform/*.sh
-    python3 -m json.tool infra/security-access/fga-model.json >/dev/null
-    docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml config --quiet
-    docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml config --quiet
-    docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml config --quiet
-    for script in tests/platform/support-migration-gate.test.sh \
-                  tests/platform/support-migration-installer.test.sh \
-                  tests/platform/platform-manager-postgres-smoke.sh; do
-      if [[ -f "$script" ]]; then bash "$script"; fi
-    done
+    bash scripts/ci/run-infra.sh
     ;;
   *)
     echo "::error::Unrecognized CI suite: $suite" >&2

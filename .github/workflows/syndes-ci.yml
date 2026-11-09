@@ -39,6 +39,8 @@ jobs:
           fi
       - name: Prove fail-closed test selection
         run: node --test scripts/ci/plan.test.mjs
+      - name: Verify CI executor shell syntax
+        run: bash -n scripts/ci/*.sh
 
   impact:
     name: Determine regression impact
