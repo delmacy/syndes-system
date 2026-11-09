@@ -200,11 +200,11 @@ try {
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await mockWorkspace(mobile);
   await mobile.getByRole("button", { name: /Pedido inicial/ }).click();
-  await mobile.getByRole("button", { name: "Ver contexto CRM" }).click();
+  await mobile.getByRole("button", { name: "Abrir inspetor de contato" }).click();
   await mobile.getByRole("heading", { name: "Ana Exemplo" }).waitFor();
   await mobile.getByRole("button", { name: "Close", exact: true }).click();
-  await mobile.getByRole("button", { name: "Voltar para conversas" }).waitFor();
-  await mobile.getByRole("button", { name: "Voltar para conversas" }).click();
+  await mobile.getByRole("button", { name: "Voltar às conversas" }).waitFor();
+  await mobile.getByRole("button", { name: "Voltar às conversas" }).click();
   await mobile.getByRole("button", { name: /Pedido inicial/ }).waitFor();
   const sizes = await mobile.evaluate(() => ({ scroll: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   assert.ok(sizes.scroll <= sizes.viewport + 3, "No horizontal viewport overflow");
