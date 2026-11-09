@@ -28,9 +28,9 @@ Versão 2026-11-09. Estados: `TODO`, `IN_PROGRESS`, `CODE`, `VERIFIED`, `BLOCKED
 | 6.4 | Solicitação interna | validação e feedback de erro | CODE |
 | 7.1 | Unit tests de domínio | tipo, status, validações | VERIFIED |
 | 7.2 | Integration tests em PG | migração, rollback de fixture, negativos | VERIFIED (PG real em CI) |
-| 7.3 | Regressão de Kernel/Host/Inbox/WhatsApp/CRM | todas suites relevantes verdes | VERIFIED (local) |
+| 7.3 | Regressão de Kernel/Host/Inbox/WhatsApp/CRM | todas suites relevantes verdes | VERIFIED (local e CI) |
 | 7.4 | E2E de frontend | fluxos reais, sem backend fake | TODO |
-| 7.5 | CI e revisão de isolamento | checks do HEAD, falhas explícitas | CODE (CI pendente) |
+| 7.5 | CI e revisão de isolamento | checks do HEAD, falhas explícitas | VERIFIED (22 checks PASS no commit 9685fc3; 1 SKIP de evento) |
 | 8.1 | Documentação técnica e operacional | PRD, ADR, API, runbook, testes | CODE |
 | 8.2 | Branch/PR e checklist | preserva #27, sem merge indevido | CODE (PR #34 draft) |
 | 8.3 | Homologação e deploy controlado | gate pessoal, backups, restore, grants | BLOCKED |

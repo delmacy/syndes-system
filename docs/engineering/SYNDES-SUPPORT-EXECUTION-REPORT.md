@@ -25,4 +25,4 @@ Base verificada: `integration/workspace-org-crm-c2-20261109` @ `8e2fb5d1f0e0bc11
 4. Revisar provisionamento de tenant Syndes e conta WA exclusiva, OpenFGA/memberships filas e isolamento frontend no reverse proxy; sem privilégios implícitos.
 5. Revisão independente do PR e autorização formal de release. #31 não deve ser ativada por este PR.
 
-**Sem go-live.** PR: https://github.com/delmacy/syndes-system/pull/34 (draft). Commit corretivo: `9685fc3ae53a138decb0aa40eb7ee1c69a5a36a9`. CI de PostgreSQL/Support/UI/Inbox e infraestrutura passou na PR; não declarar CI completamente verde enquanto Core Host/identidade ainda estiverem executando.
+**Sem go-live.** PR: https://github.com/delmacy/syndes-system/pull/34 (draft). Commit corretivo: `9685fc3ae53a138decb0aa40eb7ee1c69a5a36a9`. No commit funcional `9685fc3`, CI final com **22 checks PASS, zero FAIL e 1 SKIP esperado** (job exclusivo de PR ignorado no push); inclui Core Host, integração de identidade, Inbox, WhatsApp, organizações, PostgreSQL descartável e infraestrutura. O commit de documentação posterior não altera código. Ainda faltam E2E reais de interface/IdP em homologação e gates operacionais.
