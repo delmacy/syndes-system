@@ -5,9 +5,11 @@ import {
  Search,Shield,ShieldCheck,ShieldOff,Users,UsersRound,X
 } from "lucide-react";
 import {MasterApi,type Operator,type Overview,type Tenant,type TenantPage} from "./api";
+import {DemoMasterApi} from "./demo";
 import {clearLogin,finishLogin,login,readConfig,type MasterConfig} from "./auth";
 
 type View="overview"|"clients";
+const previewMode=import.meta.env.VITE_DEMO_PREVIEW==="true";
 const navigation:{id:View;label:string;icon:typeof LayoutDashboard}[]=[
  {id:"overview",label:"Visão geral",icon:LayoutDashboard},
  {id:"clients",label:"Clientes",icon:Building2},
@@ -112,9 +114,9 @@ function EmptyOverview({onClients}:{onClients:()=>void}){
 }
 export default function App(){
  const [config,setConfig]=useState<MasterConfig|null>(null);
- const [token,setToken]=useState<string|null>(null);
- const [operator,setOperator]=useState<Operator|null>(null);
- const [booting,setBooting]=useState(true);
+ const [token,setToken]=useState<string|null>(previewMode?"VISUAL_PREVIEW_NO_AUTH":null);
+ const [operator,setOperator]=useState<Operator|null>(previewMode?{role:"viewer",capabilities:{viewTenants:true,manageTenants:false,viewCustomerData:false}}:null);
+ const [booting,setBooting]=useState(!previewMode);
  const [authError,setAuthError]=useState("");
  const [view,setView]=useState<View>("overview");
  const [mobileNav,setMobileNav]=useState(false);
@@ -129,9 +131,9 @@ export default function App(){
  const [dataError,setDataError]=useState("");
  const [refresh,setRefresh]=useState(0);
  const [selected,setSelected]=useState<string|null>(null);
- const api=useMemo(()=>token?new MasterApi(token):null,[token]);
+ const api=useMemo(()=>token?(previewMode?new DemoMasterApi():new MasterApi(token)):null,[token]);
  useEffect(()=>{const id=window.setTimeout(()=>setDebouncedQuery(query),350);return()=>window.clearTimeout(id)},[query]);
- useEffect(()=>{let active=true;void(async()=>{
+ useEffect(()=>{if(previewMode)return;let active=true;void(async()=>{
   try{
    const cfg=await readConfig();if(!active)return;
    setConfig(cfg);
@@ -164,6 +166,7 @@ export default function App(){
  },[api,operator,debouncedQuery,status,page,refresh]);
  const switchView=useCallback((next:View)=>{setView(next);setMobileNav(false)},[]);
  const signOut=()=>{
+  if(previewMode){setView("overview");setSelected(null);setQuery("");setStatus("all");return;}
   clearLogin();setToken(null);setOperator(null);setSummary(null);setTenants(null);setRecentTenants(null);setAuthError("");setSelected(null);
   window.history.replaceState(null,"",window.location.origin+"/");
  };
@@ -195,7 +198,7 @@ export default function App(){
     </button>)}
    </nav>
    <div className="border-t border-white/10 px-4 py-4">
-    <div className="flex items-center gap-3 rounded-xl px-2 py-2"><div className="flex size-9 items-center justify-center rounded-full bg-[#2a426a] text-xs font-bold text-[#b8caff]"><Shield className="size-4"/></div><div className="min-w-0 flex-1"><p className="text-xs font-semibold text-[#e4ecff]">Administrador</p><p className="truncate text-[10px] text-[#8295b6]">{roleNames[operator.role]}</p></div><button type="button" title="Encerrar sessão local" aria-label="Sair" onClick={signOut} className="rounded-lg p-2 text-[#8094ba] hover:bg-white/10 hover:text-white"><LogOut className="size-4"/></button></div>
+    <div className="flex items-center gap-3 rounded-xl px-2 py-2"><div className="flex size-9 items-center justify-center rounded-full bg-[#2a426a] text-xs font-bold text-[#b8caff]"><Shield className="size-4"/></div><div className="min-w-0 flex-1"><p className="text-xs font-semibold text-[#e4ecff]">Administrador</p><p className="truncate text-[10px] text-[#8295b6]">{previewMode?"Somente demonstração":roleNames[operator.role]}</p></div><button type="button" title="Encerrar sessão local" aria-label="Sair" onClick={signOut} className="rounded-lg p-2 text-[#8094ba] hover:bg-white/10 hover:text-white"><LogOut className="size-4"/></button></div>
    </div>
   </aside>
   <div className="min-w-0 flex-1">
@@ -204,6 +207,7 @@ export default function App(){
     <div className="flex items-center gap-3"><button type="button" title="Atualizar dados" aria-label="Atualizar dados" className="flex size-9 items-center justify-center rounded-xl border border-[#e2e8f2] text-[#667797] hover:bg-slate-50" onClick={()=>setRefresh(r=>r+1)}><RefreshCw className="size-4"/></button><span className="flex size-9 items-center justify-center rounded-full bg-[#e8edfc] text-[#4865bf]"><ShieldCheck className="size-4"/></span></div>
    </header>
    <main className="mx-auto w-full max-w-[1480px] px-5 pb-14 pt-8 lg:px-10 lg:pt-10">
+    {previewMode&&<div role="status" data-testid="visual-preview-banner" className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 text-sm font-semibold leading-6 text-amber-900">PRÉVIA NAVEGÁVEL — Dados fictícios para avaliação do layout. Nenhuma conta real, API administrativa ou dado de cliente está conectado.</div>}
     {loadingData&&<p role="status" className="mb-4 text-xs text-slate-500">Carregando dados...</p>}
     {dataError&&<div role="alert" className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-700"><ShieldOff className="size-4"/><span className="flex-1">{dataError}</span><button onClick={()=>setRefresh(r=>r+1)} className="font-bold underline">Tentar novamente</button></div>}
     {view==="overview"&&<>
@@ -227,7 +231,7 @@ export default function App(){
       <div className="flex items-center justify-between gap-3 border-t border-[#eef1f7] px-6 py-4 text-xs text-slate-500"><span>Página {tenants?.page??1} · {tenants?.total??0} clientes</span><div className="flex gap-2"><button type="button" disabled={page<=1} onClick={()=>setPage(p=>Math.max(1,p-1))} className="rounded-lg border border-slate-200 p-2 hover:bg-slate-50 disabled:opacity-30" aria-label="Página anterior"><ChevronLeft className="size-4"/></button><button type="button" disabled={!tenants||page*tenants.pageSize>=tenants.total} onClick={()=>setPage(p=>p+1)} className="rounded-lg border border-slate-200 p-2 hover:bg-slate-50 disabled:opacity-30" aria-label="Próxima página"><ChevronRight className="size-4"/></button></div></div>
      </section>
     </>}
-    <footer className="mt-12 flex flex-wrap items-center justify-between gap-3 border-t border-[#e0e7f0] pt-6 text-[11px] text-[#95a3b8]"><span>© Syndes · Syndes Platform Manager</span><span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5"/> Consultas ao Control Plane</span></footer>
+    <footer className="mt-12 flex flex-wrap items-center justify-between gap-3 border-t border-[#e0e7f0] pt-6 text-[11px] text-[#95a3b8]"><span>© Syndes · Syndes Platform Manager</span><span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5"/> {previewMode?"Simulação local, sem acesso a APIs":"Consultas ao Control Plane"}</span></footer>
    </main>
   </div>
   {selected&&api&&<ClientDrawer key={selected} tenantId={selected} api={api} onClose={()=>setSelected(null)}/>}
