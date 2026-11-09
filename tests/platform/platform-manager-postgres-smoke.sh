@@ -11,7 +11,9 @@ docker run --rm -d --name "$container" \
   -e POSTGRES_PASSWORD="ci-postgres-only" postgres:17-alpine >/dev/null
 
 for attempt in $(seq 1 30); do
-  if docker exec "$container" pg_isready -U postgres -d postgres >/dev/null 2>&1; then break; fi
+  # The image starts a socket-only temporary bootstrap server; TCP readiness
+  # waits for the final PostgreSQL server after initdb scripts complete.
+  if docker exec "$container" pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1; then break; fi
   if [ "$attempt" -eq 30 ]; then echo "PostgreSQL did not start" >&2; exit 1; fi
   sleep 1
 done

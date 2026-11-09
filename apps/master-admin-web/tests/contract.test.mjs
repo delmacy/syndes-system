@@ -12,7 +12,8 @@ test("WBS 5.6: no future navigation or placeholder billing",()=>{
 test("WBS 5.3: recent tenants do not inherit directory filters",()=>{
  assert.match(source,/setRecentTenants/);
  assert.match(source,/query:"",state:"all",page:1/);
- assert.match(source,/recentTenants\?\.items/);
+ assert.match(source,/recentTenants\.items\.length/);
+ assert.match(source,/TenantTable compact items=\{recentTenants\.items\}/);
 });
 test("WBS 5.5: drawer uses dedicated API, not a stale list row",()=>{
  assert.match(source,/api\.tenant\(tenantId,/);
