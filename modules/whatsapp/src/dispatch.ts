@@ -8,7 +8,18 @@ export function botEligible(input:{source?:"live"|"history";fromMe?:boolean;isGr
  return input.source!=="history"&&input.fromMe!==true&&input.isGroup!==true;
 }
 export class WhatsAppInboxProjection {
- constructor(private readonly pools:TrustedTenantDatabaseProvider){}
+ constructor(private readonly pools:TrustedTenantDatabaseProvider,
+  private readonly onChange?:(scope:{tenantId:string;organizationId:string;workspaceId:string})=>void){}
+ private notify(tenantId:string,row:Record<string,unknown>|undefined):void{
+  const org=row?.platform_organization_id,ws=row?.platform_current_workspace_id;
+  if(typeof org!=="string"||typeof ws!=="string"||
+    !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(org)||
+    !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(ws))return;
+  // SSE is only an invalidation signal, not part of the durable WhatsApp
+  // transaction. A disconnected reader must not cause message replay.
+  try{this.onChange?.({tenantId,organizationId:org,workspaceId:ws});}
+  catch{/* observed by caller's eventual polling/reconnect */}
+ }
  async deliverNext(tenantId:string):Promise<"delivered"|"empty"|"invalid">{
   const db=await this.pools.resolve(tenantId);
   if(db.tenantId!==tenantId)throw new Error("Tenant database mismatch");
@@ -137,7 +148,7 @@ export class WhatsAppInboxProjection {
          OR inbox_conversations.subject IN ('Contato sem número disponível','Grupo WhatsApp')
          THEN EXCLUDED.subject ELSE inbox_conversations.subject END
      WHERE inbox_conversations.platform_organization_id=EXCLUDED.platform_organization_id
-     RETURNING tenant_id,id,platform_organization_id
+     RETURNING tenant_id,id,platform_organization_id,platform_current_workspace_id
     ), route AS (
      INSERT INTO whatsapp_conversation_routes
        (tenant_id,conversation_id,account_id,recipient_external_id,phone_e164)
@@ -153,9 +164,10 @@ export class WhatsAppInboxProjection {
      UPDATE whatsapp_inbound_events e SET processed_at=clock_timestamp()
      FROM incoming WHERE e.id=incoming.id AND e.tenant_id=incoming.tenant_id
        AND EXISTS(SELECT 1 FROM route) RETURNING e.id
-    ) SELECT id FROM acknowledged
+    ) SELECT acknowledged.id,thread.platform_organization_id,thread.platform_current_workspace_id FROM acknowledged JOIN thread ON TRUE
    `,[tenantId,row.id,randomUUID(),title,hash(event.accountId,chosenChat),isGroup,
      chat.unreadCount??0,chat.archived??false,chat.occurredAt??null,chosenChat,phoneE164??null]);
+   if(result.rows.length===1)this.notify(tenantId,result.rows[0]);
    return result.rows.length===1?"delivered":"invalid";
   }
   if(!validIncomingEnvelope(tenantId,row.payload)){
@@ -193,7 +205,7 @@ export class WhatsAppInboxProjection {
     ON CONFLICT(tenant_id,channel,external_thread_id) WHERE external_thread_id IS NOT NULL
     DO UPDATE SET is_group=EXCLUDED.is_group
     WHERE inbox_conversations.platform_organization_id=EXCLUDED.platform_organization_id
-    RETURNING tenant_id,id,platform_organization_id
+    RETURNING tenant_id,id,platform_organization_id,platform_current_workspace_id
    ), route AS (
     INSERT INTO whatsapp_conversation_routes(tenant_id,conversation_id,account_id,recipient_external_id,phone_e164)
     SELECT thread.tenant_id,thread.id,incoming.account_id,$12,$13
@@ -231,10 +243,11 @@ export class WhatsAppInboxProjection {
         WHERE prior.external_message_id=$9 AND prior.body=$7 AND prior.direction=$14
       ))
     RETURNING e.id
-   ) SELECT id FROM acknowledged
+   ) SELECT acknowledged.id,thread.platform_organization_id,thread.platform_current_workspace_id FROM acknowledged JOIN thread ON TRUE
   `,[tenantId,row.id,randomUUID(),subject,thread,randomUUID(),inboxBody,
      m.senderExternalId,externalId,group,m.occurredAt,chosenChat,m.senderPhone??null,
      outgoing?"outbound":"inbound",historical?"history":"live",eligible,m.externalMessageId,m.senderExternalId]);
+  if(result.rows.length===1)this.notify(tenantId,result.rows[0]);
   return result.rows.length===1?"delivered":"invalid";
  }
 }

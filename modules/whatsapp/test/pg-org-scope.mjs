@@ -76,10 +76,16 @@ test("Whatsmeow account/projection/reply/worker isolate two organizations within
   const store=new WhatsAppInboundStore({resolve:async()=>db});
   assert.equal((await store.persist(T,gatewayInput(accountA,"5511999991111@s.whatsapp.net","A-1","Alpha secret"))).accepted,true);
   assert.equal((await store.persist(T,gatewayInput(accountB,"5511999992222@s.whatsapp.net","B-1","Beta secret"))).accepted,true);
-  const projection=new WhatsAppInboxProjection({resolve:async()=>db});
+  const notifications=[];
+  const projection=new WhatsAppInboxProjection({resolve:async()=>db},
+   scope=>notifications.push(scope));
   assert.equal(await projection.deliverNext(T),"delivered");
   assert.equal(await projection.deliverNext(T),"delivered");
   assert.equal(await projection.deliverNext(T),"empty");
+  assert.deepEqual(notifications,[
+   {tenantId:T,organizationId:oa,workspaceId:wa},
+   {tenantId:T,organizationId:ob,workspaceId:wb}
+  ],"Each received Whatsmeow message invalidates only its authorized workspace");
   const ownership=await c.query(`
    SELECT c.id,c.platform_organization_id AS org,
      c.platform_origin_workspace_id AS origin_ws,

@@ -15,11 +15,12 @@ import type {TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 export class InboxHost{
  readonly inbox:InboxService;
  readonly simulator:SimulatedChannelAdapter;
- readonly events=new InboxChangeBus();
+ readonly events:InboxChangeBus;
  readonly scope:InboxDefaultContextGuard;
  constructor(
   @Inject(CORE_RUNTIME) private readonly core:InboxHostRuntime,
   @Inject(TENANT_DATABASES) pools:TrustedTenantDatabaseProvider,
+  @Inject("SYNDES_INBOX_EVENTS") events:InboxChangeBus,
   @Optional() @Inject("SYNDES_WHATSAPP_REPLY")
   private readonly whatsappReply?:{
    enqueue(ctx:InboxContext,conversationId:string,body:unknown):Promise<unknown|null>;
@@ -28,6 +29,7 @@ export class InboxHost{
    decorateConversations(ctx:InboxContext,conversations:readonly {id:string;channel:string}[]):Promise<readonly unknown[]>;
   }
  ){
+  this.events=events;
   const repo=new PgInboxRepositoryFactory(pools);
   this.scope=new InboxDefaultContextGuard(core.kernel,pools);
   this.inbox=new InboxService(core.kernel,(tenantId,scope)=>repo.forTenant(tenantId,scope));

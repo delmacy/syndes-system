@@ -272,3 +272,20 @@ Migration **modules/organizations/sql/004_whatsapp_route_owner_guard.sql** (addi
 A disposable PostgreSQL test in **modules/whatsapp/test/pg-org-scope.mjs** constructs Org A and B (and their default workspaces) inside one tenant and verifies the complete path: account list/create/read isolation, raw inbound events and projection ownership, route mismatch rejection at SQL level, reply authorization by foreign UUID, and the durable outbound worker never dispatching an intent belonging to a foreign owner. The test drops 002 only in a rolled-back fixture; production must retain it.
 
 **Open security gates:** SSE emission from Whatsmeow worker across replicas is not yet implemented; a tenant-only service path still exists for legacy callers. Multi-workspace routing, explicit account→workspace handling and authorized transfers across workspaces/organizations, preservation of history with revocation, schema uniqueness per organization and authoritative organization-scoped provider session controls require further design and testing. Before any removal of the single-context 002 indexes, those paths must be covered by cross-org and cross-workspace negative tests. No merge or deployment may imply multi-org is enabled.
+
+
+### Stage C3b — Provider-triggered Inbox SSE invalidations (single Host)
+
+The Inbox HTTP module exposes one global in-process SYNDES_INBOX_EVENTS
+provider. Authenticated SSE routes and the Whatsmeow dispatch worker now use
+the same instance. Successful atomic chat/message projections return the
+actual conversation's immutable organization and **current** workspace,
+and only then publish a payload-free changed invalidation to that scope.
+The worker never trusts the provider's claimed organization ID; SQL owner
+and workspace come from PostgreSQL RETURNING. Failed, unacknowledged or
+unowned events do not generate invalidations. A disconnected SSE client
+cannot mark an acknowledged message as undelivered.
+
+This is a **single-process Core Host** delivery mechanism. For multiple
+Core Host replicas, an authenticated distributed broker is still required.
+Do not claim multi-replica SSE support or remove SQL 002 based on this slice.
