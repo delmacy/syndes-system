@@ -202,7 +202,22 @@ export class PgInboxRepository implements InboxRepository {
       AND prior.external_message_id=$7
       AND EXISTS(SELECT 1 FROM target) AND NOT EXISTS(SELECT 1 FROM inserted)
   `,[tenantId,key,actorId,item.direction,item.id,item.body,item.externalMessageId])).rows;
-  const result=rows[0];
+  let result=rows[0];
+  if(!result && item.direction==="inbound" && item.externalMessageId){
+   // PostgreSQL READ COMMITTED: INSERT ... ON CONFLICT DO NOTHING can
+   // wait for a concurrent commit while its original SELECT snapshot
+   // cannot yet see that winner. A NEW statement gets a fresh snapshot.
+   // Re-read only the already-authorized conversation and matching ID,
+   // never fall back to a tenant-wide query or write an extra audit row.
+   const prior=await this.query(`
+    SELECT m.* FROM inbox_messages m
+    JOIN inbox_conversations c ON c.tenant_id=m.tenant_id AND c.id=m.conversation_id
+    WHERE m.tenant_id=$1::uuid AND m.conversation_id=$2::uuid
+      AND m.external_message_id=$3 AND c.channel='simulation'
+      /*SCOPE:AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@*/
+   `,[tenantId,key,item.externalMessageId]);
+   result=prior.rows[0];
+  }
   if(!result)return null;
   // A reused external message ID with different content is a conflict, not silent overwriting.
   if(result.direction!==item.direction||result.body!==item.body)throw new InboxConflictError();
