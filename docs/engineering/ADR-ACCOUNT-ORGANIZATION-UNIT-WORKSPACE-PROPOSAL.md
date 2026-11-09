@@ -23,12 +23,12 @@ Tenant / Customer Account (contratante, assinatura e limite físico de banco)
 ├── Organization A (empresa / entidade empresarial)
 │   ├── Unidade 1 (matriz)       [OPCIONAL]
 │   ├── Unidade 2 (filial)      [OPCIONAL]
-│   ├── Workspace Atendimento ── vinculado aos Unidades 1 e 2
-│   ├── Workspace TI          ── vinculado aos Unidades 1 e 2
-│   └── Workspace RH          ── sem necessidade de Unidade obrigatório
+│   ├── Workspace Atendimento ── vinculado às Unidades 1 e 2
+│   ├── Workspace TI          ── vinculado às Unidades 1 e 2
+│   └── Workspace RH          ── sem necessidade de Unidade obrigatória
 └── Organization B (outra empresa do mesmo cliente)
     ├── Unidade 3                [OPCIONAL]
-    ├── Workspace Operações   ── vinculado ao Unidade 3
+    ├── Workspace Operações   ── vinculado à Unidade 3
     └── Workspace Financeiro  ── escopo da organização
 
 Comunicação/handoff: Workspace ↔ Workspace (mesma organização)
@@ -37,14 +37,14 @@ Colaboração: Organization A ↔ Organization B (mesma conta; grant explícito)
 
 - **Tenant / Customer Account**: cliente contratante, entidade de billing/entitlements e raiz de isolamento. **Mapeia-se ao `tenant_id` existente e ao banco PostgreSQL por tenant**; não introduzir um segundo conceito de tenant nem redesenhar todos os bancos na Fase 1.
 - **Organization**: empresa ou entidade operacional/jurídica sob aquela conta; múltiplas por tenant. Cada organização tem metadados próprios e limites lógicos de visibilidade. Quando entidades independentes exigirem contratos/segregação física diferentes, avaliar contas/tenants distintos; comunicação cross-tenant é escopo separado.
-- **Unidade (Unidade)**: sede, filial, estabelecimento, fábrica, operação física ou outra localização. É **opcional**, pertence a exatamente uma organização e não é pai obrigatório de workspace. `unit.type` pode expressar `headquarters/branch/other` como metadado, sem impor árvore `matriz → filiais`.
+- **Unidade (Unit)**: sede, filial, estabelecimento, fábrica, operação física ou outra localização. É **opcional**, pertence a exatamente uma organização e não é pai obrigatório de workspace. `unit.type` pode expressar `headquarters/branch/other` como metadado, sem impor árvore `matriz → filiais`.
 - **Workspace**: contexto lógico de execução, governança e visibilidade configurado pelo cliente; pertence exatamente a **uma organização**, independentemente de fronteiras departamentais. Pode atender zero, uma ou muitas unidades; uma unidade pode utilizar vários workspaces.
 - **Team**: conjunto de operadores/pessoas com competências e associação expressa de workspace/funil; é diferente de Workspace, Unidade, grupo de atendimento e grupo WhatsApp.
 - **ServiceGroup**: organização visual de funis **dentro do produto Gestão de Atendimentos**, não substitui Organization/Workspace/Unidade.
 - **ServiceFunnel**: processo publicado sob Organization e exposto a workspaces por vínculo explícito `workspace_funnels` (N:N). O mesmo processo pode ser reutilizado em vários workspaces sem duplicar definições; políticas/filas são específicas de contexto.
 - **ServiceSession**: uma solicitação/protocolo da organização, com `origin_workspace_id` e `current_workspace_id`, além de funil/versionamento. Dentro da mesma organização, handoffs entre workspaces preservam identidade; entre organizações, usar correlação/colaboração explícita (ver §4).
 
-**Critério para distinguir Org x Unidade x Workspace:**
+**Critério para distinguir Organização x Unidade x Workspace:**
 - outra empresa/entidade, responsabilidade por dados e regras de negócio próprias → Organization;
 - unidade/localização/filial da mesma entidade → Unidade;
 - divisão de trabalho, equipe, permissão, fila ou processo independentemente da localização → Workspace.
@@ -58,7 +58,7 @@ Não vincular recursos por nomes, CNPJ, telefone WhatsApp nem slug livre. IDs im
 | Tenant → Organizations | 1:N | Ao menos uma organização default em tenant legado; sem máximo fixado em domínio |
 | Organization → Unidades | 1:0..N | Unidade é opcional, subordinado à organização |
 | Organization → Workspaces | 1:1..N | Toda organização ativa operacional tem um workspace default; pode criar mais |
-| Unidade ↔ Workspace | N:N | `workspace_units` garante mesmo tenant e mesma organização |
+| Unidade ↔ Workspace | N:N | `platform_workspace_units` garante mesmo tenant e mesma organização |
 | Organization → Teams | 1:0..N | Pessoas podem participar de equipes de mais de uma organização com grants separados |
 | Team ↔ Workspaces | N:N | Apenas contextos autorizados; não pressupor unidade nem presença |
 | Organization → Funis | 1:0..N | Definição mantida no âmbito da organização |
@@ -179,7 +179,7 @@ A topologia é **fundação transversal**, não uma feature cosmética de F1. In
 - **F5.C** — colaboração cross-organization e cross-workspace, threads e links de protocolo com grants explícitos;
 - **F6** — Inbox filtrada por organização/workspace, sem quebrar histórico WhatsApp.
 
-**Primeiro corte vertical honesto:** uma conta existente → organização default → workspace default → nenhum unidade obrigatório → catálogo de funis scoped; provar negações antes de habilitar múltiplas organizações. Não antecipar chat interorganizacional completo no primeiro PR.
+**Primeiro corte vertical:** uma conta existente → organização default → workspace default → nenhum unidade obrigatório → catálogo de funis scoped; provar negações antes de habilitar múltiplas organizações. Não antecipar chat interorganizacional completo no primeiro PR.
 
 ## 8. Gate de aceite da topologia
 
