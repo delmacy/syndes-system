@@ -195,3 +195,48 @@ WhatsApp provider paths, and appropriate channel sharing policy still must
 be implemented and tested before removing the indexes. Direct repository
 calls outside the Nest HTTP controller are not covered by the HTTP guard.
 No merge, customer migration, FGA admin change or deploy is included.
+
+
+## Stage C2a — Explicit platform organization predicates in CRM PostgreSQL repository
+
+Every CRUD/query method in PgCrmRepository and PgCrmExtras now accepts
+an optional, server-verified platform organization ID from CrmContext.
+The Core Host passes the authorization result from CrmDefaultContextGuard
+to the CRM service and extras repository factories.
+
+In the owner-aware path, CRM SQL uses **parameterized**
+platform_organization_id predicates for top-level CRM people,
+CRM contact-companies and tags. Dependent notes, audit timeline,
+employees, channel identities, tags and CRM company associations are scoped
+through parent ownership checks. Mutations by a known foreign ID return
+not found/false (or fail without writing), with audit inserted only when a
+scoped row is mutated. New person, contact-company, tag and CSV-import rows
+receive their owner explicitly. Searches and CSV exports are filtered
+**inside SQL before ORDER BY / LIMIT / OFFSET**, not on paginated results.
+
+The org scope is supplied only by the HTTP Host's verified
+CrmDefaultContextGuard (the client cannot submit it in the request body or
+path). SQL marker fragments remain in the trusted module source and the
+organization UUID is added to the bound query parameter list, never
+interpolated. If an owner-scoped repository method forgets its owner marker
+or an invalid UUID is passed, it fails closed before touching the DB.
+
+**Integration test design:** modules/organizations/test/pg-crm-org-scope.test.mjs
+creates two platform companies in ONE disposable tenant PostgreSQL schema.
+For test only, it drops the temporary single-context indexes in that
+disposable schema, then validates direct scoped CRM repositories cannot
+see or mutate the other company's contacts, notes, tags, employees,
+identities, links or CSV records even with known foreign UUIDs.
+Real deployments retain the indexes, and Stage C1 continues to require
+the default context and completed backfill before any CRM HTTP call.
+
+**Open security work:** direct internal calls to CrmService/CrmExtras can
+still omit organizationId to preserve existing legacy Inbox/WhatsApp callers.
+That tenant-only path must be removed/restricted in a subsequent revision
+after migrating these callers, and all organization ownership constraints,
+uniqueness policies and sharing grants need a product decision. The
+Stage C1 HTTP guard continues to require the SQL single-context gate.
+Workspace-level CRM visibility is also not yet implemented: CRM is scoped
+to platform organization only, while workspace memberships gate entry.
+Do NOT enable a second company or remove the SQL indexes based solely on
+this increment. No tenant migration or production rollout.

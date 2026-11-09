@@ -72,3 +72,26 @@ Do not remove the indexes until per-record organization/workspace SQL filters,
 imports/exports, nested reads/writes, service calls and channel isolation have
 passed the separate Stage C2 security gate. The publishing term Site remains
 reserved; an operational branch is a Unit.
+
+
+## Stage C2a — Organization-parameterized SQL repository
+
+When used through the Core Host HTTP controller, the authorized
+organizationId from CrmDefaultContextGuard is forwarded into
+PgCrmRepository and PgCrmExtras. Reads, mutations, nested associations,
+searches, timeline, employees, channels and CSV exports filter by the
+platform organization in parameterized PostgreSQL statements. Person,
+CRM contact-company, tag and batch-import writes insert that owner
+explicitly.
+
+The source-controlled SQL scope markers require an owner placeholder on
+every scoped SQL statement; a missing marker or malformed owner ID fails
+closed before querying. Existing tenant-only domain callers remain
+supported while the temporary one-org SQL indexes are installed, because
+Inbox/WhatsApp direct integrations have not yet migrated. Do NOT remove
+those indexes, claim workspace-scoped CRM visibility, or enable multi-org
+before Stage C3 and cross-module tests.
+
+Cross-company negative integration lives in
+modules/organizations/test/pg-crm-org-scope.test.mjs, which temporarily
+lifts the indexes ONLY in a disposable PostgreSQL test schema.

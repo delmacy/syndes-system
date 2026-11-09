@@ -18,8 +18,8 @@ export class CrmHost {
  ){
    const repos=new PgCrmRepositoryFactory(pools);
    const extras=new PgCrmExtrasFactory(pools);
-   this.crm=new CrmService(core.kernel,id=>repos.forTenant(id));
-   this.extra=new CrmExtras(core.kernel,id=>extras.forTenant(id));
+   this.crm=new CrmService(core.kernel,(id,organizationId)=>repos.forTenant(id,organizationId));
+   this.extra=new CrmExtras(core.kernel,(id,organizationId)=>extras.forTenant(id,organizationId));
    this.scope=new CrmDefaultContextGuard(core.kernel,pools);
  }
  async context(tenantId:string,bearer:string|undefined):Promise<CrmContext>{
