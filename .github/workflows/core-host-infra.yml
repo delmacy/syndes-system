@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - "apps/core-host/**"
+      - "modules/organizations/**"
       - "modules/core-crm/**"
       - "modules/inbox/**"
       - "modules/whatsapp/**"
@@ -13,6 +14,7 @@ on:
   pull_request:
     paths:
       - "apps/core-host/**"
+      - "modules/organizations/**"
       - "modules/core-crm/**"
       - "modules/inbox/**"
       - "modules/whatsapp/**"
@@ -31,6 +33,8 @@ jobs:
           node-version: "22"
       - name: Build reusable kernel
         run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Build organizations foundation module
+        run: cd modules/organizations && npm ci --no-audit --no-fund && npm run build
       - name: Build CRM business module
         run: cd modules/core-crm && npm ci --no-audit --no-fund && npm run build
       - name: Build Inbox business module
@@ -119,6 +123,7 @@ jobs:
       - name: Build Core Host OpenBao client for real AppRole integration
         run: |
           cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+          cd ../../modules/organizations && npm ci --no-audit --no-fund && npm run build
           cd ../../modules/core-crm && npm ci --no-audit --no-fund && npm run build
           cd ../../modules/inbox && npm ci --no-audit --no-fund && npm run build
           cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run build
@@ -193,3 +198,30 @@ jobs:
           docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml down -v --remove-orphans || true
           docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml down -v --remove-orphans || true
           sudo rm -rf /run/syndes/approle /run/syndes/runtime
+
+  organizations-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-disposable
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build shared kernel
+        run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Typecheck and test organization foundation on disposable PostgreSQL
+        env:
+          SYNDES_ORG_TEST_PG_URL: postgresql://postgres:ci-only-disposable@localhost:5432/postgres
+        run: cd modules/organizations && npm ci --no-audit --no-fund && npm test

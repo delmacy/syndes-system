@@ -4,6 +4,12 @@ COPY packages/core-kernel/package*.json packages/core-kernel/
 COPY packages/core-kernel/tsconfig.json packages/core-kernel/
 COPY packages/core-kernel/src packages/core-kernel/src
 RUN cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+COPY modules/organizations/package*.json modules/organizations/
+COPY modules/organizations/tsconfig.json modules/organizations/
+COPY modules/organizations/src modules/organizations/src
+COPY modules/organizations/sql modules/organizations/sql
+RUN cd modules/organizations && npm ci --no-audit --no-fund && npm run build
+
 COPY modules/core-crm/package*.json modules/core-crm/
 COPY modules/core-crm/tsconfig.json modules/core-crm/
 COPY modules/core-crm/src modules/core-crm/src

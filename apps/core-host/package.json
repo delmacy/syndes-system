@@ -17,6 +17,7 @@
     "@syndes/core-crm": "file:../../modules/core-crm",
     "@syndes/core-inbox": "file:../../modules/inbox",
     "@syndes/core-kernel": "file:../../packages/core-kernel",
+    "@syndes/core-organizations": "file:../../modules/organizations",
     "@syndes/whatsapp": "file:../../modules/whatsapp",
     "jose": "6.1.2",
     "pg": "8.16.3",

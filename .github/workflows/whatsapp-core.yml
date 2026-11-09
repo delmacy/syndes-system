@@ -48,7 +48,8 @@ jobs:
       - name: Build shared domain modules
         run: |
           cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
-          cd ../../modules/core-crm && npm ci --no-audit --no-fund && npm run build
+          cd ../../modules/organizations && npm ci --no-audit --no-fund && npm run build
+          cd ../core-crm && npm ci --no-audit --no-fund && npm run build
           cd ../inbox && npm ci --no-audit --no-fund && npm run build
           cd ../whatsapp && npm install --no-package-lock --no-audit --no-fund && npm run build
       - name: Validate plugin installation and Core Host tests
