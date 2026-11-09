@@ -33,8 +33,8 @@ const tenantDatabaseResolutions=[];
 const faults={fga:false,resolve:false,mismatchedLease:false,query:false};
 async function startHost(){
  const installed=await loadInstalledPlugins();
- assert.deepEqual(installed.map(p=>p.definition.id),["crm","inbox","whatsapp"],
-   "Host must register CRM, Inbox and WhatsApp in dependency order");
+ assert.deepEqual(installed.map(p=>p.definition.id),["crm","inbox","whatsapp","organizations"],
+   "Host must register CRM, Inbox, WhatsApp and Organizations in dependency order");
  const kernel=new CoreKernel({
   modules:[{id:"platform",version:"0.1.0"},...installed.map(p=>p.definition)],
   tenancy:{canAccessTenant:async({actor,tenantId})=>memberships[actor.id]===tenantId},
