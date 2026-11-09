@@ -33,7 +33,7 @@ try {
   let messageReadRequests=0;
   let groupDetails={jid:"120363012345678901@g.us",name:"Equipe WhatsApp",
     description:"Descrição antiga",participantCount:7,canEdit:true,locked:false,announce:false};
-  await page.route("**/v1/tenants/**",route=>{
+  await page.route("**/v1/tenants/**",async route=>{
     const url=new URL(route.request().url());
     if(!url.pathname.startsWith("/v1/tenants/"+tenant+"/"))return route.fulfill({status:403,body:"Forbidden"});
     if(unavailable)return route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({message:"Serviço temporariamente indisponível"})});
