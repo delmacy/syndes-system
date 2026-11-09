@@ -3,6 +3,9 @@
 // for real Syndes Platform Manager / Workspace browser clients.
 import assert from "node:assert/strict";
 import {createServer} from "node:http";
+import {spawn} from "node:child_process";
+import {createRequire} from "node:module";
+import {fileURLToPath} from "node:url";
 import {createMasterTokenVerifier} from "../../apps/master-admin-api/src/auth.mjs";
 import {createHandler} from "../../apps/master-admin-api/src/server.mjs";
 
@@ -128,6 +131,96 @@ async function main(){
  }finally{
   await new Promise(resolve=>http.close(resolve));
  }
+ if(process.env.CI_MASTER_REAL_PG==="1"){
+  await runLiveDatabaseIntegration({master,adminAccess,workspaceAccess,unrelatedAccess,notGranted});
+ }
  console.log("Real Keycloak CI: RS256, HTTPS issuer, audience, azp, ungranted sub and HTTP denial PASS");
+}
+async function runLiveDatabaseIntegration({master,adminAccess,workspaceAccess,unrelatedAccess,notGranted}){
+ // This exercise uses only disposable Keycloak + PostgreSQL created in the CI job.
+ // The unchanged production main.mjs, real DB role and real signed tokens are tested.
+ const require=createRequire(new URL("../../apps/master-admin-api/package.json",import.meta.url));
+ const {Pool}=require("pg");
+ const admin=new Pool({connectionString:"postgresql://postgres:ci-only-disposable@127.0.0.1:15432/syndes_control"});
+ const restricted=new Pool({
+  connectionString:"postgresql://syndes_master_api:ci-master-only@127.0.0.1:15432/syndes_control",
+  options:"-c default_transaction_read_only=on"
+ });
+ const apiPort=18085;
+ const live="http://127.0.0.1:"+apiPort;
+ const api=spawn(process.execPath,["src/main.mjs"],{
+  cwd:fileURLToPath(new URL("../../apps/master-admin-api/",import.meta.url)),
+  env:{...process.env,MASTER_KEYCLOAK_ISSUER:issuer,
+   MASTER_KEYCLOAK_AUDIENCE:"syndes-master-api",
+   MASTER_KEYCLOAK_CLIENT_ID:"syndes-master-admin",
+   MASTER_KEYCLOAK_JWKS_URL:base+"/realms/"+realm+"/protocol/openid-connect/certs",
+   MASTER_PUBLIC_ORIGIN:"https://master.ci.syndes.invalid",
+   MASTER_CONTROL_DB_URL_FILE:"/run/secrets/ci-master-db-url",
+   MASTER_PORT:String(apiPort)},
+  stdio:"ignore"
+ });
+ try{
+  for(let i=0;i<60;i++){
+   if(api.exitCode!==null)throw Error("Production API process exited during start");
+   try{if((await fetch(live+"/readyz")).status===200)break;}catch{}
+   if(i===59)throw Error("Production API readiness failed on real SQL role");
+   await new Promise(resolve=>setTimeout(resolve,200));
+  }
+  const apiFetch=async(path,bearer,method="GET",origin)=>fetch(live+path,{
+   method,headers:{
+    ...(bearer?{authorization:"Bearer "+bearer}:{}),
+    ...(origin?{origin}:{})
+   }
+  });
+  const endpoint="/v1/platform/admin";
+  assert.equal((await apiFetch(endpoint+"/me",adminAccess)).status,403,
+    "Even valid signed administrative token must be rejected before explicit grant");
+  assert.equal((await apiFetch(endpoint+"/me",notGranted)).status,403);
+  assert.equal((await apiFetch(endpoint+"/me",workspaceAccess)).status,401);
+  assert.equal((await apiFetch(endpoint+"/me",unrelatedAccess)).status,401);
+  assert.equal((await apiFetch(endpoint+"/me",null)).status,401);
+  const t="22222222-2222-4222-8222-222222222222";
+  await admin.query(
+   "INSERT INTO tenant_registry(tenant_id,database_name,role_name,state) VALUES ($1,$2,$3,'active')",
+   [t,"syndes_tenant_"+t.replaceAll("-",""),"syndes_t_"+t.replaceAll("-","")]
+  );
+  await admin.query("INSERT INTO platform_tenant_profiles(tenant_id,display_name) VALUES ($1,$2)",
+   [t,"Empresa de Teste [CI]"]);
+  await admin.query("INSERT INTO platform_operator_access(principal_id,role,state) VALUES ($1,'viewer','active')",
+   [master.sub]);
+  const me=await apiFetch(endpoint+"/me",adminAccess);
+  assert.equal(me.status,200);
+  assert.equal((await me.json()).role,"viewer");
+  assert.equal((await apiFetch(endpoint+"/me",notGranted)).status,403);
+  assert.equal((await apiFetch(endpoint+"/me",workspaceAccess)).status,401,
+   "Workspace client cannot cross boundary despite valid audience");
+  const summary=await apiFetch(endpoint+"/summary",adminAccess);
+  assert.equal(summary.status,200);
+  assert.equal((await summary.json()).total,1);
+  const list=await apiFetch(endpoint+"/tenants?query=Teste&state=active&page=1",adminAccess);
+  assert.equal(list.status,200);
+  const entries=await list.json();
+  assert.equal(entries.total,1);
+  assert.equal(entries.items[0].id,t);
+  assert.equal(entries.items[0].displayName,"Empresa de Teste [CI]");
+  const details=await apiFetch(endpoint+"/tenants/"+t,adminAccess);
+  assert.equal(details.status,200);
+  assert.equal((await details.json()).id,t);
+  assert.equal((await apiFetch(endpoint+"/me",adminAccess,"POST")).status,404);
+  assert.equal((await apiFetch(endpoint+"/me",adminAccess,"GET","https://workspace.ci.invalid")).status,403);
+  assert.equal((await apiFetch("/v1/tenants/"+t+"/crm/people",adminAccess)).status,404);
+  assert.equal((await restricted.query("SELECT count(*) AS n FROM tenant_registry")).rows[0].n,"1");
+  await assert.rejects(restricted.query(
+   "INSERT INTO platform_operator_access(principal_id,role) VALUES ('ci-improper','owner')"
+  ),e=>e.code==="25006"||e.code==="42501");
+  await admin.query("UPDATE platform_operator_access SET state='revoked' WHERE principal_id=$1",[master.sub]);
+  assert.equal((await apiFetch(endpoint+"/me",adminAccess)).status,403,
+   "Revoking database grant must immediately remove API access");
+  console.log("Real integrated Control DB + Keycloak + production API: grant, revoke, SQL deny, 401/403, directory PASS");
+ }finally{
+  api.kill();
+  await restricted.end().catch(()=>{});
+  await admin.end().catch(()=>{});
+ }
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

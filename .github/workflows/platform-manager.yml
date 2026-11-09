@@ -57,8 +57,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: JWT cross-client, tenant denial and routes
         run: npm test
-      - name: Scoped OpenBao and first-owner bootstrap tests
-        run: cd ../.. && python3 tests/platform/test-master-secret-render.py && python3 tests/platform/test-owner-bootstrap.py && bash -n infra/master-admin/openbao/run-renderer.sh
+      - name: Scoped OpenBao, owner bootstrap and fail-closed deploy script checks
+        run: cd ../.. && python3 tests/platform/test-master-secret-render.py && python3 tests/platform/test-owner-bootstrap.py && bash -n infra/master-admin/openbao/run-renderer.sh infra/master-admin/homolog-deploy.sh infra/master-admin/homolog-stop.sh
 
   admin-web:
     runs-on: ubuntu-latest
@@ -149,8 +149,39 @@ jobs:
             -e KC_BOOTSTRAP_ADMIN_PASSWORD=ci-disposable-admin-not-for-production \
             quay.io/keycloak/keycloak:26.8.1 \
             start-dev --hostname=https://id.ci.syndes.invalid
-      - name: Verify tokens issued by real Keycloak (no production clients)
+      - name: Start real throwaway PostgreSQL with least-privilege administrative role
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name syndes-master-db-ci \
+            -p 127.0.0.1:15432:5432 -e POSTGRES_PASSWORD=ci-only-disposable \
+            postgres:17-alpine
+          for n in $(seq 1 40); do
+            if docker exec syndes-master-db-ci pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then break; fi
+            if [ "$n" -eq 40 ]; then echo "Disposable PostgreSQL not ready" >&2; exit 1; fi
+            sleep 1
+          done
+          docker exec syndes-master-db-ci psql -U postgres -v ON_ERROR_STOP=1 \
+            -c 'CREATE ROLE syndes_core NOLOGIN'
+          docker exec syndes-master-db-ci psql -U postgres -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE syndes_control'
+          docker cp infra/postgres/bootstrap/control.schema syndes-master-db-ci:/tmp/control.schema
+          docker cp infra/postgres/bootstrap/control-admin.schema syndes-master-db-ci:/tmp/control-admin.schema
+          docker exec syndes-master-db-ci psql -U postgres -v ON_ERROR_STOP=1 \
+            -d syndes_control -f /tmp/control.schema
+          docker exec syndes-master-db-ci psql -U postgres -v ON_ERROR_STOP=1 \
+            -d syndes_control -f /tmp/control-admin.schema
+          docker exec syndes-master-db-ci psql -U postgres -v ON_ERROR_STOP=1 \
+            -c "ALTER ROLE syndes_master_api PASSWORD 'ci-master-only'"
+          sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/secrets
+          printf '%s\n' 'postgresql://syndes_master_api:ci-master-only@127.0.0.1:15432/syndes_control?sslmode=disable' \
+            >/run/secrets/ci-master-db-url
+          chmod 0600 /run/secrets/ci-master-db-url
+      - name: Test production API with real PostgreSQL role and signed Keycloak JWTs
+        env:
+          CI_MASTER_REAL_PG: '1'
         run: node tests/platform/platform-manager-keycloak-ci.mjs
-      - name: Clean up disposable Keycloak container
+      - name: Clean up disposable integration services
         if: always()
-        run: docker rm -f syndes-master-keycloak-ci >/dev/null 2>&1 || true
+        run: |
+          docker rm -f syndes-master-keycloak-ci syndes-master-db-ci >/dev/null 2>&1 || true
+          sudo rm -f /run/secrets/ci-master-db-url
