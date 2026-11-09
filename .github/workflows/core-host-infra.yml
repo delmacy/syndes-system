@@ -61,7 +61,7 @@ jobs:
           python3 tests/platform/ci-secret-fixtures.py
       - name: Validate compose and bash configuration
         run: |
-          bash -n infra/postgres/bootstrap/00-init.sh infra/postgres/bootstrap/provision-tenant.sh infra/postgres/bootstrap/migrate-modules-tenant.sh infra/postgres/bootstrap/migrate-crm-tenant.sh tests/platform/postgres-smoke.sh tests/platform/openfga-smoke.sh tests/platform/openbao-smoke.sh tests/platform/core-host-runtime-smoke.sh
+          bash -n infra/postgres/bootstrap/00-init.sh infra/postgres/bootstrap/provision-tenant.sh infra/postgres/bootstrap/migrate-modules-tenant.sh infra/postgres/bootstrap/migrate-crm-tenant.sh tests/platform/postgres-smoke.sh tests/platform/account-roles-pg-smoke.sh tests/platform/openfga-smoke.sh tests/platform/openbao-smoke.sh tests/platform/core-host-runtime-smoke.sh
           docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml config --quiet
           docker compose --env-file infra/.env.ci -f infra/security-access/compose.yaml config --quiet
           docker compose --env-file infra/.env.ci -f apps/core-host/compose.yaml config --quiet
@@ -103,6 +103,8 @@ jobs:
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
       - name: Verify service database and tenant provisioning
         run: bash tests/platform/postgres-smoke.sh
+      - name: Account role delegation A/B isolation and audit on throwaway PostgreSQL
+        run: bash tests/platform/account-roles-pg-smoke.sh
       - name: PostgreSQL logs on failure
         if: failure()
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml logs --no-color --tail 100

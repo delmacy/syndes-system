@@ -6,6 +6,8 @@ export { CoreKernel } from "./kernel.js";
 export { ModuleRegistry } from "./module-registry.js";
 export { AccessDeniedError } from "./contracts.js";
 export {resolveSelectedOperationalScope} from "./operational-scope.js";
+export {accountRolePermits} from "./account-roles.js";
+export type {AccountRole,AccountRoleState,AccountCapability,VerifiedTenantMembership,VerifiedAccountGrant,AccountCapabilityRequest} from "./account-roles.js";
 export type {RequestedOperationalScope,AuthorizedOperationalScope} from "./operational-scope.js";
 
 export type { TenantDatabase, TrustedTenantDatabaseProvider, Actor, TenancyPort, TenantAccessQuery, AuthorizationPort,
