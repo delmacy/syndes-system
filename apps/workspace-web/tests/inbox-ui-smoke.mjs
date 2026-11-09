@@ -147,7 +147,7 @@ try {
   console.log("PASS: failed API send preserves draft; retry clears only after success");
 
 
-  const actionMenu = desktop.locator("#syndes-inbox-toolbar details");
+  const actionMenu = desktop.getByRole("toolbar", { name: "Ações da Inbox" }).locator("details");
   const runMenuAction = async (name) => {
     await actionMenu.locator("summary").click();
     await actionMenu.getByRole("button", { name }).click();
