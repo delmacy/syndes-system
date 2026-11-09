@@ -147,19 +147,30 @@ try {
   console.log("PASS: failed API send preserves draft; retry clears only after success");
 
 
-  await desktop.getByRole("button", { name: "Liberar" }).click();
+  const actionMenu = desktop.locator("#syndes-inbox-toolbar details");
+  const runMenuAction = async (name) => {
+    await actionMenu.locator("summary").click();
+    await actionMenu.getByRole("button", { name }).click();
+    await actionMenu.locator("summary").click();
+  };
+  const setConversationStatus = async (status) => {
+    await actionMenu.locator("summary").click();
+    await actionMenu.getByRole("combobox", { name: "Estado do atendimento" }).selectOption(status);
+    await actionMenu.locator("summary").click();
+  };
+  await runMenuAction("Liberar atendimento");
   await desktop.getByText(/Assuma a conversa antes de responder/).waitFor();
   assert.equal(await desktop.locator("#inbox-composer").isDisabled(), true);
-  await desktop.getByRole("button", { name: "Assumir" }).click();
+  await runMenuAction("Assumir atendimento");
   await desktop.waitForFunction(() => !document.querySelector("#inbox-composer")?.disabled);
   console.log("PASS: release and reclaim conversation gates reply composer");
 
-  await desktop.getByRole("button", { name: "Pendente", exact: true }).click();
-  await desktop.getByRole("button", { name: "Aberta", exact: true }).click();
-  await desktop.getByRole("button", { name: "Transferir ao bot" }).click();
+  await setConversationStatus("pending");
+  await setConversationStatus("open");
+  await runMenuAction("Transferir ao bot");
   await desktop.getByText(/Transfira o atendimento do bot/).waitFor();
   assert.equal(await desktop.locator("#inbox-composer").isDisabled(), true);
-  await desktop.getByRole("button", { name: "Transferir ao humano" }).click();
+  await runMenuAction("Transferir ao humano");
   await desktop.waitForFunction(() => !document.querySelector("#inbox-composer")?.disabled);
   console.log("PASS: status and human/bot handoff state changes");
 
@@ -172,10 +183,10 @@ try {
   await desktop.getByRole("button", { name: "Simular entrada" }).last().click();
   await desktop.getByText("Mensagem simulada QA").waitFor();
   console.log("PASS: note and inbound simulation rendered in history");
-  await desktop.getByRole("button", { name: "Resolvida", exact: true }).click();
+  await setConversationStatus("resolved");
   await desktop.getByRole("button", { name: "Resposta" }).click();
   assert.equal(await desktop.locator("#inbox-composer").isDisabled(), true);
-  await desktop.getByRole("button", { name: "Aberta", exact: true }).click();
+  await setConversationStatus("open");
   console.log("PASS: resolved conversation blocks replies until reopen");
 
   await desktop.getByRole("button", { name: "Nova conversa" }).click();
