@@ -44,7 +44,7 @@ const strip=sql=>sql.replace(/^\s*(?:BEGIN|COMMIT);\s*$/gim,"");
 const dbFor=name=>new pg.Client({connectionString:allowed.replace(/\/postgres$/, "/"+name)});
 function dockerPg(args,input){
  const proc=spawnSync("docker",[
-  "run","--rm","--network","host",
+  "run","--rm","-i","--network","host",
   "--read-only","-e","PGPASSWORD=ci-only-disposable",
   "postgres:16",...args
  ],{input,encoding:null,maxBuffer:32*1024*1024,timeout:120_000});
@@ -87,11 +87,20 @@ try{
  };
  const expectFacts={cases:1,events:2,grants:1,legacy_indexes:2,private_notes:1};
  assert.deepEqual(await invariant(recovered),expectFacts,"Restore must preserve Support state, notes, audit and SQL 002");
+ assert.equal((await recovered.query("SELECT count(*)::int n FROM pg_trigger WHERE tgname IN ('support_no_audit_rewrite','support_no_audit_truncate')")).rows[0].n,4,"Restore must preserve append-only audit guards");
+ for(const statement of [
+  "UPDATE support_case_events SET action='created' WHERE action='internal_note'",
+  "DELETE FROM support_case_events",
+  "TRUNCATE support_case_events",
+  "UPDATE support_queue_membership_audit SET action='revoked'",
+  "DELETE FROM support_queue_membership_audit",
+  "TRUNCATE support_queue_membership_audit"
+ ]) await assert.rejects(()=>recovered.query(statement),err=>err.code==="23514","Restored audit must reject tampering");
  assert.equal((await recovered.query("SELECT status FROM support_cases WHERE tenant_id=$1 AND id=$2",[T,caseId])).rows[0].status,"new");
  // Rehearse transactional rollback AFTER restore, proving state/events cannot be lost.
  await recovered.query("BEGIN");
  await recovered.query("UPDATE support_cases SET status='closed' WHERE tenant_id=$1 AND id=$2",[T,caseId]);
- await recovered.query("DELETE FROM support_case_events WHERE tenant_id=$1 AND case_id=$2",[T,caseId]);
+ await recovered.query("INSERT INTO support_case_events(tenant_id,case_id,actor_id,action,body) VALUES($1,$2,'ci-agent','internal_note','Rollback-only note')",[T,caseId]);
  await recovered.query("ROLLBACK");
  assert.deepEqual(await invariant(recovered),expectFacts,"Rollback must undo destructive rehearsal without removing notes");
  assert.equal((await recovered.query("SELECT status FROM support_cases WHERE tenant_id=$1 AND id=$2",[T,caseId])).rows[0].status,"new");

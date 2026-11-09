@@ -125,4 +125,29 @@ CREATE TABLE IF NOT EXISTS support_case_events (
 );
 CREATE INDEX IF NOT EXISTS support_case_events_history_idx
  ON support_case_events(tenant_id,case_id,id);
+-- Audit is append-only at SQL DML layer: no role with ordinary table DML
+-- may rewrite/delete case history or queue membership audit. Schema owners and
+-- superusers remain privileged and require independent access controls.
+CREATE OR REPLACE FUNCTION support_deny_audit_mutation()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER AS $guard$
+BEGIN
+ RAISE EXCEPTION 'Syndes Support audit history is append-only' USING ERRCODE='23514';
+END
+$guard$;
+DO $guards$
+DECLARE audit_table text;
+BEGIN
+ FOREACH audit_table IN ARRAY ARRAY['support_case_events','support_queue_membership_audit']
+ LOOP
+  IF NOT EXISTS(SELECT 1 FROM pg_trigger
+    WHERE tgname='support_no_audit_rewrite' AND tgrelid=audit_table::regclass) THEN
+    EXECUTE format('CREATE TRIGGER support_no_audit_rewrite BEFORE UPDATE OR DELETE ON %I FOR EACH ROW EXECUTE FUNCTION support_deny_audit_mutation()',audit_table);
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM pg_trigger
+    WHERE tgname='support_no_audit_truncate' AND tgrelid=audit_table::regclass) THEN
+    EXECUTE format('CREATE TRIGGER support_no_audit_truncate BEFORE TRUNCATE ON %I FOR EACH STATEMENT EXECUTE FUNCTION support_deny_audit_mutation()',audit_table);
+  END IF;
+ END LOOP;
+END
+$guards$;
 COMMIT;

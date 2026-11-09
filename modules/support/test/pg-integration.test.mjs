@@ -98,6 +98,15 @@ test("real PostgreSQL: migration replay, case flow, queue/tenant isolation, What
     "Requester can never read private agent notes");
   const agentEvents=await svc.history(actor("ti-agent"),"internal",ticket.id);
   assert.equal(agentEvents.some(x=>x.action==="internal_note"),true);
+  // Audit rows are append-only at SQL DML layer, not just through HTTP.
+  for(const query of [
+   "UPDATE support_case_events SET action='created' WHERE action='internal_note'",
+   "DELETE FROM support_case_events WHERE action='internal_note'",
+   "TRUNCATE support_case_events",
+   "UPDATE support_queue_membership_audit SET action='revoked'",
+   "DELETE FROM support_queue_membership_audit",
+   "TRUNCATE support_queue_membership_audit"
+  ]) await unexpected(()=>client.query(query),"23514");
   assert.equal((await svc.status(actor("ti-agent"),"internal",ticket.id,{status:"triage"})).status,"triage");
   assert.equal(await svc.status(actor("ti-agent"),"internal",ticket.id,{status:"closed"}).then(x=>x?.status),"closed");
   assert.equal((await svc.status(actor("ti-agent"),"internal",ticket.id,{status:"triage"})).status,"triage");
