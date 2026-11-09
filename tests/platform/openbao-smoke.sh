@@ -147,5 +147,39 @@ assert urlsplit(cfg["datastore"]["uri"]).hostname=="syndes-postgres"
 print("OpenBao renderer generated six usable Docker Secrets without exposing values")
 PY
 
+# CI-only disposable AppRole credentials for the full production image smoke.
+# Strictly opt-in, never used for persistent server initialization.
+if [[ "$GITHUB_ACTIONS" == "true" && "$CI_RUNTIME_SMOKE" == "1" ]]; then
+  publish_approle() {
+    local role="$1" destination="$2"
+    install -d -m 0700 "$destination"
+    bao_http --fail -H "X-Vault-Token: $root_token" \
+      "https://openbao:8200/v1/auth/approle/role/$role/role-id" |
+      jq -er '.data.role_id' > "$destination/role-id"
+    bao_http --fail -X POST -H "X-Vault-Token: $root_token" \
+      -H 'Content-Type: application/json' --data '{}' \
+      "https://openbao:8200/v1/auth/approle/role/$role/secret-id" |
+      jq -er '.data.secret_id' > "$destination/secret-id"
+    chmod 0644 "$destination/role-id" "$destination/secret-id"
+  }
+  jq -n --arg db "postgres://syndes_core:$PG_CORE_PASSWORD@syndes-postgres:5432/syndes_control?sslmode=disable" \
+    --arg token "$OPENFGA_PRESHARED_KEY" \
+    '{data:{control_db_url:$db,openfga_token:$token}}' |
+    bao_http --fail -X POST -H "X-Vault-Token: $root_token" \
+      -H 'Content-Type: application/json' --data-binary @- \
+      https://openbao:8200/v1/kv/data/production/core-host >/dev/null
+  publish_approle core-host /run/syndes/approle/core-host
+  jq -Rs '{policy:.}' < infra/security-access/openbao/policies/core-tenant-db.hcl |
+    bao_http --fail -X PUT -H "X-Vault-Token: $root_token" \
+      -H 'Content-Type: application/json' --data-binary @- \
+      https://openbao:8200/v1/sys/policies/acl/core-tenant-db >/dev/null
+  bao_http --fail -X POST -H "X-Vault-Token: $root_token" \
+    -H 'Content-Type: application/json' \
+    --data '{"token_policies":["core-tenant-db"],"token_ttl":"15m","token_max_ttl":"30m","token_no_default_policy":true}' \
+    https://openbao:8200/v1/auth/approle/role/core-tenant-db >/dev/null
+  publish_approle core-tenant-db /run/syndes/approle/core-tenant-db
+  echo "Disposable Core Host runtime AppRoles ready (credential values withheld)"
+fi
+
 unset unseal_key root_token
 echo "OpenBao TLS, initialization, sealing/unsealing, AppRole rendering and Raft persistence: PASS"
