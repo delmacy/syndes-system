@@ -54,7 +54,7 @@ async function setup(page,limited=false){
  await page.getByRole("button",{name:/Ana Exemplo/}).waitFor();
 }
 
-const browser=await chromium.launch({executablePath:"/usr/bin/google-chrome",headless:true,args:["--no-sandbox","--disable-dev-shm-usage"]});
+const browser=await chromium.launch({executablePath:process.env.CHROME_PATH??"/usr/bin/google-chrome",headless:true,args:["--no-sandbox","--disable-dev-shm-usage"]});
 try{
  const page=await browser.newPage({viewport:{width:1440,height:900}});const errors=[];
  page.on("pageerror",e=>errors.push(e.message));
