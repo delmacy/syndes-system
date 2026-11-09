@@ -64,6 +64,16 @@ assert any(secret.get("target") == "keycloak.conf" for secret in keycloak["secre
 print("Host, database, Keycloak and OpenFGA secret boundaries: PASS")
 PY
 
+echo "Check standalone migration and network-policy regressions"
+for script in tests/platform/support-migration-gate.test.sh \
+              tests/platform/support-migration-installer.test.sh \
+              tests/platform/platform-manager-postgres-smoke.sh; do
+  if [[ -f "$script" ]]; then bash "$script"; fi
+done
+if [[ -f tests/platform/platform-manager-network-smoke.py ]]; then
+  python3 tests/platform/platform-manager-network-smoke.py
+fi
+
 echo "Provision real disposable PostgreSQL service and two tenant roles"
 postgres_compose up -d postgres
 bash tests/platform/postgres-smoke.sh
