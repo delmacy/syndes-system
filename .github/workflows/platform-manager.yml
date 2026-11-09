@@ -16,6 +16,7 @@ on:
       - "tests/platform/platform-manager-keycloak-ci.mjs"
       - "tests/platform/test-master-secret-render.py"
       - "tests/platform/platform-manager-host-gate.sh"
+      - "tests/platform/test-owner-bootstrap.py"
       - "docs/engineering/*PLATFORM-MANAGER*"
       - ".github/workflows/platform-manager.yml"
   pull_request:
@@ -34,6 +35,7 @@ on:
       - "tests/platform/platform-manager-keycloak-ci.mjs"
       - "tests/platform/test-master-secret-render.py"
       - "tests/platform/platform-manager-host-gate.sh"
+      - "tests/platform/test-owner-bootstrap.py"
       - "docs/engineering/*PLATFORM-MANAGER*"
       - ".github/workflows/platform-manager.yml"
 permissions:
@@ -54,8 +56,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: JWT cross-client, tenant denial and routes
         run: npm test
-      - name: Scoped OpenBao renderer tests and operator script syntax
-        run: cd ../.. && python3 tests/platform/test-master-secret-render.py && bash -n infra/master-admin/openbao/run-renderer.sh
+      - name: Scoped OpenBao and first-owner bootstrap tests
+        run: cd ../.. && python3 tests/platform/test-master-secret-render.py && python3 tests/platform/test-owner-bootstrap.py && bash -n infra/master-admin/openbao/run-renderer.sh
 
   admin-web:
     runs-on: ubuntu-latest
