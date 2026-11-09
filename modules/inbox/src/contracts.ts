@@ -35,6 +35,8 @@ export interface InboxRepository {
     id:string;direction:Message["direction"];body:string;externalMessageId:string|null;
  }>):Promise<Message|null>;
  metrics(tenantId:string):Promise<InboxMetrics>;
+ /** Same-organization handoff only; caller must belong to BOTH workspaces. */
+ transferWorkspace(tenantId:string,conversationId:string,actorId:string,targetWorkspaceId:string):Promise<Conversation|null>;
 }
 export class InboxValidationError extends Error {
  constructor(message:string){super(message);this.name="InboxValidationError"}

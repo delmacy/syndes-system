@@ -147,6 +147,19 @@ export class InboxController{
          @Param("id")key:string,@Body()b:{mode:HandoffMode}){
   return this.run(t,h,async c=>{const result=found(await this.host.inbox.handoff(c,key,b?.mode));this.host.events.publish(c);return result;});
  }
+ @Patch("conversations/:id/workspace")
+ transferWorkspace(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
+   @Param("id")key:string,@Body()b:{workspaceId?:string}){
+  return this.run(t,h,async ctx=>{
+   const target=id(b?.workspaceId??"","destination workspace");
+   const moved=found(await this.host.inbox.transferWorkspace(ctx,key,target));
+   // Invalidate BOTH authorized snapshots. The service verifies that actor
+   // can operate in the source and target workspaces before this emission.
+   this.host.events.publish(ctx);
+   this.host.events.publish({...ctx,workspaceId:target});
+   return moved;
+  });
+ }
  @Patch("conversations/:id/favorite")
  favorite(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
    @Param("id")key:string,@Body()b:{favorite:boolean}){

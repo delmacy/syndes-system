@@ -92,3 +92,29 @@ test("incomplete or empty trusted service scope cannot fall back to tenant-only 
  }
  assert.equal(resolved,0);
 });
+
+test("workspace transfers reject missing trusted scope before resolving a tenant database",()=>{
+ let leases=0;
+ const service=new InboxService({execute:async (_q,handler)=>handler()},
+  async()=>{leases++;throw Error("tenant database should never be resolved")});
+ assert.throws(()=>service.transferWorkspace({tenantId:tenant,actor},"22222222-2222-4222-8222-222222222222",workspace),
+   /requires an authorized context/);
+ assert.equal(leases,0);
+});
+test("workspace transfer requires inbox assignment write grant before database resolution",async()=>{
+ const auth=[];
+ const kernel={execute:async (q,handler)=>{
+   auth.push(q);
+   if(q.resource==="inbox:assignment"&&q.action==="write")throw new AccessDeniedError();
+   return handler();
+ }};
+ let leases=0;
+ const service=new InboxService(kernel,async()=>{
+   leases++;throw Error("tenant database should never be resolved");
+ });
+ await assert.rejects(service.transferWorkspace({tenantId:tenant,actor,
+   organizationId:org,workspaceId:workspace},"22222222-2222-4222-8222-222222222222",
+   "55555555-5555-4555-8555-555555555555"),AccessDeniedError);
+ assert.equal(leases,0);
+ assert.equal(auth[0].resource,"inbox:assignment");
+});

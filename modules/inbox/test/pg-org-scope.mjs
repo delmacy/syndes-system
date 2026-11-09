@@ -45,6 +45,8 @@ test("Inbox SQL isolates Org A/B and Workspace A1/A2 inside one disposable tenan
   await c.query("DROP INDEX platform_legacy_single_workspace");
   await c.query("INSERT INTO platform_organizations(tenant_id,id,display_name,is_default) VALUES($1,$2,'Alpha',true),($1,$3,'Beta',false)",[T,oa,ob]);
   await c.query("INSERT INTO platform_workspaces(tenant_id,id,organization_id,name,slug,is_default) VALUES($1,$2,$3,'Alpha One','one',true),($1,$4,$3,'Alpha Two','two',false),($1,$5,$6,'Beta','beta',true)",[T,w1,oa,w2,wb,ob]);
+  await c.query("INSERT INTO platform_org_memberships(tenant_id,organization_id,principal_id,role) VALUES($1,$2,'alice','admin'),($1,$3,'bob','admin')",[T,oa,ob]);
+  await c.query("INSERT INTO platform_workspace_memberships(tenant_id,organization_id,workspace_id,principal_id,role) VALUES($1,$2,$3,'alice','admin'),($1,$2,$4,'alice','editor'),($1,$5,$6,'bob','admin')",[T,oa,w1,w2,ob,wb]);
   await c.query("INSERT INTO crm_people(tenant_id,id,name,platform_organization_id) VALUES($1,$2,'A Person',$3),($1,$4,'B Person',$5)",[T,pa,oa,pb,ob]);
   const db={tenantId:T,query:async(sql,values)=>{
    const x=await c.query(sql,[...values]);return {rows:x.rows,rowCount:x.rowCount};
@@ -99,6 +101,33 @@ test("Inbox SQL isolates Org A/B and Workspace A1/A2 inside one disposable tenan
   await b.assign(T,ac.id,"bob","bob");
   assert.equal((await c.query("SELECT count(*)::int AS count FROM inbox_events WHERE tenant_id=$1 AND conversation_id=$2",[T,ac.id])).rows[0].count,before.rows[0].count);
   assert.equal((await a.get(T,ac.id)).status,"open");
+  // A transfer must be owner-preserving, atomic, audited and gated on
+  // ACTIVE editor/admin memberships in both the source and destination.
+  assert.equal(await a.transferWorkspace(T,bc.id,"alice",w2),null);
+  assert.equal(await a.transferWorkspace(T,ac.id,"alice",wb),null);
+  assert.equal(await a.transferWorkspace(T,ac.id,"intruder",w2),null);
+  await c.query("UPDATE platform_workspace_memberships SET state='revoked' WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id='alice'",[T,oa,w2]);
+  assert.equal(await a.transferWorkspace(T,ac.id,"alice",w2),null);
+  await c.query("UPDATE platform_workspace_memberships SET state='active' WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id='alice'",[T,oa,w2]);
+  const moved=await a.transferWorkspace(T,ac.id,"alice",w2);
+  assert.equal(moved.id,ac.id,"Transfer must never change the conversation ID");
+  const inherited=await c.query("SELECT platform_organization_id AS owner,platform_origin_workspace_id AS origin,platform_current_workspace_id AS current_ws,crm_person_id FROM inbox_conversations WHERE id=$1",[ac.id]);
+  assert.deepEqual(inherited.rows[0],{owner:oa,origin:w1,current_ws:w2,crm_person_id:pa});
+  assert.equal(await a.get(T,ac.id),null);
+  assert.equal((await a2.get(T,ac.id)).id,ac.id);
+  assert.equal(await b.get(T,ac.id),null);
+  assert.deepEqual((await a2.messages(T,ac.id,100)).map(x=>x.body),["Private reply"],"History preserved when reassigning workspace");
+  assert.equal(await a.transferWorkspace(T,ac.id,"alice",w2),null);
+  assert.equal(await a2.transferWorkspace(T,ac.id,"bob",w1),null);
+  const audit=await c.query("SELECT actor_id,action,detail FROM inbox_events WHERE tenant_id=$1 AND conversation_id=$2 AND action='workspace_transferred'",[T,ac.id]);
+  assert.deepEqual(audit.rows,[{actor_id:"alice",action:"workspace_transferred",detail:{from:w1,to:w2}}]);
+  const restored=await a2.transferWorkspace(T,ac.id,"alice",w1);
+  assert.equal(restored.id,ac.id);
+  assert.equal((await a.get(T,ac.id)).id,ac.id);
+  assert.equal(await a2.get(T,ac.id),null);
+  const audit2=await c.query("SELECT count(*)::int AS n FROM inbox_events WHERE tenant_id=$1 AND conversation_id=$2 AND action='workspace_transferred'",[T,ac.id]);
+  assert.equal(audit2.rows[0].n,2);
+
  }finally{
   await c.query("ROLLBACK");
   await c.end();

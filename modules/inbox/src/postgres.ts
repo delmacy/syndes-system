@@ -208,6 +208,67 @@ export class PgInboxRepository implements InboxRepository {
   if(result.direction!==item.direction||result.body!==item.body)throw new InboxConflictError();
   return message(result);
  }
+ /** All authorization inputs are server-derived except requested target UUID.
+  * The target must be active, in the same organization and assigned to the
+  * authenticated actor with editor/admin role. Membership of the source
+  * workspace is also rechecked AT THE UPDATE, not only at HTTP ingress.
+  * One atomic statement updates current workspace and appends an audit.
+  */
+ async transferWorkspace(tenantId:string,conversationId:string,actorId:string,targetWorkspaceId:string):Promise<Conversation|null>{
+  this.check(tenantId);
+  if(!this.scope)throw new InboxValidationError("Unscoped workspace transfer prohibited");
+  id(targetWorkspaceId,"destination workspace");
+  const organization=this.scope.organizationId,current=this.scope.workspaceId;
+  if(targetWorkspaceId===current)return null;
+  const result=await this.db.query(`
+   WITH destination AS MATERIALIZED (
+     SELECT w.tenant_id,w.organization_id,w.id
+     FROM platform_workspaces w
+     JOIN platform_organizations o
+       ON o.tenant_id=w.tenant_id AND o.id=w.organization_id AND o.status='active'
+     JOIN platform_org_memberships om
+       ON om.tenant_id=w.tenant_id AND om.organization_id=w.organization_id
+       AND om.principal_id=$4 AND om.state='active' AND om.role IN ('admin','editor')
+     JOIN platform_workspace_memberships wm
+       ON wm.tenant_id=w.tenant_id AND wm.organization_id=w.organization_id
+       AND wm.workspace_id=w.id AND wm.principal_id=$4
+       AND wm.state='active' AND wm.role IN ('admin','editor')
+     WHERE w.tenant_id=$1::uuid AND w.organization_id=$5::uuid
+       AND w.id=$3::uuid AND w.status='active'
+   ), source AS MATERIALIZED (
+     SELECT c.tenant_id,c.id
+     FROM inbox_conversations c
+     JOIN platform_workspaces w
+       ON w.tenant_id=c.tenant_id AND w.organization_id=c.platform_organization_id
+       AND w.id=c.platform_current_workspace_id AND w.status='active'
+     JOIN platform_org_memberships om
+       ON om.tenant_id=w.tenant_id AND om.organization_id=w.organization_id
+       AND om.principal_id=$4 AND om.state='active' AND om.role IN ('admin','editor')
+     JOIN platform_workspace_memberships wm
+       ON wm.tenant_id=w.tenant_id AND wm.organization_id=w.organization_id
+       AND wm.workspace_id=w.id AND wm.principal_id=$4
+       AND wm.state='active' AND wm.role IN ('admin','editor')
+     WHERE c.tenant_id=$1::uuid AND c.id=$2::uuid
+       AND c.platform_organization_id=$5::uuid
+       AND c.platform_current_workspace_id=$6::uuid
+   ), moved AS (
+     UPDATE inbox_conversations c
+     SET platform_current_workspace_id=d.id,updated_at=clock_timestamp()
+     FROM source s,destination d
+     WHERE c.tenant_id=s.tenant_id AND c.id=s.id
+       AND c.platform_organization_id=d.organization_id
+       AND c.platform_current_workspace_id=$6::uuid
+     RETURNING c.*
+   ), audit AS (
+     INSERT INTO inbox_events(tenant_id,conversation_id,actor_id,action,detail)
+     SELECT tenant_id,id,$4,'workspace_transferred',
+       jsonb_build_object('from',$6::text,'to',$3::text) FROM moved
+     RETURNING id
+   )
+   SELECT moved.* FROM moved JOIN audit ON TRUE
+  `,[tenantId,conversationId,targetWorkspaceId,actorId,organization,current]);
+  return result.rows[0]?conversation(result.rows[0]):null;
+ }
  async metrics(tenantId:string):Promise<InboxMetrics>{
   this.check(tenantId);
   const rows=(await this.query(`

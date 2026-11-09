@@ -289,3 +289,31 @@ cannot mark an acknowledged message as undelivered.
 This is a **single-process Core Host** delivery mechanism. For multiple
 Core Host replicas, an authenticated distributed broker is still required.
 Do not claim multi-replica SSE support or remove SQL 002 based on this slice.
+
+
+## Stage C4a — Authorized intra-organization Inbox workspace transfers (2026-11-09)
+
+The explicit PATCH /v1/tenants/:tenantId/inbox/conversations/:id/workspace endpoint
+accepts only a target workspace UUID, never an organization owner. The request
+passes Keycloak verification, tenant membership, Inbox default-context
+validation and the existing OpenFGA inbox:assignment/write permission.
+PgInboxRepository.transferWorkspace requires BOTH organization+workspace
+context; unscoped callers fail before SQL. The transfer is a single
+atomic PostgreSQL statement that rechecks source AND destination active
+workspace/org memberships of the authenticated principal and requires
+admin/editor on BOTH, with tenant, organization and current workspace
+predicates. It rejects cross-org targets, revoked permissions, unknown
+conversation UUIDs and concurrent old-workspace updates without leaking
+foreign data. The immutable owning org and origin workspace are never
+modified, nor are messages, routes, accounts or historical IDs.
+
+An audit row workspace_transferred with from/to workspace IDs is appended
+in the same statement, and after commit the Host publishes invalidations
+to both source and target authorized SSE scopes. This is explicitly a
+**same-organization transfer**, not an unreviewed cross-organization share.
+The existing single-workspace SQL guard 002 makes real transfers impossible
+until a later Product Gate explicitly enables multiple workspaces. The
+disposable PG negative test drops indexes 002 only inside rollbackable
+schema and verifies source/destination memberships, same-org transfer,
+history preservation, unauthorized/foreign targets, revocation, audit and
+idempotent/race rejection. Deploy still prohibited before all #21 gates.

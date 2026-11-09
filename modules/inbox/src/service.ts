@@ -106,6 +106,15 @@ export class InboxService {
      repo=>repo.append(ctx.tenantId,key,ctx.actor.id,
        {id:randomUUID(),direction:"inbound",body,externalMessageId:ref}));
  }
+ /** Explicit authorized transfer; never choose an org from request payload.
+  * Reassignment preserves existing message/route IDs and origin workspace. */
+ transferWorkspace(ctx:InboxContext,conversationId:string,targetWorkspaceId:string):Promise<Conversation|null>{
+  const key=id(conversationId),to=id(targetWorkspaceId,"destination workspace");
+  if(!ctx.organizationId||!ctx.workspaceId)
+   throw new InboxValidationError("Workspace transfer requires an authorized context");
+  return this.execute(ctx,"write","inbox:assignment",
+   repo=>repo.transferWorkspace(ctx.tenantId,key,ctx.actor.id,to));
+ }
  metrics(ctx:InboxContext):Promise<InboxMetrics>{
    return this.execute(ctx,"read","inbox:metrics",repo=>repo.metrics(ctx.tenantId));
  }
