@@ -1,0 +1,213 @@
+-- DC-2b / issue #49: dedicated, narrowly-scoped account delegation authority.
+-- Run ONLY after control.schema + control-account-roles.schema, as authorized DBA.
+-- This migration does not create users, API credentials or initial account grants.
+BEGIN;
+
+DO $role$
+BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='syndes_account_delegate') THEN
+  CREATE ROLE syndes_account_delegate NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
+ END IF;
+ IF NOT EXISTS (
+  SELECT 1 FROM pg_roles WHERE rolname='syndes_account_delegate'
+   AND NOT rolcanlogin AND NOT rolsuper AND NOT rolcreatedb AND NOT rolcreaterole
+ ) THEN
+  RAISE EXCEPTION 'Dedicated delegate role privileges are unsafe';
+ END IF;
+END $role$;
+
+-- A dedicated runtime principal inherits only EXECUTE on our verified function,
+-- not DML/SELECT on either role table or the tenant registry.
+REVOKE ALL ON tenant_account_role_grants,tenant_account_role_audit FROM syndes_account_delegate;
+REVOKE ALL ON tenant_registry,tenant_memberships FROM syndes_account_delegate;
+GRANT CONNECT ON DATABASE syndes_control TO syndes_account_delegate;
+GRANT USAGE ON SCHEMA public TO syndes_account_delegate;
+
+CREATE TABLE IF NOT EXISTS tenant_account_delegation_requests (
+ tenant_id UUID NOT NULL REFERENCES tenant_registry(tenant_id) ON DELETE RESTRICT,
+ request_id UUID NOT NULL,
+ actor_id TEXT NOT NULL CHECK(length(actor_id) BETWEEN 1 AND 256),
+ target_id TEXT NOT NULL CHECK(length(target_id) BETWEEN 1 AND 256),
+ operation TEXT NOT NULL CHECK(operation IN ('grant','revoke')),
+ requested_role TEXT NOT NULL CHECK(requested_role IN ('owner','admin')),
+ resulting_role TEXT NOT NULL CHECK(resulting_role IN ('owner','admin')),
+ resulting_state TEXT NOT NULL CHECK(resulting_state IN ('active','revoked')),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(tenant_id,request_id)
+);
+REVOKE ALL ON tenant_account_delegation_requests FROM PUBLIC;
+REVOKE ALL ON tenant_account_delegation_requests FROM syndes_core;
+REVOKE ALL ON tenant_account_delegation_requests FROM syndes_account_delegate;
+
+CREATE OR REPLACE FUNCTION apply_tenant_account_delegation(
+ in_tenant_id UUID, in_actor_id TEXT, in_target_id TEXT,
+ in_operation TEXT, in_role TEXT, in_request_id UUID
+) RETURNS TABLE(role TEXT,state TEXT,already_applied BOOLEAN)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,public AS $delegate$
+DECLARE
+ previous RECORD;
+ current_grant RECORD;
+ new_role TEXT;
+ new_state TEXT;
+BEGIN
+ IF in_tenant_id IS NULL OR in_request_id IS NULL OR
+    in_actor_id IS NULL OR length(in_actor_id) NOT BETWEEN 1 AND 256 OR
+    in_target_id IS NULL OR length(in_target_id) NOT BETWEEN 1 AND 256 OR
+    in_operation IS NULL OR in_operation NOT IN ('grant','revoke') OR
+    in_role IS NULL OR in_role NOT IN ('owner','admin') THEN
+  RAISE EXCEPTION 'Invalid delegation request' USING ERRCODE='22023';
+ END IF;
+ IF in_actor_id=in_target_id THEN
+  RAISE EXCEPTION 'Self-delegation requires separate owner transfer review'
+    USING ERRCODE='42501';
+ END IF;
+
+ -- Serialize BOTH grants and revocations for one tenant. The same lock key
+ -- is used in the DC-2a last-owner trigger; no concurrent owner removal gaps.
+ PERFORM pg_advisory_xact_lock(hashtextextended(in_tenant_id::text,9317));
+
+ -- Revalidate caller after lock, not from a stale bearer claim or a cached UI.
+ IF NOT EXISTS (
+  SELECT 1 FROM tenant_registry t
+  JOIN tenant_memberships am ON am.tenant_id=t.tenant_id
+    AND am.principal_id=in_actor_id AND am.state='active'
+  JOIN tenant_account_role_grants ag ON ag.tenant_id=am.tenant_id
+    AND ag.principal_id=am.principal_id AND ag.role='owner' AND ag.state='active'
+  WHERE t.tenant_id=in_tenant_id AND t.state='active'
+ ) THEN
+  RAISE EXCEPTION 'Account owner grant missing or revoked' USING ERRCODE='42501';
+ END IF;
+
+ -- Same request can be retried without duplicates; an idempotency key cannot
+ -- be reused for a different operation, actor, target, tenant or role.
+ SELECT * INTO previous FROM tenant_account_delegation_requests d
+ WHERE d.tenant_id=in_tenant_id AND d.request_id=in_request_id;
+ IF FOUND THEN
+  IF previous.actor_id<>in_actor_id OR previous.target_id<>in_target_id OR
+     previous.operation<>in_operation OR previous.requested_role<>in_role THEN
+   RAISE EXCEPTION 'Idempotency key already used for different delegation'
+     USING ERRCODE='23505';
+  END IF;
+  RETURN QUERY SELECT previous.resulting_role,previous.resulting_state,true;
+  RETURN;
+ END IF;
+
+ IF in_operation='grant' AND NOT EXISTS (
+   SELECT 1 FROM tenant_memberships m
+   WHERE m.tenant_id=in_tenant_id AND m.principal_id=in_target_id
+     AND m.state='active'
+ ) THEN
+  RAISE EXCEPTION 'Target must be an active tenant member' USING ERRCODE='42501';
+ END IF;
+ -- Revocation remains possible after the target membership was revoked;
+ -- the effective grant was already denied, but its audit lifecycle must close.
+ SELECT * INTO current_grant FROM tenant_account_role_grants g
+ WHERE g.tenant_id=in_tenant_id AND g.principal_id=in_target_id;
+
+ IF in_operation='grant' THEN
+  IF FOUND AND current_grant.state='active' THEN
+   RAISE EXCEPTION 'Active account role already exists' USING ERRCODE='23505';
+  END IF;
+  IF FOUND THEN
+   UPDATE tenant_account_role_grants g SET
+    role=in_role,state='active',updated_by=in_actor_id,
+    updated_at=clock_timestamp(),revoked_by=NULL,revoked_at=NULL
+   WHERE g.tenant_id=in_tenant_id AND g.principal_id=in_target_id;
+  ELSE
+   INSERT INTO tenant_account_role_grants(
+    tenant_id,principal_id,role,granted_by,updated_by
+   ) VALUES(in_tenant_id,in_target_id,in_role,in_actor_id,in_actor_id);
+  END IF;
+  new_role:=in_role;
+  new_state:='active';
+ ELSE
+  IF NOT FOUND OR current_grant.state<>'active' OR current_grant.role<>in_role THEN
+   RAISE EXCEPTION 'Role to revoke does not match active grant' USING ERRCODE='23505';
+  END IF;
+  UPDATE tenant_account_role_grants g SET
+   state='revoked',updated_by=in_actor_id,updated_at=clock_timestamp(),
+   revoked_by=in_actor_id,revoked_at=clock_timestamp()
+  WHERE g.tenant_id=in_tenant_id AND g.principal_id=in_target_id;
+  new_role:=in_role;
+  new_state:='revoked';
+ END IF;
+
+ INSERT INTO tenant_account_delegation_requests(
+  tenant_id,request_id,actor_id,target_id,operation,requested_role,
+  resulting_role,resulting_state
+ ) VALUES(
+  in_tenant_id,in_request_id,in_actor_id,in_target_id,in_operation,in_role,
+  new_role,new_state
+ );
+ RETURN QUERY SELECT new_role,new_state,false;
+END $delegate$;
+
+REVOKE ALL ON FUNCTION apply_tenant_account_delegation(UUID,TEXT,TEXT,TEXT,TEXT,UUID)
+ FROM PUBLIC,syndes_core;
+GRANT EXECUTE ON FUNCTION apply_tenant_account_delegation(UUID,TEXT,TEXT,TEXT,TEXT,UUID)
+ TO syndes_account_delegate;
+
+-- Historical audit is append-only through ordinary SQL, even for the table
+-- owner. A PostgreSQL superuser can bypass/disable triggers; protect dumps
+-- independently and do not claim cryptographic immutability.
+CREATE OR REPLACE FUNCTION block_tenant_account_audit_mutation()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER
+SET search_path=pg_catalog,public AS $audit_guard$
+BEGIN
+ RAISE EXCEPTION 'Account delegation audit is append-only'
+   USING ERRCODE='42501';
+END $audit_guard$;
+DROP TRIGGER IF EXISTS tenant_account_role_audit_no_mutation
+ ON tenant_account_role_audit;
+CREATE TRIGGER tenant_account_role_audit_no_mutation
+ BEFORE UPDATE OR DELETE OR TRUNCATE ON tenant_account_role_audit
+ FOR EACH STATEMENT EXECUTE FUNCTION block_tenant_account_audit_mutation();
+REVOKE ALL ON FUNCTION block_tenant_account_audit_mutation() FROM PUBLIC;
+
+-- A legacy tenant membership revocation must not silently orphan the last
+-- active owner. DC-2a protected role changes only, so enforce the same
+-- tenant-local lock and invariant on the underlying membership lifecycle.
+CREATE OR REPLACE FUNCTION guard_last_account_owner_membership()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,public AS $membership_guard$
+DECLARE owner_count INT;
+BEGIN
+ IF TG_OP='UPDATE' THEN
+  IF OLD.state<>'active' OR NEW.state='active' THEN RETURN NEW; END IF;
+ ELSIF OLD.state<>'active' THEN
+  RETURN OLD;
+ END IF;
+ IF EXISTS (
+  SELECT 1 FROM tenant_account_role_grants g
+  WHERE g.tenant_id=OLD.tenant_id AND g.principal_id=OLD.principal_id
+   AND g.role='owner' AND g.state='active'
+ ) THEN
+  PERFORM pg_advisory_xact_lock(hashtextextended(OLD.tenant_id::text,9317));
+  SELECT count(*) INTO owner_count
+  FROM tenant_account_role_grants g
+  JOIN tenant_memberships m USING(tenant_id,principal_id)
+  WHERE g.tenant_id=OLD.tenant_id AND g.role='owner' AND g.state='active'
+   AND m.state='active' AND g.principal_id<>OLD.principal_id;
+  IF owner_count=0 THEN
+   RAISE EXCEPTION 'Cannot revoke membership of last active account owner'
+    USING ERRCODE='23514';
+  END IF;
+ END IF;
+ IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+ RETURN NEW;
+END $membership_guard$;
+DROP TRIGGER IF EXISTS tenant_membership_last_account_owner
+ ON tenant_memberships;
+CREATE TRIGGER tenant_membership_last_account_owner
+ BEFORE UPDATE OF state OR DELETE ON tenant_memberships
+ FOR EACH ROW EXECUTE FUNCTION guard_last_account_owner_membership();
+REVOKE ALL ON FUNCTION guard_last_account_owner_membership() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS tenant_account_requests_no_mutation
+ ON tenant_account_delegation_requests;
+CREATE TRIGGER tenant_account_requests_no_mutation
+ BEFORE UPDATE OR DELETE OR TRUNCATE ON tenant_account_delegation_requests
+ FOR EACH STATEMENT EXECUTE FUNCTION block_tenant_account_audit_mutation();
+
+COMMIT;
