@@ -6,15 +6,15 @@
 **Impacto:** Platform Core, identity/tenancy, CRM, Inbox, Gestão de Atendimentos, administração e provisionamento.
 **Dependências:** `docs/engineering/SERVICE-MANAGEMENT-PRODUCT-GATE-20261108.md`, `docs/engineering/WBS-SERVICE-MANAGEMENT.md`, ADR dos funis.
 
-## 0. Reserva do conceito de Site: publicação de informações (futuro)
+## 0. Reserva do conceito de Unidade: publicação de informações (futuro)
 
-A nomenclatura **Unidade** é definitiva para sede, filial, estabelecimento ou operação física. Usar `Unit` nos contratos de software e `platform_units`, `platform_workspace_units`, `unit_id` no banco. Não chamar unidades físicas de `Site` nem manter colunas `site_id` com esse significado.
+A nomenclatura **Unidade** é definitiva para sede, filial, estabelecimento ou operação física. Usar `Unit` nos contratos de software e `platform_units`, `platform_workspace_units`, `unit_id` no banco. Não chamar unidades físicas de `Unidade` nem manter colunas `unit_id` com esse significado.
 
-**Site** fica reservado para uma capacidade distinta e futura de **publicação e navegação de informações**. Poderá contemplar intranet para colaboradores, extranet/portal para consumidores autorizados e páginas públicas, com conteúdo curado, menus e permissões próprias. Um Site de conteúdo pertence a uma organização publicadora, pode reunir conteúdos de múltiplos workspaces/unidades conforme regras de publicação e **não dá acesso direto ao banco operacional**.
+**Unidade** fica reservado para uma capacidade distinta e futura de **publicação e navegação de informações**. Poderá contemplar intranet para colaboradores, extranet/portal para consumidores autorizados e páginas públicas, com conteúdo curado, menus e permissões próprias. Um Unidade de conteúdo pertence a uma organização publicadora, pode reunir conteúdos de múltiplos workspaces/unidades conforme regras de publicação e **não dá acesso direto ao banco operacional**.
 
-Os conceitos futuros `PublishingSite`, `PublishedPage`, `PublicationAudience` e `PublicationGrant` são somente placeholders de domínio para evitar colisões de nomes; não autorizar desenvolvimento de um CMS nesta fase. O grau de publicidade é explícito por conteúdo/audiência (`public`, `authenticated collaborator`, `authenticated consumer` e grupos/permissões refinadas quando definidos). Não deduzir que um Site interno é acessível a todo usuário da conta, nem que um site de consumidores é público.
+Os conceitos futuros `PublishingSite`, `PublishedPage`, `PublicationAudience` e `PublicationGrant` são somente placeholders de domínio para evitar colisões de nomes; não autorizar desenvolvimento de um CMS nesta fase. O grau de publicidade é explícito por conteúdo/audiência (`public`, `authenticated collaborator`, `authenticated consumer` e grupos/permissões refinadas quando definidos). Não deduzir que um Unidade interno é acessível a todo usuário da conta, nem que um unidade de consumidores é público.
 
-**Limite:** Site (publicação digital) ≠ Unidade (local físico) ≠ Workspace (ambiente de trabalho) ≠ Organização (empresa). O módulo de Sites terá Product Gate e WBS próprios quando priorizado.
+**Limite:** Unidade (publicação digital) ≠ Unidade (local físico) ≠ Workspace (ambiente de trabalho) ≠ Organização (empresa). O módulo de Unidades terá Product Gate e WBS próprios quando priorizado.
 
 ## 1. Decisão: identidade dos escopos
 
@@ -56,7 +56,7 @@ Não vincular recursos por nomes, CNPJ, telefone WhatsApp nem slug livre. IDs im
 | Relação | Cardinalidade | Regra |
 | --- | --- | --- |
 | Tenant → Organizations | 1:N | Ao menos uma organização default em tenant legado; sem máximo fixado em domínio |
-| Organization → Unidades | 1:0..N | Unidade é opcional, subordinado à organização |
+| Organization → Unidades | 1:0..N | Unidade é opcional, subordinada à organização |
 | Organization → Workspaces | 1:1..N | Toda organização ativa operacional tem um workspace default; pode criar mais |
 | Unidade ↔ Workspace | N:N | `platform_workspace_units` garante mesmo tenant e mesma organização |
 | Organization → Teams | 1:0..N | Pessoas podem participar de equipes de mais de uma organização com grants separados |
@@ -65,7 +65,7 @@ Não vincular recursos por nomes, CNPJ, telefone WhatsApp nem slug livre. IDs im
 | Funnel ↔ Workspaces | N:N | Exposição explicitamente autorizada; publicação não torna funil global |
 | Workspace → filas/protocolos operacionais | Contextual | Sessão possui organização e workspace atual; autorizações do ator se aplicam ao contexto |
 
-**Exemplo:** a ACME Brasil possui matriz em Porto Alegre e filial em São Paulo. Um único Workspace Financeiro gerencia ambas; o Workspace Atendimento atua nas duas; uma fila de TI pode atender todos os unidades. Não criar cópias de Financeiro/TI só porque há duas filiais.
+**Exemplo:** a ACME Brasil possui matriz em Porto Alegre e filial em São Paulo. Um único Workspace Financeiro gerencia ambas; o Workspace Atendimento atua nas duas; uma fila de TI pode atender todas as unidades. Não criar cópias de Financeiro/TI só porque há duas filiais.
 
 ## 3. Persistência e tenancy
 
@@ -163,7 +163,7 @@ platform_team_workspaces(
 | --- | --- | --- | --- |
 | DB por conta/tenant, organizações e workspaces no mesmo DB | Compatível com infraestrutura atual, colaboração simples, custo menor | Exige isolamento lógico muito bem testado entre organizações e workspaces | **Recomendado agora** |
 | DB por organização | Maior separação física entre empresas | Mais pools, segredos, migrações, relatórios e colaboração entre bancos | Reservar para clientes/compliance que exijam isolamento próprio |
-| Unidade obrigatório entre organização e workspace | Hierarquia simples de visualizar | Impede workspaces que cobrem vários unidades e cria duplicação | **Rejeitado** |
+| Unidade obrigatória entre organização e workspace | Hierarquia simples de visualizar | Impede workspaces que cobrem várias unidades e cria duplicação | **Rejeitado** |
 | Workspace filho de Unidade ou Workspace único por departamento | Implementação mais simples | Inadequado para times matriciais ou multiunidade | **Rejeitado** |
 | Unidade opcional com relação N:N | Abrange matriz/filial e trabalho matricial | Exige tabela associativa e UI de filtro | **Recomendado** |
 
@@ -172,14 +172,14 @@ platform_team_workspaces(
 A topologia é **fundação transversal**, não uma feature cosmética de F1. Incluir:
 - **F0.7** — aprovar Account/Organization/Unit/Workspace, scopes, ownership, defaults e migração;
 - **F0.8** — análise de impacto sobre CRM/Inbox e matriz de autorização A/B org/workspace;
-- **F1.0** — capacidade base `platform_organizations`, `platform_units`, `platform_workspaces`, memberships e `workspace_units`, com tenant legado migrado para defaults, **antes do catálogo de funis**;
+- **F1.0** — capacidade base `platform_organizations`, `platform_units`, `platform_workspaces`, memberships e `platform_workspace_units`, com tenant legado migrado para defaults, **antes do catálogo de funis**;
 - **F1.0b** — adaptar leituras de CRM/Inbox e validar isolamento antes da criação da segunda organização; pode exigir entrega transversal independente do catálogo;
 - **F1.3** — funis vinculados à Organization e expostos aos Workspaces via N:N;
 - **F4/F5** — protocolo com `organization_id` + workspaces de origem/atual e transferências autorizadas;
 - **F5.C** — colaboração cross-organization e cross-workspace, threads e links de protocolo com grants explícitos;
 - **F6** — Inbox filtrada por organização/workspace, sem quebrar histórico WhatsApp.
 
-**Primeiro corte vertical:** uma conta existente → organização default → workspace default → nenhum unidade obrigatório → catálogo de funis scoped; provar negações antes de habilitar múltiplas organizações. Não antecipar chat interorganizacional completo no primeiro PR.
+**Primeiro corte vertical:** uma conta existente → organização default → workspace default → nenhuma unidade obrigatória → catálogo de funis scoped; provar negações antes de habilitar múltiplas organizações. Não antecipar chat interorganizacional completo no primeiro PR.
 
 ## 8. Gate de aceite da topologia
 
