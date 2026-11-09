@@ -35,7 +35,7 @@ test("mainline planner and suite runner cover all approved independent domains",
  const suite=await read("scripts/ci/run-suite.sh");
  for(const name of [
   "kernel","organizations","crm","inbox","whatsapp-ts","whatsapp-go",
-  "host","workspace","support","support-web","platform-api","platform-web","infra"
+  "host","workspace","support","support-web","platform-api","platform-web","account-access","infra"
  ]){
    assert.ok(planner.includes("suite: '"+name+"'"),"planner omits "+name);
    assert.ok(suite.includes("  "+name+")"),"runner omits "+name);
@@ -48,7 +48,8 @@ test("mainline planner and suite runner cover all approved independent domains",
   "go build ./...","docker build --file apps/core-host/Dockerfile",
   "run-workspace-browser.sh","node --test test/pg-integration.test.mjs",
   "node test/pg-backup-restore.mjs","SYNDES_DISPOSABLE_RESTORE_REHEARSAL=true",
-  "npm run test:browser","bash scripts/ci/run-infra.sh"
+  "npm run test:browser","bash scripts/ci/run-account-access.sh",
+  "bash scripts/ci/run-infra.sh"
  ],"mainline execution");
 });
 
@@ -91,6 +92,24 @@ test("signed identity, denied cross-client tokens, browser and least-privilege C
    "npx playwright install --with-deps chromium",
    "npm run test:e2e"
  ],"Support Browser real parity");
+});
+
+test("account delegation keeps dedicated JWT/FGA/SQL negative tests in the mainline gate",async()=>{
+ const runner=await read("scripts/ci/run-account-access.sh");
+ must(runner,[
+   "tests/platform/account-roles-pg-smoke.sh",
+   "CI_ACCOUNT_PG=1",
+   "apps/account-access-api/test/pg-e2e.mjs",
+   "127.0.0.1:15433",
+   "postgres:17-alpine",
+   "apps/account-access-api/Dockerfile"
+ ],"account delegation real parity");
+ const sql=await read("infra/postgres/bootstrap/control-account-delegation.schema");
+ must(sql,[
+   "SECURITY DEFINER","syndes_account_delegate",
+   "apply_tenant_account_delegation","pg_advisory_xact_lock",
+   "REVOKE ALL ON FUNCTION"
+ ],"delegation SQL least privilege");
 });
 
 test("separately approved SQL 002 stays physically enforced in mainline",async()=>{
