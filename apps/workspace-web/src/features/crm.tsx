@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Archive, Building2, ChevronLeft, ChevronRight, CircleAlert, ContactRound, Download, FileUp, LoaderCircle, Plus, RefreshCw, Search, X } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@syndes/front-shared/badge";
+import { Button } from "@syndes/front-shared/button";
+import { Card, CardContent } from "@syndes/front-shared/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Input } from "@syndes/front-shared/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CrmPersonDetail } from "@/features/crm-person-detail";

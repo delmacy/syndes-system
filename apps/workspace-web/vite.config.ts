@@ -5,5 +5,5 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
+  resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") }, dedupe: ["react","react-dom","react/jsx-runtime","@base-ui/react"] },
 });

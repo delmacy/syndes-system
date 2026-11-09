@@ -8,10 +8,10 @@ import {
   Inbox as InboxIcon, UserCheck, UserX, ListFilter, Clock3, CircleDot, Check, CheckCheck, AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@syndes/front-shared/badge";
+import { Button } from "@syndes/front-shared/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Input } from "@syndes/front-shared/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { InboxInspectorPanel } from "@/features/inbox-context";

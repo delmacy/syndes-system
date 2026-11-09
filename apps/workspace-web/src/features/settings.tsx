@@ -1,7 +1,7 @@
 import { UsersRound, ShieldCheck } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Badge } from "@syndes/front-shared/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@syndes/front-shared/card";
+import { Separator } from "@syndes/front-shared/separator";
 import type { WorkspaceConfig } from "@/lib/auth";
 
 export function SecurityInfo({ config }: { config: WorkspaceConfig }) {

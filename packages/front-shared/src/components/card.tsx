@@ -1,11 +1,12 @@
 import * as React from "react"
-import { cn } from "cn"
+import { cn } from "../lib/utils.js"
 
 function Card({
   className,
   size = "default",
+  unstyled = false,
   ...props
-}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+}: React.ComponentProps<"div"> & { size?: "default" | "sm";unstyled?:boolean }) {
   return (
     <div
       data-slot="card"
