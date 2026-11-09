@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import {ModuleRegistry} from "@syndes/core-kernel";
 import {loadInstalledPlugins,installModuleAssets} from "../dist/module-host.js";
 
-test("Core Host mounts CRM and Inbox from installed package descriptors",async()=>{
+test("Core Host mounts CRM, Inbox and WhatsApp from installed package descriptors",async()=>{
   const plugins=await loadInstalledPlugins();
-  assert.deepEqual(plugins.map(p=>p.definition.id),["crm","inbox"]);
+  assert.deepEqual(plugins.map(p=>p.definition.id),["crm","inbox","whatsapp"]);
   assert.equal(plugins[0].publicOidcClientId,"syndes-crm-ui");
   const order=new ModuleRegistry([{id:"platform",version:"0.1.0"},...plugins.map(p=>p.definition)])
     .ordered().map(x=>x.id);
-  assert.deepEqual(order,["platform","crm","inbox"]);
+  assert.deepEqual(order,["platform","crm","inbox","whatsapp"]);
   assert.deepEqual(plugins[0].migrations.map(x=>x.id),[
     "001_crm_foundation","002_crm_tags_notes","003_crm_employees_channels"
   ]);

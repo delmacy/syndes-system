@@ -1,6 +1,7 @@
 {
   "modules": [
     "@syndes/core-crm/plugin",
-    "@syndes/core-inbox/plugin"
+    "@syndes/core-inbox/plugin",
+    "@syndes/whatsapp/plugin"
   ]
 }

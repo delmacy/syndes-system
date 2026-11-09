@@ -26,11 +26,9 @@ try {
   const response = await page.goto(origin + "/", { waitUntil: "domcontentloaded", timeout: 30000 });
   assert.equal(response?.status(), 200, "Workspace should render without HTTP Basic Auth");
   assert.equal(response?.headers()["www-authenticate"], undefined, "No browser Basic Auth challenge");
-  await page.getByRole("heading", { name: /Bem-vindo ao/ }).waitFor({ timeout: 20000 });
-  console.log("PASS: HTTPS Workspace renders without Basic Auth, no browser prompt");
-  step = "begin OIDC login";
-  await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.waitForURL(/:9444\/realms\/syndes\//, { timeout: 25000 });
+  console.log("PASS: HTTPS Workspace renders without Basic Auth, no browser prompt");
+  step = "automatic OIDC login";
   await page.locator("#username").fill("syndes-demo");
   await page.locator("#password").fill(password);
   await page.locator("#kc-login").click();

@@ -1,4 +1,4 @@
-import type {Conversation,ConversationStatus,ConversationQueue,HandoffMode,Message,InboxRepository,InboxMetrics,TenantDatabase,TrustedTenantDatabaseProvider} from "./contracts.js";
+import type {Conversation,ConversationStatus,ConversationQueue,ChatScope,HandoffMode,Message,InboxRepository,InboxMetrics,TenantDatabase,TrustedTenantDatabaseProvider} from "./contracts.js";
 import {InboxTenantMismatchError} from "./contracts.js";
 import {id} from "./validation.js";
 const iso=(value:unknown):string=>value instanceof Date?value.toISOString():String(value);
@@ -6,12 +6,16 @@ function conversation(row:Record<string,unknown>):Conversation{
  return {id:String(row.id),tenantId:String(row.tenant_id),crmPersonId:row.crm_person_id==null?null:String(row.crm_person_id),
   subject:String(row.subject),channel:String(row.channel),externalThreadId:row.external_thread_id==null?null:String(row.external_thread_id),
   status:row.status as ConversationStatus,assignedTo:row.assigned_to==null?null:String(row.assigned_to),
-  handoff:row.handoff as HandoffMode,createdAt:iso(row.created_at),updatedAt:iso(row.updated_at)};
+  handoff:row.handoff as HandoffMode,createdAt:iso(row.created_at),updatedAt:iso(row.updated_at),
+  isGroup:row.is_group===true,unreadCount:Number(row.unread_count??0),
+  isFavorite:row.is_favorite===true,isArchived:row.is_archived===true,
+  historySyncAt:row.history_sync_at==null?null:iso(row.history_sync_at)};
 }
 function message(row:Record<string,unknown>):Message{
  return {id:String(row.id),tenantId:String(row.tenant_id),conversationId:String(row.conversation_id),
   direction:row.direction as Message["direction"],body:String(row.body),authorId:String(row.author_id),
-  externalMessageId:row.external_message_id==null?null:String(row.external_message_id),createdAt:iso(row.created_at)};
+  externalMessageId:row.external_message_id==null?null:String(row.external_message_id),createdAt:iso(row.created_at),
+  source:(row.source??"local") as NonNullable<Message["source"]>,botEligible:row.bot_eligible===true};
 }
 /** All operations use tenant-scoped SQL and a Host-approved, per-tenant DB lease. */
 export class PgInboxRepository implements InboxRepository {
@@ -35,17 +39,36 @@ export class PgInboxRepository implements InboxRepository {
   if(!rows[0])throw Error("Conversation insert failed");
   return conversation(rows[0]);
  }
- async list(tenantId:string,status:ConversationStatus|null,limit:number,queue:ConversationQueue="all",actorId=""):Promise<readonly Conversation[]>{
+ async list(tenantId:string,status:ConversationStatus|null,limit:number,queue:ConversationQueue="all",
+    actorId="",scope:ChatScope="all",offset=0,search=""):Promise<readonly Conversation[]>{
   this.check(tenantId);
   // Filter before LIMIT, in the tenant's database. Never query all tenants and then filter in UI.
   if(!["all","mine","unassigned"].includes(queue))throw new Error("Invalid queue");
+  if(!["all","unread","favorites","groups","archived"].includes(scope))throw new Error("Invalid filter");
+  if(!Number.isInteger(offset)||offset<0||offset>100000)throw new Error("Invalid offset");
+  if(search.length>80)throw new Error("Invalid search");
   const rows=(await this.db.query(`
-    SELECT * FROM inbox_conversations WHERE tenant_id=$1::uuid
-    AND ($2::text IS NULL OR status=$2)
-    AND ($4::text='all' OR ($4::text='mine' AND assigned_to=$5::text)
-      OR ($4::text='unassigned' AND assigned_to IS NULL))
-    ORDER BY updated_at DESC,id DESC LIMIT $3
-  `,[tenantId,status,limit,queue,actorId])).rows;
+    SELECT c.* FROM inbox_conversations c
+    LEFT JOIN whatsapp_conversation_routes r ON r.tenant_id=c.tenant_id
+      AND r.conversation_id=c.id
+    WHERE c.tenant_id=$1::uuid
+    AND ($2::text IS NULL OR c.status=$2)
+    AND ($4::text='all' OR ($4::text='mine' AND c.assigned_to=$5::text)
+      OR ($4::text='unassigned' AND c.assigned_to IS NULL))
+    AND ($6::text='all' OR
+      ($6::text='unread' AND c.unread_count>0) OR
+      ($6::text='favorites' AND c.is_favorite=true) OR
+      ($6::text='groups' AND c.channel='whatsapp' AND c.is_group=true) OR
+      ($6::text='archived' AND c.is_archived=true))
+    AND ($6::text='archived' OR c.is_archived=false)
+    AND ($8::text='' OR c.subject ILIKE '%'||$8||'%'
+       OR COALESCE(r.phone_e164,'') ILIKE '%'||$8||'%'
+       )
+    ORDER BY COALESCE((SELECT m.created_at FROM inbox_messages m
+      WHERE m.tenant_id=c.tenant_id AND m.conversation_id=c.id
+      ORDER BY m.created_at DESC,m.id DESC LIMIT 1),c.updated_at) DESC,
+      c.id DESC LIMIT $3 OFFSET $7
+  `,[tenantId,status,limit,queue,actorId,scope,offset,search])).rows;
   return rows.map(conversation);
  }
  async get(tenantId:string,key:string):Promise<Conversation|null>{
@@ -91,6 +114,45 @@ export class PgInboxRepository implements InboxRepository {
  }
  handoff(tenantId:string,key:string,actorId:string,mode:HandoffMode):Promise<Conversation|null>{
   return this.change(tenantId,key,actorId,"handoff",mode,"handoff");
+ }
+ async favorite(tenantId:string,key:string,actorId:string,value:boolean):Promise<Conversation|null>{
+  this.check(tenantId);
+  const rows=(await this.db.query(`WITH updated AS (
+   UPDATE inbox_conversations SET is_favorite=$3
+   WHERE tenant_id=$1::uuid AND id=$2::uuid AND channel='whatsapp'
+   RETURNING *
+  ), audit AS (
+   INSERT INTO inbox_events(tenant_id,conversation_id,actor_id,action,detail)
+   SELECT tenant_id,id,$4,'favorite_changed',jsonb_build_object('favorite',$3) FROM updated
+   RETURNING id
+  ) SELECT updated.* FROM updated CROSS JOIN audit`,[tenantId,key,value,actorId])).rows;
+  return rows[0]?conversation(rows[0]):null;
+ }
+ async markRead(tenantId:string,key:string,actorId:string):Promise<Conversation|null>{
+  this.check(tenantId);
+  const rows=(await this.db.query(`UPDATE inbox_conversations SET unread_count=0
+   WHERE tenant_id=$1::uuid AND id=$2::uuid AND channel='whatsapp'
+   RETURNING *`,[tenantId,key])).rows;
+  return rows[0]?conversation(rows[0]):null;
+ }
+ async linkContact(tenantId:string,key:string,actorId:string,personId:string):Promise<Conversation|null>{
+  this.check(tenantId);
+  const rows=(await this.db.query(`
+   WITH valid_person AS (
+    SELECT id FROM crm_people WHERE tenant_id=$1::uuid AND id=$3::uuid AND archived_at IS NULL
+   ), changed AS (
+    UPDATE inbox_conversations c SET crm_person_id=$3::uuid,updated_at=clock_timestamp()
+    WHERE c.tenant_id=$1::uuid AND c.id=$2::uuid AND c.channel='whatsapp'
+      AND EXISTS(SELECT 1 FROM valid_person)
+    RETURNING *
+   ), audit AS (
+    INSERT INTO inbox_events(tenant_id,conversation_id,actor_id,action,detail)
+    SELECT tenant_id,id,$4,'contact_linked',jsonb_build_object('personId',$3::text)
+    FROM changed RETURNING id
+   )
+   SELECT changed.* FROM changed JOIN audit ON TRUE
+  `,[tenantId,key,personId,actorId])).rows;
+  return rows[0]?conversation(rows[0]):null;
  }
  async append(tenantId:string,key:string,actorId:string,item:Readonly<{id:string;direction:Message["direction"];body:string;externalMessageId:string|null}>):Promise<Message|null>{
   this.check(tenantId);
