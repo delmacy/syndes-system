@@ -44,6 +44,9 @@ test("disposable Keycloak fixture must have complete profiles and exact realm im
  const realm=JSON.parse(await readFile(pathname,"utf8"));
  assert.equal(realm.realm,"syndes-support-e2e");
  assert.equal(realm.clients[0].clientId,"syndes-support-ui");
+ const audienceMapper=realm.clients[0].protocolMappers.find(m=>m.protocolMapper==="oidc-audience-mapper");
+ assert.equal(audienceMapper?.config?.["included.custom.audience"],"syndes-e2e-api",
+  "The API audience must be a custom audience unless a corresponding realm client exists");
  for(const user of realm.users){
   assert.match(user.email,/^[a-z-]+@support-e2e\.invalid$/);
   assert.ok(typeof user.firstName==="string"&&user.firstName.trim(),"firstName mandatory for Keycloak 26");

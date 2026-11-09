@@ -26,7 +26,7 @@
           "protocolMapper": "oidc-audience-mapper",
           "consentRequired": false,
           "config": {
-            "included.client.audience": "syndes-e2e-api",
+            "included.custom.audience": "syndes-e2e-api",
             "access.token.claim": "true",
             "id.token.claim": "false"
           }

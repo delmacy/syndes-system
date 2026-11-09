@@ -41,3 +41,6 @@ A execução após correção do Keycloak comprovou importação do realm, execu
 
 ## E2E Keycloak — campos de perfil obrigatórios
 A execução com Chromium real alcançou o formulário do Keycloak e exigiu `email`, `firstName` e `lastName` para os usuários de fixture, bloqueando o retorno PKCE ao frontend. Criado inicialmente um teste de regressão em `apps/support-web/tests/auth.test.mjs`, observado falhar por ausência de email; adicionados dados sintéticos completos para os três usuários no realm. Reexecução local: 6/6 testes frontend, TypeScript e Vite build aprovados. Ainda requer resultado positivo do workflow E2E para `VERIFIED`.
+
+## E2E OIDC — audiência do JWT rejeitada corretamente
+Os traces do navegador confirmaram tokens Keycloak (employee, agent e outsider) com issuer e assinatura, mas sem `aud=syndes-e2e-api`. O `ActorVerifier` do Host respondeu 401 de modo fail-closed. Causa: mapper Keycloak de fixture usava `included.client.audience` apontando para cliente inexistente. Alterado para `included.custom.audience` e adicionado teste de regressão em `apps/support-web/tests/auth.test.mjs`, observado falhar antes do fix e passar depois. Testes locais frontend 6/6, typecheck e build verdes; reexecução E2E completa pendente de nova CI.
