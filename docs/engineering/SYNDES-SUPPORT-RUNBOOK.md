@@ -48,3 +48,6 @@ Não ligar log de corpo de mensagens, contatos, tokens, secrets ou payloads de t
 
 ## Gate adicional de migração — tenant exclusivo
 O instalador genérico agora **pula** a migração Support para qualquer tenant diferente de `SYNDES_SUPPORT_TENANT_ID`; também pula se essa variável estiver ausente ou inválida. Para migrar o próprio tenant Syndes, o operador autorizado deve definir `TENANT_ID` e `SYNDES_SUPPORT_TENANT_ID` com a **mesma** UUID operacional previamente conferida no registry e executar o instalador habitual, mantendo `SYNDES_CORE_HOST_IMAGE` pinada. A liberação de SQL é testada em `tests/platform/support-migration-gate.test.sh`, executado na CI. O gate protege contra instalação acidental em tenants comerciais e **não** substitui a revisão do ID escolhido nem a autorização de mudança em produção.
+
+## Gate de identidade separado para o Support
+A conta pública `syndes-support-ui` deve estar provisionada em Keycloak operacional e a API deve exigir `azp` exato, **além** de `iss`, `aud`, `RS256`, `sub`, membership e OpenFGA. Não incluir clientes Workspace/Platform Manager na allowlist. O teste CI `support-browser-e2e` precisa comprovar que token Keycloak válido de outro cliente com mesma audience recebe 401. Nenhum cliente OIDC de produção deve habilitar password/direct grant usado exclusivamente pelo teste adversarial.

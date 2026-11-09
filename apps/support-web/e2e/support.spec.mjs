@@ -15,8 +15,23 @@ async function login(browser,user){
 }
 test("real Keycloak + FGA + PostgreSQL: internal requester, restricted notes and external Syndes WhatsApp",async({browser,request})=>{
  // Host must not allow unauthenticated data or other tenant IDs.
- const anon=await request.get("http://127.0.0.1:4180/v1/tenants/"+TENANT+"/support/internal/cases");
+ const supportPath="http://127.0.0.1:4180/v1/tenants/"+TENANT+"/support/internal/cases";
+ const anon=await request.get(supportPath);
  expect(anon.status()).toBe(401);
+ // A real, Keycloak-signed Workspace client token with the SAME API audience
+ // must not authenticate to Syndes Support. Only the test fixture enables ROPC.
+ const wrongClientResponse=await request.post(
+  "https://localhost:8443/realms/syndes-support-e2e/protocol/openid-connect/token",{
+   ignoreHTTPSErrors:true,
+   form:{grant_type:"password",client_id:"syndes-workspace-ci-only",username:"agent",password:PASSWORD}
+  });
+ expect(wrongClientResponse.status()).toBe(200);
+ const wrongClientAccess=(await wrongClientResponse.json()).access_token;
+ expect(typeof wrongClientAccess).toBe("string");
+ const wrongClientCall=await request.get(supportPath,{
+  headers:{Authorization:"Bearer "+wrongClientAccess}
+ });
+ expect(wrongClientCall.status()).toBe(401,"Wrong azp must fail before tenant membership or SQL");
  const employee=await login(browser,"employee");
  const agent=await login(browser,"agent");
  const outsider=await login(browser,"outsider");

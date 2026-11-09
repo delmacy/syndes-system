@@ -44,6 +44,11 @@ test("disposable Keycloak fixture must have complete profiles and exact realm im
  const realm=JSON.parse(await readFile(pathname,"utf8"));
  assert.equal(realm.realm,"syndes-support-e2e");
  assert.equal(realm.clients[0].clientId,"syndes-support-ui");
+ assert.equal(realm.clients[0].directAccessGrantsEnabled,false);
+ const crossClient=realm.clients.find(c=>c.clientId==="syndes-workspace-ci-only");
+ assert.equal(crossClient?.directAccessGrantsEnabled,true,"Password grant is limited to test-only cross-client fixture");
+ assert.equal(crossClient?.protocolMappers[0]?.config?.["included.custom.audience"],"syndes-e2e-api",
+  "Cross-client negative control must keep the same API audience");
  const audienceMapper=realm.clients[0].protocolMappers.find(m=>m.protocolMapper==="oidc-audience-mapper");
  assert.equal(audienceMapper?.config?.["included.custom.audience"],"syndes-e2e-api",
   "The API audience must be a custom audience unless a corresponding realm client exists");

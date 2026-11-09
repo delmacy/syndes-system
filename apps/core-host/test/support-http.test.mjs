@@ -35,7 +35,10 @@ test("Support Nest HTTP rejects anonymous, foreign tenant, absent grants and fak
  Global()(HostPorts);
  Module({providers:[
   {provide:"SYNDES_CORE_API",useValue:{kernel,verifier:{
-   verify:async header=>{if(header!=="Bearer synthetic-test-token")throw Error("Invalid token");return {id:"alice",kind:"user"};}
+   verifyClient:async(header,clientId)=>{
+    if(clientId!=="syndes-support-ui"||header!=="Bearer synthetic-test-token")throw Error("Invalid Support OIDC client");
+    return {id:"alice",kind:"user"};
+   }
   }}},
   {provide:"SYNDES_TENANT_DB",useValue:db},
  ],exports:["SYNDES_CORE_API","SYNDES_TENANT_DB"]})(HostPorts);
@@ -48,6 +51,8 @@ test("Support Nest HTTP rejects anonymous, foreign tenant, absent grants and fak
  try{
   const path="/v1/tenants/"+T+"/support/internal/cases";
   assert.equal((await fetch(base+path)).status,401);
+  assert.equal((await fetch(base+path,{headers:{authorization:"Bearer workspace-token"}})).status,401,
+    "A token for a different OIDC client is denied before querying a tenant");
   assert.equal((await fetch(base+"/v1/tenants/"+FOREIGN+"/support/internal/cases",{headers})).status,403);
   assert.equal((await fetch(base+"/v1/tenants/"+T+"/support/external/cases",{headers})).status,403);
   assert.equal((await fetch(base+path+"/../../secrets",{headers})).status,404);

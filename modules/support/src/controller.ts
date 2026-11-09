@@ -3,7 +3,7 @@ import {AccessDeniedError,type Actor,type CoreKernel,type TrustedTenantDatabaseP
 import {SupportService,SupportDatabaseMismatchError,type SupportContext} from "./service.js";
 import {SupportInputError,validUuid} from "./domain.js";
 
-type HostApi=Readonly<{kernel:CoreKernel;verifier:{verify(header:string|undefined):Promise<Actor>}}>;
+type HostApi=Readonly<{kernel:CoreKernel;verifier:{verifyClient(header:string|undefined,clientId:string):Promise<Actor>}}>;
 @Injectable()
 export class SupportHost{
  readonly service:SupportService;
@@ -14,7 +14,8 @@ export class SupportHost{
  async run<T>(tenantId:string,bearer:string|undefined,handler:(ctx:SupportContext)=>Promise<T>):Promise<T>{
   if(!validUuid(tenantId))throw new HttpException("Invalid tenant",400);
   let actor:Actor;
-  try{actor=await this.core.verifier.verify(bearer);}
+  // Isolated Support API: a valid Workspace/Master token must not authenticate here.
+  try{actor=await this.core.verifier.verifyClient(bearer,"syndes-support-ui");}
   catch{throw new HttpException("Authentication required",401);}
   try{return await handler({tenantId,actor});}
   catch(error){

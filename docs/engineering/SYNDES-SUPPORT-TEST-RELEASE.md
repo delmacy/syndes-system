@@ -29,3 +29,6 @@ Reverter imagem/manifests e rotas do módulo pelo fluxo de release aprovado; man
 
 ## Evidências
 Comandos, URLs de checks, commit e hashes de migrations ficam no relatório do PR; nenhuma afirmação de deploy sem teste real de instalação e smoke em ambiente autorizado.
+
+## Negativo OIDC cross-client (CI real)
+Keycloak descartável emite um segundo token RS256 válido, com o mesmo `aud` do Core Host, mas `azp=syndes-workspace-ci-only`. Esse cliente existe **exclusivamente na fixture E2E** (direct grant de teste) e nunca integra configuração de produção. O teste Playwright exige **HTTP 401** da rota Support para esse token, antes de membership/consulta SQL. O cliente Support `syndes-support-ui` segue usando somente Authorization Code + PKCE e sem direct grants. O Host Node mantém `verify()` legado para módulos existentes, mas `SupportHost` chama obrigatoriamente `verifyClient()`.
