@@ -271,3 +271,13 @@ A fundação recebeu implementação inicial na [PR #20](https://github.com/delm
 **Inventário**: `docs/engineering/LEGACY-ORGANIZATION-SCOPE-MIGRATION.md` na PR #23 documenta CRM, Inbox, eventos SSE e WhatsApp que ainda operam no escopo tenant. As etapas B/C/D da #21 permanecem **PENDENTES**: ownership e backfill, todos os caminhos de leitura/escrita com contexto autorizado, testes A/B, e somente após isso remoção intencional da trava e criação de várias organizações.
 
 **Status do pacote F1.0c:** **PARCIAL, bloqueio multi-org mantido**. Não atualizar F1.0d para concluído nem habilitar seletor multi-org enquanto a issue #21 estiver aberta.
+
+## 15. Execução — Stage B de propriedade dos dados (PR #24, 2026-11-08)
+
+A [PR #24](https://github.com/delmacy/syndes-system/pull/24), empilhada sobre a #23 e #20, introduz o vínculo inicial de dados legados com Organização e Workspace, mantendo a proteção `002_legacy_single_context_gate.sql`. **Não habilita múltiplas organizações.**
+
+- Migration `003_legacy_ownership.sql`: owner lógico `platform_organization_id` em `crm_people`, `crm_organizations` (empresas contato), `crm_tags` e `whatsapp_accounts`; proprietário e workspaces de origem/atual em `inbox_conversations`, com FKs compostas, índices e triggers do contexto padrão. Notas, empregados, canais, mensagens, eventos e rotas herdam o vínculo por suas referências anteriores; IDs e histórico mantidos.
+- Endpoint `POST /v1/tenants/:tenantId/platform/default-context/backfill`: exige tenant membership, FGA `organizations:bootstrap/write` e `admin` ativo na organização **e** workspace default. A execução é transacional, idempotente, com bloqueio de conflito e auditoria com contagens sem conteúdo sensível.
+- Teste PostgreSQL descartável inclui os esquemas reais de CRM/Inbox/WhatsApp, aplica a migração duas vezes, insere dados antigos, testa o bootstrap e backfill, proprietário imutável, negação sem membership e preservação de histórico.
+
+**Status F1.0c:** Stage A (#23) concluído em CI, Stage B (#24) em revisão; **Stage C de migração de todas as APIs/SQL/realtime/WhatsApp para contexto autorizado permanece pendente**. Não remover a trava SQL, não liberar multi-org, não dar a issue #21 por concluída. Nenhum deploy em servidores operacionais.
