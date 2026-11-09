@@ -1,44 +1,7 @@
 name: Syndes Platform Manager CI
 on:
   workflow_call:
-  push:
-    paths:
-      - "apps/master-admin-api/**"
-      - "apps/master-admin-web/**"
-      - "infra/master-admin/**"
-      - "infra/postgres/compose.yaml"
-      - "infra/security-access/compose.yaml"
-      - "apps/core-host/compose.yaml"
-      - "infra/postgres/bootstrap/control-admin.schema"
-      - "apps/core-host/src/adapters.ts"
-      - "apps/core-host/test/verifier-cross-client.test.mjs"
-      - "tests/platform/platform-manager-postgres-smoke.sh"
-      - "tests/platform/platform-manager-network-smoke.py"
-      - "tests/platform/platform-manager-keycloak-ci.mjs"
-      - "tests/platform/test-master-secret-render.py"
-      - "tests/platform/platform-manager-host-gate.sh"
-      - "tests/platform/test-owner-bootstrap.py"
-      - "docs/engineering/*PLATFORM-MANAGER*"
-      - ".github/workflows/platform-manager.yml"
-  pull_request:
-    paths:
-      - "apps/master-admin-api/**"
-      - "apps/master-admin-web/**"
-      - "infra/master-admin/**"
-      - "infra/postgres/compose.yaml"
-      - "infra/security-access/compose.yaml"
-      - "apps/core-host/compose.yaml"
-      - "infra/postgres/bootstrap/control-admin.schema"
-      - "apps/core-host/src/adapters.ts"
-      - "apps/core-host/test/verifier-cross-client.test.mjs"
-      - "tests/platform/platform-manager-postgres-smoke.sh"
-      - "tests/platform/platform-manager-network-smoke.py"
-      - "tests/platform/platform-manager-keycloak-ci.mjs"
-      - "tests/platform/test-master-secret-render.py"
-      - "tests/platform/platform-manager-host-gate.sh"
-      - "tests/platform/test-owner-bootstrap.py"
-      - "docs/engineering/*PLATFORM-MANAGER*"
-      - ".github/workflows/platform-manager.yml"
+
 permissions:
   contents: read
 jobs:

@@ -1,18 +1,7 @@
 name: Syndes Support Browser E2E (disposable)
 on:
   workflow_call:
-  push:
-    paths:
-      - "apps/support-web/**"
-      - "apps/core-host/test/support-e2e-server.mjs"
-      - "modules/support/**"
-      - ".github/workflows/support-browser-e2e.yml"
-  pull_request:
-    paths:
-      - "apps/support-web/**"
-      - "apps/core-host/test/support-e2e-server.mjs"
-      - "modules/support/**"
-      - ".github/workflows/support-browser-e2e.yml"
+
 permissions:
   contents: read
 jobs:
