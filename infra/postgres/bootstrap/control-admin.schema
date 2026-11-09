@@ -1,0 +1,38 @@
+-- Master Control Plane ONLY. Execute on syndes_control as bootstrap superuser.
+-- This is NOT part of any tenant DB migrations.
+-- The master API uses a dedicated no-inherit, non-superuser, read-only role.
+DO $role$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='syndes_master_api') THEN
+   CREATE ROLE syndes_master_api LOGIN NOINHERIT NOSUPERUSER
+     NOCREATEDB NOCREATEROLE NOREPLICATION CONNECTION LIMIT 5;
+ END IF;
+END $role$;
+
+CREATE TABLE IF NOT EXISTS platform_operator_access (
+ principal_id TEXT PRIMARY KEY CHECK(length(principal_id) BETWEEN 1 AND 256),
+ role TEXT NOT NULL CHECK(role IN ('owner','operator','viewer')),
+ state TEXT NOT NULL DEFAULT 'active' CHECK(state IN ('active','revoked')),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS platform_tenant_profiles (
+ tenant_id UUID PRIMARY KEY REFERENCES tenant_registry(tenant_id) ON DELETE RESTRICT,
+ display_name TEXT NOT NULL CHECK(length(trim(display_name)) BETWEEN 2 AND 160),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+REVOKE ALL ON platform_operator_access,platform_tenant_profiles FROM PUBLIC;
+REVOKE ALL ON platform_operator_access,platform_tenant_profiles FROM syndes_core;
+GRANT CONNECT ON DATABASE syndes_control TO syndes_master_api;
+GRANT USAGE ON SCHEMA public TO syndes_master_api;
+GRANT SELECT ON tenant_registry,tenant_memberships,
+ platform_operator_access,platform_tenant_profiles TO syndes_master_api;
+
+-- SECURITY POLICY:
+-- No GRANT INSERT/UPDATE/DELETE and no tenant DB roles or secrets.
+-- Set the dedicated DB password via an authenticated secret provisioner
+-- (OpenBao), NEVER in Git, logs or a public Compose environment.
+-- An operator must be allowlisted by its Keycloak immutable 'sub',
+-- not by email, tenant membership, or user-visible profile.
+-- Grant/revoke operator access through an audited privileged workflow.

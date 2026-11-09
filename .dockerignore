@@ -1,0 +1,13 @@
+.git/
+**/node_modules/
+**/dist/
+**/.vite/
+**/coverage/
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.pfx
+**/*.p12
+**/*.log
+**/tsconfig.tsbuildinfo

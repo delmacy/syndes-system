@@ -3,6 +3,8 @@
 **/dist/
 **/.vite/
 **/coverage/
+**/tsconfig.tsbuildinfo
+**/test-results/
 .tmp-*
 *.log
 .env
