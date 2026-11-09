@@ -37,3 +37,11 @@ O script mainline `scripts/ci/run-suite.sh` amplia o ensaio Support com restaura
 - A integração Vercel antiga aponta para `apps/web` inexistente; seu status externo deve ser corrigido por governança, nunca ignorado silenciosamente.
 
 **Não houve push a `main`, deploy em DevServer01, alteração de tenants, grants reais, chave/secret operacional nem remoção SQL 002.**
+
+## Re-sincronização com `main` avançando em paralelo
+
+O `main` recebeu o commit `8e639a3` (Workspace/CRM/Inbox UX) depois da reconciliação anterior. O segundo merge do candidato detectou conflitos em 25+ arquivos (Add/Add e content). A resolução automática conservadora `-X ours` **não foi suficiente**: ao comparar o índice com a árvore anterior, foram descobertas duplicações de `@Get("capabilities")`, `@Get("tags")`, DELETEs de vínculos CRM, `@Get("events")` SSE e `InboxService.watch()`. Os métodos duplicados não eram equivalentes: as versões novas vindas do histórico antigo **não exigiam `@SelectedScope`**, e a rota SSE usava somente o tenant, o que poderia enfraquecer isolamento. Todos esses métodos duplicados foram removidos, preservando versões com contexto organization/workspace e controle `scopeWriteAllowed`.
+
+Criado `apps/core-host/test/reconciliation-regression.test.mjs` para impedir regressão: unicidade das rotas HTTP, capacidades CRM com escopo, SSE contextual e unicidade da autorização de stream. Resultado após reparo, no worktree Win1: **CRM, Inbox e Core Host check/build/test PASS**, Core Host 27 testes (incluindo novos), 0 falhas. A restauração PostgreSQL/Keycloak/Go e a matriz integrada do GitHub ainda são gates formais da candidata.
+
+A árvore `main` continua sujeita a novos commits em paralelo. A PR #47 não pode ser mesclada enquanto seu `mergeable_state` estiver `dirty` nem substitui política de revisão incremental por sequência de dependências.

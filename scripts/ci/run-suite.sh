@@ -96,12 +96,13 @@ case "$suite" in
     ;;
   workspace)
     install apps/workspace-web
-    (cd apps/workspace-web &&
-      npm run build &&
-      npm test &&
-      npm run lint &&
-      npx playwright install --with-deps chromium &&
-      npm run test:whatsapp-ui)
+    (
+      cd apps/workspace-web
+      npm run build
+      npm test
+      npm run lint
+      bash ../../scripts/ci/run-workspace-browser.sh
+    )
     ;;
   support)
     build_kernel
