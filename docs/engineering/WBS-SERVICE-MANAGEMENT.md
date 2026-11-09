@@ -198,23 +198,23 @@ Para cada PR de código, registrar:
 A Fase 0 somente termina quando: PG-01 formalizado; fonte de verdade/branch-base documentada; política de autorização com casos de negação definida; contrato de equipe/identidade aprovado; transação/versionamento definidos; CI bloqueadora configurada/validada; WBS e PRD/ADR coerentes. A partir daí, `SM-F1-001` vira trabalho de implementação autorizado pelo fluxo GitHub → CI → DevServer01.
 
 
-## 11. Change request CR-001 — Múltiplas organizações, Sites opcionais e Workspaces (2026-11-08)
+## 11. Change request CR-001 — Múltiplas organizações, Unidades opcionais e Workspaces (2026-11-08)
 
 **Status:** requisito recebido, modelagem proposta e registrada; implementação **não iniciada**. Esta seção complementa a WBS anterior e prevalece sobre a representação inicial simplificada de `tenant = workspace/empresa`.
 
-**Modelo:** `Customer Account/Tenant (1) → Organizations (N) → Workspaces (N)`; Sites são opcionais por organização, associados a workspaces N:N; teams e funis operam em workspaces autorizados. Uma organização pode conter múltiplos sites sem exigir workspace por filial. Há login único e seleção de contexto apenas dos escopos permitidos.
+**Modelo:** `Customer Account/Tenant (1) → Organizations (N) → Workspaces (N)`; Unidades são opcionais por organização, associados a workspaces N:N; teams e funis operam em workspaces autorizados. Uma organização pode conter múltiplos unidades sem exigir workspace por filial. Há login único e seleção de contexto apenas dos escopos permitidos.
 
 ### Novos pacotes predecessores (escopo transversal)
 
 | WBS | Pacote verificável | Dependência | Prioridade | Aceite |
 | --- | --- | --- | --- | --- |
-| **F0.7** | ADR topologia Account–Organization–Site–Workspace, ownership e defaults | F0.1 | P0 | Cardinalidade, N:N Site/Workspace, regra Org/Workspace e tenancy documentadas |
+| **F0.7** | ADR topologia Account–Organization–Unidade–Workspace, ownership e defaults | F0.1 | P0 | Cardinalidade, N:N Unidade/Workspace, regra Org/Workspace e tenancy documentadas |
 | **F0.8** | Análise de impacto CRM/Inbox/OpenFGA, autorização org/workspace e migração legada | F0.7 | P0 | Matriz de acesso A/B; nenhum endpoint inseguro pode habilitar multi-org |
 | **F0.9** | Gate de migração e plano de rollback / rollout | F0.8, F0.3 | P0 | Estratégia de organizações/workspaces default e testes aprovados |
-| **F1.0a** | Schema/ports de `platform_organizations`, `platform_workspaces`, `platform_sites`, `platform_workspace_sites`, memberships | F0.9 | P0 | FKs compostas, migration twice, ausência de site obrigatório |
+| **F1.0a** | Schema/ports de `platform_organizations`, `platform_workspaces`, `platform_units`, `platform_workspace_units`, memberships | F0.9 | P0 | FKs compostas, migration twice, ausência de unidade obrigatório |
 | **F1.0b** | Provisionamento e backfill dos defaults para tenant legado | F1.0a | P0 | Usuário legado mantém acesso esperado sem exposição cross-org |
 | **F1.0c** | Migração segura de autorização/escopo nas APIs existentes CRM/Inbox, SSE, listas e filtros | F1.0b | P0 | Tenant A/B, Org A/B, Workspace A/B negados quando não autorizados |
-| **F1.0d** | APIs de administração de organizações/sites/workspaces e seleção contextual no Workspace | F1.0c | P1 | Criar duas organizações com workspaces isolados; site opcional; UI não duplica sidebar |
+| **F1.0d** | APIs de administração de organizações/units/workspaces e seleção contextual no Workspace | F1.0c | P1 | Criar duas organizações com workspaces isolados; unidade opcional; UI não duplica sidebar |
 | **F1.3b** | Funis com owner Organization e vínculos N:N Workspace × Funnel | F1.0a, F1.3a | P1 | Reuso de funil em dois workspaces sem visibilidade indevida |
 | **F4.0b** | Session com organization owner, workspace origem/atual e contextos auditáveis | F4 + F1.0c | P1 | Handoff intra-org preserva protocolo e trilha |
 | **F5.C1** | Mensagens internas/colaboração entre workspaces autorizados | F4, F1.0d | P2 | ACL por participante e auditoria; não enviar ao WhatsApp |
@@ -225,7 +225,7 @@ A Fase 0 somente termina quando: PG-01 formalizado; fonte de verdade/branch-base
 
 - A **F0** passa a exigir F0.7–F0.9 para aprovação da nova topologia.
 - A **F1** começa por F1.0a–F1.0c antes de permitir múltiplas organizações e workspaces. O catálogo de funis pode ser construído para o contexto default, mas não exposto entre organizações até que ACL/CRM/Inbox estejam adequados.
-- **Sites** são entidades opcionais: não retardar onboarding de empresa simples exigindo matriz/filial.
+- **Unidades** são entidades opcionais: não retardar onboarding de empresa simples exigindo matriz/filial.
 - **Comunicação cross-org** é uma entrega posterior e NÃO está incluída no pronto da primeira API de funis. Dentro de uma organização, a mesma solicitação pode mudar workspace sem mudar seu protocolo; entre organizações, preferir vínculo auditável entre protocolos locais.
 - Em nenhuma etapa um admin de faturamento se torna automaticamente leitor de dados operacionais; `tenant_memberships` por si só não autoriza Organization/Workspace.
 
@@ -237,4 +237,13 @@ A Fase 0 somente termina quando: PG-01 formalizado; fonte de verdade/branch-base
 4. `SM-F1-000`: abrir PR mínimo da fundação Organizations/Workspaces e testes de isolamento.
 5. `SM-F1-001+`: continuar os pacotes de catálogo já descritos, agora com ownership org/workspace e FKs compostas.
 
-Referência: `docs/engineering/ADR-ACCOUNT-ORGANIZATION-SITE-WORKSPACE-PROPOSAL.md`. O planejamento antigo não representa funcionalidade já entregue.
+Referência: `docs/engineering/ADR-ACCOUNT-ORGANIZATION-UNIT-WORKSPACE-PROPOSAL.md`. O planejamento antigo não representa funcionalidade já entregue.
+
+
+## 12. Change request CR-002 — Unidade física ≠ Site de conteúdo (2026-11-08)
+
+A designação definitiva é **Unidade** (entidade de localização/estrutura operacional, código `Unit`). Atualizar os pacotes F0.7/F1.0a/F1.0d para `platform_units`, `platform_workspace_units`, `unit_id` e rotas `/units`. Um workspace pode cobrir 0..N unidades e vice-versa; nenhuma unidade é obrigatória na organização pequena.
+
+**Site** passa a significar exclusivamente uma futura superfície digital de **publicação e navegação**: intranet para colaboradores, extranet/portal para consumidores autenticados ou site público conforme audience e grants. Essa capacidade exige Product Gate e WBS próprios: **não entrar em F1, F2, nem ampliar agora o módulo de Workspaces.** A capacidade futura de Sites deve publicar conteúdo selecionado, jamais abrir acesso direto aos registros internos do Workspace ou das Unidades.
+
+Referência normativa: `docs/engineering/ADR-ACCOUNT-ORGANIZATION-UNIT-WORKSPACE-PROPOSAL.md`.
