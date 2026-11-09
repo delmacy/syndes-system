@@ -1,3 +1,4 @@
+import {resolveSelectedOperationalScope,type RequestedOperationalScope} from "@syndes/core-kernel";
 import {AccessDeniedError,type Actor,type CoreKernel,type TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 import {TenantDatabaseMismatchError} from "./contracts.js";
 
@@ -7,6 +8,7 @@ export type AuthorizedCrmDefaultContext=Readonly<{
   /** Platform organization, NOT crm_organizations contact-company. */
   organizationId:string;
   workspaceId:string;
+  scopeWriteAllowed?:boolean;
 }>;
 
 /**
@@ -23,11 +25,16 @@ export class CrmDefaultContextGuard{
     private readonly kernel:CoreKernel,
     private readonly databases:TrustedTenantDatabaseProvider,
   ){}
-  async resolve(tenantId:string,actor:Actor):Promise<AuthorizedCrmDefaultContext>{
+  async resolve(tenantId:string,actor:Actor,selection?:RequestedOperationalScope):Promise<AuthorizedCrmDefaultContext>{
+    if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&!selection)throw new AccessDeniedError();
     return this.kernel.execute({actor,tenantId,action:"read",resource:"crm:context"},
       async()=>{
         const db=await this.databases.resolve(tenantId);
         if(db.tenantId!==tenantId)throw new TenantDatabaseMismatchError();
+        if(selection){
+          const selected=await resolveSelectedOperationalScope(db,tenantId,actor,selection,process.env.SYNDES_MULTI_ORG_ENABLED==="true");
+          return {tenantId,actor,...selected};
+        }
         const result=await db.query(`
           SELECT o.id AS organization_id,w.id AS workspace_id
           FROM platform_organizations o

@@ -5,12 +5,16 @@ import type {TrustedTenantDatabaseProvider,TenantDatabase} from "@syndes/core-ke
 import {whatsappScopedQuery,validScope,type WhatsAppScope} from "./scope.js";
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-type Context={tenantId:string;actor:{id:string};organizationId?:string;workspaceId?:string};
+type Context={tenantId:string;actor:{id:string};organizationId?:string;workspaceId?:string;scopeWriteAllowed?:boolean};
 type ScopedInput=string|WhatsAppScope;
 function resolveScope(ctx:Context|ScopedInput):{tenantId:string;scope?:WhatsAppScope}{
- if(typeof ctx==="string")return {tenantId:ctx};
+ if(typeof ctx==="string"){
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true")throw new WhatsAppRouteError();
+  return {tenantId:ctx};
+ }
  const scope=ctx.organizationId!==undefined||ctx.workspaceId!==undefined
    ?validScope({tenantId:ctx.tenantId,organizationId:ctx.organizationId??"",workspaceId:ctx.workspaceId??""}):undefined;
+ if(!scope&&process.env.SYNDES_MULTI_ORG_ENABLED==="true")throw new WhatsAppRouteError();
  return {tenantId:ctx.tenantId,scope};
 }
 type Reply={id:string;tenantId:string;conversationId:string;direction:"outbound";body:string;authorId:string;externalMessageId:null;createdAt:string};
@@ -167,6 +171,7 @@ export class WhatsAppReplyQueue{
  }
  async enqueue(ctx:Context,conversationId:string,input:unknown):Promise<Reply|null>{
   const {scope}=resolveScope(ctx);
+  if(ctx.scopeWriteAllowed===false)throw new WhatsAppRouteError();
   if(!UUID.test(ctx.tenantId)||!UUID.test(conversationId)||typeof ctx.actor.id!=="string"||!ctx.actor.id.trim())
    throw new WhatsAppRouteError();
   if(typeof input!=="string"||!input.trim()||input.length>5000)throw Error("Invalid reply body");

@@ -79,3 +79,18 @@ test("account CRUD always binds verified organization with scope, rejects foreig
  await assert.rejects(service.list({tenantId:tenant,organizationId:org}),/Invalid trusted WhatsApp scope/);
  assert.equal(qs.length,3,"Incomplete scope denied before tenant SQL");
 });
+
+test("the multi-org switch rejects legacy tenant-only WhatsApp accounts before SQL",async()=>{
+ const prior=process.env.SYNDES_MULTI_ORG_ENABLED;
+ process.env.SYNDES_MULTI_ORG_ENABLED="true";
+ try{
+  let leases=0;
+  const service=new WhatsAppAccounts(async()=>{leases++;throw Error("Should not open tenant DB")});
+  await assert.rejects(service.list({tenantId:tenant}),/Unscoped WhatsApp account access prohibited/);
+  await assert.rejects(service.get({tenantId:tenant},"55555555-5555-4555-8555-555555555555"),/Unscoped WhatsApp account access prohibited/);
+  assert.equal(leases,0);
+ }finally{
+  if(prior===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
+  else process.env.SYNDES_MULTI_ORG_ENABLED=prior;
+ }
+});

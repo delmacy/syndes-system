@@ -1,3 +1,4 @@
+import {AccessDeniedError} from "@syndes/core-kernel";
 import {randomUUID} from "node:crypto";
 import type {CoreKernel,ModuleDefinition} from "@syndes/core-kernel";
 import type {InboxContext,InboxRepository,Conversation,ConversationStatus,ConversationQueue,ChatScope,CreateConversation,HandoffMode,Message,InboxMetrics} from "./contracts.js";
@@ -17,6 +18,9 @@ export class InboxService {
    const scoped=ctx.organizationId!==undefined||ctx.workspaceId!==undefined;
    if(scoped&&(!ctx.organizationId||!ctx.workspaceId))
      throw new InboxValidationError("Incomplete Inbox organization/workspace context");
+   if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&(!ctx.organizationId||!ctx.workspaceId))
+     throw new AccessDeniedError();
+   if(action==="write"&&ctx.scopeWriteAllowed===false)throw new AccessDeniedError();
    return this.kernel.execute({actor:ctx.actor,tenantId:ctx.tenantId,action,resource},
      async()=>handler(await this.storeForTenant(ctx.tenantId,ctx.organizationId&&ctx.workspaceId?{organizationId:ctx.organizationId,workspaceId:ctx.workspaceId}:undefined)));
  }

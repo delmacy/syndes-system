@@ -24,6 +24,9 @@ export const syndesPlugin=defineSyndesModule({
   },{
     id:"004_whatsapp_route_owner_guard",
     fileUrl:new URL("../sql/004_whatsapp_route_owner_guard.sql",import.meta.url).href,
+  },{
+    id:"005_scoped_relationship_integrity",
+    fileUrl:new URL("../sql/005_scoped_relationship_integrity.sql",import.meta.url).href,
   }],
   assets:[],
 });

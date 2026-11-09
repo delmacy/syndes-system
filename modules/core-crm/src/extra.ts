@@ -1,3 +1,4 @@
+import {AccessDeniedError} from "@syndes/core-kernel";
 import {randomUUID} from "node:crypto";
 import type {CoreKernel} from "@syndes/core-kernel";
 import type {CrmContext,CreatePerson,Person,TenantDatabase,TrustedTenantDatabaseProvider,Organization} from "./contracts.js";
@@ -37,6 +38,9 @@ export interface ExtraRepository {
 export class CrmExtras {
   constructor(private readonly kernel:CoreKernel,private readonly resolve:(tenantId:string,organizationId?:string)=>Promise<ExtraRepository>){}
   private run<T>(ctx:CrmContext,action:"read"|"write",resource:string,work:(db:ExtraRepository)=>Promise<T>):Promise<T>{
+    if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&!ctx.organizationId)
+      throw new AccessDeniedError();
+    if(action==="write"&&ctx.scopeWriteAllowed===false)throw new AccessDeniedError();
     return this.kernel.execute({actor:ctx.actor,tenantId:ctx.tenantId,action,resource},
       async()=>work(await this.resolve(ctx.tenantId,ctx.organizationId)));
   }

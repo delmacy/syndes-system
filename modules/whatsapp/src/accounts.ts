@@ -10,6 +10,8 @@ export interface TenantContext {readonly tenantId:string;readonly organizationId
 function owner(ctx:TenantContext):string|undefined{
  if(ctx.organizationId!==undefined||ctx.workspaceId!==undefined)
   return validScope({tenantId:ctx.tenantId,organizationId:ctx.organizationId??"",workspaceId:ctx.workspaceId??""}).organizationId;
+ if(process.env.SYNDES_MULTI_ORG_ENABLED==="true")
+  throw Error("Unscoped WhatsApp account access prohibited");
  return undefined;
 }
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

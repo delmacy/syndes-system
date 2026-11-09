@@ -118,3 +118,25 @@ test("workspace transfer requires inbox assignment write grant before database r
  assert.equal(leases,0);
  assert.equal(auth[0].resource,"inbox:assignment");
 });
+
+test("multi-org switch prohibits ALL legacy Inbox operations without an explicit scope",()=>{
+ const prior=process.env.SYNDES_MULTI_ORG_ENABLED;
+ process.env.SYNDES_MULTI_ORG_ENABLED="true";
+ try{
+  let leases=0;
+  const service=new InboxService({execute:async (_q,fn)=>fn()},async()=>{leases++;throw Error("No tenant access");});
+  assert.throws(()=>service.list({tenantId:tenant,actor}),AccessDeniedError);
+  assert.throws(()=>service.transferWorkspace({tenantId:tenant,actor},different,workspace),/authorized context/);
+  assert.equal(leases,0);
+ }finally{
+  if(prior===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
+  else process.env.SYNDES_MULTI_ORG_ENABLED=prior;
+ }
+});
+test("selected viewer membership blocks writes before FGA or DB",()=>{
+ const kernel={execute:async()=>{throw Error("Must not consult FGA for denied write")}};
+ const service=new InboxService(kernel,async()=>{throw Error("Must not select tenant DB")});
+ assert.throws(()=>service.assign({
+  tenantId:tenant,actor,organizationId:org,workspaceId:workspace,scopeWriteAllowed:false
+ },different,actor.id),AccessDeniedError);
+});

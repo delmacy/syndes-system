@@ -317,3 +317,16 @@ disposable PG negative test drops indexes 002 only inside rollbackable
 schema and verifies source/destination memberships, same-org transfer,
 history preservation, unauthorized/foreign targets, revocation, audit and
 idempotent/race rejection. Deploy still prohibited before all #21 gates.
+
+
+## Stage C4b/C5 — Contextos selecionados e integridade de relações (2026-11-09)
+
+Os endpoints CRM, Inbox e WhatsApp aceitam os dois headers de seleção x-syndes-organization-id e x-syndes-workspace-id somente como chaves de busca, após Keycloak/tenant/OpenFGA. Um resolvedor compartilhado no kernel exige UUIDs válidos, membership de organização e de workspace ativas, organização/workspace ativos, auditoria do backfill default, e vincula IDs como parâmetros SQL. Perfil viewer pode ler; para escrever exige admin/editor em ambos os escopos. Qualquer cabeçalho parcial/invalidado é negado; cliente nunca escolhe o tenant DB.
+
+O servidor mantém SYNDES_MULTI_ORG_ENABLED=false por padrão. Enquanto os índices 002 existirem, só o contexto default é selecionável, mesmo com a flag ligada. Quando ambos os índices forem removidos por procedimento de release aprovado (nunca pela migração automática), a flag ligada permite seleção entre contextos autorizados. Se faltar só um índice, o resolvedor falha fechado. Com flag ligada, requisições sem seleção e chamadas legadas dos serviços/repositórios CRM/Inbox/WhatsApp sem owner são negadas, em vez de fazer SELECT por tenant inteiro. Entradas confiáveis de eventos inbound/worker continuam recuperando owner da conta WhatsApp no DB, não de cabeçalhos.
+
+O frontend Workspace oferece seletor apenas de organizações e workspaces retornados pela API de diretório autenticada; cada mudança recria o TenantApi imutável, repassa os dois headers em REST, exportação CSV e SSE, e desmonta os estados de CRM/Inbox/contas. A ausência do grant organizations:directory/read mantém fallback legado em single-org; não habilita uso multi-org: provisionar antes de ativar.
+
+Migração 005_scoped_relationship_integrity.sql adiciona platform_organization_id aos canais CRM (backfill pelo pai), índices únicos futuros por organização para tags/identidades de canal/threads Inbox e falha se relações históricas atravessarem owners. Triggers PostgreSQL recusam relações pessoa↔empresa-contato, pessoa↔tag, canal↔pessoa, Inbox conversa↔contato CRM e fila WhatsApp↔mensagem de outra organização. O preenchimento implícito pelo default é proibido quando a trava física 002 não existir. As unicidades antigas por tenant permanecem até release manual atômico com backup validado e Product Gate.
+
+Ainda bloqueia #21: provar 005 em CI PostgreSQL, validar migração manual e rollback em fixture, gestão de criação de contextos e auditoria de demais fluxos. Sem deploy em clientes.

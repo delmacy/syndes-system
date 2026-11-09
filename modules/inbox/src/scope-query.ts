@@ -10,6 +10,8 @@ export type InboxDataScope=Readonly<{organizationId:string;workspaceId:string}>;
  */
 export function inboxScopedQuery(db:TenantDatabase,scope:InboxDataScope|undefined,
  sql:string,values:readonly unknown[]):ReturnType<TenantDatabase["query"]>{
+ if(!scope&&process.env.SYNDES_MULTI_ORG_ENABLED==="true")
+  throw new InboxTenantMismatchError();
  if(scope){
   try{id(scope.organizationId,"organization");id(scope.workspaceId,"workspace");}
   catch{throw new InboxTenantMismatchError();}

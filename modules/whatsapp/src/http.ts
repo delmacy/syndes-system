@@ -1,5 +1,6 @@
 import {Body,Controller,Get,Headers,HttpException,Inject,Injectable,Module,Param,Post,Patch} from "@nestjs/common";
-import {AccessDeniedError,type Actor,type CoreKernel,type TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
+import {AccessDeniedError,type Actor,type CoreKernel,type TrustedTenantDatabaseProvider,type RequestedOperationalScope} from "@syndes/core-kernel";
+import {SelectedScope} from "./selection-header.js";
 import {WhatsAppAccounts} from "./accounts.js";
 import {WhatsAppGatewayClient} from "./gateway-client.js";
 import {WhatsAppContactNames} from "./contact-name.js";
@@ -36,14 +37,18 @@ export class WhatsAppHost {
   return this.core.kernel.execute({tenantId,actor,resource:"inbox:conversations",action:"read"},
    ()=>this.avatars.get(tenantId,conversationId,scope));
  }
- async runContactName<T>(tenantId:string,authorization:string|undefined,fn:(actor:Actor,scope:WhatsAppScope)=>Promise<T>):Promise<T>{
+ async runContactName<T>(tenantId:string,authorization:string|undefined,fn:(actor:Actor,scope:WhatsAppScope)=>Promise<T>,selection?:RequestedOperationalScope):Promise<T>{
   let actor:Actor;
   try{actor=await this.core.verifier.verify(authorization)}
   catch{throw new HttpException("Authentication required",401)}
   try{
    return await this.core.kernel.execute({tenantId,actor,resource:"whatsapp:accounts",action:"write"},
     ()=>this.core.kernel.execute({tenantId,actor,resource:"crm:people",action:"write"},
-       async()=>fn(actor,await this.scope.resolve(tenantId,actor))));
+       async()=>{
+         const scope=await this.scope.resolve(tenantId,actor,selection);
+         if(scope.scopeWriteAllowed===false)throw new AccessDeniedError();
+         return fn(actor,scope);
+       }));
   }catch(error){
    if(error instanceof HttpException)throw error;
    if(error instanceof AccessDeniedError)throw new HttpException("Forbidden",403);
@@ -56,13 +61,17 @@ export class WhatsAppHost {
    throw new HttpException("Não foi possível enviar a alteração ao WhatsApp",503);
   }
  }
- async run<T>(tenantId:string,authorization:string|undefined,action:"read"|"write",fn:(scope:WhatsAppScope)=>Promise<T>):Promise<T>{
+ async run<T>(tenantId:string,authorization:string|undefined,action:"read"|"write",fn:(scope:WhatsAppScope)=>Promise<T>,selection?:RequestedOperationalScope):Promise<T>{
   let actor:Actor;
   try{actor=await this.core.verifier.verify(authorization)}
   catch{throw new HttpException("Authentication required",401)}
   try {
    return await this.core.kernel.execute({tenantId,actor,resource:"whatsapp:accounts",action},
-    async()=>fn(await this.scope.resolve(tenantId,actor)));
+    async()=>{
+      const scope=await this.scope.resolve(tenantId,actor,selection);
+      if(action==="write"&&scope.scopeWriteAllowed===false)throw new AccessDeniedError();
+      return fn(scope);
+    });
   }catch(error){
    if(error instanceof HttpException)throw error;
    if(error instanceof AccessDeniedError)throw new HttpException("Forbidden",403);
@@ -76,7 +85,7 @@ export class WhatsAppHost {
 export class WhatsAppAccountsController {
  constructor(private readonly host:WhatsAppHost){}
  @Get()
- list(@Param("tenantId")tenantId:string,@Headers("authorization")authorization:string|undefined){
+ list(@Param("tenantId")tenantId:string,@Headers("authorization")authorization:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined){
   return this.host.run(tenantId,authorization,"read",async scope=>{
    const accounts=await this.host.accounts.list(scope);
    const connected=await this.host.gateway.list(tenantId);
@@ -87,44 +96,44 @@ export class WhatsAppAccountsController {
      phoneExternalId:s?.deviceJid??a.phoneExternalId,
      state:s?.connected?"connected":s?.deviceJid?"disconnected":"unpaired"};
    });
-  });
+  },selection);
  }
  @Get(":accountId")
  get(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,
- @Headers("authorization")authorization:string|undefined){
+ @Headers("authorization")authorization:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined){
   return this.host.run(tenantId,authorization,"read",async scope=>{
    const account=await this.host.accounts.get(scope,accountId);
    if(!account)throw new HttpException("WhatsApp account not found",404);
    return account;
-  });
+  },selection);
  }
  @Post()
- create(@Param("tenantId")tenantId:string,@Headers("authorization")authorization:string|undefined,
+ create(@Param("tenantId")tenantId:string,@Headers("authorization")authorization:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
  @Body()body:{displayName?:unknown}){
   return this.host.run(tenantId,authorization,"write",async scope=>{
    if(typeof body?.displayName!=="string")throw new HttpException("Invalid display name",400);
    const account=await this.host.accounts.create(scope,body.displayName);
    await this.host.gateway.register(tenantId,account.id);
    return account;
-  });
+  },selection);
  }
  @Post(":accountId/pair")
- pair(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,@Headers("authorization")authorization:string|undefined){
+ pair(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,@Headers("authorization")authorization:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined){
   return this.host.run(tenantId,authorization,"write",async scope=>{
    await this.host.accounts.requireEnabled(scope,accountId);
    await this.host.gateway.register(tenantId,accountId);
    return this.host.gateway.pair(tenantId,accountId);
-  });
+  },selection);
  }
  @Post(":accountId/disconnect")
- disconnect(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,@Headers("authorization")authorization:string|undefined){
+ disconnect(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,@Headers("authorization")authorization:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined){
   return this.host.run(tenantId,authorization,"write",async scope=>{
    await this.host.accounts.requireEnabled(scope,accountId);
    return this.host.gateway.disconnect(tenantId,accountId);
-  });
+  },selection);
  }
  @Patch(":accountId/enabled")
- enabled(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,@Headers("authorization")authorization:string|undefined,
+ enabled(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,@Headers("authorization")authorization:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
  @Body()body:{enabled?:unknown}){
   return this.host.run(tenantId,authorization,"write",async scope=>{
    if(typeof body?.enabled!=="boolean")throw new HttpException("Invalid enabled state",400);
@@ -140,14 +149,14 @@ export class WhatsAppAccountsController {
     catch{/* Remote state must be reconciled by operator if rollback fails. */}
     throw error;
    }
-  });
+  },selection);
  }
  @Post(":accountId/connect")
- connect(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,@Headers("authorization")authorization:string|undefined){
+ connect(@Param("tenantId")tenantId:string,@Param("accountId")accountId:string,@Headers("authorization")authorization:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined){
   return this.host.run(tenantId,authorization,"write",async scope=>{
    await this.host.accounts.requireEnabled(scope,accountId);
    return this.host.gateway.connect(tenantId,accountId);
-  });
+  },selection);
  }
 }
 @Controller("v1/tenants/:tenantId/whatsapp/conversations")
@@ -155,11 +164,11 @@ export class WhatsAppContactNamesController {
  constructor(private readonly host:WhatsAppHost){}
  @Patch(":conversationId/contact-name")
  rename(@Param("tenantId")tenantId:string,@Param("conversationId")conversationId:string,
-   @Headers("authorization")authorization:string|undefined,
+   @Headers("authorization")authorization:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
    @Body()body:{fullName?:unknown;saveOnPrimaryAddressbook?:unknown}){
   return this.host.runContactName(tenantId,authorization,(actor,scope)=>
    this.host.contactNames.rename(tenantId,actor.id,conversationId,
-      body?.fullName,body?.saveOnPrimaryAddressbook??false,scope));
+      body?.fullName,body?.saveOnPrimaryAddressbook??false,scope),selection);
  }
 }
 @Controller("v1/tenants/:tenantId/whatsapp/conversations")
@@ -167,18 +176,18 @@ export class WhatsAppGroupsController{
  constructor(private readonly host:WhatsAppHost){}
  @Get(":conversationId/avatar")
  avatar(@Param("tenantId")tenantId:string,@Param("conversationId")conversationId:string,
-   @Headers("authorization")authorization:string|undefined){
-   return this.host.run(tenantId,authorization,"read",scope=>this.host.avatarAuthorized(tenantId,authorization,conversationId,scope));
+   @Headers("authorization")authorization:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined){
+   return this.host.run(tenantId,authorization,"read",scope=>this.host.avatarAuthorized(tenantId,authorization,conversationId,scope),selection);
  }
  @Get(":conversationId/group")
  info(@Param("tenantId")tenantId:string,@Param("conversationId")conversationId:string,
-  @Headers("authorization")authorization:string|undefined){
-  return this.host.run(tenantId,authorization,"read",scope=>this.host.groups.info(tenantId,conversationId,scope));
+  @Headers("authorization")authorization:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined){
+  return this.host.run(tenantId,authorization,"read",scope=>this.host.groups.info(tenantId,conversationId,scope),selection);
  }
  @Patch(":conversationId/group")
  update(@Param("tenantId")tenantId:string,@Param("conversationId")conversationId:string,
-  @Headers("authorization")authorization:string|undefined,@Body()body:unknown){
-  return this.host.run(tenantId,authorization,"write",scope=>this.host.groups.update(tenantId,conversationId,body,scope));
+  @Headers("authorization")authorization:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,@Body()body:unknown){
+  return this.host.run(tenantId,authorization,"write",scope=>this.host.groups.update(tenantId,conversationId,body,scope),selection);
  }
 }
 @Module({providers:[WhatsAppHost],controllers:[WhatsAppAccountsController,WhatsAppContactNamesController,WhatsAppGroupsController]})

@@ -1,6 +1,7 @@
+import {resolveSelectedOperationalScope,type RequestedOperationalScope} from "@syndes/core-kernel";
 import {AccessDeniedError,type Actor,type CoreKernel,type TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 
-export type WhatsAppScope=Readonly<{tenantId:string;organizationId:string;workspaceId:string}>;
+export type WhatsAppScope=Readonly<{tenantId:string;organizationId:string;readonly workspaceId:string;readonly scopeWriteAllowed?:boolean}>;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export function validScope(scope:WhatsAppScope):WhatsAppScope{
  if(!uuid.test(scope.tenantId)||!uuid.test(scope.organizationId)||!uuid.test(scope.workspaceId))
@@ -12,10 +13,15 @@ export function validScope(scope:WhatsAppScope):WhatsAppScope{
  */
 export class WhatsAppDefaultContextGuard{
  constructor(private readonly kernel:CoreKernel,private readonly databases:TrustedTenantDatabaseProvider){}
- async resolve(tenantId:string,actor:Actor):Promise<WhatsAppScope>{
+ async resolve(tenantId:string,actor:Actor,selection?:RequestedOperationalScope):Promise<WhatsAppScope>{
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&!selection)throw new AccessDeniedError();
   return this.kernel.execute({actor,tenantId,action:"read",resource:"whatsapp:accounts"},async()=>{
    const db=await this.databases.resolve(tenantId);
    if(db.tenantId!==tenantId)throw Error("Tenant database mismatch");
+   if(selection){
+    const chosen=await resolveSelectedOperationalScope(db,tenantId,actor,selection,process.env.SYNDES_MULTI_ORG_ENABLED==="true");
+    return validScope({tenantId,...chosen});
+   }
    const query=await db.query(`
     SELECT o.id AS organization_id,w.id AS workspace_id
     FROM platform_organizations o
@@ -54,6 +60,7 @@ export function whatsappScopedQuery(
  scope:WhatsAppScope|undefined,sql:string,values:readonly unknown[]
 ):Promise<{rows:Record<string,unknown>[]}>{
  if(scope)validScope(scope);
+ else if(process.env.SYNDES_MULTI_ORG_ENABLED==="true")throw new AccessDeniedError();
  let markers=0,org=false,ws=false;
  const q=sql.replace(/\/\*WSCOPE:([\s\S]*?)\*\//g,(_whole,fragment:string)=>{
   markers++;

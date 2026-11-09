@@ -20,7 +20,7 @@ import { Overview } from "@/features/overview";
 import { SecurityInfo } from "@/features/settings";
 import { WhatsAppAccountsFeature } from "@/features/whatsapp-accounts";
 import { InboxFeature } from "@/features/inbox";
-import { TenantApi } from "@/lib/api";
+import { TenantApi, type WorkspaceSelection } from "@/lib/api";
 import { actorFromToken, autoLoginAllowed, beginLogin, finishLogin, getWorkspaceConfig, markSignedOut, type WorkspaceConfig } from "@/lib/auth";
 import type { View } from "@/lib/views";
 
@@ -57,7 +57,13 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [loginError, setLoginError] = useState("");
-  const logout = useCallback(() => { markSignedOut(); setToken(null); toast.info("Sessão local encerrada."); }, []);
+  const [availableScopes,setAvailableScopes]=useState<Array<WorkspaceSelection&{label:string;isDefault:boolean}>>([]);
+  const [activeScope,setActiveScope]=useState<WorkspaceSelection|null>(null);
+  const [scopeLoadError,setScopeLoadError]=useState("");
+  const logout = useCallback(() => {
+    markSignedOut();setToken(null);setActiveScope(null);setAvailableScopes([]);
+    toast.info("Sessão local encerrada.");
+  }, []);
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -77,7 +83,39 @@ export default function App() {
     })();
     return () => { active = false; };
   }, []);
-  const api = useMemo(() => token && config ? new TenantApi(config.tenantId, token, logout) : null, [token, config, logout]);
+  const baseApi=useMemo(()=>token&&config?new TenantApi(config.tenantId,token,logout):null,[token,config,logout]);
+  // The directory is authorized by the platform API, not by the React UI.
+  // No cached selection survives logout or another authenticated principal.
+  useEffect(()=>{
+    let live=true;
+    setAvailableScopes([]);setActiveScope(null);setScopeLoadError("");
+    if(!baseApi)return;
+    void(async()=>{
+      try{
+        const orgs=await baseApi.platformOrganizations();
+        const visible=await Promise.all(orgs.map(async org=>{
+          const workspaces=await baseApi.platformWorkspaces(org.id);
+          return workspaces.map(w=>({
+            organizationId:org.id,workspaceId:w.id,
+            label:(org.display_name||"Organização")+" · "+w.name,
+            isDefault:org.is_default&&w.is_default
+          }));
+        }));
+        if(!live)return;
+        const entries=visible.flat();
+        setAvailableScopes(entries);
+        const initial=entries.find(x=>x.isDefault)??entries[0];
+        if(initial)setActiveScope({organizationId:initial.organizationId,workspaceId:initial.workspaceId});
+      }catch(error){
+        // Legacy installations may not grant directory/read to a user.
+        // They continue using the single-context backend until migration.
+        if(live)setScopeLoadError(error instanceof Error?error.message:"Diretório de organizações indisponível");
+      }
+    })();
+    return()=>{live=false};
+  },[baseApi]);
+  const api=useMemo(()=>baseApi&&activeScope?baseApi.withScope(activeScope):baseApi,[baseApi,activeScope]);
+  const activeScopeKey=activeScope?activeScope.organizationId+":"+activeScope.workspaceId:"legacy";
   const actorId = token ? actorFromToken(token) : "";
   const navigate = (v: View) => setView(v);
   const title = viewTitles[view];
@@ -133,6 +171,19 @@ export default function App() {
             : <strong className="truncate text-sm font-semibold text-slate-800">{title}</strong>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {api&&availableScopes.length>0&&<label className="flex min-w-0 items-center gap-1 text-xs text-slate-600">
+            <span className="sr-only">Organização e workspace ativos</span>
+            <select aria-label="Organização e workspace ativos"
+              className="max-w-44 rounded-lg border border-[#dfe8f6] bg-white px-2 py-1.5 text-xs sm:max-w-64"
+              value={activeScopeKey}
+              onChange={event=>{
+                const choice=availableScopes.find(x=>x.organizationId+":"+x.workspaceId===event.target.value);
+                if(choice)setActiveScope({organizationId:choice.organizationId,workspaceId:choice.workspaceId});
+              }}>
+              {availableScopes.map(x=><option key={x.organizationId+":"+x.workspaceId}
+                value={x.organizationId+":"+x.workspaceId}>{x.label}</option>)}
+            </select>
+          </label>}
           <details className="group relative">
             <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-[#dfe8f6] bg-[#f2f6ff] px-2.5 py-1.5 text-xs font-semibold text-[#5571a8] hover:bg-[#e8efff]" aria-label="Ambiente e conta">
               <span className="size-1.5 rounded-full bg-emerald-500"/>
@@ -155,13 +206,13 @@ export default function App() {
       </header>
       <div className={view==="inbox"&&api?"min-h-0 flex-1 overflow-hidden p-0":"flex-1 px-5 py-7 lg:px-9 lg:py-9"}>
         <div className={view==="inbox"&&api?"h-full w-full min-h-0":"mx-auto w-full max-w-[1380px]"}>
-          {loginError && <div role="alert" className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><LockKeyhole className="mt-0.5 size-4 shrink-0" /><span>{loginError}</span><Button variant="outline" size="xs" className="ml-auto" onClick={() => window.location.reload()}>Tentar novamente</Button></div>}
+          {(loginError||scopeLoadError) && <div role="alert" className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><LockKeyhole className="mt-0.5 size-4 shrink-0" /><span>{loginError||scopeLoadError}</span><Button variant="outline" size="xs" className="ml-auto" onClick={() => window.location.reload()}>Tentar novamente</Button></div>}
           {initializing && <div className="flex min-h-72 items-center justify-center text-sm text-muted-foreground"><Sparkles className="mr-2 size-4 animate-pulse" /> Carregando Workspace Syndes...</div>}
           {!initializing && view === "overview" && <Overview api={api} name={tenantName} onNavigate={navigate} />}
-          {!initializing && view === "settings" && config && <><SecurityInfo config={config} />{api&&<WhatsAppAccountsFeature api={api} />}</>}
+          {!initializing && view === "settings" && config && <><SecurityInfo config={config} />{api&&<WhatsAppAccountsFeature key={activeScopeKey} api={api} />}</>}
           {!initializing && (view === "crm" || view === "inbox") && !api && <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-4 rounded-3xl border border-[#e3eaf6] bg-white p-10 text-center shadow-sm"><div className="rounded-2xl bg-[#eaf0ff] p-5 text-[#4d6ed3]"><LockKeyhole className="size-8" /></div><h2 className="text-xl font-bold">Acesso protegido</h2><p className="text-sm leading-relaxed text-muted-foreground">Uma única autenticação dá acesso aos módulos autorizados do Workspace. As permissões continuam sendo verificadas pelo servidor.</p><Button size="lg" onClick={() => config && void beginLogin(config)}><LogIn className="size-4" /> Entrar com Keycloak</Button></div>}
-          {!initializing && api && view === "crm" && <CrmFeature api={api} />}
-          {!initializing && api && view === "inbox" && <InboxFeature api={api} actorId={actorId} onOpenCrm={() => navigate("crm")} />}
+          {!initializing && api && view === "crm" && <CrmFeature key={activeScopeKey} api={api} />}
+          {!initializing && api && view === "inbox" && <InboxFeature key={activeScopeKey} api={api} actorId={actorId} onOpenCrm={() => navigate("crm")} />}
         </div>
       </div>
       <footer className={(view === "inbox" ? "hidden " : "flex ") + "shrink-0 items-center justify-between gap-4 border-t border-[#e6eaf1] bg-white/70 px-5 py-3 text-[11px] text-slate-400 lg:px-9"}><span>© Syndes · Workspace</span><span className="flex items-center gap-1"><ShieldCheck className="size-3" /> Controle de acesso pelo Core Host</span></footer>

@@ -44,7 +44,8 @@ test("Whatsmeow account/projection/reply/worker isolate two organizations within
    "../../organizations/sql/001_account_hierarchy.sql",
    "../../organizations/sql/002_legacy_single_context_gate.sql",
    "../../organizations/sql/003_legacy_ownership.sql",
-   "../../organizations/sql/004_whatsapp_route_owner_guard.sql"
+   "../../organizations/sql/004_whatsapp_route_owner_guard.sql",
+   "../../organizations/sql/005_scoped_relationship_integrity.sql"
   ]) await c.query(strip(await file(migration)));
   // Replaying the additive 004 migration must be safe for an operator.
   await c.query(await file("../../organizations/sql/004_whatsapp_route_owner_guard.sql"));
@@ -137,10 +138,21 @@ test("Whatsmeow account/projection/reply/worker isolate two organizations within
   // local message to test malicious cross-owner enqueue without violating
   // an unrelated uniqueness constraint.
   await c.query("INSERT INTO inbox_messages(tenant_id,id,conversation_id,direction,body,author_id) VALUES($1,$2,$3,'outbound','Unauthorized intent','attacker')",[T,unmappedMessage,ca]);
+  // Migration 005 prevents the corrupt outbox row at INSERT time.
+  await c.query("SAVEPOINT bad_outbox");
+  await assert.rejects(c.query(`INSERT INTO whatsapp_outbox
+   (id,tenant_id,account_id,idempotency_key,recipient_external_id,body,inbox_message_id)
+   VALUES ($1,$2,$3,'malicious-b','5511999992222@s.whatsapp.net','Wrong org',$4)`,
+   [malicious,T,accountB,unmappedMessage]),error=>error.code==="23514");
+  await c.query("ROLLBACK TO SAVEPOINT bad_outbox");
+  // ONLY disposable schema: simulate a previously corrupted outbox row
+  // to prove the worker's independent owner check still prevents delivery.
+  await c.query("ALTER TABLE whatsapp_outbox DISABLE TRIGGER whatsapp_outbox_platform_guard");
   await c.query(`INSERT INTO whatsapp_outbox
    (id,tenant_id,account_id,idempotency_key,recipient_external_id,body,inbox_message_id)
    VALUES ($1,$2,$3,'malicious-b','5511999992222@s.whatsapp.net','Wrong org',$4)`,
    [malicious,T,accountB,unmappedMessage]);
+  await c.query("ALTER TABLE whatsapp_outbox ENABLE TRIGGER whatsapp_outbox_platform_guard");
   const sent=[];
   const relay=new WhatsAppOutboundRelay({resolve:async()=>db},{
    sendQueued:async(tenantId,accountId,input)=>{sent.push({tenantId,accountId,input});return {queueId:123}},

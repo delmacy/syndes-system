@@ -1,3 +1,4 @@
+import {resolveSelectedOperationalScope,type RequestedOperationalScope} from "@syndes/core-kernel";
 import {AccessDeniedError,type Actor,type CoreKernel,type TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 import {InboxTenantMismatchError} from "./contracts.js";
 
@@ -6,6 +7,7 @@ export type AuthorizedInboxDefaultContext=Readonly<{
   actor:Actor;
   organizationId:string;
   workspaceId:string;
+  scopeWriteAllowed?:boolean;
 }>;
 
 /** HTTP/SSE gate for a *single* default context while SQL migration 002
@@ -17,11 +19,16 @@ export class InboxDefaultContextGuard{
   private readonly kernel:CoreKernel,
   private readonly databases:TrustedTenantDatabaseProvider,
  ){}
- async resolve(tenantId:string,actor:Actor):Promise<AuthorizedInboxDefaultContext>{
+ async resolve(tenantId:string,actor:Actor,selection?:RequestedOperationalScope):Promise<AuthorizedInboxDefaultContext>{
   // Tenant membership and an existing Inbox read grant MUST pass before DB.
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&!selection)throw new AccessDeniedError();
   return this.kernel.execute({actor,tenantId,resource:"inbox:conversations",action:"read"},async()=>{
    const db=await this.databases.resolve(tenantId);
    if(db.tenantId!==tenantId)throw new InboxTenantMismatchError();
+   if(selection){
+    const selected=await resolveSelectedOperationalScope(db,tenantId,actor,selection,process.env.SYNDES_MULTI_ORG_ENABLED==="true");
+    return {tenantId,actor,...selected};
+   }
    const result=await db.query(`
      SELECT o.id AS organization_id,w.id AS workspace_id
      FROM platform_organizations o

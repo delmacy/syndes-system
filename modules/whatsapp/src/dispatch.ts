@@ -139,7 +139,7 @@ export class WhatsAppInboxProjection {
        COALESCE($9::timestamptz,clock_timestamp()),COALESCE($9::timestamptz,clock_timestamp()),clock_timestamp(),
        platform_organization_id,initial_workspace_id,initial_workspace_id
      FROM incoming
-     ON CONFLICT(tenant_id,channel,external_thread_id) WHERE external_thread_id IS NOT NULL
+     ON CONFLICT(tenant_id,platform_organization_id,channel,external_thread_id) WHERE external_thread_id IS NOT NULL
      DO UPDATE SET is_group=EXCLUDED.is_group,
        unread_count=GREATEST(inbox_conversations.unread_count,EXCLUDED.unread_count),
        is_archived=CASE WHEN $9::timestamptz IS NULL THEN inbox_conversations.is_archived ELSE EXCLUDED.is_archived END,history_sync_at=clock_timestamp(),
@@ -202,7 +202,7 @@ export class WhatsAppInboxProjection {
       (tenant_id,id,subject,channel,external_thread_id,is_group,created_at,updated_at,platform_organization_id,platform_origin_workspace_id,platform_current_workspace_id)
     SELECT tenant_id,$3::uuid,$4,'whatsapp',$5,$10::boolean,$11::timestamptz,$11::timestamptz,
      platform_organization_id,initial_workspace_id,initial_workspace_id FROM incoming
-    ON CONFLICT(tenant_id,channel,external_thread_id) WHERE external_thread_id IS NOT NULL
+    ON CONFLICT(tenant_id,platform_organization_id,channel,external_thread_id) WHERE external_thread_id IS NOT NULL
     DO UPDATE SET is_group=EXCLUDED.is_group
     WHERE inbox_conversations.platform_organization_id=EXCLUDED.platform_organization_id
     RETURNING tenant_id,id,platform_organization_id,platform_current_workspace_id

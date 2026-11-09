@@ -4,6 +4,10 @@ import {randomUUID} from "node:crypto";
 import {readFile} from "node:fs/promises";
 import {createRequire} from "node:module";
 import {PgInboxRepository} from "../dist/postgres.js";
+import {InboxDefaultContextGuard} from "../dist/context-guard.js";
+import {CrmDefaultContextGuard} from "../../core-crm/dist/context-guard.js";
+import {WhatsAppDefaultContextGuard} from "../../whatsapp/dist/scope.js";
+import {AccessDeniedError} from "@syndes/core-kernel";
 
 const require=createRequire(new URL("../../../apps/core-host/package.json",import.meta.url));
 const {Client}=require("pg");
@@ -39,18 +43,49 @@ test("Inbox SQL isolates Org A/B and Workspace A1/A2 inside one disposable tenan
    "../../organizations/sql/001_account_hierarchy.sql",
    "../../organizations/sql/002_legacy_single_context_gate.sql",
    "../../organizations/sql/003_legacy_ownership.sql",
+   "../../organizations/sql/004_whatsapp_route_owner_guard.sql",
+   "../../organizations/sql/005_scoped_relationship_integrity.sql",
   ])await c.query(strip(await file(path)));
   // Only this disposable test transaction may lift the physical safety guard.
   await c.query("DROP INDEX platform_legacy_single_organization");
   await c.query("DROP INDEX platform_legacy_single_workspace");
   await c.query("INSERT INTO platform_organizations(tenant_id,id,display_name,is_default) VALUES($1,$2,'Alpha',true),($1,$3,'Beta',false)",[T,oa,ob]);
   await c.query("INSERT INTO platform_workspaces(tenant_id,id,organization_id,name,slug,is_default) VALUES($1,$2,$3,'Alpha One','one',true),($1,$4,$3,'Alpha Two','two',false),($1,$5,$6,'Beta','beta',true)",[T,w1,oa,w2,wb,ob]);
-  await c.query("INSERT INTO platform_org_memberships(tenant_id,organization_id,principal_id,role) VALUES($1,$2,'alice','admin'),($1,$3,'bob','admin')",[T,oa,ob]);
-  await c.query("INSERT INTO platform_workspace_memberships(tenant_id,organization_id,workspace_id,principal_id,role) VALUES($1,$2,$3,'alice','admin'),($1,$2,$4,'alice','editor'),($1,$5,$6,'bob','admin')",[T,oa,w1,w2,ob,wb]);
+  await c.query("INSERT INTO platform_org_memberships(tenant_id,organization_id,principal_id,role) VALUES($1,$2,'alice','admin'),($1,$3,'bob','admin'),($1,$2,'viewer','viewer')",[T,oa,ob]);
+  await c.query("INSERT INTO platform_workspace_memberships(tenant_id,organization_id,workspace_id,principal_id,role) VALUES($1,$2,$3,'alice','admin'),($1,$2,$4,'alice','editor'),($1,$5,$6,'bob','admin'),($1,$2,$3,'viewer','viewer')",[T,oa,w1,w2,ob,wb]);
+  await c.query("INSERT INTO platform_legacy_backfill_runs(tenant_id,organization_id,actor_id,counts) VALUES($1,$2,'alice','{}'::jsonb)",[T,oa]);
   await c.query("INSERT INTO crm_people(tenant_id,id,name,platform_organization_id) VALUES($1,$2,'A Person',$3),($1,$4,'B Person',$5)",[T,pa,oa,pb,ob]);
   const db={tenantId:T,query:async(sql,values)=>{
    const x=await c.query(sql,[...values]);return {rows:x.rows,rowCount:x.rowCount};
   }};
+  // No caller can select a second org/workspace until the SERVER switch
+  // is on. Even then, the correct principal must hold BOTH memberships.
+  const kernel={execute:async (_query,fn)=>fn()};
+  const inboxScope=new InboxDefaultContextGuard(kernel,{resolve:async()=>db});
+  const crmScope=new CrmDefaultContextGuard(kernel,{resolve:async()=>db});
+  const whatsappScope=new WhatsAppDefaultContextGuard(kernel,{resolve:async()=>db});
+  const prior=process.env.SYNDES_MULTI_ORG_ENABLED;
+  try{
+    delete process.env.SYNDES_MULTI_ORG_ENABLED;
+    await assert.rejects(inboxScope.resolve(T,{id:"alice",kind:"user"}),AccessDeniedError);
+    await assert.rejects(inboxScope.resolve(T,{id:"alice",kind:"user"},{organizationId:oa,workspaceId:w1}),AccessDeniedError);
+    process.env.SYNDES_MULTI_ORG_ENABLED="true";
+    await assert.rejects(inboxScope.resolve(T,{id:"alice",kind:"user"}),AccessDeniedError);
+    const selected=await inboxScope.resolve(T,{id:"alice",kind:"user"},{organizationId:oa,workspaceId:w2});
+    assert.deepEqual(selected,{tenantId:T,actor:{id:"alice",kind:"user"},organizationId:oa,workspaceId:w2,scopeWriteAllowed:true});
+    assert.equal((await crmScope.resolve(T,{id:"alice",kind:"user"},{organizationId:oa,workspaceId:w2})).scopeWriteAllowed,true);
+    assert.equal((await whatsappScope.resolve(T,{id:"alice",kind:"user"},{organizationId:oa,workspaceId:w2})).organizationId,oa);
+    const view=await inboxScope.resolve(T,{id:"viewer",kind:"user"},{organizationId:oa,workspaceId:w1});
+    assert.equal(view.scopeWriteAllowed,false,"read-only memberships cannot write");
+    await assert.rejects(inboxScope.resolve(T,{id:"alice",kind:"user"},{organizationId:ob,workspaceId:wb}),AccessDeniedError);
+    await assert.rejects(crmScope.resolve(T,{id:"bob",kind:"user"},{organizationId:oa,workspaceId:w1}),AccessDeniedError);
+    await assert.rejects(whatsappScope.resolve(T,{id:"bob",kind:"user"},{organizationId:oa,workspaceId:w1}),AccessDeniedError);
+    await assert.rejects(inboxScope.resolve(T,{id:"alice",kind:"user"},{organizationId:oa}),AccessDeniedError);
+    await assert.rejects(inboxScope.resolve(T,{id:"alice",kind:"user"},{organizationId:oa,workspaceId:wb}),AccessDeniedError);
+  }finally{
+    if(prior===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
+    else process.env.SYNDES_MULTI_ORG_ENABLED=prior;
+  }
   const a=new PgInboxRepository(db,{organizationId:oa,workspaceId:w1});
   const a2=new PgInboxRepository(db,{organizationId:oa,workspaceId:w2});
   const b=new PgInboxRepository(db,{organizationId:ob,workspaceId:wb});
@@ -88,8 +123,15 @@ test("Inbox SQL isolates Org A/B and Workspace A1/A2 inside one disposable tenan
   assert.equal((await a.linkContact(T,wa,"alice",pa)).crmPersonId,pa);
   const foreignAccount=randomUUID();
   await c.query("INSERT INTO whatsapp_accounts(tenant_id,id,display_name,platform_organization_id) VALUES($1,$2,'B Account',$3)",[T,foreignAccount,ob]);
-  await c.query("INSERT INTO whatsapp_conversation_routes(tenant_id,conversation_id,account_id,recipient_external_id,phone_e164) VALUES($1,$2,$3,'friend@device','+5551999990000')",[T,wa,foreignAccount]);
+  await c.query("SAVEPOINT invalid_owner_route");
+  await assert.rejects(c.query("INSERT INTO whatsapp_conversation_routes(tenant_id,conversation_id,account_id,recipient_external_id,phone_e164) VALUES($1,$2,$3,'friend@device','+5551999990000')",[T,wa,foreignAccount]),
+    error=>error.code==="23514","DB trigger blocks direct cross-org route");
+  await c.query("ROLLBACK TO SAVEPOINT invalid_owner_route");
   assert.deepEqual(await a.list(T,null,100,"all","alice","all",0,"+5551999990000"),[]);
+  const ownAccount=randomUUID();
+  await c.query("INSERT INTO whatsapp_accounts(tenant_id,id,display_name,platform_organization_id) VALUES($1,$2,'A Account',$3)",[T,ownAccount,oa]);
+  await c.query("INSERT INTO whatsapp_conversation_routes(tenant_id,conversation_id,account_id,recipient_external_id,phone_e164) VALUES($1,$2,$3,'friend@device','+5551999993333')",[T,wa,ownAccount]);
+  assert.deepEqual((await a.list(T,null,100,"all","alice","all",0,"+5551999993333")).map(x=>x.id),[wa]);
   await a.assign(T,ac.id,"alice","alice");
   const reply=await a.append(T,ac.id,"alice",{id:randomUUID(),direction:"outbound",body:"Private reply",externalMessageId:null});
   assert.equal(reply.direction,"outbound");

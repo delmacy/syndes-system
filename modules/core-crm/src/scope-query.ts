@@ -13,6 +13,8 @@ export function crmOwnerQuery(
   db:TenantDatabase,organizationId:string|undefined,
   sql:string,values:readonly unknown[],
 ):ReturnType<TenantDatabase["query"]>{
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&organizationId===undefined)
+    throw new Error("Unscoped CRM query prohibited in multi-organization mode");
   if(organizationId!==undefined&&!isUuid(organizationId))
     throw new TenantDatabaseMismatchError();
   const marker=/\/\*ORG:([\s\S]*?)\*\//g;

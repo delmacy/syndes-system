@@ -1,3 +1,4 @@
+import {AccessDeniedError} from "@syndes/core-kernel";
 import { randomUUID } from "node:crypto";
 import type { CoreKernel, ModuleDefinition } from "@syndes/core-kernel";
 import type {
@@ -27,6 +28,9 @@ export class CrmService {
     context:CrmContext,action:"read"|"write",resource:string,
     handler:(repo:CrmRepository)=>Promise<T>
   ):Promise<T>{
+    if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&!context.organizationId)
+      throw new AccessDeniedError();
+    if(action==="write"&&context.scopeWriteAllowed===false)throw new AccessDeniedError();
     return this.kernel.execute({actor:context.actor,tenantId:context.tenantId,action,resource},
       async()=>handler(await this.repositoryForTenant(context.tenantId,context.organizationId)));
   }
