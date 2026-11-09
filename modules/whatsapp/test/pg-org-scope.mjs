@@ -46,6 +46,8 @@ test("Whatsmeow account/projection/reply/worker isolate two organizations within
    "../../organizations/sql/003_legacy_ownership.sql",
    "../../organizations/sql/004_whatsapp_route_owner_guard.sql"
   ]) await c.query(strip(await file(migration)));
+  // Replaying the additive 004 migration must be safe for an operator.
+  await c.query(await file("../../organizations/sql/004_whatsapp_route_owner_guard.sql"));
   // The physical single-context barrier is lifted ONLY in this rolled-back
   // PostgreSQL fixture to exercise the SQL boundaries the future product needs.
   await c.query("DROP INDEX platform_legacy_single_organization");

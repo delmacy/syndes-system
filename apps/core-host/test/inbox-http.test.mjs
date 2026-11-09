@@ -33,6 +33,9 @@ test("Inbox HTTP routes mount without Host-specific business controllers and den
  const app=await NestFactory.create(App,{logger:false});
  installModuleAssets(app,plugins);
  await app.listen(0,"127.0.0.1");
+ const sharedBus=app.get("SYNDES_INBOX_EVENTS");
+ assert.equal(sharedBus,app.get("SYNDES_INBOX_EVENTS"),"SSE consumers resolve same Host-global bus");
+ assert.equal(typeof sharedBus.publish,"function");
  const base=await app.getUrl();
  const route="/v1/tenants/"+A+"/inbox/conversations";
  try{
