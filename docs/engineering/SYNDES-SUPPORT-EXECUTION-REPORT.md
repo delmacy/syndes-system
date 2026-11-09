@@ -47,3 +47,6 @@ Os traces do navegador confirmaram tokens Keycloak (employee, agent e outsider) 
 
 ## E2E: fluxo autenticado avançou até criação de chamado interno
 A CI com mapper `included.custom.audience` validou login Keycloak real para employee/agent/outsider e alcançou a criação de chamado interno com retorno de sucesso. O teste Playwright falhou em seletor genérico `getByRole('status')`: encontrou simultaneamente a confirmação 'Chamado registrado.' e 'Carregando chamado…'. Corrigido o locator para a confirmação específica; não houve mudança de produto nem remoção de assertions. A conclusão integral do E2E permanece pendente.
+
+## E2E — transição de estado e nota interna validadas no fluxo
+A execução Playwright com Keycloak/OpenFGA/PG real passou pelos fluxos de autenticação, criação interna, nota de atendente e alteração de status; o teste parou por localizar a opção `<option value=triage>` oculta, não o badge de estado. Localizador atualizado para badge de status visível no painel de detalhe. Nenhum teste foi removido ou marcado como skipped.

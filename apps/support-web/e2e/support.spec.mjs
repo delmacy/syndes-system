@@ -51,7 +51,7 @@ test("real Keycloak + FGA + PostgreSQL: internal requester, restricted notes and
   await expect(agent.page.getByText("Nota E2E só para a equipe técnica.")).toBeVisible();
   await agent.page.getByLabel("Alterar estado").selectOption("triage");
   await agent.page.getByRole("button",{name:"Aplicar"}).click();
-  await expect(agent.page.getByText("Triagem").first()).toBeVisible();
+  await expect(agent.page.getByRole("region",{name:"Detalhe do chamado"}).locator(".section-title .status")).toHaveText("Triagem");
 
   // Fresh Keycloak login and server-side history read must still hide private notes.
   await employee.page.reload();
