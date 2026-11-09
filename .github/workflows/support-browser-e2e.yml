@@ -1,5 +1,6 @@
 name: Syndes Support Browser E2E (disposable)
 on:
+  workflow_call:
   push:
     paths:
       - "apps/support-web/**"
