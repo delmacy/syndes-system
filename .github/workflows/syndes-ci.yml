@@ -1,0 +1,116 @@
+name: Syndes Mainline CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: syndes-mainline-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  foundation:
+    name: Repository governance and planner regressions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify required repository structure
+        run: |
+          set -euo pipefail
+          bash tests/integrity/repository-structure.sh
+          count=0
+          for file in modules/*/AGENTS.md; do
+            test -s "$file"
+            count=$((count + 1))
+          done
+          if [ "$count" -lt 11 ]; then
+            echo "::error::Expected at least 11 module AGENTS.md contracts; found $count"
+            exit 1
+          fi
+      - name: Prove fail-closed test selection
+        run: node --test scripts/ci/plan.test.mjs
+
+  impact:
+    name: Determine regression impact
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.planner.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: planner
+        name: Compare PR source against merge base and select suites
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git diff --name-only --diff-filter=ACMRT "$PR_BASE" "$PR_HEAD" > "$RUNNER_TEMP/syndes-changed-files.txt"
+            node scripts/ci/plan.mjs impact "$RUNNER_TEMP/syndes-changed-files.txt" > "$RUNNER_TEMP/syndes-matrix.json"
+          else
+            # On main, scheduled merge groups or manual dispatch, test everything installed.
+            node scripts/ci/plan.mjs full > "$RUNNER_TEMP/syndes-matrix.json"
+          fi
+          cat "$RUNNER_TEMP/syndes-matrix.json"
+          echo "matrix=$(cat "$RUNNER_TEMP/syndes-matrix.json")" >> "$GITHUB_OUTPUT"
+
+  regression:
+    name: Regression / ${{ matrix.suite }}
+    needs: [foundation, impact]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.impact.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        if: ${{ matrix.node != 'go' }}
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-go@v5
+        if: ${{ matrix.node == 'go' }}
+        with:
+          go-version-file: modules/whatsapp/gateway/whatsmeow/go.mod
+          cache-dependency-path: modules/whatsapp/gateway/whatsmeow/go.sum
+      - name: Execute selected immutable regression suite
+        shell: bash
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: bash scripts/ci/run-suite.sh "$SUITE"
+
+  gate:
+    name: Syndes CI Gate
+    if: ${{ always() }}
+    needs: [foundation, impact, regression]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deny merge unless all required checks actually passed
+        shell: bash
+        env:
+          FOUNDATION: ${{ needs.foundation.result }}
+          IMPACT: ${{ needs.impact.result }}
+          REGRESSION: ${{ needs.regression.result }}
+        run: |
+          set -euo pipefail
+          for result in "$FOUNDATION" "$IMPACT" "$REGRESSION"; do
+            if [[ "$result" != "success" ]]; then
+              echo "::error::A required mainline CI job failed, was cancelled, or was skipped ($result)"
+              exit 1
+            fi
+          done
+          echo "Syndes CI Gate: PASS"
