@@ -84,8 +84,8 @@ async function mockWorkspace(page) {
   const navigation = page.getByRole("button", { name: "Inbox", exact: true }).first();
   if (await navigation.isVisible()) await navigation.click();
   else await page.evaluate(() => { window.location.hash = "inbox"; });
-  await page.getByRole("heading", { name: "Inbox", exact: true }).waitFor();
-  await page.getByText("Fila de conversas").waitFor();
+  await page.getByRole("region", { name: "Inbox" }).waitFor();
+  await page.getByLabel("Lista de conversas").first().waitFor();
   return { records, threads };
 }
 
