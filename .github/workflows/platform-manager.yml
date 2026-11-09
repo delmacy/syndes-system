@@ -72,6 +72,15 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: E2E login, authorized journeys, denial and logout (test-only fixtures)
         run: npm run test:browser
+      - name: Build static-only Nginx runtime image (no compiler on target host)
+        run: cd ../.. && docker build --build-context web-dist=apps/master-admin-web/dist -f apps/master-admin-web/Dockerfile.runtime -t syndes/master-admin-web:runtime-ci .
+      - name: Preserve validated static frontend artifact for non-AVX2 hosts
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-manager-web-dist
+          path: apps/master-admin-web/dist/
+          retention-days: 7
+          if-no-files-found: error
       - name: Preserve explicitly labeled fixture screenshots
         if: always()
         uses: actions/upload-artifact@v4
