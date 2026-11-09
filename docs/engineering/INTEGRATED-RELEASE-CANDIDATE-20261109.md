@@ -45,3 +45,12 @@ O `main` recebeu o commit `8e639a3` (Workspace/CRM/Inbox UX) depois da reconcili
 Criado `apps/core-host/test/reconciliation-regression.test.mjs` para impedir regressão: unicidade das rotas HTTP, capacidades CRM com escopo, SSE contextual e unicidade da autorização de stream. Resultado após reparo, no worktree Win1: **CRM, Inbox e Core Host check/build/test PASS**, Core Host 27 testes (incluindo novos), 0 falhas. A restauração PostgreSQL/Keycloak/Go e a matriz integrada do GitHub ainda são gates formais da candidata.
 
 A árvore `main` continua sujeita a novos commits em paralelo. A PR #47 não pode ser mesclada enquanto seu `mergeable_state` estiver `dirty` nem substitui política de revisão incremental por sequência de dependências.
+
+## Falhas reais do `Syndes Mainline CI` corrigidas no candidato
+
+A execução da PR #47 em `main` revelou duas diferenças que testes de feature isolados não cobriam:
+
+1. **WhatsApp Go:** `scripts/ci/run-suite.sh whatsapp-go` exige que todos os arquivos sigam `gofmt`. Quatro arquivos falharam no runner Linux: `main_test.go`, `contact_lookup.go`, `contact_sync_test.go` e `contact_lookup_test.go`. Aplicado exclusivamente `gofmt -w` nesses quatro; `go test ./...` no Win1 com Go 1.26.0 passou. Nenhuma lógica intencionalmente alterada.
+2. **Infra externa do Platform Manager:** `scripts/ci/run-infra.sh` executava teste isolado das redes, mas esquecia de criar as bridges `syndes-master-data` e `syndes-master-identity` que o Compose exige como `external`. O runner falhava com `network syndes-master-data declared as external, but could not be found`. Adicionado provisionamento **temporário** das duas redes internas após o teste de isolamento, antes do PostgreSQL/Keycloak, com limpeza condicional no `trap`. Não modifica redes operacionais do DevServer01.
+
+**Não considerar validado até a nova CI:** o reparo precisa passar o mainline Go + infra, a matriz de regressão e o gate final no SHA de PR mais recente.

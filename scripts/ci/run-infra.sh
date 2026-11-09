@@ -15,6 +15,7 @@ host_compose() {
 }
 
 temp_dir="$(mktemp -d)"
+created_master_networks=()
 cleanup() {
   host_compose down --remove-orphans >/dev/null 2>&1 || true
   security_compose down -v --remove-orphans >/dev/null 2>&1 || true
@@ -22,6 +23,9 @@ cleanup() {
   sudo rm -rf /run/syndes/runtime /run/syndes/approle 2>/dev/null || true
   rm -rf "$temp_dir" infra/security-access/openbao/tls/server.key \
     infra/security-access/openbao/tls/server.crt
+  for name in "${created_master_networks[@]}"; do
+    docker network rm "$name" >/dev/null 2>&1 || true
+  done
 }
 trap cleanup EXIT
 
@@ -73,6 +77,14 @@ done
 if [[ -f tests/platform/platform-manager-network-smoke.py ]]; then
   python3 tests/platform/platform-manager-network-smoke.py
 fi
+
+echo "Provision dedicated private network bridges before PostgreSQL/Keycloak compose"
+for name in syndes-master-data syndes-master-identity; do
+  if ! docker network inspect "$name" >/dev/null 2>&1; then
+    docker network create --internal "$name" >/dev/null
+    created_master_networks+=("$name")
+  fi
+done
 
 echo "Provision real disposable PostgreSQL service and two tenant roles"
 postgres_compose up -d postgres
