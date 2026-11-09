@@ -28,10 +28,16 @@ async function json(path,body,token,method="POST"){
  });
 }
 async function token(path,data){
- const res=await request(path,{
+ const res=await fetch(base+path,{
   method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
-  body:new URLSearchParams(data),
+  body:new URLSearchParams(data),cache:"no-store",
  });
+ if(!res.ok){
+  const error=await res.json().catch(()=>({}));
+  const code=typeof error.error==="string"?error.error:"unknown";
+  const reason=typeof error.error_description==="string"?error.error_description:"unavailable";
+  throw Error("Disposable Keycloak token grant denied: "+res.status+" "+code+" "+reason);
+ }
  const value=await res.json();
  assert.equal(typeof value.access_token,"string");
  return value.access_token;
