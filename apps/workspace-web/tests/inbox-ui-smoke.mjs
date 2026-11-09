@@ -192,7 +192,7 @@ try {
   await desktop.getByRole("button", { name: "Nova conversa" }).click();
   await desktop.getByRole("dialog").getByLabel("Assunto").fill("Teste de criação na Inbox");
   await desktop.getByRole("dialog").getByRole("button", { name: "Criar conversa" }).click();
-  await desktop.getByRole("heading", { name: "Teste de criação na Inbox" }).waitFor();
+  await desktop.getByText("Teste de criação na Inbox", { exact: true }).first().waitFor();
   await desktop.getByRole("button", { name: /Teste de criação na Inbox/ }).waitFor();
   assert.deepEqual(errors, [], "No browser JavaScript errors");
   console.log("PASS: create conversation opens new thread and updates queue without reload");
