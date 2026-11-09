@@ -15,7 +15,7 @@ Data: 2026-11-09. Estado: desenvolvimento/homologação bloqueada. Não é regis
 ## Gate de testes
 
 - Novo frontend: build + unit/contract + browser E2E com fixtures identificadas.
-- API: auth Keycloak RS256, audience, azp, principal, grant, rotas e negativas.
+- API: auth Keycloak RS256, audience, azp, principal, grant, rotas e negativas. Há teste CI com tokens **realmente emitidos por Keycloak descartável** (client OIDC Master, Workspace mal configurado com mesma audience, client sem audience, principal sem grant). O grant `password` habilitado nesse realm é **exclusivamente uma fixture de CI**, proibido nos clients públicos de produção, onde usar Authorization Code + PKCE.
 - Core Host: negar azp do Platform Manager mesmo se token de audiência ampla; testar com e sem variável opcional.
 - PostgreSQL: executar testes/platform/platform-manager-postgres-smoke.sh em container descartável (CI), inclusive SELECT Control DB, negar DML e negar CONNECT a banco tenant. Repetir migração/admin schema para verificar idempotência.
 - Regressão: suites CRM, Inbox, WhatsApp, Organizations, Core Host, Workspace e kernel; controles de qualidade anteriores intocados.

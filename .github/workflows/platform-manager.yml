@@ -13,6 +13,7 @@ on:
       - "apps/core-host/test/verifier-cross-client.test.mjs"
       - "tests/platform/platform-manager-postgres-smoke.sh"
       - "tests/platform/platform-manager-network-smoke.py"
+      - "tests/platform/platform-manager-keycloak-ci.mjs"
       - "docs/engineering/*PLATFORM-MANAGER*"
       - ".github/workflows/platform-manager.yml"
   pull_request:
@@ -28,6 +29,7 @@ on:
       - "apps/core-host/test/verifier-cross-client.test.mjs"
       - "tests/platform/platform-manager-postgres-smoke.sh"
       - "tests/platform/platform-manager-network-smoke.py"
+      - "tests/platform/platform-manager-keycloak-ci.mjs"
       - "docs/engineering/*PLATFORM-MANAGER*"
       - ".github/workflows/platform-manager.yml"
 permissions:
@@ -106,3 +108,29 @@ jobs:
           MASTER_RUNTIME_JSON=/tmp/syndes-master-runtime-ci.json \
           MASTER_DB_URL_FILE=/tmp/syndes-master-db-ci-placeholder \
             docker compose -f infra/master-admin/compose.yaml config --quiet
+
+  keycloak-real-jwt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/master-admin-api/package-lock.json
+      - name: Install the production JWT verifier dependencies
+        run: cd apps/master-admin-api && npm ci --no-audit --no-fund
+      - name: Start disposable Keycloak with CI-only admin and HTTPS issuer
+        run: |
+          docker run --detach --rm --name syndes-master-keycloak-ci \
+            --publish 127.0.0.1:18088:8080 \
+            -e KC_BOOTSTRAP_ADMIN_USERNAME=syndes-ci-admin \
+            -e KC_BOOTSTRAP_ADMIN_PASSWORD=ci-disposable-admin-not-for-production \
+            quay.io/keycloak/keycloak:26.8.1 \
+            start-dev --hostname=https://id.ci.syndes.invalid
+      - name: Verify tokens issued by real Keycloak (no production clients)
+        run: node tests/platform/platform-manager-keycloak-ci.mjs
+      - name: Clean up disposable Keycloak container
+        if: always()
+        run: docker rm -f syndes-master-keycloak-ci >/dev/null 2>&1 || true
