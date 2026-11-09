@@ -26,6 +26,7 @@ Oferecer a owner/operator/viewer uma visão autorizada e somente leitura do cada
 | Rota | Método | Resposta | Requer |
 | --- | --- | --- | --- |
 | /healthz | GET | {status:ok} | Rede interna, liveness sem informação sensível |
+| /readyz | GET | {status:ready} ou 503 | Rede interna, verifica SELECT mínimo das quatro tabelas de metadados com LIMIT 0; não disponível no frontend público |
 | /v1/platform/admin/me | GET | role, capabilities | JWT correto + platform_operator_access ativo |
 | /v1/platform/admin/summary | GET | total, active, provisioned, suspended, memberships | Mesma autorização |
 | /v1/platform/admin/tenants?query=&state=all&page=1 | GET | total, page, pageSize=25, items | Mesma autorização; SQL parametrizado |

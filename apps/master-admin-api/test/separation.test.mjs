@@ -27,6 +27,7 @@ test("Master and Workspace are independent frontend origins, bundles and session
  assert.match(nginx,/location \^~ \/v1\/ \{ return 404; \}/);
  assert.match(nginx,/location \^~ \/modules\/ \{ return 404; \}/);
  assert.match(nginx,/location = \/workspace-runtime\.json \{ return 404; \}/);
+ assert.match(nginx,/location = \/readyz \{ return 404; \}/);
  assert.match(compose,/127\.0\.0\.1:/);
  assert.match(compose,/internal: true/);
  assert.match(compose,/healthcheck:/);

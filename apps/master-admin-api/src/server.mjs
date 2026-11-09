@@ -33,6 +33,13 @@ export function createHandler({verify,pool,publicOrigin}){
   try{
    if(req.url==="/healthz"&&req.method==="GET")
     return reply(res,200,{status:"ok"});
+   if(req.url==="/readyz"&&req.method==="GET"){
+    try{
+     // Check all four metadata-table grants; LIMIT 0 never reads personal data.
+     await pool.query("SELECT 1 FROM tenant_registry,tenant_memberships,platform_operator_access,platform_tenant_profiles LIMIT 0");
+     return reply(res,200,{status:"ready"});
+    }catch{return failure(res,503,"Control plane unavailable");}
+   }
    // No CORS. Origin check is only defense in depth: the signed token and
    // database role/permissions enforce the actual security boundary.
    if(req.headers.origin&&req.headers.origin!==publicOrigin)

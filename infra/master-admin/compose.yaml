@@ -20,7 +20,7 @@ services:
       - syndes-master-data
       - syndes-master-identity
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8085/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8085/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 20s
       timeout: 4s
       retries: 3
