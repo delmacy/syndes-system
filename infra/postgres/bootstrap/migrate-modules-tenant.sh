@@ -6,7 +6,10 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$script_dir/../../.."
 source "$script_dir/support-migration-gate.sh"
 : "${TENANT_ID:?Set approved, canonical tenant UUID}"
-: "${SYNDES_CORE_HOST_IMAGE:?Set the previously built trusted Core Host image tag/digest}"
+: "${SYNDES_CORE_HOST_IMAGE:?Set the approved immutable Core Host image digest}"
+if [[ ! "$SYNDES_CORE_HOST_IMAGE" =~ ^[A-Za-z0-9._/:@-]+@sha256:[a-f0-9]{64}$ ]];then
+  echo "Refusing mutable/unpinned Core Host image for tenant migrations" >&2;exit 2
+fi
 if [[ ! "$TENANT_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$ ]];then
   echo "Invalid tenant UUID" >&2;exit 2
 fi

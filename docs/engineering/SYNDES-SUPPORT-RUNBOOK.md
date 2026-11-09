@@ -51,3 +51,6 @@ O instalador genérico agora **pula** a migração Support para qualquer tenant 
 
 ## Gate de identidade separado para o Support
 A conta pública `syndes-support-ui` deve estar provisionada em Keycloak operacional e a API deve exigir `azp` exato, **além** de `iss`, `aud`, `RS256`, `sub`, membership e OpenFGA. Não incluir clientes Workspace/Platform Manager na allowlist. O teste CI `support-browser-e2e` precisa comprovar que token Keycloak válido de outro cliente com mesma audience recebe 401. Nenhum cliente OIDC de produção deve habilitar password/direct grant usado exclusivamente pelo teste adversarial.
+
+## Imagens imutáveis para migration
+`SYNDES_CORE_HOST_IMAGE` **deve** ter formato de referência completa por digest (ex.: `ghcr.io/organização/core-host@sha256:<digest-aprovado>`). O instalador recusa tags mutáveis e imagens sem digest antes de consultar o registry. Não fornecer um digest de exemplo em execução real: obter o digest do artefato aprovado, registrar cadeia de provenance e ensaiar no ambiente descartável. Essa validação é defesa de integridade, não assinatura ou aprovação automática.

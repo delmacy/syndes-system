@@ -33,3 +33,6 @@ Implementação, testes unitários de serviço, SQL PostgreSQL 16 em CI, HTTP Ne
 ## Critério para assinatura de revisão
 
 O revisor externo ao conjunto de mudanças confirma: código e SQL sem escalada entre tenants, checagem `azp`, grants em menor privilégio, triggers/ACL, CI no HEAD aprovado, release imutável, script de migração sem path arbitrário, Gate #31 intacto. Registrar parecer com commit, data, risco residual e decisão na discussão da PR #34.
+
+## Fechamento adicional: imagem de migration imutável
+O instalador privilegiado `infra/postgres/bootstrap/migrate-modules-tenant.sh` agora **rejeita** imagens que não estejam referenciadas por `@sha256:<64 hex>`. A proteção evita que a migração execute SQL proveniente de uma tag mutável depois do review; não comprova que um digest arbitrário está aprovado. O teste `tests/platform/support-migration-installer.test.sh` exige falha para tag mutável e segue exercitando o instalador verdadeiro com `docker` e `jq` simulados, sem efeitos de SQL. O release continua exigindo digest aprovado por processo humano.

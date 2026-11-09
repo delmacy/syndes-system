@@ -34,10 +34,16 @@ else echo "unexpected jq invocation" >&2;exit 1;fi
 BASH
 chmod +x "$tmp/docker" "$tmp/jq"
 export PATH="$tmp:$PATH"
-export SYNDES_CORE_HOST_IMAGE="ci-only-test-image"
+export SYNDES_CORE_HOST_IMAGE="ghcr.io/syndes/core-host@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 export SYNDES_E2E_INSTALLER_LOG="$tmp/emissions.log"
 S="11111111-1111-4111-8111-111111111111"
 C="22222222-2222-4222-8222-222222222222"
+export TENANT_ID="$C"
+export SYNDES_CORE_HOST_IMAGE="ghcr.io/syndes/core-host:mutable"
+if bash "$repo/infra/postgres/bootstrap/migrate-modules-tenant.sh" >"$tmp/mutable.log" 2>&1;then
+ echo "CRITICAL: mutable Core Host image allowed for privileged tenant migrations" >&2;exit 1
+fi
+export SYNDES_CORE_HOST_IMAGE="ghcr.io/syndes/core-host@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 run_case(){
  export TENANT_ID="$1"
  : > "$SYNDES_E2E_INSTALLER_LOG"

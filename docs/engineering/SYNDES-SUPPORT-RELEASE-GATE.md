@@ -28,3 +28,6 @@ Preservar volumes e audit logs. Suspender rota/entrada HTTPS da Central; devolve
 ## Registros obrigatórios que ainda não existem
 
 Identidade do tenant operacional (out-of-band, não publicar UUID aqui), conta WhatsApp homologada, lista de grants e responsáveis, hashes dos snapshots, autorização da janela, imagem/digest, evidência do restore real, parecer independente, aprovação de ativação e resultado dos smoke tests reais. **Sem qualquer um deles, o estado é BLOCKED, não DEPLOYED.**
+
+## Imagem imutável — pré-condição técnica
+Na WBS de release, **tag de Docker não é identidade suficiente**. A função de instalação testa e recusa `SYNDES_CORE_HOST_IMAGE` diferente de uma referência `@sha256:<hex64>`. Registrar digest **do artefato revisado e aprovado** no ticket de release; teste negativo de tag e teste com digest sintético devem passar no Core Host/Infra CI. Digest não dispensa revisão da origem nem conferência das dependências de supply chain.
