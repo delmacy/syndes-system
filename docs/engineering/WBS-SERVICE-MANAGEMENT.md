@@ -281,3 +281,11 @@ A [PR #24](https://github.com/delmacy/syndes-system/pull/24), empilhada sobre a 
 - Teste PostgreSQL descartável inclui os esquemas reais de CRM/Inbox/WhatsApp, aplica a migração duas vezes, insere dados antigos, testa o bootstrap e backfill, proprietário imutável, negação sem membership e preservação de histórico.
 
 **Status F1.0c:** Stage A (#23) concluído em CI. Stage B (#24) implementado no commit `6150aad7a35e63893a62cbd112c0a4965210485c`, **14 checks de CI aprovados, zero falhas, um skip condicionado**, ainda sem merge ou deploy; **Stage C de migração de todas as APIs/SQL/realtime/WhatsApp para contexto autorizado permanece pendente**. Não remover a trava SQL, não liberar multi-org, não dar a issue #21 por concluída. Nenhum deploy em servidores operacionais.
+
+## 16. Execução Stage C1 — proteção de entrada HTTP CRM (PR #25, 2026-11-09)
+
+[PR #25](https://github.com/delmacy/syndes-system/pull/25) está empilhada em #24/#23/#20 e introduz uma primeira etapa de autorização por Organização/Workspace no **endpoint HTTP do CRM**, com integração de Keycloak, tenant membership, novo recurso FGA `crm:context/read`, memberships ativas da organização e workspace default, backfill auditado e preservação dos dois índices de trava SQL. A checagem ocorre **antes** de listagens, consultas, alterações, CSV, importação, exportação e capabilities.
+
+**Escopo estrito:** protege o ingresso HTTP e exige um contexto default **único**. Os repositórios CRM e integrações diretas ainda operam com SQL `tenant_id`; portanto, a Stage C2 de escopo SQL por organização, compartilhamento entre workspaces, Inbox/SSE e WhatsApp **não está concluída**. Nunca remover `002_legacy_single_context_gate.sql` ou habilitar segunda organização com a implementação C1.
+
+**Pré-requisito de rollout:** concluir migrations 001–003, bootstrap, backfill administrativo e concessão explícita `crm:context/read` em OpenFGA **antes** de liberar o Host — caso contrário o CRM responderá 403 aos usuários legítimos. A PR #25 é draft; nenhum deploy ou alteração operacional executada. Os testes locais cobrem guard e negação HTTP; verificar o SHA exato dos checks GitHub antes do merge.
