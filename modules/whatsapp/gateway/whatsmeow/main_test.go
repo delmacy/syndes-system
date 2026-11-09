@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
- "encoding/json"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -82,25 +82,35 @@ func TestAccountTokensAreIsolated(t *testing.T) {
 }
 
 func TestCallbackCarriesVersionedTenantAccountEnvelope(t *testing.T) {
- tenantID := "00000000-0000-4000-8000-000000000001"
- accountID := "00000000-0000-4000-8000-000000000011"
- server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){
-  if r.Header.Get("X-Syndes-Event-Version")!="1" {t.Error("wrong envelope version")}
-  if r.Header.Get("X-Syndes-Event-Type")!="whatsapp.message.received" {t.Error("wrong event type")}
-  var body struct {
-   Version string `json:"version"`
-   Type string `json:"type"`
-   TenantID string `json:"tenantId"`
-   AccountID string `json:"accountId"`
-   Message inboundEvent `json:"message"`
-  }
-  if err:=json.NewDecoder(r.Body).Decode(&body);err!=nil {t.Error(err);w.WriteHeader(400);return}
-  if body.Version!="1" || body.Type!="whatsapp.message.received" || body.TenantID!=tenantID || body.AccountID!=accountID || body.Message.ExternalMessageID!="m1" {
-   t.Errorf("wrong event envelope: %+v",body)
-  }
-  w.WriteHeader(http.StatusNoContent)
- }))
- defer server.Close()
- callback:=&callbackClient{baseURL:server.URL,token:"test",client:server.Client()}
- if err:=callback.deliver(context.Background(),tenantID,inboundEvent{AccountID:accountID,ExternalMessageID:"m1",Body:"hello"});err!=nil {t.Fatal(err)}
+	tenantID := "00000000-0000-4000-8000-000000000001"
+	accountID := "00000000-0000-4000-8000-000000000011"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Syndes-Event-Version") != "1" {
+			t.Error("wrong envelope version")
+		}
+		if r.Header.Get("X-Syndes-Event-Type") != "whatsapp.message.received" {
+			t.Error("wrong event type")
+		}
+		var body struct {
+			Version   string       `json:"version"`
+			Type      string       `json:"type"`
+			TenantID  string       `json:"tenantId"`
+			AccountID string       `json:"accountId"`
+			Message   inboundEvent `json:"message"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+			w.WriteHeader(400)
+			return
+		}
+		if body.Version != "1" || body.Type != "whatsapp.message.received" || body.TenantID != tenantID || body.AccountID != accountID || body.Message.ExternalMessageID != "m1" {
+			t.Errorf("wrong event envelope: %+v", body)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	callback := &callbackClient{baseURL: server.URL, token: "test", client: server.Client()}
+	if err := callback.deliver(context.Background(), tenantID, inboundEvent{AccountID: accountID, ExternalMessageID: "m1", Body: "hello"}); err != nil {
+		t.Fatal(err)
+	}
 }
