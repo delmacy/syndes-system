@@ -100,10 +100,12 @@ try {
   await mockWorkspace(desktop);
   await desktop.getByRole("button", { name: "Minhas" }).click();
   await desktop.getByRole("button", { name: /Pedido inicial/ }).waitFor();
-  assert.equal(await desktop.getByRole("button", { name: /Conversa resolvida/ }).count(), 0);
+  await desktop.getByRole("button", { name: /Conversa resolvida/ }).waitFor({ state: "detached", timeout: 10000 });
+  assert.equal(await desktop.getByRole("button", { name: /Conversa resolvida/ }).count(), 0, "Mine filter excludes unassigned conversations");
   await desktop.getByRole("button", { name: "Não atribuídas" }).click();
   await desktop.getByRole("button", { name: /Conversa resolvida/ }).waitFor();
-  assert.equal(await desktop.getByRole("button", { name: /Pedido inicial/ }).count(), 0);
+  await desktop.getByRole("button", { name: /Pedido inicial/ }).waitFor({ state: "detached", timeout: 10000 });
+  assert.equal(await desktop.getByRole("button", { name: /Pedido inicial/ }).count(), 0, "Unassigned filter excludes owned conversations");
   await desktop.getByRole("group", { name: "Filtrar conversas por responsável" }).getByRole("button", { name: "Todas" }).click();
   await desktop.getByRole("button", { name: /Pedido inicial/ }).click();
   await desktop.getByText("Olá, preciso de ajuda").waitFor();
