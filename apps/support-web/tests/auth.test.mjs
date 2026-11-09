@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
 import {readConfig,beginLogin,autoLoginAllowed,markSignedOut} from "../src/auth.ts";
 const T="11111111-1111-4111-8111-111111111111";
 const cfg={issuer:"https://identity.example/realms/syndes",clientId:"syndes-support-ui",tenantId:T,tenantLabel:"Syndes"};
@@ -35,5 +36,19 @@ test("login uses PKCE S256, isolated session key and sign-out state",async()=>{
   assert.equal(data.has("syndes.support.pkce"),true);
  }finally{
   for(const [k,v] of Object.entries(old))if(v===undefined)delete globalThis[k];else globalThis[k]=v;
+ }
+});
+
+test("disposable Keycloak fixture must have complete profiles and exact realm import filename",async()=>{
+ const pathname=new URL("../e2e/syndes-support-e2e-realm.json",import.meta.url);
+ const realm=JSON.parse(await readFile(pathname,"utf8"));
+ assert.equal(realm.realm,"syndes-support-e2e");
+ assert.equal(realm.clients[0].clientId,"syndes-support-ui");
+ for(const user of realm.users){
+  assert.match(user.email,/^[a-z-]+@support-e2e\.invalid$/);
+  assert.ok(typeof user.firstName==="string"&&user.firstName.trim(),"firstName mandatory for Keycloak 26");
+  assert.ok(typeof user.lastName==="string"&&user.lastName.trim(),"lastName mandatory for Keycloak 26");
+  assert.equal(user.emailVerified,true);
+  assert.equal(user.credentials[0].temporary,false);
  }
 });

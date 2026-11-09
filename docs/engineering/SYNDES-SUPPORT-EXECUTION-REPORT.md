@@ -38,3 +38,6 @@ O primeiro workflow Playwright falhou na etapa de importação Keycloak, antes d
 
 ## E2E: corrigido setup de runtime efêmero
 A execução após correção do Keycloak comprovou importação do realm, execução das migrations no PostgreSQL e configuração OpenFGA/Nest HTTP, mas falhou na preparação do frontend: o diretório `apps/support-web/public/` não existia em checkout limpo (pastas vazias não são versionadas). O workflow agora cria o diretório antes de gravar `support-runtime.json` de fixture. O teste também força reload e nova consulta SQL antes de verificar que o solicitante não recebe notas internas.
+
+## E2E Keycloak — campos de perfil obrigatórios
+A execução com Chromium real alcançou o formulário do Keycloak e exigiu `email`, `firstName` e `lastName` para os usuários de fixture, bloqueando o retorno PKCE ao frontend. Criado inicialmente um teste de regressão em `apps/support-web/tests/auth.test.mjs`, observado falhar por ausência de email; adicionados dados sintéticos completos para os três usuários no realm. Reexecução local: 6/6 testes frontend, TypeScript e Vite build aprovados. Ainda requer resultado positivo do workflow E2E para `VERIFIED`.
