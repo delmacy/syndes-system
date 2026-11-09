@@ -7,12 +7,18 @@ import subprocess
 import tempfile
 import time
 import uuid
+import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 def run(*args, env=None, check=True, timeout=80):
     return subprocess.run(args, cwd=ROOT, env=env, text=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE, check=check, timeout=timeout)
+
+# The existing infra regression job exercises Tailnet's release-gate logic
+# without connecting to a real Tailnet or changing any GitHub workflow.
+run(sys.executable, "tests/platform/test-manager-tailnet-route.py", timeout=12)
+print("Manager Tailnet Serve safety and ownership gate: PASS")
 
 with tempfile.TemporaryDirectory(prefix="syndes-manager-net-ci-") as temp:
     tmp = pathlib.Path(temp)

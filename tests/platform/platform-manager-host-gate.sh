@@ -103,9 +103,11 @@ if [[ -n "$api_id" ]]; then
   else stop "Master runtime secret missing, wrong source, or writable"; fi
 else stop "Master API not running; secret mount cannot be verified"; fi
 
-if tailscale serve status 2>/dev/null | grep -Fq ':9446 (tailnet only)'; then
-  ok "Dedicated Tailnet HTTPS route provisioned"
-else stop "Dedicated Tailnet HTTPS route not configured"; fi
+route_gate="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/infra/master-admin/check-tailnet-route.py"
+if command -v python3 >/dev/null 2>&1 &&
+   tailscale serve status --json 2>/dev/null | python3 "$route_gate" --mode active >/dev/null 2>&1; then
+  ok "Dedicated Tailnet HTTPS route points to approved local Manager frontend"
+else stop "Dedicated Tailnet HTTPS route absent, public, ambiguous or points elsewhere"; fi
 
 if [[ -n "$api_id" && -n "$web_id" ]]; then
   api_health=$(docker inspect "$api_id" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' 2>/dev/null || true)

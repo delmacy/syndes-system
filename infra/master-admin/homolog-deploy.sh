@@ -16,6 +16,7 @@ say(){ echo "GATE: $*"; }
 command -v docker >/dev/null || fail "Docker unavailable"
 command -v jq >/dev/null || fail "jq unavailable"
 command -v tailscale >/dev/null || fail "Tailscale unavailable"
+command -v python3 >/dev/null || fail "Python 3 unavailable"
 [[ "$(docker inspect syndes-postgres-postgres-1 --format '{{.State.Health.Status}}' 2>/dev/null)" == healthy ]] ||
   fail "Shared PostgreSQL not healthy"
 [[ "$(docker inspect syndes-security-access-keycloak-1 --format '{{.State.Status}}' 2>/dev/null)" == running ]] ||
@@ -70,8 +71,8 @@ issuer=$(curl --fail --silent --show-error --max-time 5 \
   http://127.0.0.1:18080/realms/syndes/.well-known/openid-configuration | jq -er '.issuer')
 [[ "$issuer" == "https://$dns:9444/realms/syndes" ]] ||
   fail "Keycloak issuer does not match approved Tailnet host"
-if tailscale serve status 2>/dev/null | grep -Fq ':9446 (tailnet only)'; then
-  fail "Port 9446 already configured; avoid replacing another Serve handler"
+if ! tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode free >/dev/null; then
+  fail "Port 9446 already assigned or Tailscale configuration unreadable; do not overwrite"
 fi
 if docker ps -q --filter 'label=com.docker.compose.project=syndes-master-admin' | grep -q .; then
   fail "Manager Compose already running; use the dedicated gate, not redeployment"
@@ -103,11 +104,13 @@ export MASTER_DB_URL_FILE="$runtime/master_db_url"
 export MASTER_RUNTIME_JSON="$runtime/master-runtime.json"
 export MASTER_BIND_PORT=18085
 started=true
+route_owned=false
 rollback_on_error(){
   result=$?
   if [[ "$result" -ne 0 && "$started" == true ]]; then
     echo "HOMOLOG DEPLOY FAILED: rolling back only the isolated Manager stack" >&2
-    if tailscale serve status 2>/dev/null | grep -Fq ':9446 (tailnet only)'; then
+    if [[ "$route_owned" == true ]] &&
+       tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode active >/dev/null 2>&1; then
       tailscale serve --bg --https=9446 off || true
     fi
     docker compose -f infra/master-admin/compose.yaml down --remove-orphans || true
@@ -124,10 +127,14 @@ done
 # Never reset or overwrite the existing 8443, 9443 or 9444 handlers.
 tailscale serve get-config "$runtime/tailscale-before-manager.json"
 chmod 0600 "$runtime/tailscale-before-manager.json"
+# Never replace another operator's HTTPS route; recheck immediately before binding.
+tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode free >/dev/null ||
+  fail "Port 9446 changed during deploy; refusing to overwrite another application"
 # Tailnet HTTPS only (never funnel/public internet), no reset of existing routes.
 tailscale serve --bg --https=9446 http://127.0.0.1:18085
-tailscale serve status | grep -Fq ':9446 (tailnet only)' ||
-  fail "Tailnet Serve did not bind to the dedicated HTTPS port"
+route_owned=true
+tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode active >/dev/null ||
+  fail "Tailnet Serve route does not point to the dedicated Manager frontend"
 printf '%s\n' "$head" > "$runtime/deployed-head"
 chmod 0600 "$runtime/deployed-head"
 started=false

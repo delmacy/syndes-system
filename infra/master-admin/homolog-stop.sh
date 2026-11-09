@@ -18,11 +18,15 @@ export MASTER_API_ENV_FILE="$runtime/master.env"
 export MASTER_RUNTIME_JSON="$runtime/master-runtime.json"
 export MASTER_DB_URL_FILE="$runtime/master_db_url"
 export MASTER_BIND_PORT=18085
-# Scope-check the only Tailnet Serve handler we are allowed to touch.
-if tailscale serve status 2>/dev/null | grep -Fq ':9446 (tailnet only)'; then
-  # "off" with the exact --https port only clears that one endpoint.
-  # NEVER run serve reset or serve clear: the node hosts other services.
+# Stop a route ONLY if its structured configuration matches our own frontend.
+route_gate="$PWD/infra/master-admin/check-tailnet-route.py"
+if tailscale serve status --json 2>/dev/null | python3 "$route_gate" --mode active >/dev/null; then
   tailscale serve --bg --https=9446 off
+elif tailscale serve status --json 2>/dev/null | python3 "$route_gate" --mode free >/dev/null; then
+  echo "INFO: Manager HTTPS port already unallocated"
+else
+  echo "BLOCKED: port 9446 belongs to another route or has invalid configuration; refusing blind shutdown" >&2
+  exit 2
 fi
 docker compose -f infra/master-admin/compose.yaml down --remove-orphans
 rm -f "$runtime/deployed-head"
