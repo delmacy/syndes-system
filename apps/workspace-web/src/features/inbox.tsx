@@ -126,6 +126,10 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
 
   const activeId = useRef<string | null>(null);
   const listRequest = useRef(0);
+  // A confirmed provider rename may precede the asynchronous Inbox projection.
+  // Keep it only in the current mounted, authorized workspace; never persist
+  // across tenant/organization changes or treat stale Inbox titles as canonical.
+  const confirmedGroupNames = useRef(new Map<string,{name:string;expiresAt:number}>());
   const threadRequest = useRef(0);
   const busy = useRef(false);
   const messagesViewport=useRef<HTMLDivElement|null>(null);
@@ -157,10 +161,18 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     try {
       const result = await api.conversations(filter,queue,chatScope,0,debouncedSearch);
       if (requestId !== listRequest.current) return;
-      setRecords(result);
+      const canonical=result.map(entry=>{
+        const confirmed=entry.isGroup?confirmedGroupNames.current.get(entry.id):undefined;
+        if(!confirmed)return entry;
+        if(entry.subject===confirmed.name||Date.now()>confirmed.expiresAt){
+          confirmedGroupNames.current.delete(entry.id);return entry;
+        }
+        return {...entry,subject:confirmed.name};
+      });
+      setRecords(canonical);
       setMoreAvailable(result.length===100);
       setListError(false);
-      const current = result.find(item => item.id === activeId.current);
+      const current = canonical.find(item => item.id === activeId.current);
       if (current) setSelected(current);
     } catch (error) {
       if (requestId !== listRequest.current) return;
@@ -415,7 +427,8 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
       const response=await api.updateWhatsAppGroup(selected.id,
        field==="name"?{name:groupName}:{description:groupDescription});
       setGroupInfo(response);setGroupName(response.name);setGroupDescription(response.description);
-      if(response.name&&selected.subject!==response.name){
+      if(response.name){
+        confirmedGroupNames.current.set(selected.id,{name:response.name,expiresAt:Date.now()+90_000});
         setSelected(current=>current?.id===selected.id?{...current,subject:response.name}:current);
         setRecords(previous=>previous.map(row=>row.id===selected.id?{...row,subject:response.name}:row));
       }
