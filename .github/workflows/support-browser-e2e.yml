@@ -116,6 +116,7 @@ jobs:
             fi
             sleep 2
           done
+          mkdir -p apps/support-web/public
           cat > apps/support-web/public/support-runtime.json <<'JSON'
           {
             "issuer": "https://localhost:8443/realms/syndes-support-e2e",

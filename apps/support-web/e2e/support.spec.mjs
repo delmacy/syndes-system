@@ -53,8 +53,9 @@ test("real Keycloak + FGA + PostgreSQL: internal requester, restricted notes and
   await agent.page.getByRole("button",{name:"Aplicar"}).click();
   await expect(agent.page.getByText("Triagem").first()).toBeVisible();
 
-  // Requester sees its own case and public lifecycle, but NOT the internal note.
-  await employee.page.getByRole("button",{name:"Atualizar lista"}).click();
+  // Fresh Keycloak login and server-side history read must still hide private notes.
+  await employee.page.reload();
+  await expect(employee.page.getByRole("heading",{name:"Solicitações internas"})).toBeVisible();
   await employee.page.getByRole("button",{name:new RegExp(protocol)}).first().click();
   await expect(employee.page.getByRole("heading",{name:protocol})).toBeVisible();
   await expect(employee.page.getByText("Nota E2E só para a equipe técnica.")).toHaveCount(0);

@@ -35,3 +35,6 @@ O teste `tests/platform/support-migration-installer.test.sh` executa o **script 
 
 ## Primeira execução E2E: incidente de fixture resolvido
 O primeiro workflow Playwright falhou na etapa de importação Keycloak, antes de executar código do Support. A reprodução em Keycloak 26.8.1 descartável identificou: `File name / realm name mismatch`. Corrigido o nome para `syndes-support-e2e-realm.json` e adicionada preservação de logs/diagnóstico no workflow. A validação E2E continua condicionada à nova execução; essa falha não foi ocultada como skip.
+
+## E2E: corrigido setup de runtime efêmero
+A execução após correção do Keycloak comprovou importação do realm, execução das migrations no PostgreSQL e configuração OpenFGA/Nest HTTP, mas falhou na preparação do frontend: o diretório `apps/support-web/public/` não existia em checkout limpo (pastas vazias não são versionadas). O workflow agora cria o diretório antes de gravar `support-runtime.json` de fixture. O teste também força reload e nova consulta SQL antes de verificar que o solicitante não recebe notas internas.
