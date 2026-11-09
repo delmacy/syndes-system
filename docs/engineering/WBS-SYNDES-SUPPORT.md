@@ -30,12 +30,12 @@ Versão 2026-11-09. Estados: `TODO`, `IN_PROGRESS`, `CODE`, `VERIFIED`, `BLOCKED
 | 7.2 | Integration tests em PG | migração, rollback de fixture, negativos | VERIFIED (PG real em CI) |
 | 7.3 | Regressão de Kernel/Host/Inbox/WhatsApp/CRM | todas suites relevantes verdes | VERIFIED (local e CI) |
 | 7.4 | E2E de frontend | fluxos reais, sem backend fake | VERIFIED (Playwright/Keycloak/FGA/PG; CI 42657311731) |
-| 7.5 | CI e revisão de isolamento | checks do HEAD, falhas explícitas | VERIFIED CI (7 workflows verdes em d48a50b; revisao humana pendente) |
-| 8.1 | Documentação técnica e operacional | PRD, ADR, API, runbook, testes | CODE |
-| 8.2 | Branch/PR e checklist | preserva #27, sem merge indevido | CODE (PR #34 draft) |
-| 8.3 | Homologação e deploy controlado | gate pessoal, backups, restore, grants | BLOCKED |
-| 8.4 | Rollback, evidências e relatório final | sem migração destrutiva | CODE |
-| 8.5 | Platform Manager agregado | contrato e autorização separados | BLOCKED (fora do PR) |
+| 7.5 | CI e revisão de isolamento | checks do HEAD, falhas explícitas | VERIFIED CI (7 workflows verdes em 448b5e2; revisao independente pendente) |
+| 8.1 | Documentação técnica e operacional | PRD, ADR, API, runbook, testes | VERIFIED (runbook, evidencias CI, security review e release gate) |
+| 8.2 | Branch/PR e checklist | preserva #27, sem merge indevido | VERIFIED (PR #34 draft, sem merge; review independente pendente) |
+| 8.3 | Homologação e deploy controlado | gate pessoal, backups, restore, grants | BLOCKED (PRs #27/#34, tenant/WA, grants, backup real e aceite) |
+| 8.4 | Rollback, evidências e relatório final | sem migração destrutiva | VERIFIED (dump/restore/rollback em PG descartavel; operacional pendente) |
+| 8.5 | Platform Manager agregado | contrato e autorização separados | BLOCKED (ADR proposta; implementação exige PR separada) |
 
 ## Ordem executável / dependências
 1. 1.1–1.3 e 2.1–2.5 antes de tocar o frontend.
