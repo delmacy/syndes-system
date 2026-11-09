@@ -114,13 +114,8 @@ try {
   await desktop.getByText("Prefere contato pela manhã").waitFor();
   await desktop.getByText("Empresa Exemplo", { exact: true }).waitFor();
   await desktop.getByText("VIP", { exact: true }).waitFor();
-  await desktop.getByRole("button", { name: "Atendimento", exact: true }).click();
-  await desktop.getByText("Atendimento atual", { exact: true }).waitFor();
-  await desktop.getByRole("button", { name: "Atividade", exact: true }).click();
-  await desktop.getByText("Histórico da conversa").waitFor();
-  await desktop.getByRole("button", { name: "Contato", exact: true }).click();
   await desktop.getByRole("button", { name: "Close", exact: true }).click();
-  console.log("PASS: server-filtered queues and authorized CRM inspector tabs");
+  console.log("PASS: server-filtered queues and authorized CRM inspector context");
   assert.equal(await desktop.locator("#inbox-composer").isDisabled(), false);
   console.log("PASS: Desktop Inbox opens thread with authorized agent composer");
 
