@@ -1,0 +1,69 @@
+name: Syndes Support CI
+on:
+  push:
+    paths:
+      - "modules/support/**"
+      - "apps/core-host/**"
+      - ".github/workflows/core-support.yml"
+  pull_request:
+    paths:
+      - "modules/support/**"
+      - "apps/core-host/**"
+      - ".github/workflows/core-support.yml"
+permissions:
+  contents: read
+jobs:
+  support-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: modules/support/package-lock.json
+      - name: Build shared kernel
+        run: cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+      - name: Typecheck, unit and authorization denials
+        run: cd modules/support && npm ci --no-audit --no-fund && npm run check && npm test
+      - name: Verify module publication manifest
+        run: cd modules/support && npm pack --dry-run
+  support-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-disposable
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build kernel and Syndes Support from frozen lockfiles
+        run: |
+          cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+          cd ../../modules/support && npm ci --no-audit --no-fund && npm run build
+      - name: Migration replay and multi-audience isolation on disposable PostgreSQL
+        env:
+          SYNDES_SUPPORT_TEST_PG_URL: postgresql://postgres:ci-only-disposable@localhost:5432/postgres
+        run: cd modules/support && node --test test/pg-integration.test.mjs
+      - name: Refuse backup and restore without exact disposable CI context
+        run: |
+          if (cd modules/support && node test/pg-backup-restore.mjs 2>/dev/null); then
+            echo 'CRITICAL: Support restore accepted an unapproved environment' >&2
+            exit 1
+          fi
+      - name: Rehearse full backup and restore of synthetic Support data
+        env:
+          SYNDES_DISPOSABLE_RESTORE_REHEARSAL: 'true'
+          SYNDES_SUPPORT_TEST_PG_URL: postgresql://postgres:ci-only-disposable@localhost:5432/postgres
+        run: cd modules/support && node test/pg-backup-restore.mjs

@@ -27,6 +27,11 @@ COPY modules/whatsapp/tsconfig.json modules/whatsapp/
 COPY modules/whatsapp/src modules/whatsapp/src
 COPY modules/whatsapp/sql modules/whatsapp/sql
 RUN cd modules/whatsapp && npm install --no-package-lock --no-audit --no-fund && npm run build
+COPY modules/support/package*.json modules/support/
+COPY modules/support/tsconfig.json modules/support/
+COPY modules/support/src modules/support/src
+COPY modules/support/sql modules/support/sql
+RUN cd modules/support && npm ci --no-audit --no-fund && npm run build
 COPY apps/core-host/package*.json apps/core-host/
 COPY apps/core-host/tsconfig.json apps/core-host/
 COPY apps/core-host/src apps/core-host/src

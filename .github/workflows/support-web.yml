@@ -1,0 +1,30 @@
+name: Syndes Support Web CI
+on:
+  push:
+    paths:
+      - "apps/support-web/**"
+      - ".github/workflows/support-web.yml"
+  pull_request:
+    paths:
+      - "apps/support-web/**"
+      - ".github/workflows/support-web.yml"
+permissions:
+  contents: read
+jobs:
+  support-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/support-web/package-lock.json
+      - name: Install immutable dependencies
+        run: cd apps/support-web && npm ci --no-audit --no-fund
+      - name: Check strict types and run auth/API tests
+        run: cd apps/support-web && npm run check && npm test
+      - name: Build separate deployable UI
+        run: cd apps/support-web && npm run build
+      - name: Prevent fixture runtime from shipping as operational config
+        run: test ! -e apps/support-web/dist/support-runtime.json

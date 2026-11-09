@@ -5,8 +5,13 @@ import {execFileSync,spawnSync} from "node:child_process";
 test("module migration CLI enumerates and emits only installed package migrations",()=>{
  const cli="dist/migrations.js";
  const list=JSON.parse(execFileSync(process.execPath,[cli,"--list"],{encoding:"utf8"}));
- assert.deepEqual(list.map(m=>m.id),["crm","inbox","whatsapp","organizations"]);
+ assert.deepEqual(list.map(m=>m.id),["crm","inbox","whatsapp","organizations","support"]);
  assert.deepEqual(list[3].migrations,["001_account_hierarchy","002_legacy_single_context_gate","003_legacy_ownership","004_whatsapp_route_owner_guard","005_scoped_relationship_integrity","006_context_creation_audit"]);
+ assert.deepEqual(list[4].migrations,["001_support_cases"]);
+ const supportSql=execFileSync(process.execPath,[cli,"--emit","support","001_support_cases"],{encoding:"utf8"});
+ assert.match(supportSql,/CREATE TABLE IF NOT EXISTS support_cases/);
+ assert.match(supportSql,/support_queue_memberships/);
+ assert.match(supportSql,/support_cases_one_active_whatsapp/);
  const ownershipSql=execFileSync(process.execPath,[cli,"--emit","organizations","003_legacy_ownership"],{encoding:"utf8"});
  assert.match(ownershipSql,/CREATE OR REPLACE FUNCTION platform_backfill_legacy_ownership/);
  assert.match(ownershipSql,/ALTER TABLE inbox_conversations ADD COLUMN IF NOT EXISTS platform_current_workspace_id/);

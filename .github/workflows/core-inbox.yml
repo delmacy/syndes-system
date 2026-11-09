@@ -47,6 +47,7 @@ jobs:
         run: |
           cd modules/organizations && npm ci --no-audit --no-fund && npm run build
           cd ../core-crm && npm ci --no-audit --no-fund && npm run build
+          cd ../../modules/support && npm ci --no-audit --no-fund && npm run build
           cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run link-peers && npm run build
       - name: Exercise PostgreSQL isolation and mounted Inbox HTTP endpoints
         run: bash modules/inbox/test/postgres-integration.sh

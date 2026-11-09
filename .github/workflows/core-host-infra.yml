@@ -4,6 +4,7 @@ on:
     paths:
       - "apps/core-host/**"
       - "modules/organizations/**"
+      - "modules/support/**"
       - "modules/core-crm/**"
       - "modules/inbox/**"
       - "modules/whatsapp/**"
@@ -15,6 +16,7 @@ on:
     paths:
       - "apps/core-host/**"
       - "modules/organizations/**"
+      - "modules/support/**"
       - "modules/core-crm/**"
       - "modules/inbox/**"
       - "modules/whatsapp/**"
@@ -41,6 +43,8 @@ jobs:
         run: cd modules/inbox && npm ci --no-audit --no-fund && npm run build
       - name: Build WhatsApp channel module
         run: cd modules/whatsapp && npm ci --no-audit --no-fund && npm run build
+      - name: Build Syndes Support module
+        run: cd modules/support && npm ci --no-audit --no-fund && npm run check && npm test
       - name: Install host dependencies
         run: cd apps/core-host && npm ci --no-audit --no-fund
       - name: Strict type checks
@@ -99,8 +103,21 @@ jobs:
           print("Keycloak .conf extension, file-backed secrets: PASS")
           print("PostgreSQL/Keycloak/OpenFGA: no sensitive env in Compose")
           PY
+      - name: Verify operational tenant-only Support migration gate
+        run: |
+          bash tests/platform/support-migration-gate.test.sh
+          bash tests/platform/support-migration-installer.test.sh
       - name: Start isolated PostgreSQL
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
+      - name: Wait for isolated PostgreSQL TCP readiness
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            if docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml exec -T postgres pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "PostgreSQL did not become ready" >&2
+          exit 1
       - name: Verify service database and tenant provisioning
         run: bash tests/platform/postgres-smoke.sh
       - name: PostgreSQL logs on failure
@@ -126,6 +143,7 @@ jobs:
           cd ../../modules/organizations && npm ci --no-audit --no-fund && npm run build
           cd ../../modules/core-crm && npm ci --no-audit --no-fund && npm run build
           cd ../../modules/inbox && npm ci --no-audit --no-fund && npm run build
+          cd ../../modules/support && npm ci --no-audit --no-fund && npm run build
           cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run build
       - name: Create private Docker data network
         run: docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data
@@ -133,6 +151,10 @@ jobs:
         run: |
           sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/syndes /run/syndes/runtime
           python3 tests/platform/ci-secret-fixtures.py
+      - name: Verify operational tenant-only Support migration gate
+        run: |
+          bash tests/platform/support-migration-gate.test.sh
+          bash tests/platform/support-migration-installer.test.sh
       - name: Start isolated PostgreSQL
         run: docker compose --env-file infra/.env.ci -f infra/postgres/compose.yaml up -d postgres
       - name: Generate disposable OpenBao TLS certificate

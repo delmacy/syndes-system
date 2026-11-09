@@ -9,9 +9,21 @@ export class ActorVerifier{
     this.keys=createRemoteJWKSet(new URL(jwksUrl));
   }
   async verify(header:string|undefined):Promise<Actor>{
+    return this.verifyToken(header);
+  }
+  /** Require a signed, exact OIDC client (azp) for isolated application APIs.
+   * Unlike audience alone, this rejects a Workspace token with the same API aud.
+   */
+  async verifyClient(header:string|undefined,clientId:string):Promise<Actor>{
+    if(typeof clientId!=="string"||!/^[a-z][a-z0-9-]{2,127}$/.test(clientId))
+      throw new Error("invalid required OIDC client");
+    return this.verifyToken(header,clientId);
+  }
+  private async verifyToken(header:string|undefined,clientId?:string):Promise<Actor>{
     if(!header?.startsWith("Bearer "))throw new Error("missing bearer");
     const {payload}=await jwtVerify(header.slice(7),this.keys,{issuer:this.issuer,audience:this.audience,algorithms:["RS256"]});
     if(!payload.sub?.trim())throw new Error("missing subject");
+    if(clientId!==undefined&&payload.azp!==clientId)throw new Error("wrong OIDC client");
     return Object.freeze({id:payload.sub,kind:"user" as const});
   }
 }

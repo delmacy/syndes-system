@@ -52,6 +52,7 @@ jobs:
           cd ../core-crm && npm ci --no-audit --no-fund && npm run build
           cd ../inbox && npm ci --no-audit --no-fund && npm run build
           cd ../whatsapp && npm install --no-package-lock --no-audit --no-fund && npm run build
+          cd ../support && npm ci --no-audit --no-fund && npm run build
       - name: Validate plugin installation and Core Host tests
         run: |
           cd apps/core-host
