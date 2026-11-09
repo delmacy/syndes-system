@@ -1,0 +1,155 @@
+name: Syndes Mainline CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: syndes-mainline-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  foundation:
+    name: Repository governance and planner regressions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify required repository structure
+        run: |
+          set -euo pipefail
+          bash tests/integrity/repository-structure.sh
+          count=0
+          for file in modules/*/AGENTS.md; do
+            test -s "$file"
+            count=$((count + 1))
+          done
+          if [ "$count" -lt 11 ]; then
+            echo "::error::Expected at least 11 module AGENTS.md contracts; found $count"
+            exit 1
+          fi
+      - name: Prove fail-closed test selection
+        run: node --test scripts/ci/plan.test.mjs
+      - name: Verify CI executor shell syntax
+        run: bash -n scripts/ci/*.sh
+      - name: Preserve the physical single-organization guard
+        run: |
+          set -euo pipefail
+          test -f modules/organizations/sql/002_legacy_single_context_gate.sql
+          grep -q platform_legacy_single_organization modules/organizations/sql/002_legacy_single_context_gate.sql
+          grep -q platform_legacy_single_workspace modules/organizations/sql/002_legacy_single_context_gate.sql
+          test -f modules/organizations/sql/manual/activate_multiple_organizations.sql
+          echo 'Physical SQL 002 safety lock is still present'
+
+  impact:
+    name: Determine regression impact
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.planner.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: planner
+        name: Compare PR source against merge base and select suites
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git diff --name-only --diff-filter=ACMRT "$PR_BASE" "$PR_HEAD" > "$RUNNER_TEMP/syndes-changed-files.txt"
+            node scripts/ci/plan.mjs impact "$RUNNER_TEMP/syndes-changed-files.txt" > "$RUNNER_TEMP/syndes-matrix.json"
+          else
+            # On main, scheduled merge groups or manual dispatch, test everything installed.
+            node scripts/ci/plan.mjs full > "$RUNNER_TEMP/syndes-matrix.json"
+          fi
+          cat "$RUNNER_TEMP/syndes-matrix.json"
+          echo "matrix=$(cat "$RUNNER_TEMP/syndes-matrix.json")" >> "$GITHUB_OUTPUT"
+
+  regression:
+    name: Regression / ${{ matrix.suite }}
+    needs: [foundation, impact]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.impact.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        if: ${{ matrix.node != 'go' }}
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-go@v5
+        if: ${{ matrix.node == 'go' }}
+        with:
+          go-version-file: modules/whatsapp/gateway/whatsmeow/go.mod
+          cache-dependency-path: modules/whatsapp/gateway/whatsmeow/go.sum
+      - name: Execute selected immutable regression suite
+        shell: bash
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: bash scripts/ci/run-suite.sh "$SUITE"
+
+  support-browser-parity:
+    name: Support browser / real identity and database parity
+    needs: [foundation, impact]
+    if: ${{ contains(needs.impact.outputs.matrix, '"suite":"support"') || contains(needs.impact.outputs.matrix, '"suite":"support-web"') }}
+    uses: ./.github/workflows/support-browser-e2e.yml
+
+  platform-manager-parity:
+    name: Platform Manager / real identity and SQL parity
+    needs: [foundation, impact]
+    if: ${{ contains(needs.impact.outputs.matrix, '"suite":"platform-api"') || contains(needs.impact.outputs.matrix, '"suite":"platform-web"') || contains(needs.impact.outputs.matrix, '"suite":"infra"') }}
+    uses: ./.github/workflows/platform-manager.yml
+
+  gate:
+    name: Syndes CI Gate
+    if: ${{ always() }}
+    needs: [foundation, impact, regression, support-browser-parity, platform-manager-parity]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deny merge unless all required checks actually passed
+        shell: bash
+        env:
+          FOUNDATION: ${{ needs.foundation.result }}
+          IMPACT: ${{ needs.impact.result }}
+          REGRESSION: ${{ needs.regression.result }}
+          SUPPORT_BROWSER: ${{ needs.support-browser-parity.result }}
+          PLATFORM_MANAGER: ${{ needs.platform-manager-parity.result }}
+          SUPPORT_REQUIRED: ${{ contains(needs.impact.outputs.matrix, '"suite":"support"') || contains(needs.impact.outputs.matrix, '"suite":"support-web"') }}
+          PLATFORM_REQUIRED: ${{ contains(needs.impact.outputs.matrix, '"suite":"platform-api"') || contains(needs.impact.outputs.matrix, '"suite":"platform-web"') || contains(needs.impact.outputs.matrix, '"suite":"infra"') }}
+        run: |
+          set -euo pipefail
+          for result in "$FOUNDATION" "$IMPACT" "$REGRESSION"; do
+            if [[ "$result" != "success" ]]; then
+              echo "::error::A required mainline CI job failed, was cancelled, or was skipped ($result)"
+              exit 1
+            fi
+          done
+          check_selected_parity() {
+            local label="$1" required="$2" actual="$3"
+            if [[ "$required" == "true" && "$actual" != "success" ]]; then
+              echo "::error::Required $label check failed, was cancelled or skipped ($actual)"
+              exit 1
+            fi
+            if [[ "$required" == "false" && "$actual" != "skipped" ]]; then
+              echo "::error::Unexpected $label check result ($actual) for unimpacted scope"
+              exit 1
+            fi
+          }
+          check_selected_parity "Support Browser" "$SUPPORT_REQUIRED" "$SUPPORT_BROWSER"
+          check_selected_parity "Platform Manager" "$PLATFORM_REQUIRED" "$PLATFORM_MANAGER"
+          echo "Syndes CI Gate: PASS (all selected domains + real identity parity)"

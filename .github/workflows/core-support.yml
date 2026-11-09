@@ -1,6 +1,5 @@
 name: Syndes Support CI
 on:
-  workflow_call:
   push:
     paths:
       - "modules/support/**"

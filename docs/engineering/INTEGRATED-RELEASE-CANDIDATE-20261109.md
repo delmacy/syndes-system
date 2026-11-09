@@ -1,34 +1,39 @@
-# Candidato de integração Syndes — Base funcional + Support + Platform Manager
+# Syndes — reconciliação do candidato de main e gate único de regressão
 
-Estado: **candidato técnico para revisão e CI conjunta, NÃO release operacional**. Data: 2026-11-09.
+Estado em 2026-11-09: **candidato técnico de revisão, não homologado nem implantado**. Branch `integration/platform-support-preflight-20261109`, PR #47 (DRAFT).
 
-## Encadeamento e branch única
+## Descoberta durante a promoção
 
-- `main`: alvo final de código, ainda protegido por revisão, controles de produção e política de deploy.
-- `integration/workspace-org-crm-c2-20261109` / [PR #27](https://github.com/delmacy/syndes-system/pull/27): base funcional com CRM, Inbox, WhatsApp, Organizations e Workspace, preservando SQL 002.
-- `feat/syndes-support-20261109` / [PR #34](https://github.com/delmacy/syndes-system/pull/34): módulo Support, frontend isolado, Keycloak+FGA, CI browser e dump/restore descartável.
-- `feat/platform-master-admin-console-20261109` / [PR #33](https://github.com/delmacy/syndes-system/pull/33): Platform Manager isolado, API Control DB read-only, Keycloak client separado, redes dedicadas.
-- `integration/platform-support-preflight-20261109`: branch de integração criada em worktree próprio a partir da PR #27; merges explícitos das PRs #34 e #33, **sem conflitos** e sem modificar os HEADs originais. Seu PR de destino é o **`main`** em modo **draft**.
+`main` já integrara separadamente a fundação Core Kernel/Host, CRM e Inbox, e implementara `.github/workflows/syndes-ci.yml` com um planner de impacto/fan-out/fan-in. A primeira PR #47 (proposta pelo trabalho em branch) **não era mergeable** porque o histórico dos PRs empilhados adicionava novamente 39 arquivos existentes em `main`; também introduzia por engano um segundo orquestrador `integrated-release.yml`.
 
-## Validação local do conjunto
+**Correção de arquitetura:** aproveitar o pipeline já implantado em `main`, não duplicá-lo. O candidato recebe `origin/main` por merge explícito com resolução `ort -X ours` dos arquivos de negócio duplicados, após inspeção da relação de 39 arquivos em conflito. O resultado staged dessa operação adiciona apenas o orquestrador mainline, scripts e documentação e remove o workflow antigo `integrity.yml` que a linha de `main` já substituiu. Nenhuma regra SQL 002 foi removida e as duas soluções continuam em frontends separados. **`-X ours` não é parecer de revisão; o resultado integrado continua sujeito a CI e revisão independente.**
 
-Todos os `npm ci`, `check`, `build` e `test` declarados foram executados, conforme existam, para os 11 packages/aplicações: Core Kernel, Organizations, CRM, Inbox, WhatsApp, Support, Core Host, Support Web, Platform Manager API, Platform Manager Web e Workspace Web. Resultado: **INTEGRATION_ALL_PACKAGE_SUITES_PASS**, sem falhas. Testes que exigem PostgreSQL/Keycloak externos podem continuar marcados como skipped em ambiente Windows local: o gate de CI os executa com serviços reais descartáveis.
+## Gate principal, sem múltiplas promoções
 
-## Um único gate para entrar em main
+`.github/workflows/syndes-ci.yml` é o único workflow principal de merge em `main`:
+- `foundation`: estrutura, módulos/AGENTS, plano de testes, sintaxe e presença da trava física SQL 002;
+- `impact`: seleciona testes por mudanças e propaga impactos de segurança a consumidores;
+- `regression`: matriz de testes Core Kernel, Organizations, CRM, Inbox, WhatsApp TS+Go, Host, Workspace, Support e Platform Manager (aplicações e infraestrutura);
+- `support-browser-parity`: suíte real de Chromium, Keycloak, OpenFGA, PostgreSQL e token de outro OIDC client, selecionada somente quando Support/Support Web é impactado (sempre no modo full);
+- `platform-manager-parity`: suíte de PostgreSQL, Keycloak real, redes/ACLs e navegador do Manager, selecionada quando Platform API/Web/infra é impactado (sempre no modo full);
+- `gate`: **só PASS se todos os jobs obrigatórios concluírem com sucesso**. Skips são aceitos somente para jobs que o planejador explicitamente não selecionou. Cancelamentos, falhas ou skip de suite exigida reprovam o merge.
 
-`.github/workflows/integrated-release.yml`: pipeline de **fan-out/fan-in** obrigatório na revisão para `main`. Primeiro verifica ancestrais da base e dos dois produtos, depois exige a integridade byte-a-byte de `organizations/sql/002_legacy_single_context_gate.sql` e da ativação manual. Só após sucesso executa oito grupos de suites como **reusable workflows** (Core Host/Infra/Identity/Organizations, CRM, Inbox, WhatsApp MVP incluindo Go, Workspace, Platform Manager, Support+PostgreSQL+backup/restore, Support Browser E2E com Keycloak/FGA/PG). O job final recusa `failure`, `skipped` e `cancelled`: só passa se **todos** terminarem em `success`.
+Os workflows antigos de desenvolvimento continuam acionados por arquivos modificados para feedback por módulo e como documentação da paridade de release. `workflow_call` foi mantido **somente** nos dois grupos de prova externa até a migração integral da paridade. O segundo arquivo `integrated-release.yml` foi retirado deste candidato.
 
-Os workflows originais passam a aceitar `workflow_call` sem perder seus gatilhos de desenvolvimento; isso preserva feedback por módulo, mas a promoção para `main` é **uma decisão única**. Não existem comandos de merge automático nem deploy. O gate não concede permissões de produção nem edita servers.
+## Regressões executadas
 
-## Falhas e aprovações que o CI não resolve
+Antes da reconciliação com `main`, no worktree isolado do Win1: 11 pacotes/apps passaram nos scripts `npm ci`, `check`, `build` e `test` existentes (Core Kernel, Organizations, CRM, Inbox, WhatsApp, Support, Core Host, Support Web, Platform API, Platform Web, Workspace). Após a reconciliação, planner mainline 10/10 testes e 14 workflows YAML válidos na análise local; validação CI combinada no PR #47 é obrigatória, especialmente identity+postgres+browser e condições de erro.
 
-- [ ] Revisão independente, aprovação dos PRs #27/#33/#34 e da integração.
-- [ ] Verificar checks externos não-governados pela CI (por exemplo configuração Vercel legada com root inválido); corrigir ou remover pela governança, não ignorar falha silenciosamente.
-- [ ] Product Gate da Issue #31 preservado; **não remover SQL 002**.
-- [ ] [Gate #39](https://github.com/delmacy/syndes-system/issues/39): tenant Syndes e telefone exclusivo, secrets geridos, Keycloak clients separados, FGA/SQL grants auditados, backup real/restauração, smoke real, HTTPS e rollback.
-- [ ] [Gate #37](https://github.com/delmacy/syndes-system/issues/37): métricas agregadas do Support no Platform Manager dependem de nova implementação/PR; jamais consultar tenant DB pelo Manager.
-- [ ] Autorizar deployment com digest pin, janela, monitoramento e pessoa responsável. CI verde não é licença para cutover.
+O script mainline `scripts/ci/run-suite.sh` amplia o ensaio Support com restauração real de dump sintético PostgreSQL. Ausência de fixture real em Windows local não constitui skip permitido para CI.
 
-## Condições de publicação
+## Bloqueios que CI não resolve
 
-Depois das revisões e do gate operacional, habilitar merge da release candidate no `main` respeitando dependências; etiquetar digest imutável; aprovar e executar release controlada. Em falha, reverter imagem e frontend ao digest aprovado, preservar banco de dados, fila, auditoria e SQL 002. Não utilizar merge do candidato sem confirmar política real de automação pós-main.
+- PRs #27/#33/#34 permanecem DRAFT, sem revisão humana independente; #47 não pode ser mesclada automaticamente.
+- A política de `main` propõe PRs incrementais em ordem de dependências. A PR #47, que inclui centenas de commits da cadeia legada, é **candidata de prova de integração** e não atalho para passar sem auditar uma diferença extensa.
+- Product Gate multi-org #31 mantém dois índices físicos SQL 002 e não libera ativação manual; singleton/SSE não pode ser estendido sem broker validado.
+- Release do Support #39: não há tenant/WhatsApp Syndes provisionados na configuração operacional, grants FGA/filas, backup real restaurado, retenção, HTTPS e sign-off.
+- Release do Platform Manager #33: primeiro owner, role SQL mínima, AppRole OpenBao, origins/rede isoladas, backup/smoke real e sign-off faltam.
+- Agregados do Support no Manager #37: contrato ADR apenas, implementação exige autorização de acesso e PR separado.
+- A integração Vercel antiga aponta para `apps/web` inexistente; seu status externo deve ser corrigido por governança, nunca ignorado silenciosamente.
+
+**Não houve push a `main`, deploy em DevServer01, alteração de tenants, grants reais, chave/secret operacional nem remoção SQL 002.**

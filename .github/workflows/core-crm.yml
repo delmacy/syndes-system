@@ -1,6 +1,5 @@
 name: Core CRM CI
 on:
-  workflow_call:
   push:
     paths:
       - "modules/core-crm/**"

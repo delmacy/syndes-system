@@ -1,7 +1,6 @@
 name: WhatsApp MVP Gate
 
 on:
-  workflow_call:
   push:
     paths:
       - "modules/whatsapp/**"

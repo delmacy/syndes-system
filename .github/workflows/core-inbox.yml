@@ -1,6 +1,5 @@
 name: Core Inbox CI
 on:
-  workflow_call:
   push:
     paths:
       - "modules/inbox/**"
