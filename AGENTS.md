@@ -31,7 +31,7 @@ Trabalhar funcionalmente em apenas um módulo de produto por vez:
 10. Commercial Website
 11. Release Candidate
 
-A fase corrente é **Core CRM**.
+**Priorização mais recente (2026-11-01):** após a evolução da Inbox, o responsável pelo produto **autorizou concluir as tarefas pendentes do frontend Core CRM**, mantendo o escopo do MVP congelado. O foco imediato é validar e finalizar `feat/crm-workspace-completion` e seus critérios, não abrir novos módulos. CRM e Inbox **não são DONE** até Product Gate formal com testes de identidade/tenant reais e operação comprovada. A sequência comercial do MVP permanece inalterada.
 
 ## Princípios de engenharia
 

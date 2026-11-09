@@ -46,14 +46,15 @@ export type TimelineEntry = Readonly<{
   id:number;tenantId:string;personId:string;actorId:string;action:string;recordedAt:string;
 }>;
 
-export type CrmContext = Readonly<{actor:Actor;tenantId:string}>;
+export type CrmContext = Readonly<{actor:Actor;tenantId:string;
+  organizationId?:string;workspaceId?:string;scopeWriteAllowed?:boolean}>;
 
 export interface CrmRepository {
   createOrganization(tenantId:string,actorId:string,id:string,input:CreateOrganization):Promise<Organization>;
   createPerson(tenantId:string,actorId:string,id:string,input:CreatePerson):Promise<Person>;
   linkPerson(tenantId:string,actorId:string,personId:string,organizationId:string):Promise<PersonOrganization>;
   getPerson(tenantId:string,id:string):Promise<Person|null>;
-  listPeople(tenantId:string,query:string|null,limit:number):Promise<readonly Person[]>;
+  listPeople(tenantId:string,query:string|null,limit:number,offset?:number):Promise<readonly Person[]>;
   archivePerson(tenantId:string,actorId:string,id:string):Promise<boolean>;
   createTag(tenantId:string,actorId:string,id:string,label:string):Promise<Tag>;
   tagPerson(tenantId:string,actorId:string,personId:string,tagId:string):Promise<PersonTag>;

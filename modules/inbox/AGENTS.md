@@ -1,5 +1,9 @@
 # AGENTS.md — Inbox
 
+## Estado
+
+**MÓDULO EM DESENVOLVIMENTO — PRD-002 (prioridade a partir de 2026-11-01).** O CRM mantém pendências de frontend abertas por decisão explícita do responsável pelo produto. Não declarar Inbox concluída antes de realtime seguro, anexos, aceite Keycloak/OpenFGA real e testes de isolamento.
+
 ## Missão
 
 Fornecer atendimento humano compartilhado e histórico de conversas, sem tentar reproduzir um contact center completo.

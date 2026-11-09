@@ -1,0 +1,4 @@
+services:
+  whatsapp-gateway:
+    environment:
+      SYNDES_API_URL: http://syndes-core-host-whatsapp-v2:8082

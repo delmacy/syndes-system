@@ -19,7 +19,8 @@ for(const specifier of cfg.modules){
     const dest=join(base,name);
     if(resolve(dest)===resolve(source))continue;
     await rm(dest,{recursive:true,force:true});
-    await symlink(source,dest,"dir");
+    // Windows junctions do not require Developer Mode; POSIX retains directory symlinks.
+    await symlink(source,dest,process.platform==="win32"?"junction":"dir");
   }
 }
 console.log("NestJS peers resolved to one trusted Host installation");

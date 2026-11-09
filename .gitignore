@@ -1,0 +1,14 @@
+# Generated artifacts and local-only development data
+**/node_modules/
+**/dist/
+**/.vite/
+**/coverage/
+.tmp-*
+*.log
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx

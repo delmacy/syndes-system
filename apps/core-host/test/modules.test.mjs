@@ -3,17 +3,24 @@ import assert from "node:assert/strict";
 import {ModuleRegistry} from "@syndes/core-kernel";
 import {loadInstalledPlugins,installModuleAssets} from "../dist/module-host.js";
 
-test("Core Host mounts CRM from an installed package descriptor, not hardcoded CRM routes",async()=>{
+test("Core Host mounts CRM, Inbox, WhatsApp and Organizations from installed descriptors",async()=>{
   const plugins=await loadInstalledPlugins();
-  assert.deepEqual(plugins.map(p=>p.definition.id),["crm"]);
+  assert.deepEqual(plugins.map(p=>p.definition.id),["crm","inbox","whatsapp","organizations"]);
   assert.equal(plugins[0].publicOidcClientId,"syndes-crm-ui");
   const order=new ModuleRegistry([{id:"platform",version:"0.1.0"},...plugins.map(p=>p.definition)])
     .ordered().map(x=>x.id);
-  assert.deepEqual(order,["platform","crm"]);
+  assert.deepEqual(order,["platform","crm","inbox","organizations","whatsapp"]);
   assert.deepEqual(plugins[0].migrations.map(x=>x.id),[
     "001_crm_foundation","002_crm_tags_notes","003_crm_employees_channels"
   ]);
   assert.ok(plugins[0].permissions.some(x=>x.resource==="crm:people"));
+  assert.equal(plugins[1].definition.dependencies.includes("crm"),true);
+  assert.ok(plugins[1].permissions.some(x=>x.resource==="inbox:conversations"));
+  assert.equal(plugins[1].migrations[0].id,"001_inbox_foundation");
+  assert.equal(plugins[3].definition.id,"organizations");
+  assert.equal(plugins[3].migrations[0].id,"001_account_hierarchy");
+  assert.ok(plugins[3].permissions.some(x=>x.resource==="organizations:bootstrap"));
+
 });
 
 test("generic asset middleware responds only to exact declared routes",async()=>{

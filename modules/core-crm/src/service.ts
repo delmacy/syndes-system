@@ -1,3 +1,4 @@
+import {AccessDeniedError} from "@syndes/core-kernel";
 import { randomUUID } from "node:crypto";
 import type { CoreKernel, ModuleDefinition } from "@syndes/core-kernel";
 import type {
@@ -20,15 +21,18 @@ export const crmModule:ModuleDefinition=Object.freeze({
 export class CrmService {
   constructor(
     private readonly kernel:CoreKernel,
-    private readonly repositoryForTenant:(tenantId:string)=>Promise<CrmRepository>,
+    private readonly repositoryForTenant:(tenantId:string,organizationId?:string)=>Promise<CrmRepository>,
   ) {}
 
   private execute<T>(
     context:CrmContext,action:"read"|"write",resource:string,
     handler:(repo:CrmRepository)=>Promise<T>
   ):Promise<T>{
+    if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&!context.organizationId)
+      throw new AccessDeniedError();
+    if(action==="write"&&context.scopeWriteAllowed===false)throw new AccessDeniedError();
     return this.kernel.execute({actor:context.actor,tenantId:context.tenantId,action,resource},
-      async()=>handler(await this.repositoryForTenant(context.tenantId)));
+      async()=>handler(await this.repositoryForTenant(context.tenantId,context.organizationId)));
   }
 
   createOrganization(context:CrmContext,input:CreateOrganization):Promise<Organization>{
@@ -63,11 +67,12 @@ export class CrmService {
       repo=>repo.getPerson(context.tenantId,p));
   }
 
-  listPeople(context:CrmContext,query:unknown=null,limit=25):Promise<readonly Person[]>{
+  listPeople(context:CrmContext,query:unknown=null,limit=25,offset=0):Promise<readonly Person[]>{
     if(!Number.isInteger(limit)||limit<1||limit>100)throw new CrmValidationError("Invalid page size");
+    if(!Number.isInteger(offset)||offset<0||offset>100000)throw new CrmValidationError("Invalid offset");
     const normalized=searchQuery(query);
     return this.execute(context,"read","crm:people",
-      repo=>repo.listPeople(context.tenantId,normalized,limit));
+      repo=>repo.listPeople(context.tenantId,normalized,limit,offset));
   }
 
   archivePerson(context:CrmContext,personId:string):Promise<boolean>{

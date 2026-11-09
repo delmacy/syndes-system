@@ -1,13 +1,18 @@
 services:
   core-host:
+    image: ${SYNDES_CORE_HOST_IMAGE:?Set an approved immutable Core Host image}
     build: {context: ../.., dockerfile: apps/core-host/Dockerfile}
     restart: unless-stopped
     environment:
       CORE_PORT: "8082"
+      WHATSAPP_GATEWAY_URL: http://whatsapp-gateway:19083
+      WHATSAPP_WHATSMEOW_TOKEN: ${WHATSAPP_WHATSMEOW_TOKEN:-}
+      WHATSAPP_WEBHOOK_TOKEN: ${WHATSAPP_WEBHOOK_TOKEN:-}
+      WHATSAPP_DISPATCH_ENABLED: ${WHATSAPP_DISPATCH_ENABLED:-false}
       CORE_KEYCLOAK_ISSUER: ${CORE_KEYCLOAK_ISSUER:?}
       CORE_KEYCLOAK_AUDIENCE: ${CORE_KEYCLOAK_AUDIENCE:?}
       CORE_KEYCLOAK_JWKS_URL: ${CORE_KEYCLOAK_JWKS_URL:?}
-      CORE_OPENFGA_URL: http://syndes-openfga:8080
+      CORE_OPENFGA_URL: http://openfga:8080
       CORE_OPENFGA_STORE_ID: ${CORE_OPENFGA_STORE_ID:?}
       CORE_OPENBAO_URL: https://openbao:8200
       NODE_EXTRA_CA_CERTS: /run/openbao-ca/openbao.crt
