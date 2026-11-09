@@ -32,3 +32,16 @@
 ## Proibições desta etapa
 
 Não tocar em bancos tenant, dados CRM/Inbox/WhatsApp, SQL 002, PR #27, checkout de Workspace do DevServer01 ou rede `syndes-data`/`syndes-security-access` existente. Não alterar serviço Traefik/Tailscale existente nem expor nova rota pública enquanto o acesso ainda não estiver completo e verificado.
+
+
+## Entrega segura da credencial administrativa pelo OpenBao (pendente de operador)
+
+A role `syndes_master_api` continua **sem senha** e a API permanece **não implantada**. A etapa de provisionamento exige uma ação autenticada e auditada do operador do OpenBao; o projeto não presume acesso ao token root nem obtém credenciais de outros serviços.
+
+- A política em `infra/master-admin/openbao/master-runtime.hcl` concede somente leitura de `kv/data/production/platform-manager` e revogação do próprio token. Criar AppRole exclusivo, com `role-id` e `secret-id` entregues fora do Git em `/run/syndes/approle/platform-manager/`. Nunca utilizar a identidade existente do Core Host.
+- O KV v2 deve possuir um campo `master_db_password` gerado aleatoriamente (base64url, 32 a 256 caracteres). Um DBA autorizado deverá configurar **a mesma senha** na role `syndes_master_api`, sem escrevê-la em histórico, argumentos de comandos, logs ou arquivos persistentes. Não mudar roles dos tenants.
+- Após disponibilizar a identidade no host operador e o CA TLS de `openbao`, executar `infra/master-admin/openbao/run-renderer.sh` como root autorizado. O wrapper verifica `/run` tmpfs; o renderizador valida TLS, usa AppRole restrita, lê somente o segredo do Manager, revoga token **antes** de publicar credencial e grava `/run/syndes/platform-manager/master_db_url` com owner UID 1000 e modo 0600. O serviço Node opera como UID 1000 e recebe **somente esse arquivo individual** read-only.
+- `MASTER_DB_URL_FILE` deve apontar ao segredo renderizado, e o env file do Compose conter apenas issuer, audience, clientId, endereço interno de JWKS, origem HTTPS e `MASTER_CONTROL_DB_URL_FILE=/run/secrets/master_db_url` — nunca a senha. No restart, renovar/validar a entrega de segredo pelo operador. Não iniciar a API com `.env` de senha como atalho.
+- A nova rotina possui testes de unidade que verificam DSN fixo em `syndes_control`, rejeição de senha inválida, revogação obrigatória, ausência de arquivo ao falhar revogação e escopo da política. Um teste CI não prova que a AppRole foi provisionada no cofre operacional; esta é uma dependência humana ainda bloqueante.
+
+**Critério de desbloqueio:** AppRole criada e auditada, KV correto, renderização em tmpfs testada, role com senha correspondente, `/readyz` aprovado e principal de operador explicitamente autorizado. Sem isso, a homologação fica no estado **infraestrutura pronta, serviço não ativado**.
