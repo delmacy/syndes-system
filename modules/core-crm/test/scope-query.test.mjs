@@ -41,3 +41,10 @@ test("invalid organization UUID is rejected before database access",async()=>{
   "SELECT 1 /*ORG: WHERE platform_organization_id=@@ORG@@*/",[]),TenantDatabaseMismatchError);
  assert.deepEqual(f.queries,[]);
 });
+
+test("scope marker without an owner placeholder cannot grant a scoped query",()=>{
+ const f=fake();
+ assert.throws(()=>crmOwnerQuery(f.db,O,"SELECT 1 /*ORG: AND TRUE*/",[]),
+  /missing an organization predicate/);
+ assert.deepEqual(f.queries,[]);
+});

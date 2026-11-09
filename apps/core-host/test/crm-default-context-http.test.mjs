@@ -76,9 +76,13 @@ test("CRM denies every HTTP route before tenant-wide query without authorized de
   assert.equal(ok.status,200);
   assert.deepEqual(await ok.json(),[]);
   assert.ok(queries.at(-1).sql.includes("FROM crm_people"));
+  assert.match(queries.at(-1).sql,/platform_organization_id=\$5::uuid/);
+  assert.deepEqual(queries.at(-1).values,[tenant,null,25,0,o],"SQL list is scoped BEFORE paging");
   const csv=await fetch(api+"/exports/csv",{headers:h("alice")});
   assert.equal(csv.status,200);
   assert.match(csv.headers.get("content-type"),/text\/csv/);
   assert.equal((await csv.text()).length>0,true);
+  assert.match(queries.at(-1).sql,/platform_organization_id=\$3::uuid/);
+  assert.deepEqual(queries.at(-1).values,[tenant,1001,o],"CSV export is scoped at SQL boundary");
  }finally{await app.close()}
 });
