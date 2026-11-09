@@ -7,13 +7,13 @@ import {
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button } from "@syndes/front-shared/button";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu,
   SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "@syndes/front-shared/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CrmFeature } from "@/features/crm";
 import { Overview } from "@/features/overview";

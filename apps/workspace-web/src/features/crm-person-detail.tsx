@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Archive, Building2, Clock3, ContactRound, FileText, Link2, Mail, NotebookPen, PenLine, Phone, Plus, Radio, RefreshCw, Tags, UsersRound } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@syndes/front-shared/badge";
+import { Button } from "@syndes/front-shared/button";
+import { Input } from "@syndes/front-shared/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { CrmCapability, CrmChannel, CrmEmployee, CrmNote, CrmTag, CrmTimelineEvent, Organization, Person, TenantApi } from "@/lib/api";
 

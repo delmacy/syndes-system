@@ -1,0 +1,56 @@
+{
+  "name": "@syndes/front-shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared visual primitives for Syndes Workspace and Platform Manager. No authentication or tenant access.",
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./button": {
+      "types": "./src/components/button.tsx",
+      "default": "./src/components/button.tsx"
+    },
+    "./input": {
+      "types": "./src/components/input.tsx",
+      "default": "./src/components/input.tsx"
+    },
+    "./badge": {
+      "types": "./src/components/badge.tsx",
+      "default": "./src/components/badge.tsx"
+    },
+    "./card": {
+      "types": "./src/components/card.tsx",
+      "default": "./src/components/card.tsx"
+    },
+    "./separator": {
+      "types": "./src/components/separator.tsx",
+      "default": "./src/components/separator.tsx"
+    }
+  },
+  "peerDependencies": {
+    "@base-ui/react": "^1.9.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "dependencies": {
+    "class-variance-authority": "0.7.1",
+    "cn": "0.5.1"
+  },
+  "devDependencies": {
+    "@base-ui/react": "1.9.0",
+    "@types/react": "^19.3.0",
+    "react": "19.3.1",
+    "typescript": "~7.0.2"
+  },
+  "scripts": {
+    "check": "tsc --noEmit --project tsconfig.json",
+    "test": "node --test test/*.test.mjs && npm run check"
+  }
+}

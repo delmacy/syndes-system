@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../../packages/front-shared/src";
 @import "@fontsource-variable/geist";
 :root{font-family:'Geist Variable',Inter,system-ui,sans-serif;font-synthesis:none;background:#f6f8fc;color:#17233e}
 *{box-sizing:border-box}
