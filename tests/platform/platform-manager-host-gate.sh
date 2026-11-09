@@ -68,7 +68,7 @@ if query "SELECT count(*) FROM platform_operator_access WHERE role='owner' AND s
   ok "At least one explicitly authorized platform owner exists"
 else stop "No active platform owner provisioned"; fi
 
-if docker exec syndes-security-access-openbao-1 bao status -format=json 2>/dev/null | grep -q '"sealed":false'; then
+if command -v jq >/dev/null && docker exec syndes-security-access-openbao-1 bao status -format=json 2>/dev/null | jq -e '.initialized == true and .sealed == false' >/dev/null 2>&1; then
   ok "OpenBao initialized and unsealed"
 else stop "OpenBao sealed or unavailable"; fi
 
