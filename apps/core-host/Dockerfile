@@ -4,6 +4,12 @@ COPY packages/core-kernel/package*.json packages/core-kernel/
 COPY packages/core-kernel/tsconfig.json packages/core-kernel/
 COPY packages/core-kernel/src packages/core-kernel/src
 RUN cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+COPY modules/organizations/package*.json modules/organizations/
+COPY modules/organizations/tsconfig.json modules/organizations/
+COPY modules/organizations/src modules/organizations/src
+COPY modules/organizations/sql modules/organizations/sql
+RUN cd modules/organizations && npm ci --no-audit --no-fund && npm run build
+
 COPY modules/core-crm/package*.json modules/core-crm/
 COPY modules/core-crm/tsconfig.json modules/core-crm/
 COPY modules/core-crm/src modules/core-crm/src
@@ -16,11 +22,11 @@ COPY modules/inbox/src modules/inbox/src
 COPY modules/inbox/sql modules/inbox/sql
 COPY modules/inbox/public modules/inbox/public
 RUN cd modules/inbox && npm ci --no-audit --no-fund && npm run build
-COPY modules/whatsapp/package.json modules/whatsapp/
+COPY modules/whatsapp/package*.json modules/whatsapp/
 COPY modules/whatsapp/tsconfig.json modules/whatsapp/
 COPY modules/whatsapp/src modules/whatsapp/src
 COPY modules/whatsapp/sql modules/whatsapp/sql
-RUN cd modules/whatsapp && npm install --no-package-lock --no-audit --no-fund && npm run build
+RUN cd modules/whatsapp && npm ci --no-audit --no-fund && npm run build
 COPY apps/core-host/package*.json apps/core-host/
 COPY apps/core-host/tsconfig.json apps/core-host/
 COPY apps/core-host/src apps/core-host/src
