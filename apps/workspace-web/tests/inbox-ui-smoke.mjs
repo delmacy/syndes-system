@@ -102,10 +102,16 @@ try {
   assert.equal(await desktop.locator(".syndes-sidebar").getByRole("button",{name:"Configurações"}).count(),1,"Global settings belong to sidebar footer");
   await desktop.getByRole("button", { name: "Minhas" }).click();
   await desktop.getByRole("button", { name: /Pedido inicial/ }).waitFor();
-  assert.equal(await desktop.getByRole("button", { name: /Conversa resolvida/ }).count(), 0);
+  // A server-filtered list updates asynchronously after the selected queue responds.
+  // Wait for absence instead of asserting synchronously against stale React rows.
+  await desktop.getByRole("button", { name: /Conversa resolvida/ }).waitFor({state:"detached",timeout:10000});
+  assert.equal(await desktop.getByRole("button", { name: /Conversa resolvida/ }).count(), 0,
+    "Mine filter must exclude non-assigned case");
   await desktop.getByRole("button", { name: "Não atribuídas" }).click();
   await desktop.getByRole("button", { name: /Conversa resolvida/ }).waitFor();
-  assert.equal(await desktop.getByRole("button", { name: /Pedido inicial/ }).count(), 0);
+  await desktop.getByRole("button", { name: /Pedido inicial/ }).waitFor({state:"detached",timeout:10000});
+  assert.equal(await desktop.getByRole("button", { name: /Pedido inicial/ }).count(), 0,
+    "Unassigned filter must exclude assigned case");
   await desktop.getByRole("group", { name: "Filtrar conversas por responsável" }).getByRole("button", { name: "Todas" }).click();
   await desktop.getByRole("button", { name: /Pedido inicial/ }).click();
   await desktop.getByText("Olá, preciso de ajuda").waitFor();
