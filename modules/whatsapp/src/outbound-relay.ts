@@ -16,7 +16,20 @@ export class WhatsAppOutboundRelay {
   const pending=await db.query(`SELECT id::text,account_id::text,idempotency_key,
     recipient_external_id,body,status,gateway_queue_id::text
     FROM whatsapp_outbox WHERE tenant_id=$1::uuid AND status IN ('pending','processing')
-    AND next_attempt_at<=clock_timestamp() ORDER BY created_at,id LIMIT 1`,[tenantId]);
+    AND next_attempt_at<=clock_timestamp()
+    AND EXISTS (
+      SELECT 1 FROM whatsapp_accounts a
+      WHERE a.tenant_id=whatsapp_outbox.tenant_id
+        AND a.id=whatsapp_outbox.account_id
+        AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL
+        AND (whatsapp_outbox.inbox_message_id IS NULL OR EXISTS (
+          SELECT 1 FROM inbox_messages m
+          JOIN inbox_conversations c ON c.tenant_id=m.tenant_id AND c.id=m.conversation_id
+          WHERE m.tenant_id=whatsapp_outbox.tenant_id
+            AND m.id=whatsapp_outbox.inbox_message_id
+            AND c.platform_organization_id=a.platform_organization_id
+        ))
+    ) ORDER BY created_at,id LIMIT 1`,[tenantId]);
   const row=pending.rows[0] as Row|undefined;
   if(!row)return "empty";
   if(!UUID.test(row.id)||!UUID.test(row.account_id)||!row.idempotency_key)throw Error("Invalid durable outbound record");

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Central CI suite executor. Old module workflows remain active during parity migration.
+# Single mainline suite executor. Critical legacy coverage is pinned by parity.test.mjs.
 set -Eeuo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -113,10 +113,13 @@ case "$suite" in
     install modules/support
     (cd modules/support && npm run check && npm test && npm pack --dry-run)
     pg_container="syndes-ci-support-pg"
-    start_pg "$pg_container" 5432 "ci-support-only" 16
+    start_pg "$pg_container" 5432 "ci-only-disposable" 16
     (cd modules/support &&
-      SYNDES_SUPPORT_TEST_PG_URL="postgresql://postgres:ci-support-only@127.0.0.1:5432/postgres" \
-      node --test test/pg-integration.test.mjs)
+      SYNDES_SUPPORT_TEST_PG_URL="postgresql://postgres:ci-only-disposable@localhost:5432/postgres" \
+      node --test test/pg-integration.test.mjs &&
+      SYNDES_DISPOSABLE_RESTORE_REHEARSAL=true \
+      SYNDES_SUPPORT_TEST_PG_URL="postgresql://postgres:ci-only-disposable@localhost:5432/postgres" \
+      node test/pg-backup-restore.mjs)
     ;;
   support-web)
     install apps/support-web

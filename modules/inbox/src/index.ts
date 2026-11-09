@@ -7,3 +7,5 @@ export {SimulatedChannelAdapter} from "./channels.js";
 export type {InboundChannelEvent,InboundChannelAdapter} from "./channels.js";
 
 export {InboxChangeBus} from "./realtime.js";
+export {InboxDefaultContextGuard} from "./context-guard.js";
+export {inboxScopedQuery} from "./scope-query.js";

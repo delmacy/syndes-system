@@ -73,6 +73,33 @@ test("cross-tenant and malformed contexts are denied", async () => {
   await assert.rejects(kernel.execute({ ...request, actor: { id: "", kind: "user" } }, () => "leak"), AccessDeniedError);
 });
 
+test("platform owner privileges never confer tenant or workspace access", async () => {
+  const providerTenant = "syndes-provider-tenant";
+  const customerTenant = "customer-a";
+  const actor = { id: "global-platform-owner-sub", kind: "user" };
+  let resolvedTenantOperations = 0;
+  const kernel = new CoreKernel({
+    modules: [],
+    // This person is a global platform owner, but is a tenant member ONLY
+    // in the Syndes provider account. The role in the Control DB is irrelevant.
+    tenancy: { canAccessTenant: async ({ tenantId }) => tenantId === providerTenant },
+    authorization: { canAccess: async ({ tenantId, resource }) =>
+      tenantId === providerTenant && resource === "inbox:own" },
+  });
+  await kernel.start();
+  const perform = (tenantId, resource) => kernel.execute({
+    actor, tenantId, action: "read", resource,
+  }, () => { resolvedTenantOperations++; return "ok"; });
+
+  assert.equal(await perform(providerTenant, "inbox:own"), "ok");
+  await assert.rejects(perform(customerTenant, "inbox:own"), AccessDeniedError,
+    "Global platform ownership cannot open a customer's workspace");
+  await assert.rejects(perform(providerTenant, "inbox:customer-private"), AccessDeniedError,
+    "Provider tenant membership cannot bypass resource-level permissions");
+  assert.equal(resolvedTenantOperations, 1,
+    "Only the one authorized operation may touch tenant data");
+});
+
 test("unavailable authorization service fails closed", async () => {
   const kernel = new CoreKernel({
     modules: [],

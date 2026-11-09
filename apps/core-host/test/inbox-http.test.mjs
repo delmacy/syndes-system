@@ -18,7 +18,9 @@ test("Inbox HTTP routes mount without Host-specific business controllers and den
  await kernel.start();
  let resolutions=0;
  const provider={resolve:async tenantId=>{
-  resolutions++;return {tenantId,query:async()=>({rows:[],rowCount:0})};
+  resolutions++;return {tenantId,query:async sql=>sql.includes('FROM platform_organizations o')
+    ? {rows:[{organization_id:'33333333-3333-4333-8333-333333333333',workspace_id:'44444444-4444-4444-8444-444444444444'}],rowCount:1}
+    : {rows:[],rowCount:0}};
  }};
  class Runtime{}
  Global()(Runtime);
@@ -31,6 +33,9 @@ test("Inbox HTTP routes mount without Host-specific business controllers and den
  const app=await NestFactory.create(App,{logger:false});
  installModuleAssets(app,plugins);
  await app.listen(0,"127.0.0.1");
+ const sharedBus=app.get("SYNDES_INBOX_EVENTS");
+ assert.equal(sharedBus,app.get("SYNDES_INBOX_EVENTS"),"SSE consumers resolve same Host-global bus");
+ assert.equal(typeof sharedBus.publish,"function");
  const base=await app.getUrl();
  const route="/v1/tenants/"+A+"/inbox/conversations";
  try{
@@ -41,7 +46,19 @@ test("Inbox HTTP routes mount without Host-specific business controllers and den
   const response=await fetch(base+route,{headers:{authorization:"Bearer inbox-ci"}});
   assert.equal(response.status,200);
   assert.deepEqual(await response.json(),[]);
-  assert.equal(resolutions,1);
+  assert.equal(resolutions,2,"Context authorization and scoped Inbox list both resolve a tenant lease");
+  // Explicit selection travels through the Nest decorator into the trusted
+  // repository guard. Only authenticated actors with matching memberships
+  // may use it; malformed partial selection fails before business queries.
+  const selectedHeaders={authorization:"Bearer inbox-ci",
+   "x-syndes-organization-id":"33333333-3333-4333-8333-333333333333",
+   "x-syndes-workspace-id":"44444444-4444-4444-8444-444444444444"};
+  assert.equal((await fetch(base+route,{headers:selectedHeaders})).status,200);
+  assert.equal((await fetch(base+route,{headers:{
+   authorization:"Bearer inbox-ci",
+   "x-syndes-organization-id":"33333333-3333-4333-8333-333333333333"
+  }})).status,403,"Partial scope must never fall back to tenant-only list");
+
   const script=await fetch(base+"/inbox/app.js");
   assert.equal(script.status,200);
   assert.match(await script.text(),/code_challenge_method:"S256"/);

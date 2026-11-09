@@ -5,6 +5,9 @@ services:
     restart: unless-stopped
     environment:
       CORE_PORT: "8082"
+      # Operator-provisioned only; empty values make every Support route deny.
+      SYNDES_SUPPORT_TENANT_ID: ${SYNDES_SUPPORT_TENANT_ID:-}
+      SYNDES_SUPPORT_WHATSAPP_ACCOUNT_ID: ${SYNDES_SUPPORT_WHATSAPP_ACCOUNT_ID:-}
       WHATSAPP_GATEWAY_URL: http://whatsapp-gateway:19083
       WHATSAPP_WHATSMEOW_TOKEN: ${WHATSAPP_WHATSMEOW_TOKEN:-}
       WHATSAPP_WEBHOOK_TOKEN: ${WHATSAPP_WEBHOOK_TOKEN:-}

@@ -1,6 +1,6 @@
 import type {Actor,TenantDatabase,TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 export type {TenantDatabase,TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
-export type InboxContext=Readonly<{actor:Actor;tenantId:string}>;
+export type InboxContext=Readonly<{actor:Actor;tenantId:string;organizationId?:string;workspaceId?:string;scopeWriteAllowed?:boolean}>;
 export type ConversationStatus="open"|"pending"|"resolved";
 export type ConversationQueue="all"|"mine"|"unassigned";
 export type ChatScope="all"|"unread"|"favorites"|"groups"|"archived";
@@ -35,6 +35,8 @@ export interface InboxRepository {
     id:string;direction:Message["direction"];body:string;externalMessageId:string|null;
  }>):Promise<Message|null>;
  metrics(tenantId:string):Promise<InboxMetrics>;
+ /** Same-organization handoff only; caller must belong to BOTH workspaces. */
+ transferWorkspace(tenantId:string,conversationId:string,actorId:string,targetWorkspaceId:string):Promise<Conversation|null>;
 }
 export class InboxValidationError extends Error {
  constructor(message:string){super(message);this.name="InboxValidationError"}

@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { CustomerContextPanel } from "@/features/inbox-context";
+import { InboxInspectorPanel } from "@/features/inbox-context";
 import { WhatsAppAvatar } from "@/features/whatsapp-avatar";
 import { reconcileInboxThread } from "@/features/inbox-thread";
 import { isMine, replyBlockReason } from "@/features/inbox-rules";
@@ -76,8 +76,12 @@ export function WhatsAppDeliveryIndicator({status}:{status?:Message["deliverySta
 export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; actorId: string; onOpenCrm: () => void }) {
   const [records, setRecords] = useState<Conversation[]>([]);
   const [sidebarTarget, setSidebarTarget] = useState<HTMLElement | null>(null);
+  const [toolbarTarget, setToolbarTarget] = useState<HTMLElement | null>(null);
   const [scopeTab, setScopeTab] = useState<"phones" | "groups">("phones");
-  useEffect(() => { setSidebarTarget(document.getElementById("syndes-inbox-sidebar")); }, []);
+  useEffect(() => {
+    setSidebarTarget(document.getElementById("syndes-inbox-sidebar"));
+    setToolbarTarget(document.getElementById("syndes-inbox-toolbar"));
+  }, []);
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [thread, setThread] = useState<Message[]>([]);
   const [filter, setFilter] = useState<"" | Status>("");
@@ -122,6 +126,10 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
 
   const activeId = useRef<string | null>(null);
   const listRequest = useRef(0);
+  // A confirmed provider rename may precede the asynchronous Inbox projection.
+  // Keep it only in the current mounted, authorized workspace; never persist
+  // across tenant/organization changes or treat stale Inbox titles as canonical.
+  const confirmedGroupNames = useRef(new Map<string,{name:string;expiresAt:number}>());
   const threadRequest = useRef(0);
   const busy = useRef(false);
   const messagesViewport=useRef<HTMLDivElement|null>(null);
@@ -153,10 +161,18 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
     try {
       const result = await api.conversations(filter,queue,chatScope,0,debouncedSearch);
       if (requestId !== listRequest.current) return;
-      setRecords(result);
+      const canonical=result.map(entry=>{
+        const confirmed=entry.isGroup?confirmedGroupNames.current.get(entry.id):undefined;
+        if(!confirmed)return entry;
+        if(entry.subject===confirmed.name||Date.now()>confirmed.expiresAt){
+          confirmedGroupNames.current.delete(entry.id);return entry;
+        }
+        return {...entry,subject:confirmed.name};
+      });
+      setRecords(canonical);
       setMoreAvailable(result.length===100);
       setListError(false);
-      const current = result.find(item => item.id === activeId.current);
+      const current = canonical.find(item => item.id === activeId.current);
       if (current) setSelected(current);
     } catch (error) {
       if (requestId !== listRequest.current) return;
@@ -411,7 +427,8 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
       const response=await api.updateWhatsAppGroup(selected.id,
        field==="name"?{name:groupName}:{description:groupDescription});
       setGroupInfo(response);setGroupName(response.name);setGroupDescription(response.description);
-      if(response.name&&selected.subject!==response.name){
+      if(response.name){
+        confirmedGroupNames.current.set(selected.id,{name:response.name,expiresAt:Date.now()+90_000});
         setSelected(current=>current?.id===selected.id?{...current,subject:response.name}:current);
         setRecords(previous=>previous.map(row=>row.id===selected.id?{...row,subject:response.name}:row));
       }
@@ -446,7 +463,9 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   const currentDraftKey = selected ? draftKey(selected.id, composerMode) : "";
   const composer = drafts[currentDraftKey] ?? "";
   const updateComposer = (text: string) => setDrafts(previous => setDraft(previous, currentDraftKey, text));
-  const matching=scopeTab === "phones" && chatScope === "all" ? records.filter(record=>!record.isGroup) : records; // Tenant-scoped query, with local phone/group tab separation.
+  // The backend refresh is async. Never render cached phone rows in the group
+  // tab (or cached group rows in the phone tab) while the new scope loads.
+  const matching=records.filter(record=>scopeTab==="groups"?Boolean(record.isGroup):!record.isGroup);
   const replyReason = replyBlockReason(selected, actorId);
   const replyDisabled = composerMode !== "simulator/inbound" && Boolean(replyReason);
   const mine = isMine(selected, actorId);
@@ -540,7 +559,8 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
   );
 
   return <section className="flex h-full max-h-full min-h-0 min-w-0 flex-col overflow-hidden bg-white" aria-label="Inbox">
-    <div className="flex min-h-12 shrink-0 items-center gap-2 border-b border-[#e6eaf1] bg-white px-3 py-1 lg:px-5" role="toolbar" aria-label="Ações da Inbox">
+    {toolbarTarget && createPortal(
+    <div className="flex min-w-0 items-center gap-2" role="toolbar" aria-label="Ações da Inbox">
 
       <Button type="button" size="icon-sm" variant="outline" title="Atualizar fila" aria-label="Atualizar fila" onClick={()=>void refresh(true)}>
         <RefreshCw className={loading?"size-4 animate-spin":"size-4"}/>
@@ -570,8 +590,9 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
         </select>
       </label>
           </div></div></details>
-      <span className="ml-auto hidden text-[11px] text-muted-foreground xl:inline" role="status">{live?"● Tempo real":"Atualização periódica"}</span>
+      <span className="hidden text-[11px] text-slate-500 xl:inline" role="status">{live?"● Tempo real":"Atualização periódica"}</span>
     </div>
+    , toolbarTarget)}
     <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden grid-cols-1">
       <div className={(showThread ? "hidden " : "block ") + "min-h-0 md:hidden"}>{renderQueue(false)}</div>
       {sidebarTarget && createPortal(renderQueue(true), sidebarTarget)}
@@ -665,7 +686,7 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
       <SheetContent side="right" className="gap-0 p-0">
         <SheetHeader className="sr-only"><SheetTitle>Contexto do contato CRM</SheetTitle>
           <SheetDescription>Dados e histórico de contato autorizados pelo Core Host</SheetDescription></SheetHeader>
-        {selected && <CustomerContextPanel key={selected.crmPersonId ?? "unlinked"} api={api} personId={selected.crmPersonId}
+        {selected && <InboxInspectorPanel key={selected.id} api={api} conversation={selected}
           onOpenCrm={() => { setContextOpen(false); onOpenCrm(); }}/>}
       </SheetContent>
     </Sheet>

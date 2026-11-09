@@ -1,4 +1,4 @@
-import {Inject,Injectable,OnModuleDestroy,OnModuleInit} from "@nestjs/common";
+import {Inject,Injectable,Optional,OnModuleDestroy,OnModuleInit} from "@nestjs/common";
 import type {TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 import {WhatsAppInboxProjection} from "./dispatch.js";
 import {WhatsAppOutboundRelay} from "./outbound-relay.js";
@@ -11,8 +11,11 @@ export class WhatsAppDispatchWorker implements OnModuleInit,OnModuleDestroy{
  private readonly projection:WhatsAppInboxProjection;
  private readonly outbound:WhatsAppOutboundRelay;
  constructor(@Inject("SYNDES_CORE_API")private readonly registry:Registry,
- @Inject("SYNDES_TENANT_DB")pools:TrustedTenantDatabaseProvider){
-  this.projection=new WhatsAppInboxProjection(pools);
+ @Inject("SYNDES_TENANT_DB")pools:TrustedTenantDatabaseProvider,
+ @Optional() @Inject("SYNDES_INBOX_EVENTS")private readonly inboxEvents?:{
+  publish(scope:{tenantId:string;organizationId:string;workspaceId:string}):void
+ }){
+  this.projection=new WhatsAppInboxProjection(pools,scope=>this.inboxEvents?.publish(scope));
   this.outbound=new WhatsAppOutboundRelay(pools,new WhatsAppGatewayClient());
  }
  onModuleInit(){

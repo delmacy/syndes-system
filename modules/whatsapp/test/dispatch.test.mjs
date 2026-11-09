@@ -100,7 +100,9 @@ test('historical PN chat reuses verified LID thread and original outbound route'
  assert.equal(mutation.args[12],'+5551976471234');
  assert.equal(mutation.args[14],'history');
  assert.equal(mutation.args[15],false);
- assert.match(calls[1].sql,/r.tenant_id=\$1::uuid AND r.account_id=\$2::uuid/);
+ assert.match(calls[1].sql,/r.tenant_id=\$1::uuid/);
+ assert.match(calls[1].sql,/r.account_id=\$2::uuid/);
+ assert.match(calls[1].sql,/c.platform_organization_id=a.platform_organization_id/);
  assert.match(calls[1].sql,/r.phone_e164=\$3/);
 });
 test('historical PN chat snapshot reuses the same verified direct thread',async()=>{

@@ -1,0 +1,52 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
+
+const root=new URL("../../../",import.meta.url);
+const read=rel=>readFile(new URL(rel,root),"utf8");
+
+test("Master and Workspace are independent frontend origins, bundles and session storage",async()=>{
+ const [main,masterAuth,workspaceAuth,api,nginx,compose,host]=await Promise.all([
+  read("apps/master-admin-web/vite.config.ts"),
+  read("apps/master-admin-web/src/auth.ts"),
+  read("apps/workspace-web/src/lib/auth.ts"),
+  read("apps/master-admin-web/src/api.ts"),
+  read("apps/master-admin-web/deploy/default.conf"),
+  read("infra/master-admin/compose.yaml"),
+  read("apps/core-host/src/main.ts")
+ ]);
+ assert.match(main,/base:"\/"/,"Master is built for independent host root");
+ assert.match(masterAuth,/window\.location\.origin\+"\/"/);
+ assert.match(masterAuth,/syndes\.master\.pkce/);
+ assert.match(workspaceAuth,/syndes\.workspace\.pkce/);
+ assert.notEqual(masterAuth.match(/const pending="([^"]+)"/)?.[1],
+  workspaceAuth.match(/const pendingKey = "([^"]+)"/)?.[1]);
+ assert.match(api,/fetch\("\/v1\/platform\/admin"/);
+ assert.doesNotMatch(api,/\/v1\/tenants\//);
+ assert.match(nginx,/location \^~ \/v1\/platform\/admin\//);
+ assert.match(nginx,/location \^~ \/v1\/ \{ return 404; \}/);
+ assert.match(nginx,/location \^~ \/modules\/ \{ return 404; \}/);
+ assert.match(nginx,/location = \/workspace-runtime\.json \{ return 404; \}/);
+ assert.match(nginx,/location = \/readyz \{ return 404; \}/);
+ assert.match(compose,/127\.0\.0\.1:/);
+ assert.match(compose,/internal: true/);
+ assert.match(compose,/healthcheck:/);
+ assert.match(compose,/condition: service_healthy/);
+ assert.match(compose,/MASTER_DB_URL_FILE/);
+ assert.match(compose,/^name: syndes-master-admin$/m);
+ const [postgresCompose,keycloakCompose,coreCompose]=await Promise.all([
+  read("infra/postgres/compose.yaml"),
+  read("infra/security-access/compose.yaml"),
+  read("apps/core-host/compose.yaml"),
+ ]);
+ assert.match(compose,/syndes-master-data/);
+ assert.match(compose,/syndes-master-identity/);
+ assert.doesNotMatch(compose,/\bsyndes-data\b|\bsyndes-security-access\b/,
+  "Manager must not share general Core Host networks");
+ assert.match(postgresCompose,/syndes-master-data/);
+ assert.match(keycloakCompose,/syndes-master-identity/);
+ assert.doesNotMatch(coreCompose,/syndes-master-data|syndes-master-identity/);
+ assert.doesNotMatch(compose,/syndes-core-host-whatsapp/);
+ assert.doesNotMatch(compose,/8082/);
+ assert.doesNotMatch(host,/PlatformAdminController|PlatformAdminService/);
+});

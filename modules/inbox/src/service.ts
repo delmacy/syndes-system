@@ -1,3 +1,4 @@
+import {AccessDeniedError} from "@syndes/core-kernel";
 import {randomUUID} from "node:crypto";
 import type {CoreKernel,ModuleDefinition} from "@syndes/core-kernel";
 import type {InboxContext,InboxRepository,Conversation,ConversationStatus,ConversationQueue,ChatScope,CreateConversation,HandoffMode,Message,InboxMetrics} from "./contracts.js";
@@ -10,10 +11,18 @@ export const inboxModule:ModuleDefinition=Object.freeze({
 /** All repository resolution is inside the authorized kernel handler. */
 export class InboxService {
  constructor(private readonly kernel:CoreKernel,
-             private readonly storeForTenant:(tenantId:string)=>Promise<InboxRepository>){}
+             private readonly storeForTenant:(tenantId:string,scope?:Readonly<{organizationId:string;workspaceId:string}>)=>Promise<InboxRepository>){}
  private execute<T>(ctx:InboxContext,action:string,resource:string,handler:(store:InboxRepository)=>Promise<T>):Promise<T>{
+   // A partially supplied or empty scope cannot downgrade a trusted
+   // internal caller to the legacy tenant-only repository path.
+   const scoped=ctx.organizationId!==undefined||ctx.workspaceId!==undefined;
+   if(scoped&&(!ctx.organizationId||!ctx.workspaceId))
+     throw new InboxValidationError("Incomplete Inbox organization/workspace context");
+   if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&(!ctx.organizationId||!ctx.workspaceId))
+     throw new AccessDeniedError();
+   if(action==="write"&&ctx.scopeWriteAllowed===false)throw new AccessDeniedError();
    return this.kernel.execute({actor:ctx.actor,tenantId:ctx.tenantId,action,resource},
-     async()=>handler(await this.storeForTenant(ctx.tenantId)));
+     async()=>handler(await this.storeForTenant(ctx.tenantId,ctx.organizationId&&ctx.workspaceId?{organizationId:ctx.organizationId,workspaceId:ctx.workspaceId}:undefined)));
  }
  /** Authorization for a live change-only stream; NO database lease or tenant-supplied actor. */
  watch(ctx:InboxContext):Promise<void>{
@@ -100,6 +109,15 @@ export class InboxService {
    return this.execute(ctx,"write","inbox:simulation",
      repo=>repo.append(ctx.tenantId,key,ctx.actor.id,
        {id:randomUUID(),direction:"inbound",body,externalMessageId:ref}));
+ }
+ /** Explicit authorized transfer; never choose an org from request payload.
+  * Reassignment preserves existing message/route IDs and origin workspace. */
+ transferWorkspace(ctx:InboxContext,conversationId:string,targetWorkspaceId:string):Promise<Conversation|null>{
+  const key=id(conversationId),to=id(targetWorkspaceId,"destination workspace");
+  if(!ctx.organizationId||!ctx.workspaceId)
+   throw new InboxValidationError("Workspace transfer requires an authorized context");
+  return this.execute(ctx,"write","inbox:assignment",
+   repo=>repo.transferWorkspace(ctx.tenantId,key,ctx.actor.id,to));
  }
  metrics(ctx:InboxContext):Promise<InboxMetrics>{
    return this.execute(ctx,"read","inbox:metrics",repo=>repo.metrics(ctx.tenantId));

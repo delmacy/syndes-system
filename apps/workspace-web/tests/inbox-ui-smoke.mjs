@@ -98,24 +98,35 @@ try {
   const errors = [];
   desktop.on("pageerror", error => errors.push(error.message));
   await mockWorkspace(desktop);
+  assert.equal(await desktop.locator("#syndes-inbox-toolbar").getByRole("button", {name:"Nova conversa"}).count(),1,"Inbox actions belong to global header");
+  assert.equal(await desktop.locator(".syndes-sidebar").getByRole("button",{name:"Configurações"}).count(),1,"Global settings belong to sidebar footer");
   await desktop.getByRole("button", { name: "Minhas" }).click();
   await desktop.getByRole("button", { name: /Pedido inicial/ }).waitFor();
-  await desktop.getByRole("button", { name: /Conversa resolvida/ }).waitFor({ state: "detached", timeout: 10000 });
-  assert.equal(await desktop.getByRole("button", { name: /Conversa resolvida/ }).count(), 0, "Mine filter excludes unassigned conversations");
+  // A server-filtered list updates asynchronously after the selected queue responds.
+  // Wait for absence instead of asserting synchronously against stale React rows.
+  await desktop.getByRole("button", { name: /Conversa resolvida/ }).waitFor({state:"detached",timeout:10000});
+  assert.equal(await desktop.getByRole("button", { name: /Conversa resolvida/ }).count(), 0,
+    "Mine filter must exclude non-assigned case");
   await desktop.getByRole("button", { name: "Não atribuídas" }).click();
   await desktop.getByRole("button", { name: /Conversa resolvida/ }).waitFor();
-  await desktop.getByRole("button", { name: /Pedido inicial/ }).waitFor({ state: "detached", timeout: 10000 });
-  assert.equal(await desktop.getByRole("button", { name: /Pedido inicial/ }).count(), 0, "Unassigned filter excludes owned conversations");
+  await desktop.getByRole("button", { name: /Pedido inicial/ }).waitFor({state:"detached",timeout:10000});
+  assert.equal(await desktop.getByRole("button", { name: /Pedido inicial/ }).count(), 0,
+    "Unassigned filter must exclude assigned case");
   await desktop.getByRole("group", { name: "Filtrar conversas por responsável" }).getByRole("button", { name: "Todas" }).click();
   await desktop.getByRole("button", { name: /Pedido inicial/ }).click();
   await desktop.getByText("Olá, preciso de ajuda").waitFor();
-  await desktop.getByRole("button", { name: "Abrir inspetor de contato" }).click();
+  await desktop.getByRole("button", {name:"Abrir inspetor de contato"}).click();
   await desktop.getByRole("heading", { name: "Ana Exemplo" }).waitFor();
   await desktop.getByText("Prefere contato pela manhã").waitFor();
   await desktop.getByText("Empresa Exemplo", { exact: true }).waitFor();
   await desktop.getByText("VIP", { exact: true }).waitFor();
-  await desktop.getByRole("button", { name: "Close", exact: true }).click();
-  console.log("PASS: server-filtered queues and authorized CRM inspector context");
+  await desktop.getByRole("button",{name:"Atendimento",exact:true}).click();
+  await desktop.getByText("Atendimento atual", {exact:true}).waitFor();
+  await desktop.getByRole("button",{name:"Atividade",exact:true}).click();
+  await desktop.getByText("Histórico da conversa").waitFor();
+  await desktop.getByRole("button",{name:"Contato",exact:true}).click();
+  await desktop.getByRole("button", {name:"Close",exact:true}).click();
+  console.log("PASS: server-filtered queues and authorized Inspector tabs");
   assert.equal(await desktop.locator("#inbox-composer").isDisabled(), false);
   console.log("PASS: Desktop Inbox opens thread with authorized agent composer");
 
@@ -147,7 +158,7 @@ try {
   console.log("PASS: failed API send preserves draft; retry clears only after success");
 
 
-  const actionMenu = desktop.getByRole("toolbar", { name: "Ações da Inbox" }).locator("details");
+  const actionMenu = desktop.locator("#syndes-inbox-toolbar details");
   const runMenuAction = async (name) => {
     await actionMenu.locator("summary").click();
     await actionMenu.getByRole("button", { name }).click();

@@ -15,7 +15,7 @@ services:
     secrets:
       - source: keycloak_config
         target: keycloak.conf
-    networks: [syndes-data,syndes-security-access,syndes-secrets]
+    networks: [syndes-data,syndes-security-access,syndes-secrets,syndes-master-identity]
     mem_limit: 1024m
     security_opt: [no-new-privileges:true]
     # Attach to trusted Traefik HTTPS ingress separately; no public host port.
@@ -66,5 +66,8 @@ networks:
     name: syndes-secrets
     driver: bridge
     internal: true
+  syndes-master-identity:
+    name: syndes-master-identity
+    external: true
 volumes:
   openbao_raft:

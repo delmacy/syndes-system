@@ -2,9 +2,21 @@ import {createHash,randomUUID} from "node:crypto";
 import {Inject,Injectable} from "@nestjs/common";
 import {WhatsAppGatewayClient} from "./gateway-client.js";
 import type {TrustedTenantDatabaseProvider,TenantDatabase} from "@syndes/core-kernel";
+import {whatsappScopedQuery,validScope,type WhatsAppScope} from "./scope.js";
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-type Context={tenantId:string;actor:{id:string}};
+type Context={tenantId:string;actor:{id:string};organizationId?:string;workspaceId?:string;scopeWriteAllowed?:boolean};
+type ScopedInput=string|WhatsAppScope;
+function resolveScope(ctx:Context|ScopedInput):{tenantId:string;scope?:WhatsAppScope}{
+ if(typeof ctx==="string"){
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true")throw new WhatsAppRouteError();
+  return {tenantId:ctx};
+ }
+ const scope=ctx.organizationId!==undefined||ctx.workspaceId!==undefined
+   ?validScope({tenantId:ctx.tenantId,organizationId:ctx.organizationId??"",workspaceId:ctx.workspaceId??""}):undefined;
+ if(!scope&&process.env.SYNDES_MULTI_ORG_ENABLED==="true")throw new WhatsAppRouteError();
+ return {tenantId:ctx.tenantId,scope};
+}
 type Reply={id:string;tenantId:string;conversationId:string;direction:"outbound";body:string;authorId:string;externalMessageId:null;createdAt:string};
 function asReply(row:Record<string,unknown>):Reply{
  return {id:String(row.id),tenantId:String(row.tenant_id),conversationId:String(row.conversation_id),
@@ -18,27 +30,31 @@ export class WhatsAppRouteError extends Error {
  * inbound event is the sole authority to bind a WhatsApp conversation route. */
 export class WhatsAppReplyQueue{
  constructor(private readonly pools:TrustedTenantDatabaseProvider){}
- private async backfill(db:TenantDatabase,tenantId:string,conversationId:string):Promise<void>{
-  const conversations=await db.query(`SELECT external_thread_id FROM inbox_conversations
-   WHERE tenant_id=$1::uuid AND id=$2::uuid AND channel='whatsapp'`,[tenantId,conversationId]);
+ private async backfill(db:TenantDatabase,tenantId:string,conversationId:string,scope?:WhatsAppScope):Promise<void>{
+  const conversations=await whatsappScopedQuery(db,scope,`SELECT external_thread_id FROM inbox_conversations
+   WHERE tenant_id=$1::uuid AND id=$2::uuid AND channel='whatsapp'
+   /*WSCOPE:AND platform_organization_id=@@ORG@@ AND platform_current_workspace_id=@@WS@@*/`,[tenantId,conversationId]);
   const thread=conversations.rows[0]?.external_thread_id;
   if(typeof thread!=="string"||!/^[a-f0-9]{64}$/.test(thread))throw new WhatsAppRouteError();
-  const events=await db.query(`SELECT e.account_id::text AS account_id,
+  const events=await whatsappScopedQuery(db,scope,`SELECT e.account_id::text AS account_id,
     e.payload->'message'->>'senderExternalId' AS sender
     FROM whatsapp_inbound_events e WHERE e.tenant_id=$1::uuid
     AND e.processed_at IS NOT NULL AND e.failed_at IS NULL
-    ORDER BY e.id DESC LIMIT 10000`,[tenantId]);
+    /*WSCOPE:AND EXISTS (SELECT 1 FROM whatsapp_accounts a WHERE a.tenant_id=e.tenant_id AND a.id=e.account_id AND a.platform_organization_id=@@ORG@@ AND EXISTS (SELECT 1 FROM inbox_conversations c WHERE c.tenant_id=e.tenant_id AND c.id=$2::uuid AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@))*/
+    ORDER BY e.id DESC LIMIT 10000`,[tenantId,conversationId]);
   const matches=events.rows.filter(e=>typeof e.account_id==="string"&&UUID.test(e.account_id)&&
     typeof e.sender==="string"&&e.sender.length>0&&e.sender.length<=256&&
     createHash("sha256").update(e.account_id+"|"+e.sender).digest("hex")===thread);
   if(!matches.length)throw new WhatsAppRouteError();
   const match=matches[0];
-  const result=await db.query(`INSERT INTO whatsapp_conversation_routes
+  const result=await whatsappScopedQuery(db,scope,`INSERT INTO whatsapp_conversation_routes
     (tenant_id,conversation_id,account_id,recipient_external_id)
     SELECT c.tenant_id,c.id,a.id,$4 FROM inbox_conversations c
     JOIN whatsapp_accounts a ON a.tenant_id=c.tenant_id AND a.id=$3::uuid
     WHERE c.tenant_id=$1::uuid AND c.id=$2::uuid AND c.channel='whatsapp'
       AND c.external_thread_id=$5 AND a.service_enabled=true
+      AND (c.platform_organization_id IS NULL OR a.platform_organization_id=c.platform_organization_id)
+      /*WSCOPE:AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@ AND a.platform_organization_id=@@ORG@@*/
     ON CONFLICT(tenant_id,conversation_id) DO UPDATE
       SET recipient_external_id=EXCLUDED.recipient_external_id
       WHERE whatsapp_conversation_routes.account_id=EXCLUDED.account_id
@@ -48,13 +64,14 @@ export class WhatsAppReplyQueue{
  }
  /** Authenticated Inbox readers can see the verified phone attached to the
   * conversation. Never infer a phone from a LID nor expose other tenants. */
- async decorateConversations<T extends {id:string;channel:string}>(tenantId:string,conversations:readonly T[]):Promise<readonly (T & {phoneNumber?:string|null;displayName?:string|null;contactNameSyncStatus?:"submitted"|null})[]>{
+ async decorateConversations<T extends {id:string;channel:string}>(context:ScopedInput,conversations:readonly T[]):Promise<readonly (T & {phoneNumber?:string|null;displayName?:string|null;contactNameSyncStatus?:"submitted"|null})[]>{
+  const {tenantId,scope}=resolveScope(context);
   const whatsapp=conversations.filter(record=>record.channel==="whatsapp"&&UUID.test(record.id));
   if(!whatsapp.length)return conversations;
   if(!UUID.test(tenantId))throw Error("Invalid tenant");
   const db=await this.pools.resolve(tenantId);
   if(db.tenantId!==tenantId)throw Error("Tenant database mismatch");
-  const rows=await db.query(`SELECT r.conversation_id::text AS id,r.phone_e164,
+  const rows=await whatsappScopedQuery(db,scope,`SELECT r.conversation_id::text AS id,r.phone_e164,
      NULLIF(BTRIM(labels.full_name),'') AS saved_name,
      COALESCE(NULLIF(BTRIM(labels.full_name),''),
        CASE WHEN c.is_group=false AND BTRIM(c.subject) NOT LIKE 'WhatsApp · %'
@@ -67,7 +84,8 @@ export class WhatsAppReplyQueue{
    JOIN inbox_conversations c
    ON c.tenant_id=r.tenant_id AND c.id=r.conversation_id
    WHERE r.tenant_id=$1::uuid AND c.channel='whatsapp'
-   AND r.conversation_id=ANY($2::uuid[])`,[tenantId,whatsapp.map(c=>c.id)]);
+   AND r.conversation_id=ANY($2::uuid[])
+   /*WSCOPE:AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@ AND EXISTS(SELECT 1 FROM whatsapp_accounts a WHERE a.tenant_id=r.tenant_id AND a.id=r.account_id AND a.platform_organization_id=@@ORG@@)*/`,[tenantId,whatsapp.map(c=>c.id)]);
   const known=new Map(rows.rows.map(row=>[String(row.id),{
    phoneNumber:typeof row.phone_e164==="string"?row.phone_e164:null,
    displayName:typeof row.display_name==="string"?row.display_name:null,
@@ -83,10 +101,11 @@ export class WhatsAppReplyQueue{
   * own phone for one known, account-scoped conversation. A reply arrives
   * asynchronously as an ON_DEMAND history chunk; never as bot input. */
  async requestHistory(ctx:Context,conversationId:string):Promise<{requested:boolean;note:string}>{
+  const {scope}=resolveScope(ctx);
   if(!UUID.test(ctx.tenantId)||!UUID.test(conversationId))throw Error("Invalid history context");
   const db=await this.pools.resolve(ctx.tenantId);
   if(db.tenantId!==ctx.tenantId)throw Error("Tenant database mismatch");
-  const result=await db.query(`SELECT r.account_id::text,r.recipient_external_id,
+  const result=await whatsappScopedQuery(db,scope,`SELECT r.account_id::text,r.recipient_external_id,
     COALESCE(e.payload->'message'->>'chatExternalId',
       e.payload->'message'->>'senderExternalId') AS history_chat_id,
     e.payload->'message'->>'externalMessageId' AS message_id,
@@ -98,6 +117,7 @@ export class WhatsAppReplyQueue{
    JOIN whatsapp_inbound_events e ON e.tenant_id=r.tenant_id AND e.account_id=r.account_id
    WHERE r.tenant_id=$1::uuid AND r.conversation_id=$2::uuid
       AND c.channel='whatsapp' AND a.service_enabled=true
+      /*WSCOPE:AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@ AND a.platform_organization_id=@@ORG@@*/
       AND e.event_type='whatsapp.message.received' AND e.processed_at IS NOT NULL
       AND (COALESCE(e.payload->'message'->>'chatExternalId',
         e.payload->'message'->>'senderExternalId')=r.recipient_external_id
@@ -118,13 +138,14 @@ export class WhatsAppReplyQueue{
  }
  /** Decorates only messages already selected by an authorized Inbox read.
   * Missing outbox rows expose old local-only replies instead of implying delivery. */
- async decorate<T extends {id:string;direction:string}>(tenantId:string,messages:readonly T[]):Promise<readonly (T & {deliveryStatus?:"pending"|"processing"|"sent"|"failed"|"not_queued"|"synced"|"delivered"|"read"})[]>{
+ async decorate<T extends {id:string;direction:string}>(context:ScopedInput,messages:readonly T[]):Promise<readonly (T & {deliveryStatus?:"pending"|"processing"|"sent"|"failed"|"not_queued"|"synced"|"delivered"|"read"})[]>{
+  const {tenantId,scope}=resolveScope(context);
   if(!UUID.test(tenantId))throw Error("Invalid tenant");
   const outgoing=messages.filter(message=>message.direction==="outbound"&&UUID.test(message.id));
   if(!outgoing.length)return messages;
   const db=await this.pools.resolve(tenantId);
   if(db.tenantId!==tenantId)throw Error("Tenant database mismatch");
-  const result=await db.query(`SELECT m.id::text AS message_id,
+  const result=await whatsappScopedQuery(db,scope,`SELECT m.id::text AS message_id,
      CASE WHEN o.id IS NOT NULL THEN
        CASE WHEN o.status='sent' AND d.status IN ('read','delivered') THEN d.status ELSE o.status END
      WHEN m.source IN ('live','history') THEN COALESCE(d.status,'synced')
@@ -137,7 +158,8 @@ export class WhatsAppReplyQueue{
      ON d.tenant_id=m.tenant_id AND d.account_id=r.account_id
      AND d.provider_message_id=COALESCE(o.external_message_id,m.provider_message_id)
    WHERE m.tenant_id=$1::uuid AND m.direction='outbound'
-     AND m.id=ANY($2::uuid[])`,[tenantId,outgoing.map(m=>m.id)]);
+     AND m.id=ANY($2::uuid[])
+     /*WSCOPE:AND EXISTS (SELECT 1 FROM inbox_conversations c WHERE c.tenant_id=m.tenant_id AND c.id=m.conversation_id AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@)*/`,[tenantId,outgoing.map(m=>m.id)]);
   const known=new Map(result.rows.map(row=>[String(row.message_id),String(row.status)]));
   return messages.map(message=>{
    if(message.direction!=="outbound")return message;
@@ -148,19 +170,22 @@ export class WhatsAppReplyQueue{
   });
  }
  async enqueue(ctx:Context,conversationId:string,input:unknown):Promise<Reply|null>{
+  const {scope}=resolveScope(ctx);
+  if(ctx.scopeWriteAllowed===false)throw new WhatsAppRouteError();
   if(!UUID.test(ctx.tenantId)||!UUID.test(conversationId)||typeof ctx.actor.id!=="string"||!ctx.actor.id.trim())
    throw new WhatsAppRouteError();
   if(typeof input!=="string"||!input.trim()||input.length>5000)throw Error("Invalid reply body");
   const body=input.trim();
   const db=await this.pools.resolve(ctx.tenantId);
   if(db.tenantId!==ctx.tenantId)throw Error("Tenant database mismatch");
-  const existing=await db.query(`SELECT 1 FROM whatsapp_conversation_routes
-    WHERE tenant_id=$1::uuid AND conversation_id=$2::uuid`,[ctx.tenantId,conversationId]);
-  if(!existing.rows.length)await this.backfill(db,ctx.tenantId,conversationId);
+  const existing=await whatsappScopedQuery(db,scope,`SELECT 1 FROM whatsapp_conversation_routes
+    WHERE tenant_id=$1::uuid AND conversation_id=$2::uuid
+    /*WSCOPE:AND EXISTS(SELECT 1 FROM inbox_conversations c JOIN whatsapp_accounts a ON a.tenant_id=c.tenant_id AND a.id=whatsapp_conversation_routes.account_id WHERE c.tenant_id=$1::uuid AND c.id=$2::uuid AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@ AND a.platform_organization_id=@@ORG@@)*/`,[ctx.tenantId,conversationId]);
+  if(!existing.rows.length)await this.backfill(db,ctx.tenantId,conversationId,scope);
   const messageId=randomUUID(),outboxId=randomUUID();
   // One statement means there can never be a visible outbound Inbox message
   // without its tenant-local, durable WhatsApp outbox intent.
-  const result=await db.query(`
+  const result=await whatsappScopedQuery(db,scope,`
    WITH target AS (
     SELECT c.tenant_id,c.id,r.account_id,r.recipient_external_id
     FROM inbox_conversations c
@@ -169,6 +194,7 @@ export class WhatsAppReplyQueue{
     WHERE c.tenant_id=$1::uuid AND c.id=$2::uuid AND c.channel='whatsapp'
       AND c.status <> 'resolved' AND c.handoff='human' AND c.assigned_to=$3
       AND a.service_enabled=true
+      /*WSCOPE:AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@ AND a.platform_organization_id=@@ORG@@*/
    ), inserted AS (
     INSERT INTO inbox_messages(tenant_id,id,conversation_id,direction,body,author_id,external_message_id)
     SELECT tenant_id,$4::uuid,id,'outbound',$5,$3,NULL FROM target

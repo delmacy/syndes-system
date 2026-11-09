@@ -1,0 +1,65 @@
+# Separate Master Admin deployment. It has NO network path to tenant Core.
+name: syndes-master-admin
+# Required operator-provisioned secrets are never stored in Git.
+services:
+  master-api:
+    build:
+      context: ../..
+      dockerfile: apps/master-admin-api/Dockerfile
+    image: syndes/master-admin-api:local
+    restart: unless-stopped
+    env_file:
+      - ${MASTER_API_ENV_FILE:?Dedicated runtime configuration required}
+    volumes:
+      - ${MASTER_DB_URL_FILE:?Dedicated DB credential file required}:/run/secrets/master_db_url:ro
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp:rw,nosuid,nodev,noexec,size=16m"]
+    cap_drop: [ALL]
+    networks:
+      - master-private
+      - syndes-master-data
+      - syndes-master-identity
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8085/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 4s
+      retries: 3
+      start_period: 10s
+
+  master-web:
+    build:
+      context: ../..
+      dockerfile: apps/master-admin-web/Dockerfile
+    image: syndes/master-admin-web:local
+    restart: unless-stopped
+    depends_on:
+      master-api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${MASTER_BIND_PORT:-18085}:8080"
+    volumes:
+      - ${MASTER_RUNTIME_JSON:?Master OIDC runtime config required}:/usr/share/nginx/html/master-runtime.json:ro
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - "/tmp:rw,nosuid,nodev,noexec,size=16m"
+      - "/var/cache/nginx:rw,nosuid,nodev,size=16m"
+      - "/var/run:rw,nosuid,nodev,size=4m"
+    cap_drop: [ALL]
+    networks:
+      - master-private
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 20s
+      timeout: 4s
+      retries: 3
+      start_period: 10s
+
+networks:
+  master-private:
+    internal: true
+  syndes-master-data:
+    external: true
+  syndes-master-identity:
+    external: true

@@ -1,0 +1,142 @@
+name: Syndes Support Browser E2E (disposable)
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+jobs:
+  browser-keycloak-fga-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: e2e-only-postgres
+          POSTGRES_DB: syndes_support_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d syndes_support_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      SYNDES_SUPPORT_E2E_PG_URL: postgresql://postgres:e2e-only-postgres@127.0.0.1:5432/syndes_support_e2e
+      SYNDES_SUPPORT_E2E_ISSUER: https://localhost:8443/realms/syndes-support-e2e
+      SYNDES_SUPPORT_E2E_FGA_URL: http://127.0.0.1:18080
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/support-web/package-lock.json
+      - name: Start disposable Keycloak over HTTPS and OpenFGA with in-memory store
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/syndes-e2e-tls"
+          openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
+            -keyout "$RUNNER_TEMP/syndes-e2e-tls/server.key" \
+            -out "$RUNNER_TEMP/syndes-e2e-tls/server.crt" \
+            -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" >/dev/null 2>&1
+          chmod 0644 "$RUNNER_TEMP/syndes-e2e-tls/server.key"
+          docker run -d --name syndes-support-e2e-keycloak \
+            -p 127.0.0.1:8443:8443 \
+            -v "$RUNNER_TEMP/syndes-e2e-tls:/tmp/syndes-e2e-tls:ro" \
+            -v "$PWD/apps/support-web/e2e:/opt/keycloak/data/import:ro" \
+            -e KC_BOOTSTRAP_ADMIN_USERNAME=ci-admin \
+            -e KC_BOOTSTRAP_ADMIN_PASSWORD=e2e-only-admin \
+            -e KC_HOSTNAME=https://localhost:8443 \
+            -e KC_HTTPS_CERTIFICATE_FILE=/tmp/syndes-e2e-tls/server.crt \
+            -e KC_HTTPS_CERTIFICATE_KEY_FILE=/tmp/syndes-e2e-tls/server.key \
+            quay.io/keycloak/keycloak:26.8.1 start-dev --import-realm
+          docker run --rm -d --name syndes-support-e2e-fga \
+            -p 127.0.0.1:18080:8080 \
+            -e OPENFGA_DATASTORE_ENGINE=memory \
+            -e OPENFGA_AUTHN_METHOD=none \
+            openfga/openfga:v1.22.1 run
+          for i in $(seq 1 100); do
+            if curl -fsSk --max-time 3 \
+              https://localhost:8443/realms/syndes-support-e2e/.well-known/openid-configuration \
+              >/dev/null 2>&1; then break; fi
+            if [ "$(docker inspect -f '{{.State.Running}}' syndes-support-e2e-keycloak)" != true ]; then
+              echo "Keycloak exited during realm import" >&2
+              docker logs --tail 90 syndes-support-e2e-keycloak >&2
+              exit 1
+            fi
+            if [ "$i" -eq 100 ]; then echo "E2E Keycloak unavailable"; exit 1; fi
+            sleep 3
+          done
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 3 http://127.0.0.1:18080/stores >/dev/null 2>&1; then break; fi
+            if [ "$i" -eq 60 ]; then echo "E2E OpenFGA unavailable"; exit 1; fi
+            sleep 2
+          done
+      - name: Install and build trusted Host modules
+        run: |
+          set -euo pipefail
+          cd packages/core-kernel && npm ci --no-audit --no-fund && npm run build
+          cd ../../modules/organizations && npm ci --no-audit --no-fund && npm run build
+          cd ../core-crm && npm ci --no-audit --no-fund && npm run build
+          cd ../inbox && npm ci --no-audit --no-fund && npm run build
+          cd ../whatsapp && npm ci --no-audit --no-fund && npm run build
+          cd ../support && npm ci --no-audit --no-fund && npm run build
+          cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run link-peers && npm run build
+          cd ../support-web && npm ci --no-audit --no-fund
+      - name: Install headless Chromium for real browser tests
+        run: cd apps/support-web && npx playwright install --with-deps chromium
+      - name: Exercise PKCE, real HTTP APIs, SQL queue isolation and private history
+        env:
+          NODE_EXTRA_CA_CERTS: ${{ runner.temp }}/syndes-e2e-tls/server.crt
+        run: |
+          set -euo pipefail
+          node apps/core-host/test/support-e2e-server.mjs > "$RUNNER_TEMP/syndes-support-e2e-server.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            status=$(curl -sS -o /dev/null -w '%{http_code}' \
+              http://127.0.0.1:4180/v1/tenants/11111111-1111-4111-8111-111111111111/support/internal/cases || true)
+            if [ "$status" = 401 ]; then break; fi
+            if [ "$i" = 45 ]; then
+              echo "Disposable Support backend failed to start" >&2
+              tail -n 80 "$RUNNER_TEMP/syndes-support-e2e-server.log" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          mkdir -p apps/support-web/public
+          cat > apps/support-web/public/support-runtime.json <<'JSON'
+          {
+            "issuer": "https://localhost:8443/realms/syndes-support-e2e",
+            "clientId": "syndes-support-ui",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "tenantLabel": "Syndes E2E"
+          }
+          JSON
+          cd apps/support-web
+          npm run test:e2e
+      - name: Capture synthetic-only failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: support-e2e-failure
+          path: |
+            apps/support-web/test-results/
+            apps/support-web/e2e-results/report.xml
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Diagnose isolated CI services
+        if: failure()
+        run: |
+          docker logs --tail 50 syndes-support-e2e-keycloak || true
+          docker logs --tail 50 syndes-support-e2e-fga || true
+          if [ -e "$RUNNER_TEMP/syndes-support-e2e-server.log" ]; then
+            tail -n 70 "$RUNNER_TEMP/syndes-support-e2e-server.log"
+          fi
+      - name: Remove disposable identity containers
+        if: always()
+        run: |
+          docker rm -f syndes-support-e2e-keycloak syndes-support-e2e-fga 2>/dev/null || true
+          rm -f apps/support-web/public/support-runtime.json

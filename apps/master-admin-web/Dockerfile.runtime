@@ -1,0 +1,14 @@
+# Build is performed by trusted CI on a supported CPU.
+# This runtime-only image consumes the vetted static bundle as an explicit
+# BuildKit named context: --build-context web-dist=/path/to/dist
+FROM nginxinc/nginx-unprivileged:1.29-alpine
+USER root
+COPY apps/master-admin-web/deploy/default.conf /etc/nginx/conf.d/default.conf
+COPY --from=web-dist / /usr/share/nginx/html/
+# Builds from a private 0700 checkout can preserve 0600 file modes.
+# Normalize permissions during image creation; runtime remains unprivileged.
+RUN chmod 0644 /etc/nginx/conf.d/default.conf && \
+    find /usr/share/nginx/html -type d -exec chmod 0755 {} + && \
+    find /usr/share/nginx/html -type f -exec chmod 0644 {} +
+USER 101
+EXPOSE 8080

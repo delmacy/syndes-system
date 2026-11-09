@@ -9,10 +9,19 @@ export interface SseSink {
   on(event:"close",listener:()=>void):void;
 }
 type Listener=()=>void;
+/** Old tenant-only messages are intentionally isolated from scoped clients. */
+export type InboxNotificationScope=Readonly<{tenantId:string;organizationId?:string;workspaceId?:string}>;
+type Address=string|InboxNotificationScope;
+const channel=(address:Address)=>typeof address==="string"
+ ? "tenant:"+address
+ : address.organizationId&&address.workspaceId
+   ? "workspace:"+JSON.stringify([address.tenantId,address.organizationId,address.workspaceId])
+   : (()=>{throw Error("Verified Inbox event scope is required")})();
 export class InboxChangeBus {
   private readonly clients=new Map<string,Set<Listener>>();
   constructor(private readonly maxPerTenant=60){}
-  subscribe(tenantId:string,listener:Listener):()=>void {
+  subscribe(address:Address,listener:Listener):()=>void {
+    const tenantId=channel(address);
     let subscriptions=this.clients.get(tenantId);
     if(!subscriptions){subscriptions=new Set();this.clients.set(tenantId,subscriptions);}
     if(subscriptions.size>=this.maxPerTenant)throw new Error("Too many Inbox subscribers");
@@ -22,18 +31,19 @@ export class InboxChangeBus {
       if(!subscriptions?.size)this.clients.delete(tenantId);
     };
   }
-  publish(tenantId:string):void {
+  publish(address:Address):void {
+    const tenantId=channel(address);
     // Listener exceptions must never turn an already-committed write into an API 503.
     for(const listener of this.clients.get(tenantId)??[]){
       try{listener()}catch{/* disconnected client */}
     }
   }
-  count(tenantId:string):number{return this.clients.get(tenantId)?.size??0;}
+  count(address:Address):number{return this.clients.get(channel(address))?.size??0;}
   /**
    * Fixed expiry ensures authorization/JWT are rechecked every 60 seconds.
    * Heartbeats keep reverse proxies from buffering or closing idle streams.
    */
-  connect(tenantId:string,res:SseSink):void {
+  connect(address:Address,res:SseSink):void {
     let closed=false;
     let unsubscribe=()=>{};
     let heartbeat:ReturnType<typeof setInterval>|undefined;
@@ -45,7 +55,7 @@ export class InboxChangeBus {
       if(expiry)clearTimeout(expiry);
     };
     const changed=()=>{if(!closed)res.write(["event: changed","data: {}","",""].join("\n"));};
-    unsubscribe=this.subscribe(tenantId,changed);
+    unsubscribe=this.subscribe(address,changed);
     res.setHeader("Content-Type","text/event-stream; charset=utf-8");
     res.setHeader("Cache-Control","no-store, no-transform");
     res.setHeader("X-Accel-Buffering","no");

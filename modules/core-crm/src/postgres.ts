@@ -5,6 +5,7 @@ import type {
 } from "./contracts.js";
 import { TenantDatabaseMismatchError } from "./contracts.js";
 import { isUuid } from "./validation.js";
+import {crmOwnerQuery} from "./scope-query.js";
 
 function org(row:Record<string,unknown>):Organization {
   return {
@@ -30,7 +31,10 @@ function person(row:Record<string,unknown>):Person {
  * Domain mutations and their audit record are atomic in a single SQL statement.
  */
 export class PgCrmRepository implements CrmRepository {
-  constructor(private readonly db:TenantDatabase){}
+  constructor(private readonly db:TenantDatabase,private readonly organizationId?:string){}
+  private query(sql:string,values:readonly unknown[]){
+    return crmOwnerQuery(this.db,this.organizationId,sql,values);
+  }
 
   private check(tenantId:string):void {
     if(!isUuid(tenantId)||this.db.tenantId!==tenantId) throw new TenantDatabaseMismatchError();
@@ -38,10 +42,10 @@ export class PgCrmRepository implements CrmRepository {
 
   async createOrganization(tenantId:string,actorId:string,id:string,input:CreateOrganization):Promise<Organization>{
     this.check(tenantId);
-    const result=await this.db.query(`
+    const result=await this.query(`
       WITH created AS (
-        INSERT INTO crm_organizations (id,tenant_id,legal_name,trade_name,tax_id)
-        VALUES ($1::uuid,$2::uuid,$3,$4,$5)
+        INSERT INTO crm_organizations (id,tenant_id,legal_name,trade_name,tax_id /*ORG:,platform_organization_id*/)
+        VALUES ($1::uuid,$2::uuid,$3,$4,$5 /*ORG:,@@ORG@@*/)
         RETURNING id,tenant_id,legal_name,trade_name,tax_id,archived_at
       ), audit AS (
         INSERT INTO crm_audit (tenant_id,actor_id,entity_type,entity_id,action)
@@ -56,10 +60,10 @@ export class PgCrmRepository implements CrmRepository {
 
   async createPerson(tenantId:string,actorId:string,id:string,input:CreatePerson):Promise<Person>{
     this.check(tenantId);
-    const result=await this.db.query(`
+    const result=await this.query(`
       WITH created AS (
-        INSERT INTO crm_people (id,tenant_id,name,email,phone)
-        VALUES ($1::uuid,$2::uuid,$3,$4,$5)
+        INSERT INTO crm_people (id,tenant_id,name,email,phone /*ORG:,platform_organization_id*/)
+        VALUES ($1::uuid,$2::uuid,$3,$4,$5 /*ORG:,@@ORG@@*/)
         RETURNING id,tenant_id,name,email,phone,archived_at
       ), audit AS (
         INSERT INTO crm_audit (tenant_id,actor_id,entity_type,entity_id,action)
@@ -74,14 +78,14 @@ export class PgCrmRepository implements CrmRepository {
 
   async linkPerson(tenantId:string,actorId:string,personId:string,organizationId:string):Promise<PersonOrganization>{
     this.check(tenantId);
-    const result=await this.db.query(`
+    const result=await this.query(`
       WITH linked AS (
         INSERT INTO crm_person_organizations(tenant_id,person_id,organization_id)
         SELECT $1::uuid,$2::uuid,$3::uuid
         WHERE EXISTS (
-          SELECT 1 FROM crm_people WHERE tenant_id=$1::uuid AND id=$2::uuid AND archived_at IS NULL
+          SELECT 1 FROM crm_people WHERE tenant_id=$1::uuid AND id=$2::uuid AND archived_at IS NULL /*ORG: AND platform_organization_id=@@ORG@@*/
         ) AND EXISTS (
-          SELECT 1 FROM crm_organizations WHERE tenant_id=$1::uuid AND id=$3::uuid AND archived_at IS NULL
+          SELECT 1 FROM crm_organizations WHERE tenant_id=$1::uuid AND id=$3::uuid AND archived_at IS NULL /*ORG: AND platform_organization_id=@@ORG@@*/
         )
         ON CONFLICT DO NOTHING
         RETURNING tenant_id,person_id,organization_id
@@ -103,17 +107,18 @@ export class PgCrmRepository implements CrmRepository {
 
   async getPerson(tenantId:string,id:string):Promise<Person|null>{
     this.check(tenantId);
-    const result=await this.db.query(
-      "SELECT id,tenant_id,name,email,phone,archived_at FROM crm_people WHERE tenant_id=$1::uuid AND id=$2::uuid AND archived_at IS NULL",
+    const result=await this.query(
+      "SELECT id,tenant_id,name,email,phone,archived_at FROM crm_people WHERE tenant_id=$1::uuid AND id=$2::uuid AND archived_at IS NULL /*ORG: AND platform_organization_id=@@ORG@@*/",
       [tenantId,id]);
     return result.rows[0]?person(result.rows[0]):null;
   }
 
   async listPeople(tenantId:string,query:string|null,limit:number,offset=0):Promise<readonly Person[]>{
     this.check(tenantId);
-    const result=await this.db.query(`
+    const result=await this.query(`
       SELECT id,tenant_id,name,email,phone,archived_at FROM crm_people
       WHERE tenant_id=$1::uuid AND archived_at IS NULL
+      /*ORG: AND platform_organization_id=@@ORG@@*/
       AND ($2::text IS NULL OR name ILIKE '%' || $2::text || '%' ESCAPE '\\'
          OR email ILIKE '%' || $2::text || '%' ESCAPE '\\'
          OR phone ILIKE '%' || $2::text || '%' ESCAPE '\\'
@@ -121,7 +126,7 @@ export class PgCrmRepository implements CrmRepository {
            SELECT 1 FROM crm_person_tags pt
            JOIN crm_tags t ON t.tenant_id=pt.tenant_id AND t.id=pt.tag_id
            WHERE pt.tenant_id=crm_people.tenant_id
-             AND pt.person_id=crm_people.id
+             AND pt.person_id=crm_people.id /*ORG: AND t.platform_organization_id=@@ORG@@*/
              AND t.label ILIKE '%' || $2::text || '%' ESCAPE '\\'
          )
          OR EXISTS (
@@ -129,7 +134,7 @@ export class PgCrmRepository implements CrmRepository {
            JOIN crm_organizations o ON o.tenant_id=po.tenant_id
                                   AND o.id=po.organization_id
            WHERE po.tenant_id=crm_people.tenant_id
-             AND po.person_id=crm_people.id AND o.archived_at IS NULL
+             AND po.person_id=crm_people.id AND o.archived_at IS NULL /*ORG: AND o.platform_organization_id=@@ORG@@*/
              AND (o.legal_name ILIKE '%' || $2::text || '%' ESCAPE '\\'
                OR o.trade_name ILIKE '%' || $2::text || '%' ESCAPE '\\'
                OR o.tax_id ILIKE '%' || $2::text || '%' ESCAPE '\\')
@@ -140,10 +145,10 @@ export class PgCrmRepository implements CrmRepository {
 
   async archivePerson(tenantId:string,actorId:string,id:string):Promise<boolean>{
     this.check(tenantId);
-    const result=await this.db.query(`
+    const result=await this.query(`
       WITH changed AS (
         UPDATE crm_people SET archived_at=now()
-        WHERE tenant_id=$1::uuid AND id=$2::uuid AND archived_at IS NULL
+        WHERE tenant_id=$1::uuid AND id=$2::uuid AND archived_at IS NULL /*ORG: AND platform_organization_id=@@ORG@@*/
         RETURNING tenant_id,id
       ), audit AS (
         INSERT INTO crm_audit(tenant_id,actor_id,entity_type,entity_id,action)
@@ -156,10 +161,10 @@ export class PgCrmRepository implements CrmRepository {
 
   async createTag(tenantId:string,actorId:string,id:string,label:string):Promise<Tag>{
     this.check(tenantId);
-    const result=await this.db.query(`
+    const result=await this.query(`
       WITH created AS (
-        INSERT INTO crm_tags (id,tenant_id,label,label_key)
-        VALUES ($1::uuid,$2::uuid,$3,lower($3))
+        INSERT INTO crm_tags (id,tenant_id,label,label_key /*ORG:,platform_organization_id*/)
+        VALUES ($1::uuid,$2::uuid,$3,lower($3) /*ORG:,@@ORG@@*/)
         RETURNING id,tenant_id,label
       ), audit AS (
         INSERT INTO crm_audit(tenant_id,actor_id,entity_type,entity_id,action)
@@ -174,14 +179,14 @@ export class PgCrmRepository implements CrmRepository {
 
   async tagPerson(tenantId:string,actorId:string,personId:string,tagId:string):Promise<PersonTag>{
     this.check(tenantId);
-    const result=await this.db.query(`
+    const result=await this.query(`
       WITH tagged AS (
         INSERT INTO crm_person_tags(tenant_id,person_id,tag_id)
         SELECT $1::uuid,$2::uuid,$3::uuid
         WHERE EXISTS (SELECT 1 FROM crm_people
-          WHERE tenant_id=$1::uuid AND id=$2::uuid AND archived_at IS NULL)
+          WHERE tenant_id=$1::uuid AND id=$2::uuid AND archived_at IS NULL /*ORG: AND platform_organization_id=@@ORG@@*/)
         AND EXISTS (SELECT 1 FROM crm_tags
-          WHERE tenant_id=$1::uuid AND id=$3::uuid)
+          WHERE tenant_id=$1::uuid AND id=$3::uuid /*ORG: AND platform_organization_id=@@ORG@@*/)
         ON CONFLICT DO NOTHING
         RETURNING tenant_id,person_id,tag_id
       ), audit AS (
@@ -196,12 +201,12 @@ export class PgCrmRepository implements CrmRepository {
 
   async createNote(tenantId:string,actorId:string,id:string,personId:string,body:string):Promise<Note>{
     this.check(tenantId);
-    const result=await this.db.query(`
+    const result=await this.query(`
       WITH created AS (
         INSERT INTO crm_notes(id,tenant_id,person_id,body,created_by)
         SELECT $1::uuid,$2::uuid,$3::uuid,$4,$5
         WHERE EXISTS (SELECT 1 FROM crm_people
-          WHERE tenant_id=$2::uuid AND id=$3::uuid AND archived_at IS NULL)
+          WHERE tenant_id=$2::uuid AND id=$3::uuid AND archived_at IS NULL /*ORG: AND platform_organization_id=@@ORG@@*/)
         RETURNING id,tenant_id,person_id,body,created_by,created_at
       ), audit AS (
         INSERT INTO crm_audit(tenant_id,actor_id,entity_type,entity_id,action)
@@ -221,8 +226,9 @@ export class PgCrmRepository implements CrmRepository {
 
   async listNotes(tenantId:string,personId:string,limit:number):Promise<readonly Note[]>{
     this.check(tenantId);
-    const result=await this.db.query(`SELECT id,tenant_id,person_id,body,created_by,created_at
+    const result=await this.query(`SELECT id,tenant_id,person_id,body,created_by,created_at
       FROM crm_notes WHERE tenant_id=$1::uuid AND person_id=$2::uuid
+      /*ORG: AND EXISTS(SELECT 1 FROM crm_people p WHERE p.tenant_id=crm_notes.tenant_id AND p.id=crm_notes.person_id AND p.archived_at IS NULL AND p.platform_organization_id=@@ORG@@)*/
       ORDER BY created_at DESC,id DESC LIMIT $3`,[tenantId,personId,limit]);
     return result.rows.map(row=>({
       id:String(row.id),tenantId:String(row.tenant_id),personId:String(row.person_id),
@@ -233,10 +239,11 @@ export class PgCrmRepository implements CrmRepository {
 
   async listTimeline(tenantId:string,personId:string,limit:number):Promise<readonly TimelineEntry[]>{
     this.check(tenantId);
-    const result=await this.db.query(`
+    const result=await this.query(`
       SELECT id,tenant_id,actor_id,action,recorded_at
       FROM crm_audit
       WHERE tenant_id=$1::uuid AND entity_type='person' AND entity_id=$2::uuid
+      /*ORG: AND EXISTS(SELECT 1 FROM crm_people p WHERE p.tenant_id=crm_audit.tenant_id AND p.id=crm_audit.entity_id AND p.archived_at IS NULL AND p.platform_organization_id=@@ORG@@)*/
       ORDER BY id DESC LIMIT $3`,[tenantId,personId,limit]);
     return result.rows.map(row=>({
       id:Number(row.id),tenantId:String(row.tenant_id),
@@ -249,10 +256,10 @@ export class PgCrmRepository implements CrmRepository {
 
 export class PgCrmRepositoryFactory {
   constructor(private readonly provider:TrustedTenantDatabaseProvider){}
-  async forTenant(tenantId:string):Promise<CrmRepository>{
-    if(!isUuid(tenantId))throw new TenantDatabaseMismatchError();
+  async forTenant(tenantId:string,organizationId?:string):Promise<CrmRepository>{
+    if(!isUuid(tenantId)||(organizationId!==undefined&&!isUuid(organizationId)))throw new TenantDatabaseMismatchError();
     const lease=await this.provider.resolve(tenantId);
     if(lease.tenantId!==tenantId)throw new TenantDatabaseMismatchError();
-    return new PgCrmRepository(lease);
+    return new PgCrmRepository(lease,organizationId);
   }
 }

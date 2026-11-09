@@ -21,13 +21,15 @@ export class WhatsAppOutbox {
   const inserted=await db.query<{id:string;status:OutboundIntent["status"]}>(`INSERT INTO whatsapp_outbox
 (id,tenant_id,account_id,idempotency_key,recipient_external_id,body)
 SELECT $1,$2,$3,$4,$5,$6 WHERE EXISTS
-(SELECT 1 FROM whatsapp_accounts WHERE tenant_id=$2 AND id=$3 AND service_enabled=true)
+(SELECT 1 FROM whatsapp_accounts WHERE tenant_id=$2 AND id=$3 AND service_enabled=true
+  AND ($7::uuid IS NULL OR platform_organization_id=$7::uuid))
 ON CONFLICT (tenant_id,account_id,idempotency_key) DO UPDATE
 SET idempotency_key=EXCLUDED.idempotency_key
 WHERE whatsapp_outbox.recipient_external_id=EXCLUDED.recipient_external_id
   AND whatsapp_outbox.body=EXCLUDED.body
 RETURNING id,status`,
-[randomUUID(),ctx.tenantId,message.accountId,message.idempotencyKey,message.recipientExternalId,message.body]);
+[randomUUID(),ctx.tenantId,message.accountId,message.idempotencyKey,message.recipientExternalId,message.body,
+ ctx.organizationId??null]);
   const row=inserted.rows[0];
   if(!row)throw new Error("Account disabled or idempotency payload conflict");
   return row;

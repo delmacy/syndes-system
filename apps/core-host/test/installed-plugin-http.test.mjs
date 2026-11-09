@@ -20,7 +20,13 @@ test("installed CRM HTTP Nest module mounts through generic host runtime ports",
  let selected=0;
  const db={resolve:async id=>{
    selected++;
-   return {tenantId:id,query:async()=>({rows:[],rowCount:0})};
+   return {tenantId:id,query:async sql=>({
+     rows:sql.includes("FROM platform_organizations o")
+       ? [{organization_id:"33333333-3333-4333-8333-333333333333",
+           workspace_id:"44444444-4444-4444-8444-444444444444"}]
+       : [],
+     rowCount:sql.includes("FROM platform_organizations o")?1:0
+   })};
  }};
  class Runtime{}
  Global()(Runtime);
@@ -48,7 +54,7 @@ test("installed CRM HTTP Nest module mounts through generic host runtime ports",
    const allowed=await fetch(base+route,{headers:{authorization:"Bearer ci-token"}});
    assert.equal(allowed.status,200);
    assert.deepEqual(await allowed.json(),[]);
-   assert.equal(selected,1);
+   assert.equal(selected,2,"Org authorization and CRM query each resolve a trusted tenant lease");
    const ui=await fetch(base+"/crm");
    assert.equal(ui.status,200);
    assert.match(await ui.text(),/Core CRM/);

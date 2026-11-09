@@ -33,8 +33,8 @@ const tenantDatabaseResolutions=[];
 const faults={fga:false,resolve:false,mismatchedLease:false,query:false};
 async function startHost(){
  const installed=await loadInstalledPlugins();
- assert.deepEqual(installed.map(p=>p.definition.id),["crm","inbox","whatsapp"],
-   "Host must register CRM, Inbox and WhatsApp in dependency order");
+ assert.deepEqual(installed.map(p=>p.definition.id),["crm","inbox","whatsapp","organizations","support"],
+   "Host must register CRM, Inbox, WhatsApp, Organizations and Support in dependency order");
  const kernel=new CoreKernel({
   modules:[{id:"platform",version:"0.1.0"},...installed.map(p=>p.definition)],
   tenancy:{canAccessTenant:async({actor,tenantId})=>memberships[actor.id]===tenantId},
@@ -71,6 +71,19 @@ async function startHost(){
  await app.listen(0,"127.0.0.1");
  return {app,base:await app.getUrl()};
 }
+async function seedAuthorizedDefaultContexts(){
+ for(const [tenant,principals] of [[A,["alice","readonly"]],[B,["bob"]]]){
+  const org=randomUUID(),ws=randomUUID();
+  await pool.query("INSERT INTO platform_organizations(tenant_id,id,display_name,is_default) VALUES($1,$2,'CI Default',true)",[tenant,org]);
+  await pool.query("INSERT INTO platform_workspaces(tenant_id,id,organization_id,name,slug,is_default) VALUES($1,$2,$3,'Primary','primary',true)",[tenant,ws,org]);
+  for(const principal of principals){
+   await pool.query("INSERT INTO platform_org_memberships(tenant_id,organization_id,principal_id,role) VALUES($1,$2,$3,'admin')",[tenant,org,principal]);
+   await pool.query("INSERT INTO platform_workspace_memberships(tenant_id,organization_id,workspace_id,principal_id,role) VALUES($1,$2,$3,$4,'admin')",[tenant,org,ws,principal]);
+  }
+  const backfill=await pool.query("SELECT * FROM platform_backfill_legacy_ownership($1::uuid,$2)",[tenant,principals[0]]);
+  assert.equal(backfill.rows.length,5,"all legacy owner categories must be considered");
+ }
+}
 async function request(base,tenant,path,{method="GET",token=auth.alice,body}={}){
  const res=await fetch(base+resource+tenant+"/inbox"+path,{
   method,headers:{...(token?{authorization:token}:{}),...(body===undefined?{}:{"content-type":"application/json"})},
@@ -91,6 +104,7 @@ async function call(base,tenant,path,opts,status){
 test("Core Host loads Inbox plugin and runs its HTTP contract against real tenant-scoped PostgreSQL",async t=>{
  let app;
  try{
+  await seedAuthorizedDefaultContexts();
   const host=await startHost();
   app=host.app;
   const {base}=host;
@@ -118,7 +132,8 @@ test("Core Host loads Inbox plugin and runs its HTTP contract against real tenan
    await call(base,"../bad",path,{token:auth.alice},404); // URL router normalization; no tenant route matched
    await call(base,"invalid-tenant",path,{token:auth.alice},400);
    await call(base,A,path,{token:auth.readonly,method:"POST",body:{subject:"Denied"}},403);
-   assert.equal(tenantDatabaseResolutions.length,before,"access denials must not select tenant DB");
+   assert.equal(tenantDatabaseResolutions.length,before+1,
+    "Invalid bearer/foreign tenant deny before DB; same-tenant readonly POST checks default context before write FGA denial");
   });
 
   await t.test("input validation maps to HTTP 400 without allocating a tenant database",async()=>{
@@ -135,7 +150,8 @@ test("Core Host loads Inbox plugin and runs its HTTP contract against real tenan
     await call(base,A,"/conversations?"+query,{},400);
    }
    await call(base,A,"/conversations/not-a-uuid",{},400);
-   assert.equal(tenantDatabaseResolutions.length,before,"bad input must fail before DB resolution");
+   assert.equal(tenantDatabaseResolutions.length-before,12,
+    "Authenticated invalid requests resolve only the default context gate; no Inbox business SQL runs");
   });
 
   const P=randomUUID();

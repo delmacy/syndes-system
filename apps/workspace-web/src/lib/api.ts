@@ -1,3 +1,6 @@
+export type PlatformOrganization={id:string;display_name:string;is_default:boolean;status:string};
+export type PlatformWorkspace={id:string;organization_id:string;name:string;slug:string;is_default:boolean;status:string};
+export type WorkspaceSelection={organizationId:string;workspaceId:string};
 export type WhatsAppGroupInfo={
   jid:string;name:string;description:string;participantCount:number;
   canEdit:boolean;locked:boolean;announce:boolean;
@@ -40,17 +43,38 @@ export class TenantApi {
   private readonly tenantId: string;
   private readonly token: string;
   private readonly unauthorized: () => void;
-  constructor(tenantId: string, token: string, unauthorized: () => void) {
+  private readonly selection?:WorkspaceSelection;
+  constructor(tenantId: string, token: string, unauthorized: () => void, selection?:WorkspaceSelection) {
     this.tenantId = tenantId;
     this.token = token;
     this.unauthorized = unauthorized;
+    this.selection = selection;
   }
 
-  private async request<T>(module: "crm" | "inbox" | "whatsapp", path: string, method = "GET", body?: object): Promise<T> {
+  withScope(selection:WorkspaceSelection):TenantApi{
+    // Immutable per-organization client. Switching React's API instance
+    // closes old SSE streams and discards cached records in all features.
+    return new TenantApi(this.tenantId,this.token,this.unauthorized,selection);
+  }
+  private scopeHeaders():Record<string,string>{
+    return this.selection?{
+      "x-syndes-organization-id":this.selection.organizationId,
+      "x-syndes-workspace-id":this.selection.workspaceId
+    }:{};
+  }
+  platformOrganizations(){
+    return this.request<PlatformOrganization[]>("platform","/organizations");
+  }
+  platformWorkspaces(organizationId:string){
+    return this.request<PlatformWorkspace[]>("platform",
+      "/organizations/"+encodeURIComponent(organizationId)+"/workspaces");
+  }
+  private async request<T>(module: "crm" | "inbox" | "whatsapp" | "platform", path: string, method = "GET", body?: object): Promise<T> {
     const response = await fetch(
       "/v1/tenants/" + encodeURIComponent(this.tenantId) + "/" + module + path,
       { method, headers: {
           Authorization: "Bearer " + this.token,
+          ...this.scopeHeaders(),
           ...(body ? { "Content-Type": "application/json" } : {})
         },
         ...(body ? { body: JSON.stringify(body) } : {}),
@@ -161,7 +185,7 @@ export class TenantApi {
   importPeopleCsv(csv: string) { return this.request<CrmImportResult>("crm", "/imports/csv", "POST", { csv }); }
   async exportPeopleCsv(): Promise<string> {
     const response=await fetch("/v1/tenants/" + encodeURIComponent(this.tenantId) + "/crm/exports/csv", {
-      headers:{Authorization:"Bearer " + this.token}, cache:"no-store",
+      headers:{Authorization:"Bearer " + this.token,...this.scopeHeaders()}, cache:"no-store",
     });
     if(response.status===401)this.unauthorized();
     if(!response.ok)throw new ApiError(response.status,
@@ -182,7 +206,7 @@ export class TenantApi {
   async watchInbox(signal: AbortSignal, onChange: () => void): Promise<void> {
     const response = await fetch(
       "/v1/tenants/" + encodeURIComponent(this.tenantId) + "/inbox/events",
-      {headers:{Authorization:"Bearer " + this.token,Accept:"text/event-stream"},
+      {headers:{Authorization:"Bearer " + this.token,Accept:"text/event-stream",...this.scopeHeaders()},
         signal,cache:"no-store"},
     );
     if(response.status===401)this.unauthorized();
@@ -241,6 +265,10 @@ export class TenantApi {
   }
   setAssignment(id: string, assigneeId: string | null) {
     return this.request<Conversation>("inbox", "/conversations/" + encodeURIComponent(id) + "/assignment", "PATCH", { assigneeId });
+  }
+  transferWorkspace(id:string,workspaceId:string){
+    return this.request<Conversation>("inbox",
+      "/conversations/"+encodeURIComponent(id)+"/workspace","PATCH",{workspaceId});
   }
   setHandoff(id: string, mode: "human" | "bot") {
     return this.request<Conversation>("inbox", "/conversations/" + encodeURIComponent(id) + "/handoff", "PATCH", { mode });

@@ -16,6 +16,14 @@ for migration in modules/core-crm/sql/001_crm_foundation.sql modules/inbox/sql/0
  modules/whatsapp/sql/007_whatsapp_delivery_receipts.sql;do
  docker exec -i syndes-inbox-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres < "$migration" >/dev/null
 done
+# The Inbox HTTP Host now enforces the platform ownership/backfill gate.
+# The disposable CI database needs full CRM and organization foundation schema.
+for migration in modules/core-crm/sql/002_crm_tags_notes.sql modules/core-crm/sql/003_crm_employees_channels.sql \
+ modules/organizations/sql/001_account_hierarchy.sql modules/organizations/sql/002_legacy_single_context_gate.sql \
+ modules/organizations/sql/003_legacy_ownership.sql;do
+ docker exec -i syndes-inbox-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres < "$migration" >/dev/null
+done
+
 # Regression for the production history outage: operator-applied migration 007
 # must grant the exact tenant runtime role read/write privileges. Do this in a
 # disposable database with a real tenant-style name and another isolated role.
@@ -49,6 +57,11 @@ docker exec syndes-inbox-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d "$TENANT_D
 # Foreign tenant has no SELECT privilege, including after grants above.
 docker exec syndes-inbox-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d "$TENANT_DB" -Atc "SELECT has_table_privilege('$FOREIGN_ROLE','whatsapp_delivery_receipts','SELECT');" | grep -qx f
 echo "Tenant migration 007 runtime permissions and cross-tenant deny: PASS"
+SYNDES_INBOX_SCOPE_TEST_PG_URL=postgres://postgres:ci-inbox-only@127.0.0.1:54339/postgres \
+ node --test modules/inbox/test/pg-org-scope.mjs
+# Whatsmeow-to-Inbox ownership A/B and outbound queue safety on disposable PG
+SYNDES_INBOX_SCOPE_TEST_PG_URL=postgres://postgres:ci-inbox-only@127.0.0.1:54339/postgres \
+ node --test modules/whatsapp/test/pg-org-scope.mjs
 node modules/inbox/test/pg-integration.mjs
 node --test apps/core-host/test/inbox-pg-http.integration.mjs
 echo "Inbox PostgreSQL + installed Core Host HTTP contract: PASS"

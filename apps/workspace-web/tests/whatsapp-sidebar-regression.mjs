@@ -33,7 +33,7 @@ try {
   let messageReadRequests=0;
   let groupDetails={jid:"120363012345678901@g.us",name:"Equipe WhatsApp",
     description:"Descrição antiga",participantCount:7,canEdit:true,locked:false,announce:false};
-  await page.route("**/v1/tenants/**",route=>{
+  await page.route("**/v1/tenants/**",async route=>{
     const url=new URL(route.request().url());
     if(!url.pathname.startsWith("/v1/tenants/"+tenant+"/"))return route.fulfill({status:403,body:"Forbidden"});
     if(unavailable)return route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({message:"Serviço temporariamente indisponível"})});
@@ -56,6 +56,9 @@ try {
     }
     if(path === "/inbox/conversations"){
       const scope=url.searchParams.get("scope");
+      // Delay group refresh to prove cached phone rows vanish immediately
+      // on tab switch; the UI must not rely on the network response timing.
+      if(scope==="groups")await new Promise(resolve=>setTimeout(resolve,900));
       response=scope==="groups"?[group]:[person,group];
     } else if(path==="/inbox/conversations/"+personalId)response=person;
     else if(path==="/inbox/conversations/"+groupId)response=group;
@@ -113,6 +116,8 @@ try {
   assert.ok(await atBottom()<3,"Receipt-only changes must preserve the bottom scroll");
   console.log("PASS canonical receipt polling, double-check status and latest-first scroll");
   await page.getByRole("button",{name:/Grupos/}).click();
+  assert.equal(await sidebar.getByRole("button",{name:/Maria WhatsApp/}).count(),0,
+    "Phone must disappear synchronously when switching to groups, even before API refresh");
   await page.getByRole("button",{name:/Equipe WhatsApp/}).waitFor();
   await sidebar.locator('[data-avatar-for="'+groupId+'"]').waitFor();
   assert.equal(await sidebar.locator('[data-avatar-for="'+groupId+'"] img').count(),0,

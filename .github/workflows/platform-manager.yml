@@ -1,0 +1,150 @@
+name: Syndes Platform Manager CI
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+jobs:
+  admin-api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/master-admin-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/master-admin-api/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: JWT cross-client, tenant denial and routes
+        run: npm test
+      - name: Scoped OpenBao, owner bootstrap and fail-closed deploy script checks
+        run: cd ../.. && python3 tests/platform/test-master-secret-render.py && python3 tests/platform/test-owner-bootstrap.py && bash -n infra/master-admin/openbao/run-renderer.sh infra/master-admin/homolog-deploy.sh infra/master-admin/homolog-stop.sh
+
+  admin-web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/master-admin-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/master-admin-web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript and Vite production build
+        run: npm run build
+      - name: Frontend scope and HTTP-client regression
+        run: npm test
+      - name: Install browser for real compiled UI fixture checks
+        run: npx playwright install --with-deps chromium
+      - name: E2E login, authorized journeys, denial and logout (test-only fixtures)
+        run: npm run test:browser
+      - name: Build static-only Nginx runtime image (no compiler on target host)
+        run: cd ../.. && docker build --build-context web-dist=apps/master-admin-web/dist -f apps/master-admin-web/Dockerfile.runtime -t syndes/master-admin-web:runtime-ci .
+      - name: Assert unprivileged Nginx can read configuration and built assets
+        run: docker run --rm --network none --entrypoint sh syndes/master-admin-web:runtime-ci -ec 'test "$(id -u)" = 101 && test -r /etc/nginx/conf.d/default.conf && test -r /usr/share/nginx/html/index.html'
+      - name: Preserve validated static frontend artifact for non-AVX2 hosts
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-manager-web-dist
+          path: apps/master-admin-web/dist/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Preserve explicitly labeled fixture screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-manager-ui-fixtures
+          path: apps/master-admin-web/test-results/*-FIXTURE.png
+          if-no-files-found: ignore
+
+  control-database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate disposable role-isolation and operational gate scripts
+        run: bash -n tests/platform/platform-manager-postgres-smoke.sh tests/platform/platform-manager-host-gate.sh
+      - name: Real PostgreSQL denied writes and tenant connections
+        run: bash tests/platform/platform-manager-postgres-smoke.sh
+
+  standalone-builds:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build independent API image
+        run: docker build -f apps/master-admin-api/Dockerfile -t syndes/master-admin-api:ci .
+      - name: Build independent UI image
+        run: docker build -f apps/master-admin-web/Dockerfile -t syndes/master-admin-web:ci .
+      - name: Validate network topology and real Docker bridge isolation (disposable)
+        run: python3 tests/platform/platform-manager-network-smoke.py
+      - name: Validate independent Compose structure without production secrets
+        run: |
+          printf 'MASTER_KEYCLOAK_ISSUER=https://id.example.test/realms/syndes\nMASTER_KEYCLOAK_AUDIENCE=syndes-master-api\nMASTER_KEYCLOAK_CLIENT_ID=syndes-master-admin\nMASTER_KEYCLOAK_JWKS_URL=https://id.example.test/realms/syndes/protocol/openid-connect/certs\nMASTER_PUBLIC_ORIGIN=https://master.example.test\nMASTER_CONTROL_DB_URL_FILE=/run/secrets/master_db_url\n' >/tmp/syndes-master-ci.env
+          printf '{"issuer":"https://id.example.test/realms/syndes","clientId":"syndes-master-admin"}\n' >/tmp/syndes-master-runtime-ci.json
+          touch /tmp/syndes-master-db-ci-placeholder
+          MASTER_API_ENV_FILE=/tmp/syndes-master-ci.env \
+          MASTER_RUNTIME_JSON=/tmp/syndes-master-runtime-ci.json \
+          MASTER_DB_URL_FILE=/tmp/syndes-master-db-ci-placeholder \
+            docker compose -f infra/master-admin/compose.yaml config --quiet
+
+  keycloak-real-jwt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/master-admin-api/package-lock.json
+      - name: Install the production JWT verifier dependencies
+        run: cd apps/master-admin-api && npm ci --no-audit --no-fund
+      - name: Start disposable Keycloak with CI-only admin and HTTPS issuer
+        run: |
+          docker run --detach --rm --name syndes-master-keycloak-ci \
+            --publish 127.0.0.1:18088:8080 \
+            -e KC_BOOTSTRAP_ADMIN_USERNAME=syndes-ci-admin \
+            -e KC_BOOTSTRAP_ADMIN_PASSWORD=ci-disposable-admin-not-for-production \
+            quay.io/keycloak/keycloak:26.8.1 \
+            start-dev --hostname=https://id.ci.syndes.invalid
+      - name: Start real throwaway PostgreSQL with least-privilege administrative role
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name syndes-master-db-ci \
+            -p 127.0.0.1:15432:5432 -e POSTGRES_PASSWORD=ci-only-disposable \
+            postgres:17-alpine
+          for n in $(seq 1 40); do
+            if docker exec syndes-master-db-ci pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then break; fi
+            if [ "$n" -eq 40 ]; then echo "Disposable PostgreSQL not ready" >&2; exit 1; fi
+            sleep 1
+          done
+          docker exec syndes-master-db-ci psql -U postgres -v ON_ERROR_STOP=1 \
+            -c 'CREATE ROLE syndes_core NOLOGIN'
+          docker exec syndes-master-db-ci psql -U postgres -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE syndes_control'
+          docker cp infra/postgres/bootstrap/control.schema syndes-master-db-ci:/tmp/control.schema
+          docker cp infra/postgres/bootstrap/control-admin.schema syndes-master-db-ci:/tmp/control-admin.schema
+          docker exec syndes-master-db-ci psql -U postgres -v ON_ERROR_STOP=1 \
+            -d syndes_control -f /tmp/control.schema
+          docker exec syndes-master-db-ci psql -U postgres -v ON_ERROR_STOP=1 \
+            -d syndes_control -f /tmp/control-admin.schema
+          docker exec syndes-master-db-ci psql -U postgres -v ON_ERROR_STOP=1 \
+            -c "ALTER ROLE syndes_master_api PASSWORD 'ci-master-only'"
+          sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/secrets
+          printf '%s\n' 'postgresql://syndes_master_api:ci-master-only@127.0.0.1:15432/syndes_control?sslmode=disable' \
+            >/run/secrets/ci-master-db-url
+          chmod 0600 /run/secrets/ci-master-db-url
+      - name: Test production API with real PostgreSQL role and signed Keycloak JWTs
+        env:
+          CI_MASTER_REAL_PG: '1'
+        run: node tests/platform/platform-manager-keycloak-ci.mjs
+      - name: Clean up disposable integration services
+        if: always()
+        run: |
+          docker rm -f syndes-master-keycloak-ci syndes-master-db-ci >/dev/null 2>&1 || true
+          sudo rm -f /run/secrets/ci-master-db-url

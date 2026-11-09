@@ -37,10 +37,18 @@ jobs:
             echo "::error::Expected at least 11 module AGENTS.md contracts; found $count"
             exit 1
           fi
-      - name: Prove fail-closed test selection
-        run: node --test scripts/ci/plan.test.mjs
+      - name: Prove fail-closed test selection and removed-workflow parity
+        run: node --test scripts/ci/*.test.mjs
       - name: Verify CI executor shell syntax
         run: bash -n scripts/ci/*.sh
+      - name: Preserve the physical single-organization guard
+        run: |
+          set -euo pipefail
+          test -f modules/organizations/sql/002_legacy_single_context_gate.sql
+          grep -q platform_legacy_single_organization modules/organizations/sql/002_legacy_single_context_gate.sql
+          grep -q platform_legacy_single_workspace modules/organizations/sql/002_legacy_single_context_gate.sql
+          test -f modules/organizations/sql/manual/activate_multiple_organizations.sql
+          echo 'Physical SQL 002 safety lock is still present'
 
   impact:
     name: Determine regression impact
@@ -95,10 +103,22 @@ jobs:
           SUITE: ${{ matrix.suite }}
         run: bash scripts/ci/run-suite.sh "$SUITE"
 
+  support-browser-parity:
+    name: Support browser / real identity and database parity
+    needs: [foundation, impact]
+    if: ${{ contains(needs.impact.outputs.matrix, '"suite":"support"') || contains(needs.impact.outputs.matrix, '"suite":"support-web"') }}
+    uses: ./.github/workflows/support-browser-e2e.yml
+
+  platform-manager-parity:
+    name: Platform Manager / real identity and SQL parity
+    needs: [foundation, impact]
+    if: ${{ contains(needs.impact.outputs.matrix, '"suite":"platform-api"') || contains(needs.impact.outputs.matrix, '"suite":"platform-web"') || contains(needs.impact.outputs.matrix, '"suite":"infra"') }}
+    uses: ./.github/workflows/platform-manager.yml
+
   gate:
     name: Syndes CI Gate
     if: ${{ always() }}
-    needs: [foundation, impact, regression]
+    needs: [foundation, impact, regression, support-browser-parity, platform-manager-parity]
     runs-on: ubuntu-latest
     steps:
       - name: Deny merge unless all required checks actually passed
@@ -107,6 +127,10 @@ jobs:
           FOUNDATION: ${{ needs.foundation.result }}
           IMPACT: ${{ needs.impact.result }}
           REGRESSION: ${{ needs.regression.result }}
+          SUPPORT_BROWSER: ${{ needs.support-browser-parity.result }}
+          PLATFORM_MANAGER: ${{ needs.platform-manager-parity.result }}
+          SUPPORT_REQUIRED: ${{ contains(needs.impact.outputs.matrix, '"suite":"support"') || contains(needs.impact.outputs.matrix, '"suite":"support-web"') }}
+          PLATFORM_REQUIRED: ${{ contains(needs.impact.outputs.matrix, '"suite":"platform-api"') || contains(needs.impact.outputs.matrix, '"suite":"platform-web"') || contains(needs.impact.outputs.matrix, '"suite":"infra"') }}
         run: |
           set -euo pipefail
           for result in "$FOUNDATION" "$IMPACT" "$REGRESSION"; do
@@ -115,4 +139,17 @@ jobs:
               exit 1
             fi
           done
-          echo "Syndes CI Gate: PASS"
+          check_selected_parity() {
+            local label="$1" required="$2" actual="$3"
+            if [[ "$required" == "true" && "$actual" != "success" ]]; then
+              echo "::error::Required $label check failed, was cancelled or skipped ($actual)"
+              exit 1
+            fi
+            if [[ "$required" == "false" && "$actual" != "skipped" ]]; then
+              echo "::error::Unexpected $label check result ($actual) for unimpacted scope"
+              exit 1
+            fi
+          }
+          check_selected_parity "Support Browser" "$SUPPORT_REQUIRED" "$SUPPORT_BROWSER"
+          check_selected_parity "Platform Manager" "$PLATFORM_REQUIRED" "$PLATFORM_MANAGER"
+          echo "Syndes CI Gate: PASS (all selected domains + real identity parity)"

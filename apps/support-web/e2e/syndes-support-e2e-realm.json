@@ -1,0 +1,108 @@
+{
+  "realm": "syndes-support-e2e",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "clients": [
+    {
+      "clientId": "syndes-support-ui",
+      "name": "Syndes Support E2E - disposable",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://127.0.0.1:4179/*"
+      ],
+      "webOrigins": [
+        "http://127.0.0.1:4179"
+      ],
+      "protocolMappers": [
+        {
+          "name": "syndes-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "syndes-e2e-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "syndes-workspace-ci-only",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "shared-api-audience-ci-only",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "syndes-e2e-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "username": "employee",
+      "firstName": "E2E",
+      "lastName": "Employee",
+      "email": "employee@support-e2e.invalid",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "e2e-only-not-production",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444444",
+      "username": "agent",
+      "firstName": "E2E",
+      "lastName": "Agent",
+      "email": "agent@support-e2e.invalid",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "e2e-only-not-production",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555555",
+      "username": "outsider",
+      "firstName": "E2E",
+      "lastName": "Outsider",
+      "email": "outsider@support-e2e.invalid",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "e2e-only-not-production",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}
