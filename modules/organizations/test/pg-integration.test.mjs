@@ -81,9 +81,13 @@ test("Postgres migrations twice, defaults, org/workspace isolation, unit links a
       [tenantA,org.id,ws.id,unitB.id],"23503");
     assert.equal((await svc.listWorkspaces(alice,orgB.id)).length,0);
     assert.equal((await svc.listUnits(alice,orgB.id)).length,0);
-    const audit=await client.query("SELECT event,actor_id FROM platform_org_audit ORDER BY id");
-    assert.deepEqual(audit.rows.map(x=>x.event),["default_context_initialized","unit_created"]);
-    assert.equal(audit.rows[0].actor_id,"alice");
+    const audit=await client.query("SELECT tenant_id,event,actor_id FROM platform_org_audit ORDER BY id");
+    assert.deepEqual(audit.rows,[
+      {tenant_id:tenantA,event:"default_context_initialized",actor_id:"alice"},
+      {tenant_id:tenantA,event:"unit_created",actor_id:"alice"},
+      {tenant_id:tenantB,event:"default_context_initialized",actor_id:"mallory"},
+      {tenant_id:tenantB,event:"unit_created",actor_id:"mallory"},
+    ]);
     assert.equal(requests.every(q=>q.tenantId===tenantA||q.tenantId===tenantB),true);
   }finally{
     await client.query("ROLLBACK");
