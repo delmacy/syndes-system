@@ -124,11 +124,15 @@ test("Whatsmeow account/projection/reply/worker isolate two organizations within
   assert.equal(reply?.body,"Alpha outbound");
   const outbound=await c.query("SELECT account_id,inbox_message_id,status FROM whatsapp_outbox WHERE inbox_message_id=$1",[reply.id]);
   assert.equal(outbound.rows[0].account_id,accountA);
-  const malicious=randomUUID();
+  const malicious=randomUUID(),unmappedMessage=randomUUID();
+  // The outbox enforces a unique inbox_message_id, so create a distinct
+  // local message to test malicious cross-owner enqueue without violating
+  // an unrelated uniqueness constraint.
+  await c.query("INSERT INTO inbox_messages(tenant_id,id,conversation_id,direction,body,author_id) VALUES($1,$2,$3,'outbound','Unauthorized intent','attacker')",[T,unmappedMessage,ca]);
   await c.query(`INSERT INTO whatsapp_outbox
    (id,tenant_id,account_id,idempotency_key,recipient_external_id,body,inbox_message_id)
    VALUES ($1,$2,$3,'malicious-b','5511999992222@s.whatsapp.net','Wrong org',$4)`,
-   [malicious,T,accountB,reply.id]);
+   [malicious,T,accountB,unmappedMessage]);
   const sent=[];
   const relay=new WhatsAppOutboundRelay({resolve:async()=>db},{
    sendQueued:async(tenantId,accountId,input)=>{sent.push({tenantId,accountId,input});return {queueId:123}},
