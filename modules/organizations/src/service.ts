@@ -92,7 +92,7 @@ export class OrganizationService{
         )
         SELECT scope.entity_type,scope.updated_count
         FROM allowed a CROSS JOIN LATERAL
-          platform_backfill_legacy_ownership(a.tenant_id) scope
+          platform_backfill_legacy_ownership(a.tenant_id,$2) scope
       `,[ctx.tenantId,ctx.actor.id]);
       if(!result.rows.length)return null;
       return result.rows.map(row=>({

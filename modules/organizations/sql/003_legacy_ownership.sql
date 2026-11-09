@@ -27,42 +27,42 @@ ALTER TABLE whatsapp_accounts ADD COLUMN IF NOT EXISTS platform_organization_id 
 -- Future Stage C must validate and enforce NOT NULL after every old row is bound.
 DO $migration$
 BEGIN
- IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='crm_people_platform_owner_fk') THEN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='crm_people_platform_owner_fk' AND conrelid='crm_people'::regclass) THEN
   ALTER TABLE crm_people ADD CONSTRAINT crm_people_platform_owner_fk
     FOREIGN KEY(tenant_id,platform_organization_id)
     REFERENCES platform_organizations(tenant_id,id) NOT VALID;
  END IF;
- IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='crm_organizations_platform_owner_fk') THEN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='crm_organizations_platform_owner_fk' AND conrelid='crm_organizations'::regclass) THEN
   ALTER TABLE crm_organizations ADD CONSTRAINT crm_organizations_platform_owner_fk
     FOREIGN KEY(tenant_id,platform_organization_id)
     REFERENCES platform_organizations(tenant_id,id) NOT VALID;
  END IF;
- IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='crm_tags_platform_owner_fk') THEN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='crm_tags_platform_owner_fk' AND conrelid='crm_tags'::regclass) THEN
   ALTER TABLE crm_tags ADD CONSTRAINT crm_tags_platform_owner_fk
     FOREIGN KEY(tenant_id,platform_organization_id)
     REFERENCES platform_organizations(tenant_id,id) NOT VALID;
  END IF;
- IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='inbox_conversations_platform_owner_fk') THEN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='inbox_conversations_platform_owner_fk' AND conrelid='inbox_conversations'::regclass) THEN
   ALTER TABLE inbox_conversations ADD CONSTRAINT inbox_conversations_platform_owner_fk
     FOREIGN KEY(tenant_id,platform_organization_id)
     REFERENCES platform_organizations(tenant_id,id) NOT VALID;
  END IF;
- IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='inbox_conversations_platform_origin_fk') THEN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='inbox_conversations_platform_origin_fk' AND conrelid='inbox_conversations'::regclass) THEN
   ALTER TABLE inbox_conversations ADD CONSTRAINT inbox_conversations_platform_origin_fk
     FOREIGN KEY(tenant_id,platform_organization_id,platform_origin_workspace_id)
     REFERENCES platform_workspaces(tenant_id,organization_id,id) NOT VALID;
  END IF;
- IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='inbox_conversations_platform_current_fk') THEN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='inbox_conversations_platform_current_fk' AND conrelid='inbox_conversations'::regclass) THEN
   ALTER TABLE inbox_conversations ADD CONSTRAINT inbox_conversations_platform_current_fk
     FOREIGN KEY(tenant_id,platform_organization_id,platform_current_workspace_id)
     REFERENCES platform_workspaces(tenant_id,organization_id,id) NOT VALID;
  END IF;
- IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='whatsapp_accounts_platform_owner_fk') THEN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='whatsapp_accounts_platform_owner_fk' AND conrelid='whatsapp_accounts'::regclass) THEN
   ALTER TABLE whatsapp_accounts ADD CONSTRAINT whatsapp_accounts_platform_owner_fk
     FOREIGN KEY(tenant_id,platform_organization_id)
     REFERENCES platform_organizations(tenant_id,id) NOT VALID;
  END IF;
- IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='inbox_conversations_platform_workspace_context_check') THEN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='inbox_conversations_platform_workspace_context_check' AND conrelid='inbox_conversations'::regclass) THEN
   ALTER TABLE inbox_conversations
     ADD CONSTRAINT inbox_conversations_platform_workspace_context_check
     CHECK(
@@ -155,18 +155,37 @@ BEGIN
 END
 $triggers$;
 
+-- Keep an append-only audit of privileged backfill operations (counts only).
+-- Never store personal names, message bodies or WhatsApp identifiers.
+CREATE TABLE IF NOT EXISTS platform_legacy_backfill_runs(
+ tenant_id UUID NOT NULL,
+ id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ organization_id UUID NOT NULL,
+ actor_id TEXT NOT NULL CHECK(length(actor_id) BETWEEN 1 AND 256),
+ counts JSONB NOT NULL,
+ recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ FOREIGN KEY(tenant_id,organization_id)
+   REFERENCES platform_organizations(tenant_id,id) ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS platform_legacy_backfill_runs_by_tenant
+ ON platform_legacy_backfill_runs(tenant_id,recorded_at DESC);
+
 -- A single SQL transaction binds ALL existing records to one default context,
 -- or fails closed. The caller is authenticated by the Core Host AND must be a
 -- current default-organization administrator (checked by the service query).
 -- Do not log PII or message content. Results are counts only.
-CREATE OR REPLACE FUNCTION platform_backfill_legacy_ownership(p_tenant UUID)
+CREATE OR REPLACE FUNCTION platform_backfill_legacy_ownership(p_tenant UUID,p_actor TEXT)
 RETURNS TABLE(entity_type TEXT, updated_count BIGINT)
 LANGUAGE plpgsql SECURITY INVOKER AS $function$
 DECLARE
  org UUID;
  ws UUID;
  changed BIGINT;
+ stats JSONB:='{}'::JSONB;
 BEGIN
+ IF p_actor IS NULL OR length(p_actor) NOT BETWEEN 1 AND 256 THEN
+   RAISE EXCEPTION 'Invalid backfill actor' USING ERRCODE='23514';
+ END IF;
  -- Cooperative per-tenant lock avoids overlapping administrative backfills.
  PERFORM pg_advisory_xact_lock(hashtextextended('syndes-backfill-'||p_tenant::text,0));
  SELECT o.id,w.id INTO org,ws
@@ -214,16 +233,19 @@ BEGIN
  UPDATE crm_people SET platform_organization_id=org
  WHERE tenant_id=p_tenant AND platform_organization_id IS NULL;
  GET DIAGNOSTICS changed=ROW_COUNT;
+ stats:=stats || jsonb_build_object('crm_people',changed);
  RETURN QUERY SELECT 'crm_people'::TEXT,changed;
 
  UPDATE crm_organizations SET platform_organization_id=org
  WHERE tenant_id=p_tenant AND platform_organization_id IS NULL;
  GET DIAGNOSTICS changed=ROW_COUNT;
+ stats:=stats || jsonb_build_object('crm_organizations',changed);
  RETURN QUERY SELECT 'crm_organizations'::TEXT,changed;
 
  UPDATE crm_tags SET platform_organization_id=org
  WHERE tenant_id=p_tenant AND platform_organization_id IS NULL;
  GET DIAGNOSTICS changed=ROW_COUNT;
+ stats:=stats || jsonb_build_object('crm_tags',changed);
  RETURN QUERY SELECT 'crm_tags'::TEXT,changed;
 
  UPDATE inbox_conversations SET platform_organization_id=org,
@@ -231,11 +253,15 @@ BEGIN
  WHERE tenant_id=p_tenant AND (platform_organization_id IS NULL
    OR platform_origin_workspace_id IS NULL OR platform_current_workspace_id IS NULL);
  GET DIAGNOSTICS changed=ROW_COUNT;
+ stats:=stats || jsonb_build_object('inbox_conversations',changed);
  RETURN QUERY SELECT 'inbox_conversations'::TEXT,changed;
 
  UPDATE whatsapp_accounts SET platform_organization_id=org
  WHERE tenant_id=p_tenant AND platform_organization_id IS NULL;
  GET DIAGNOSTICS changed=ROW_COUNT;
+ stats:=stats || jsonb_build_object('whatsapp_accounts',changed);
  RETURN QUERY SELECT 'whatsapp_accounts'::TEXT,changed;
+ INSERT INTO platform_legacy_backfill_runs(tenant_id,organization_id,actor_id,counts)
+ VALUES(p_tenant,org,p_actor,stats);
 END
 $function$;

@@ -87,6 +87,6 @@ test("legacy ownership backfill requires FGA before DB and active default admin 
   assert.match(f.queries[0].sql,/m\.role='admin'/);
   assert.match(f.queries[0].sql,/wm\.role='admin'/);
   assert.match(f.queries[0].sql,/CROSS JOIN LATERAL/);
-  assert.match(f.queries[0].sql,/platform_backfill_legacy_ownership\(a\.tenant_id\)/);
+  assert.match(f.queries[0].sql,/platform_backfill_legacy_ownership\(a\.tenant_id,\$2\)/);
   assert.deepEqual(f.queries[0].params,[tenant,ctx.actor.id]);
 });

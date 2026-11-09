@@ -79,6 +79,18 @@ test("legacy CRM, Inbox and WhatsApp owner migration is idempotent, atomic, role
     {entityType:"whatsapp_accounts",updatedCount:1}
   ]);
   assert.deepEqual((await svc.backfillDefaultOwnership(actor("alice"))).map(x=>x.updatedCount),[0,0,0,0,0]);
+  const backfillAudit=await client.query(
+    "SELECT tenant_id,organization_id,actor_id,counts FROM platform_legacy_backfill_runs ORDER BY id");
+  assert.equal(backfillAudit.rowCount,2);
+  assert.deepEqual(backfillAudit.rows[0],{
+    tenant_id:tenant,organization_id:org.id,actor_id:"alice",
+    counts:{
+      crm_people:1,crm_organizations:1,crm_tags:1,inbox_conversations:1,whatsapp_accounts:1
+    },
+  });
+  assert.deepEqual(backfillAudit.rows[1].counts,{
+    crm_people:0,crm_organizations:0,crm_tags:0,inbox_conversations:0,whatsapp_accounts:0
+  });
   for(const table of ["crm_people","crm_organizations","crm_tags","inbox_conversations","whatsapp_accounts"]){
    const r=await client.query("SELECT tenant_id,platform_organization_id FROM "+table+" WHERE tenant_id=$1",[tenant]);
    assert.equal(r.rows.length,1);
@@ -129,7 +141,7 @@ test("legacy CRM, Inbox and WhatsApp owner migration is idempotent, atomic, role
   // Backfill fails closed when 002 guard is absent.
   await client.query("SAVEPOINT no_guard");
   await client.query("DROP INDEX platform_legacy_single_organization");
-  await rejectsAtomic("SELECT * FROM platform_backfill_legacy_ownership($1::uuid)",[tenant],"P0001");
+  await rejectsAtomic("SELECT * FROM platform_backfill_legacy_ownership($1::uuid,$2)",[tenant,"alice"],"P0001");
   await client.query("ROLLBACK TO SAVEPOINT no_guard");
   // Other tenant without any default context remains invisible to the actor.
   await assert.rejects(svc.backfillDefaultOwnership(actor("alice",outsider)),/Database mismatch/);

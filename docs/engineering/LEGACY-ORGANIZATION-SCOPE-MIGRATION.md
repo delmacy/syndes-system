@@ -117,11 +117,15 @@ POST /v1/tenants/:tenantId/platform/default-context/backfill
 It requires verified Keycloak actor, tenant membership, OpenFGA
 organizations:bootstrap/write and **active admin memberships in BOTH the
 default organization and default workspace**. It invokes
-platform_backfill_legacy_ownership(tenantId) only when the authorized row
+platform_backfill_legacy_ownership(tenantId, verifiedActorId) only when the authorized row
 exists; SQL uses MATERIALIZED + LATERAL to prevent side effects without
 membership. The function checks the single-context guard before any update,
 locks per tenant, fails on conflicting owners, and updates all five parent
 tables atomically. It returns counts, not personal or messaging content.
+Each authorized execution writes an append-only, transactionally linked row to
+platform_legacy_backfill_runs (tenant, organization, authenticated actor,
+per-table counts, timestamp). A failed or unauthorized attempt never writes
+this audit row.
 
 **Operator sequence after successful PR CI/review**:
 1. Apply CRM, Inbox, WhatsApp, Organizations migrations through the trusted

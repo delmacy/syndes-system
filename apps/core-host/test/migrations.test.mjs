@@ -10,6 +10,7 @@ test("module migration CLI enumerates and emits only installed package migration
  const ownershipSql=execFileSync(process.execPath,[cli,"--emit","organizations","003_legacy_ownership"],{encoding:"utf8"});
  assert.match(ownershipSql,/CREATE OR REPLACE FUNCTION platform_backfill_legacy_ownership/);
  assert.match(ownershipSql,/ALTER TABLE inbox_conversations ADD COLUMN IF NOT EXISTS platform_current_workspace_id/);
+ assert.match(ownershipSql,/platform_legacy_backfill_runs/);
  const gateSql=execFileSync(process.execPath,[cli,"--emit","organizations","002_legacy_single_context_gate"],{encoding:"utf8"});
  assert.match(gateSql,/platform_legacy_single_organization/);
  assert.match(gateSql,/platform_legacy_single_workspace/);
