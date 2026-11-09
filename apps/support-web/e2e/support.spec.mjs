@@ -31,7 +31,7 @@ test("real Keycloak + FGA + PostgreSQL: internal requester, restricted notes and
   await internalForm.getByLabel("Descrição").fill("E2E solicitação interna: rede corporativa");
   await internalForm.getByLabel("Prioridade").selectOption("high");
   await employee.page.getByRole("button",{name:"Registrar",exact:true}).click();
-  await expect(employee.page.getByRole("status")).toContainText("Chamado registrado.");
+  await expect(employee.page.getByText("Chamado registrado.",{exact:true})).toBeVisible();
   const own=employee.page.getByRole("button",{name:CASE_PROTOCOL}).first();
   await expect(own).toBeVisible();
   const ownText=await own.innerText();
@@ -67,7 +67,7 @@ test("real Keycloak + FGA + PostgreSQL: internal requester, restricted notes and
   await expect(conversation.getByRole("option",{name:"Prospect test via WhatsApp"})).toBeAttached();
   await conversation.selectOption({label:"Prospect test via WhatsApp"});
   await agent.page.getByRole("button",{name:"Registrar",exact:true}).click();
-  await expect(agent.page.getByRole("status")).toContainText("Chamado registrado.");
+  await expect(agent.page.getByText("Chamado registrado.",{exact:true})).toBeVisible();
   const externalCase=agent.page.getByRole("button",{name:CASE_PROTOCOL}).first();
   await expect(externalCase).toBeVisible();
   await expect(agent.page.getByText("WhatsApp").first()).toBeVisible();

@@ -44,3 +44,6 @@ A execução com Chromium real alcançou o formulário do Keycloak e exigiu `ema
 
 ## E2E OIDC — audiência do JWT rejeitada corretamente
 Os traces do navegador confirmaram tokens Keycloak (employee, agent e outsider) com issuer e assinatura, mas sem `aud=syndes-e2e-api`. O `ActorVerifier` do Host respondeu 401 de modo fail-closed. Causa: mapper Keycloak de fixture usava `included.client.audience` apontando para cliente inexistente. Alterado para `included.custom.audience` e adicionado teste de regressão em `apps/support-web/tests/auth.test.mjs`, observado falhar antes do fix e passar depois. Testes locais frontend 6/6, typecheck e build verdes; reexecução E2E completa pendente de nova CI.
+
+## E2E: fluxo autenticado avançou até criação de chamado interno
+A CI com mapper `included.custom.audience` validou login Keycloak real para employee/agent/outsider e alcançou a criação de chamado interno com retorno de sucesso. O teste Playwright falhou em seletor genérico `getByRole('status')`: encontrou simultaneamente a confirmação 'Chamado registrado.' e 'Carregando chamado…'. Corrigido o locator para a confirmação específica; não houve mudança de produto nem remoção de assertions. A conclusão integral do E2E permanece pendente.
