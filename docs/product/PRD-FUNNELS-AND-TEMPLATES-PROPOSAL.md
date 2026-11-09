@@ -111,16 +111,16 @@ Em cada PR: GitHub como fonte da verdade → CI (build, testes, isolamento, migr
 
 ## 9. Novo requisito de produto — multi-organização e workspaces (2026-11-08)
 
-**Decisão de produto solicitada:** uma única conta contratante Syndes deve suportar múltiplas organizações (empresas) e vários workspaces por organização, com colaboração autorizada entre workspaces e organizações do mesmo cliente. `Site` (sede/filial/unidade) é **opcional** e tem vínculo N:N com Workspace, não é um pai estrutural obrigatório.
+**Decisão de produto solicitada:** uma única conta contratante Syndes deve suportar múltiplas organizações (empresas) e vários workspaces por organização, com colaboração autorizada entre workspaces e organizações do mesmo cliente. `Unidade` (sede/filial/unidade) é **opcional** e tem vínculo N:N com Workspace, não é um pai estrutural obrigatório.
 
 - `Tenant/Account` = cliente da Syndes, assinatura e limite físico de isolamento por banco.
 - `Organization` = empresa/entidade empresarial da conta, com seus dados e políticas.
 - `Workspace` = área de trabalho lógica configurada pelo cliente, como departamento, processo, equipe ou operação transversal. Pertence a uma organização.
-- `Site` = estabelecimento/unidade física opcional, pertence a uma organização; workspaces podem operar em vários sites sem duplicação.
+- `Unidade` = estabelecimento/unidade física opcional, pertence a uma organização; workspaces podem operar em várias unidades sem duplicação.
 - `Team` = conjunto de pessoas autorizadas a executar; não confundir com `Workspace`, `Organization` nem grupo WhatsApp.
-- Grupo de atendimento, funil e protocolo **não** são organização, site ou workspace. Um funil pode ser compartilhado entre workspaces autorizados da mesma organização.
+- Grupo de atendimento, funil e protocolo **não** são organização, unidade ou workspace. Um funil pode ser compartilhado entre workspaces autorizados da mesma organização.
 
-**Experiência:** após login único, o usuário escolhe somente entre organizações e workspaces autorizados; site é filtro contextual quando aplicável. Não adicionar uma segunda barra lateral à Inbox. Uma pequena empresa pode operar em uma organização e workspace default, sem preencher cadastro de filiais.
+**Experiência:** após login único, o usuário escolhe somente entre organizações e workspaces autorizados; unidade é filtro contextual quando aplicável. Não adicionar uma segunda barra lateral à Inbox. Uma pequena empresa pode operar em uma organização e workspace default, sem preencher cadastro de filiais.
 
 **Comunicação:** entre workspaces de uma mesma organização, uma solicitação transferida preserva protocolo, versão e auditoria; entre organizações do mesmo cliente, comunicação interna e solicitações ligadas por `correlation_id` devem exigir grants explícitos, evitando exposição integral da conversa, dos anexos e de dados sigilosos. Colaboração entre tenants/clientes diferentes é uma fase posterior.
 
@@ -128,4 +128,11 @@ Em cada PR: GitHub como fonte da verdade → CI (build, testes, isolamento, migr
 
 **Escopo/entrega:** a topologia e as migrações transversais entram antes do catálogo dos funis na WBS. A comunicação interorganizacional completa é uma entrega posterior vinculada ao motor de protocolos; não se presume implementada na versão inicial.
 
-Detalhes e critérios de aceite: `docs/engineering/ADR-ACCOUNT-ORGANIZATION-SITE-WORKSPACE-PROPOSAL.md`.
+Detalhes e critérios de aceite: `docs/engineering/ADR-ACCOUNT-ORGANIZATION-UNIT-WORKSPACE-PROPOSAL.md`.
+
+
+### Nomenclatura definitiva: Unidade e Site (CR-002)
+
+**Unidade** representa sede, filial, estabelecimento ou operação física da organização e substitui o termo anterior `Site` nas entidades administrativas. É opcional e se relaciona N:N com Workspaces. Na interface: **Unidades**. No código: `Unit`, `platform_units`, `platform_workspace_units` e `unit_id`.
+
+**Site** é reservado ao futuro módulo de publicação de conteúdo navegável para colaboradores, consumidores e eventualmente público externo, com políticas de audience, autenticação, autorização e publicação próprias. Não é uma Unidade nem um Workspace. Não desenvolver Sites no incremento do Catálogo de Funis. O conteúdo publicado só pode expor dados previamente autorizados, nunca prover acesso implícito aos registros internos.
