@@ -4,6 +4,7 @@ on:
     paths:
       - "apps/core-host/**"
       - "modules/organizations/**"
+      - "modules/support/**"
       - "modules/core-crm/**"
       - "modules/inbox/**"
       - "modules/whatsapp/**"
@@ -15,6 +16,7 @@ on:
     paths:
       - "apps/core-host/**"
       - "modules/organizations/**"
+      - "modules/support/**"
       - "modules/core-crm/**"
       - "modules/inbox/**"
       - "modules/whatsapp/**"
@@ -41,6 +43,8 @@ jobs:
         run: cd modules/inbox && npm ci --no-audit --no-fund && npm run build
       - name: Build WhatsApp channel module
         run: cd modules/whatsapp && npm ci --no-audit --no-fund && npm run build
+      - name: Build Syndes Support module
+        run: cd modules/support && npm ci --no-audit --no-fund && npm run check && npm test
       - name: Install host dependencies
         run: cd apps/core-host && npm ci --no-audit --no-fund
       - name: Strict type checks
@@ -126,6 +130,7 @@ jobs:
           cd ../../modules/organizations && npm ci --no-audit --no-fund && npm run build
           cd ../../modules/core-crm && npm ci --no-audit --no-fund && npm run build
           cd ../../modules/inbox && npm ci --no-audit --no-fund && npm run build
+          cd ../../modules/support && npm ci --no-audit --no-fund && npm run build
           cd ../../apps/core-host && npm ci --no-audit --no-fund && npm run build
       - name: Create private Docker data network
         run: docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data

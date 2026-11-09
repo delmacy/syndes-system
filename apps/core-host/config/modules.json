@@ -3,6 +3,7 @@
     "@syndes/core-crm/plugin",
     "@syndes/core-inbox/plugin",
     "@syndes/whatsapp/plugin",
-    "@syndes/core-organizations/plugin"
+    "@syndes/core-organizations/plugin",
+    "@syndes/core-support/plugin"
   ]
 }
