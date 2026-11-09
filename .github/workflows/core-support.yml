@@ -56,3 +56,14 @@ jobs:
         env:
           SYNDES_SUPPORT_TEST_PG_URL: postgresql://postgres:ci-only-disposable@localhost:5432/postgres
         run: cd modules/support && node --test test/pg-integration.test.mjs
+      - name: Refuse backup and restore without exact disposable CI context
+        run: |
+          if (cd modules/support && node test/pg-backup-restore.mjs 2>/dev/null); then
+            echo 'CRITICAL: Support restore accepted an unapproved environment' >&2
+            exit 1
+          fi
+      - name: Rehearse full backup and restore of synthetic Support data
+        env:
+          SYNDES_DISPOSABLE_RESTORE_REHEARSAL: 'true'
+          SYNDES_SUPPORT_TEST_PG_URL: postgresql://postgres:ci-only-disposable@localhost:5432/postgres
+        run: cd modules/support && node test/pg-backup-restore.mjs
