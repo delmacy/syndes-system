@@ -3,6 +3,9 @@
 **/dist/
 **/.vite/
 **/coverage/
+**/__pycache__/
+**/tsconfig.tsbuildinfo
+**/test-results/
 .tmp-*
 *.log
 .env

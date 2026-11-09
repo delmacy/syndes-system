@@ -21,6 +21,8 @@ services:
     networks:
       syndes-data:
         aliases: [syndes-postgres]
+      syndes-master-data:
+        aliases: [syndes-control-postgres]
     healthcheck:
       test: ["CMD-SHELL","pg_isready -U postgres -d postgres"]
       interval: 10s
@@ -43,4 +45,7 @@ volumes:
 networks:
   syndes-data:
     name: syndes-data
+    external: true
+  syndes-master-data:
+    name: syndes-master-data
     external: true

@@ -5,7 +5,8 @@ import type {Pool} from "pg";
 export const tenantUUID=(id:unknown):id is string=>typeof id==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 export class ActorVerifier{
   private readonly keys;
-  constructor(private readonly issuer:string,private readonly audience:string,jwksUrl:string){
+  constructor(private readonly issuer:string,private readonly audience:string,jwksUrl:string,
+    private readonly forbiddenAdminClient=process.env.CORE_MASTER_ADMIN_OIDC_CLIENT_ID?.trim()||"syndes-master-admin"){
     this.keys=createRemoteJWKSet(new URL(jwksUrl));
   }
   async verify(header:string|undefined):Promise<Actor>{
@@ -22,6 +23,11 @@ export class ActorVerifier{
   private async verifyToken(header:string|undefined,clientId?:string):Promise<Actor>{
     if(!header?.startsWith("Bearer "))throw new Error("missing bearer");
     const {payload}=await jwtVerify(header.slice(7),this.keys,{issuer:this.issuer,audience:this.audience,algorithms:["RS256"]});
+    // Even if Keycloak inadvertently adds the tenant API audience to a
+    // Master token, its independent authorized party must never enter
+    // CRM/Inbox/WhatsApp tenant controllers.
+    if(this.forbiddenAdminClient&&payload.azp===this.forbiddenAdminClient)
+      throw new Error("Master Admin token cannot access tenant APIs");
     if(!payload.sub?.trim())throw new Error("missing subject");
     if(clientId!==undefined&&payload.azp!==clientId)throw new Error("wrong OIDC client");
     return Object.freeze({id:payload.sub,kind:"user" as const});

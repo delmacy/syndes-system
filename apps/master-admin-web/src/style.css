@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+:root{font-family:'Geist Variable',Inter,system-ui,sans-serif;font-synthesis:none;background:#f6f8fc;color:#17233e}
+*{box-sizing:border-box}
+button,select,input{font:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed}
+::selection{background:#c8d7fb}
+.scrollbar-thin{scrollbar-width:thin;scrollbar-color:#cbd5e1 transparent}
+@keyframes fade-up{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.animate-enter{animation:fade-up .22s ease-out both}

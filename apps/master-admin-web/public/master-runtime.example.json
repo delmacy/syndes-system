@@ -1,0 +1,4 @@
+{
+  "issuer": "https://keycloak.example.test/realms/syndes",
+  "clientId": "syndes-master-admin"
+}
