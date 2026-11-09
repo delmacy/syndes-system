@@ -82,8 +82,12 @@ case "$suite" in
       exit 1
     fi
     pg_container="syndes-ci-whatsapp-pg"
-    start_pg "$pg_container" 5432 "ci-whatsapp-only" 17
-    export SYNDES_WHATSAPP_TEST_PG_DSN="postgres://postgres:ci-whatsapp-only@127.0.0.1:5432/postgres?sslmode=disable"
+    start_pg "$pg_container" 5432 "ci-whatsapp-superuser-only" 17
+    docker exec "$pg_container" psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
+      -c "CREATE ROLE syndes_ci LOGIN PASSWORD 'syndes_ci_test_only'" >/dev/null
+    docker exec "$pg_container" psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
+      -c "CREATE DATABASE syndes_whatsapp_test OWNER syndes_ci" >/dev/null
+    export SYNDES_WHATSAPP_TEST_PG_DSN="postgres://syndes_ci:syndes_ci_test_only@127.0.0.1:5432/syndes_whatsapp_test?sslmode=disable"
     go vet ./...
     go test -race -count=1 ./...
     go build ./...
