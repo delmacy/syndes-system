@@ -6,7 +6,7 @@ test("module migration CLI enumerates and emits only installed package migration
  const cli="dist/migrations.js";
  const list=JSON.parse(execFileSync(process.execPath,[cli,"--list"],{encoding:"utf8"}));
  assert.deepEqual(list.map(m=>m.id),["crm","inbox","whatsapp","organizations"]);
- assert.deepEqual(list[3].migrations,["001_account_hierarchy","002_legacy_single_context_gate","003_legacy_ownership"]);
+ assert.deepEqual(list[3].migrations,["001_account_hierarchy","002_legacy_single_context_gate","003_legacy_ownership","004_whatsapp_route_owner_guard"]);
  const ownershipSql=execFileSync(process.execPath,[cli,"--emit","organizations","003_legacy_ownership"],{encoding:"utf8"});
  assert.match(ownershipSql,/CREATE OR REPLACE FUNCTION platform_backfill_legacy_ownership/);
  assert.match(ownershipSql,/ALTER TABLE inbox_conversations ADD COLUMN IF NOT EXISTS platform_current_workspace_id/);

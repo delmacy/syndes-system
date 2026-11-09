@@ -12,8 +12,13 @@ export class WhatsAppInboxProjection {
  async deliverNext(tenantId:string):Promise<"delivered"|"empty"|"invalid">{
   const db=await this.pools.resolve(tenantId);
   if(db.tenantId!==tenantId)throw new Error("Tenant database mismatch");
-  const pending=await db.query(`SELECT id,payload FROM whatsapp_inbound_events
-    WHERE tenant_id=$1::uuid AND processed_at IS NULL AND failed_at IS NULL ORDER BY id LIMIT 1`,[tenantId]);
+  const pending=await db.query(`SELECT e.id,e.payload FROM whatsapp_inbound_events e
+    JOIN whatsapp_accounts a ON a.tenant_id=e.tenant_id AND a.id=e.account_id
+     AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL
+    JOIN platform_workspaces w ON w.tenant_id=a.tenant_id
+      AND w.organization_id=a.platform_organization_id AND w.is_default AND w.status='active'
+    WHERE e.tenant_id=$1::uuid AND e.processed_at IS NULL AND e.failed_at IS NULL
+    ORDER BY e.id LIMIT 1`,[tenantId]);
   const row=pending.rows[0] as {id?:unknown;payload?:unknown}|undefined;
   if(!row)return "empty";
   // WhatsApp may report the same direct chat as a @lid (live messages)
@@ -26,7 +31,8 @@ export class WhatsAppInboxProjection {
    const matches=await db.query(`SELECT r.recipient_external_id
      FROM whatsapp_conversation_routes r
      JOIN inbox_conversations c ON c.tenant_id=r.tenant_id AND c.id=r.conversation_id
-     WHERE r.tenant_id=$1::uuid AND r.account_id=$2::uuid
+     JOIN whatsapp_accounts a ON a.tenant_id=r.tenant_id AND a.id=r.account_id
+     WHERE r.tenant_id=$1::uuid AND c.platform_organization_id=a.platform_organization_id AND r.account_id=$2::uuid
        AND r.phone_e164=$3 AND c.channel='whatsapp' AND c.is_group=false
      ORDER BY CASE WHEN r.recipient_external_id LIKE '%@lid' THEN 0 ELSE 1 END,
        c.created_at ASC,c.id ASC LIMIT 1`,[tenantId,accountId,phone]);
@@ -40,7 +46,12 @@ export class WhatsAppInboxProjection {
    // No conversation/message is created by a receipt.
    const result=await db.query(`
      WITH incoming AS (
-       SELECT e.id,e.tenant_id,e.account_id FROM whatsapp_inbound_events e
+       SELECT e.id,e.tenant_id,e.account_id,a.platform_organization_id,
+        w.id AS initial_workspace_id FROM whatsapp_inbound_events e
+       JOIN whatsapp_accounts a ON a.tenant_id=e.tenant_id AND a.id=e.account_id
+         AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL
+       JOIN platform_workspaces w ON w.tenant_id=a.tenant_id
+         AND w.organization_id=a.platform_organization_id AND w.is_default AND w.status='active'
        WHERE e.tenant_id=$1::uuid AND e.id=$2 AND e.processed_at IS NULL FOR UPDATE
      ), stored AS (
        INSERT INTO whatsapp_delivery_receipts
@@ -67,13 +78,19 @@ export class WhatsAppInboxProjection {
    // Match an existing tenant+account route by trusted JID or verified PN.
    const result=await db.query(`
     WITH incoming AS (
-     SELECT e.id,e.tenant_id FROM whatsapp_inbound_events e
+     SELECT e.id,e.tenant_id,e.account_id,a.platform_organization_id,
+       w.id AS initial_workspace_id FROM whatsapp_inbound_events e
+     JOIN whatsapp_accounts a ON a.tenant_id=e.tenant_id AND a.id=e.account_id
+       AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL
+     JOIN platform_workspaces w ON w.tenant_id=a.tenant_id
+       AND w.organization_id=a.platform_organization_id AND w.is_default AND w.status='active'
      WHERE e.tenant_id=$1::uuid AND e.id=$2 AND e.processed_at IS NULL FOR UPDATE
     ), updated AS (
      UPDATE inbox_conversations c SET subject=$5
      FROM whatsapp_conversation_routes r,incoming i
      WHERE c.tenant_id=i.tenant_id AND r.tenant_id=c.tenant_id
        AND r.conversation_id=c.id AND r.account_id=$3::uuid
+       AND c.platform_organization_id=i.platform_organization_id
        AND c.channel='whatsapp' AND c.is_group=false
        AND (r.recipient_external_id=$4 OR ($6::text IS NOT NULL AND r.phone_e164=$6))
        AND (c.subject LIKE 'WhatsApp · %' OR c.subject IN
@@ -97,13 +114,19 @@ export class WhatsAppInboxProjection {
    const title=(chat.name?.trim()||(isGroup?"Grupo WhatsApp":phone?"WhatsApp · +"+phone:"Contato sem número disponível")).slice(0,160);
    const result=await db.query(`
     WITH incoming AS (
-     SELECT e.id,e.tenant_id,e.account_id FROM whatsapp_inbound_events e
+     SELECT e.id,e.tenant_id,e.account_id,a.platform_organization_id,
+        w.id AS initial_workspace_id FROM whatsapp_inbound_events e
+     JOIN whatsapp_accounts a ON a.tenant_id=e.tenant_id AND a.id=e.account_id
+       AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL
+     JOIN platform_workspaces w ON w.tenant_id=a.tenant_id
+       AND w.organization_id=a.platform_organization_id AND w.is_default AND w.status='active'
      WHERE e.tenant_id=$1::uuid AND e.id=$2 AND e.processed_at IS NULL FOR UPDATE
     ), thread AS (
      INSERT INTO inbox_conversations
-      (tenant_id,id,subject,channel,external_thread_id,is_group,unread_count,is_archived,created_at,updated_at,history_sync_at)
+      (tenant_id,id,subject,channel,external_thread_id,is_group,unread_count,is_archived,created_at,updated_at,history_sync_at,platform_organization_id,platform_origin_workspace_id,platform_current_workspace_id)
      SELECT tenant_id,$3::uuid,$4,'whatsapp',$5,$6,$7,$8,
-       COALESCE($9::timestamptz,clock_timestamp()),COALESCE($9::timestamptz,clock_timestamp()),clock_timestamp()
+       COALESCE($9::timestamptz,clock_timestamp()),COALESCE($9::timestamptz,clock_timestamp()),clock_timestamp(),
+       platform_organization_id,initial_workspace_id,initial_workspace_id
      FROM incoming
      ON CONFLICT(tenant_id,channel,external_thread_id) WHERE external_thread_id IS NOT NULL
      DO UPDATE SET is_group=EXCLUDED.is_group,
@@ -113,12 +136,14 @@ export class WhatsAppInboxProjection {
          OR inbox_conversations.subject LIKE 'WhatsApp · %'
          OR inbox_conversations.subject IN ('Contato sem número disponível','Grupo WhatsApp')
          THEN EXCLUDED.subject ELSE inbox_conversations.subject END
-     RETURNING tenant_id,id
+     WHERE inbox_conversations.platform_organization_id=EXCLUDED.platform_organization_id
+     RETURNING tenant_id,id,platform_organization_id
     ), route AS (
      INSERT INTO whatsapp_conversation_routes
        (tenant_id,conversation_id,account_id,recipient_external_id,phone_e164)
      SELECT thread.tenant_id,thread.id,incoming.account_id,$10,$11
      FROM thread JOIN incoming ON incoming.tenant_id=thread.tenant_id
+       AND incoming.platform_organization_id=thread.platform_organization_id
      ON CONFLICT(tenant_id,conversation_id) DO UPDATE SET
        phone_e164=COALESCE(EXCLUDED.phone_e164,whatsapp_conversation_routes.phone_e164)
      WHERE whatsapp_conversation_routes.account_id=EXCLUDED.account_id
@@ -151,20 +176,29 @@ export class WhatsAppInboxProjection {
   const inboxBody=m.body.slice(0,5000);
   const result=await db.query(`
    WITH incoming AS (
-    SELECT e.id,e.tenant_id,e.account_id,e.payload
-    FROM whatsapp_inbound_events e WHERE e.tenant_id=$1::uuid
+    SELECT e.id,e.tenant_id,e.account_id,e.payload,
+      a.platform_organization_id,w.id AS initial_workspace_id
+    FROM whatsapp_inbound_events e
+    JOIN whatsapp_accounts a ON a.tenant_id=e.tenant_id AND a.id=e.account_id
+      AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL
+    JOIN platform_workspaces w ON w.tenant_id=a.tenant_id
+      AND w.organization_id=a.platform_organization_id AND w.is_default AND w.status='active'
+    WHERE e.tenant_id=$1::uuid
       AND e.id=$2 AND e.processed_at IS NULL FOR UPDATE
    ), thread AS (
     INSERT INTO inbox_conversations
-      (tenant_id,id,subject,channel,external_thread_id,is_group,created_at,updated_at)
-    SELECT tenant_id,$3::uuid,$4,'whatsapp',$5,$10::boolean,$11::timestamptz,$11::timestamptz FROM incoming
+      (tenant_id,id,subject,channel,external_thread_id,is_group,created_at,updated_at,platform_organization_id,platform_origin_workspace_id,platform_current_workspace_id)
+    SELECT tenant_id,$3::uuid,$4,'whatsapp',$5,$10::boolean,$11::timestamptz,$11::timestamptz,
+     platform_organization_id,initial_workspace_id,initial_workspace_id FROM incoming
     ON CONFLICT(tenant_id,channel,external_thread_id) WHERE external_thread_id IS NOT NULL
     DO UPDATE SET is_group=EXCLUDED.is_group
-    RETURNING tenant_id,id
+    WHERE inbox_conversations.platform_organization_id=EXCLUDED.platform_organization_id
+    RETURNING tenant_id,id,platform_organization_id
    ), route AS (
     INSERT INTO whatsapp_conversation_routes(tenant_id,conversation_id,account_id,recipient_external_id,phone_e164)
     SELECT thread.tenant_id,thread.id,incoming.account_id,$12,$13
     FROM thread JOIN incoming ON incoming.tenant_id=thread.tenant_id
+       AND incoming.platform_organization_id=thread.platform_organization_id
     ON CONFLICT(tenant_id,conversation_id) DO UPDATE
       SET phone_e164=COALESCE(EXCLUDED.phone_e164,whatsapp_conversation_routes.phone_e164)
       WHERE whatsapp_conversation_routes.account_id=EXCLUDED.account_id

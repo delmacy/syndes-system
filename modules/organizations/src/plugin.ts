@@ -21,6 +21,9 @@ export const syndesPlugin=defineSyndesModule({
   },{
     id:"003_legacy_ownership",
     fileUrl:new URL("../sql/003_legacy_ownership.sql",import.meta.url).href,
+  },{
+    id:"004_whatsapp_route_owner_guard",
+    fileUrl:new URL("../sql/004_whatsapp_route_owner_guard.sql",import.meta.url).href,
   }],
   assets:[],
 });

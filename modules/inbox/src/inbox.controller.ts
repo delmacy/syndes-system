@@ -24,8 +24,8 @@ export class InboxHost{
   private readonly whatsappReply?:{
    enqueue(ctx:InboxContext,conversationId:string,body:unknown):Promise<unknown|null>;
    requestHistory(ctx:InboxContext,conversationId:string):Promise<{requested:boolean;note:string}>;
-   decorate(tenantId:string,messages:readonly {id:string;direction:string}[]):Promise<readonly unknown[]>;
-   decorateConversations(tenantId:string,conversations:readonly {id:string;channel:string}[]):Promise<readonly unknown[]>;
+   decorate(ctx:InboxContext,messages:readonly {id:string;direction:string}[]):Promise<readonly unknown[]>;
+   decorateConversations(ctx:InboxContext,conversations:readonly {id:string;channel:string}[]):Promise<readonly unknown[]>;
   }
  ){
   const repo=new PgInboxRepositoryFactory(pools);
@@ -36,19 +36,19 @@ export class InboxHost{
  async list(ctx:InboxContext,status:ConversationStatus|null,limit:number,queue:ConversationQueue,scope:ChatScope,offset:number,search:string){
   const records=await this.inbox.list(ctx,status,limit,queue,scope,offset,search);
   if(!this.whatsappReply)return records;
-  return this.whatsappReply.decorateConversations(ctx.tenantId,records);
+  return this.whatsappReply.decorateConversations(ctx,records);
  }
  async get(ctx:InboxContext,conversationId:string){
   const result=await this.inbox.get(ctx,conversationId);
   if(!result||!this.whatsappReply)return result;
-  const [decorated]=await this.whatsappReply.decorateConversations(ctx.tenantId,[result]);
+  const [decorated]=await this.whatsappReply.decorateConversations(ctx,[result]);
   return decorated;
  }
  async messages(ctx:InboxContext,conversationId:string,limit:number){
   const selected=await this.inbox.messages(ctx,conversationId,limit);
   if(!selected || !this.whatsappReply)return selected;
   // The Inbox authorization and tenant-scoped query run before any decoration.
-  return this.whatsappReply.decorate(ctx.tenantId,selected);
+  return this.whatsappReply.decorate(ctx,selected);
  }
  async history(ctx:InboxContext,conversationId:string){
   const conv=await this.inbox.get(ctx,conversationId);

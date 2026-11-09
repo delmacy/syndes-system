@@ -59,6 +59,9 @@ docker exec syndes-inbox-ci-pg psql -v ON_ERROR_STOP=1 -U postgres -d "$TENANT_D
 echo "Tenant migration 007 runtime permissions and cross-tenant deny: PASS"
 SYNDES_INBOX_SCOPE_TEST_PG_URL=postgres://postgres:ci-inbox-only@127.0.0.1:54339/postgres \
  node --test modules/inbox/test/pg-org-scope.mjs
+# Whatsmeow-to-Inbox ownership A/B and outbound queue safety on disposable PG
+SYNDES_INBOX_SCOPE_TEST_PG_URL=postgres://postgres:ci-inbox-only@127.0.0.1:54339/postgres \
+ node --test modules/whatsapp/test/pg-org-scope.mjs
 node modules/inbox/test/pg-integration.mjs
 node --test apps/core-host/test/inbox-pg-http.integration.mjs
 echo "Inbox PostgreSQL + installed Core Host HTTP contract: PASS"
