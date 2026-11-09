@@ -240,3 +240,20 @@ Workspace-level CRM visibility is also not yet implemented: CRM is scoped
 to platform organization only, while workspace memberships gate entry.
 Do NOT enable a second company or remove the SQL indexes based solely on
 this increment. No tenant migration or production rollout.
+
+
+## Stage C2b — Isolamento parcial da Inbox em HTTP, SQL e SSE (2026-11-09)
+
+**Estado: branch de implementação para revisão, sem deploy nem liberação multi-org.**
+
+O Core Host da Inbox verifica o usuário pelo Keycloak, exige membership do tenant e a permissão OpenFGA existente inbox:conversations/read **antes** de resolver o banco. Em seguida valida memberships ativas na Organização e Workspace **padrão**, auditoria de backfill Stage B e os índices SQL de trava 002. O cliente HTTP não pode escolher o contexto. Essa checagem ocorre em todo endpoint autenticado, inclusive quando a entrada posteriormente será rejeitada. Um usuário com grant somente de leitura pode resolver o contexto antes de ser negada uma alteração sem grant de escrita.
+
+O InboxService repassa o contexto ao repositório; PgInboxRepository usa parâmetros vinculados platform_organization_id e platform_current_workspace_id para consultas, buscas, detalhes, mensagens, mutações, notas, atribuições, marcações e métricas **antes da paginação**. Conversas simuladas novas recebem owner, workspace de origem e workspace atual explícitos. O vínculo com pessoa do CRM exige proprietário compatível. Busca por dados de rota WhatsApp considera apenas contas da organização apropriada; o dispatcher Whatsmeow continua sendo um caminho pendente.
+
+O bus SSE separa invalidações pelos três identificadores tenant/organização/workspace, sem corpo de conversas ou mensagens. Eventos internos legados apenas por tenant permanecem em namespace separado e **não alcançam** clientes SSE autenticados no contexto padrão. Streams expiram em 60 segundos e reautenticam na reconexão; não se promete revogação instantânea durante uma conexão já aberta.
+
+O teste PostgreSQL descartável modules/inbox/test/pg-org-scope.mjs cria **duas organizações e três workspaces no mesmo tenant**, removendo os índices 002 SOMENTE dentro de transação reversível, e verifica negativas por UUID em listagem, busca, mutações, mensagens, métricas e CRM. A suíte HTTP PG instala as migrations e efetua bootstrap/backfill dos tenants de teste; ela não executa nenhuma migração no cliente.
+
+**Gates que continuam abertos (#21 P0):** chamada de serviço legado sem contexto ainda usa SQL tenant-only por compatibilidade; Whatsmeow inbound/outbound, account routing, decoração de mensagens, trabalhos provider, autorizações de transferência e compartilhamento entre workspaces permanecem pendentes. Os índices platform_legacy_single_organization e platform_legacy_single_workspace NÃO podem ser removidos nem pode ser criada segunda organização/workspace em produção.
+
+**Rollout:** antes de qualquer nova imagem Host, aplicar migrations CRM, Inbox, WhatsApp e Organizations 001–003, realizar bootstrap autorizado, executar backfill auditado, provisionar memberships e garantir grants Inbox existentes. O CRM também exige o grant independente crm:context/read. Instalar a imagem antes desses requisitos gera 403/503 e pode bloquear usuários. Esta PR não realiza deploy nem mudanças de FGA ou bancos operacionais.

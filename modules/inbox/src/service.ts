@@ -10,10 +10,12 @@ export const inboxModule:ModuleDefinition=Object.freeze({
 /** All repository resolution is inside the authorized kernel handler. */
 export class InboxService {
  constructor(private readonly kernel:CoreKernel,
-             private readonly storeForTenant:(tenantId:string)=>Promise<InboxRepository>){}
+             private readonly storeForTenant:(tenantId:string,scope?:Readonly<{organizationId:string;workspaceId:string}>)=>Promise<InboxRepository>){}
  private execute<T>(ctx:InboxContext,action:string,resource:string,handler:(store:InboxRepository)=>Promise<T>):Promise<T>{
+   if((ctx.organizationId===undefined)!==(ctx.workspaceId===undefined))
+     throw new InboxValidationError("Incomplete Inbox organization/workspace context");
    return this.kernel.execute({actor:ctx.actor,tenantId:ctx.tenantId,action,resource},
-     async()=>handler(await this.storeForTenant(ctx.tenantId)));
+     async()=>handler(await this.storeForTenant(ctx.tenantId,ctx.organizationId&&ctx.workspaceId?{organizationId:ctx.organizationId,workspaceId:ctx.workspaceId}:undefined)));
  }
  /** Authorization for a live change-only stream; NO database lease or tenant-supplied actor. */
  watch(ctx:InboxContext):Promise<void>{

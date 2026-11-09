@@ -55,3 +55,20 @@ O endpoint `GET /v1/tenants/:tenantId/inbox/events` envia apenas eventos `change
 O cliente usa `fetch` com header Bearer (o `EventSource` nativo não permite headers arbitrários) e, ao receber invalidation, consulta a lista e a conversa selecionada pelas rotas previamente autorizadas. Quando não há conexão SSE, reverte à consulta HTTP de 10 segundos, com reconexão em 5 segundos. Isso preserva a funcionalidade sem vazamento de dados através do barramento.
 
 **Limitação:** transporte e barramento somente na memória de uma instância Core Host (nossa configuração de desenvolvimento atual). **Não funciona corretamente com múltiplas réplicas ou workers sem broker compartilhado**, nem garante entrega quando o cliente esteve offline. Nesse cenário a reconexão deve reconstruir o estado via API HTTP e, antes de escalar, será necessário Redis pub/sub ou equivalente. As mensagens continuam persistidas no banco do tenant; SSE não armazena dados.
+
+
+## Stage C2b — Isolamento parcial da Inbox em HTTP, SQL e SSE (2026-11-09)
+
+**Estado: branch de implementação para revisão, sem deploy nem liberação multi-org.**
+
+O Core Host da Inbox verifica o usuário pelo Keycloak, exige membership do tenant e a permissão OpenFGA existente inbox:conversations/read **antes** de resolver o banco. Em seguida valida memberships ativas na Organização e Workspace **padrão**, auditoria de backfill Stage B e os índices SQL de trava 002. O cliente HTTP não pode escolher o contexto. Essa checagem ocorre em todo endpoint autenticado, inclusive quando a entrada posteriormente será rejeitada. Um usuário com grant somente de leitura pode resolver o contexto antes de ser negada uma alteração sem grant de escrita.
+
+O InboxService repassa o contexto ao repositório; PgInboxRepository usa parâmetros vinculados platform_organization_id e platform_current_workspace_id para consultas, buscas, detalhes, mensagens, mutações, notas, atribuições, marcações e métricas **antes da paginação**. Conversas simuladas novas recebem owner, workspace de origem e workspace atual explícitos. O vínculo com pessoa do CRM exige proprietário compatível. Busca por dados de rota WhatsApp considera apenas contas da organização apropriada; o dispatcher Whatsmeow continua sendo um caminho pendente.
+
+O bus SSE separa invalidações pelos três identificadores tenant/organização/workspace, sem corpo de conversas ou mensagens. Eventos internos legados apenas por tenant permanecem em namespace separado e **não alcançam** clientes SSE autenticados no contexto padrão. Streams expiram em 60 segundos e reautenticam na reconexão; não se promete revogação instantânea durante uma conexão já aberta.
+
+O teste PostgreSQL descartável modules/inbox/test/pg-org-scope.mjs cria **duas organizações e três workspaces no mesmo tenant**, removendo os índices 002 SOMENTE dentro de transação reversível, e verifica negativas por UUID em listagem, busca, mutações, mensagens, métricas e CRM. A suíte HTTP PG instala as migrations e efetua bootstrap/backfill dos tenants de teste; ela não executa nenhuma migração no cliente.
+
+**Gates que continuam abertos (#21 P0):** chamada de serviço legado sem contexto ainda usa SQL tenant-only por compatibilidade; Whatsmeow inbound/outbound, account routing, decoração de mensagens, trabalhos provider, autorizações de transferência e compartilhamento entre workspaces permanecem pendentes. Os índices platform_legacy_single_organization e platform_legacy_single_workspace NÃO podem ser removidos nem pode ser criada segunda organização/workspace em produção.
+
+**Rollout:** antes de qualquer nova imagem Host, aplicar migrations CRM, Inbox, WhatsApp e Organizations 001–003, realizar bootstrap autorizado, executar backfill auditado, provisionar memberships e garantir grants Inbox existentes. O CRM também exige o grant independente crm:context/read. Instalar a imagem antes desses requisitos gera 403/503 e pode bloquear usuários. Esta PR não realiza deploy nem mudanças de FGA ou bancos operacionais.

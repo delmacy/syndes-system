@@ -7,6 +7,7 @@ import {InboxTenantMismatchError,InboxValidationError} from "./contracts.js";
 import type {ConversationStatus,ConversationQueue,ChatScope,HandoffMode,InboxContext,CreateConversation} from "./contracts.js";
 import {id} from "./validation.js";
 import {InboxChangeBus,type SseSink} from "./realtime.js";
+import {InboxDefaultContextGuard} from "./context-guard.js";
 import {CORE_RUNTIME,TENANT_DATABASES,type InboxHostRuntime} from "./runtime.js";
 import type {TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 
@@ -15,6 +16,7 @@ export class InboxHost{
  readonly inbox:InboxService;
  readonly simulator:SimulatedChannelAdapter;
  readonly events=new InboxChangeBus();
+ readonly scope:InboxDefaultContextGuard;
  constructor(
   @Inject(CORE_RUNTIME) private readonly core:InboxHostRuntime,
   @Inject(TENANT_DATABASES) pools:TrustedTenantDatabaseProvider,
@@ -27,7 +29,8 @@ export class InboxHost{
   }
  ){
   const repo=new PgInboxRepositoryFactory(pools);
-  this.inbox=new InboxService(core.kernel,tenantId=>repo.forTenant(tenantId));
+  this.scope=new InboxDefaultContextGuard(core.kernel,pools);
+  this.inbox=new InboxService(core.kernel,(tenantId,scope)=>repo.forTenant(tenantId,scope));
   this.simulator=new SimulatedChannelAdapter(this.inbox);
  }
  async list(ctx:InboxContext,status:ConversationStatus|null,limit:number,queue:ConversationQueue,scope:ChatScope,offset:number,search:string){
@@ -71,7 +74,7 @@ export class InboxHost{
   let actor;
   try{actor=await this.core.verifier.verify(authorization)}
   catch{throw new HttpException("Authentication required",401)}
-  try{return await task({tenantId,actor})}
+  try{return await task(await this.scope.resolve(tenantId,actor))}
   catch(error){
    if(error instanceof HttpException)throw error;
    if(error instanceof AccessDeniedError)throw new HttpException("Forbidden",403);
@@ -100,8 +103,8 @@ export class InboxController{
  async eventsStream(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
     @Res()response:SseSink):Promise<void>{
    // Before writing HTTP headers, verify JWT + tenancy membership + inbox read access.
-   await this.run(t,h,c=>this.host.inbox.watch(c));
-   try{this.host.events.connect(t,response);}
+   const context=await this.run(t,h,async c=>{await this.host.inbox.watch(c);return c;});
+   try{this.host.events.connect(context,response);}
    catch{throw new HttpException("Too many live connections",429);}
  }
  @Get("conversations")
@@ -116,7 +119,7 @@ export class InboxController{
  @Post("conversations")
  create(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
         @Body()b:CreateConversation){
-  return this.run(t,h,async c=>{const result=await this.host.inbox.create(c,b);this.host.events.publish(c.tenantId);return result;});
+  return this.run(t,h,async c=>{const result=await this.host.inbox.create(c,b);this.host.events.publish(c);return result;});
  }
  @Get("conversations/:id")
  get(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@Param("id")key:string){
@@ -130,31 +133,31 @@ export class InboxController{
  @Patch("conversations/:id/assignment")
  assign(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
         @Param("id")key:string,@Body()b:{assigneeId?:string|null}){
-  return this.run(t,h,async c=>{const result=found(await this.host.inbox.assign(c,key,b?.assigneeId));this.host.events.publish(c.tenantId);return result;});
+  return this.run(t,h,async c=>{const result=found(await this.host.inbox.assign(c,key,b?.assigneeId));this.host.events.publish(c);return result;});
  }
  @Patch("conversations/:id/status")
  status(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
         @Param("id")key:string,@Body()b:{status:ConversationStatus}){
-  return this.run(t,h,async c=>{const result=found(await this.host.inbox.status(c,key,b?.status));this.host.events.publish(c.tenantId);return result;});
+  return this.run(t,h,async c=>{const result=found(await this.host.inbox.status(c,key,b?.status));this.host.events.publish(c);return result;});
  }
  @Patch("conversations/:id/handoff")
  handoff(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
          @Param("id")key:string,@Body()b:{mode:HandoffMode}){
-  return this.run(t,h,async c=>{const result=found(await this.host.inbox.handoff(c,key,b?.mode));this.host.events.publish(c.tenantId);return result;});
+  return this.run(t,h,async c=>{const result=found(await this.host.inbox.handoff(c,key,b?.mode));this.host.events.publish(c);return result;});
  }
  @Patch("conversations/:id/favorite")
  favorite(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
    @Param("id")key:string,@Body()b:{favorite:boolean}){
    return this.run(t,h,async c=>{
     const result=found(await this.host.inbox.favorite(c,key,b?.favorite));
-    this.host.events.publish(c.tenantId);return result;
+    this.host.events.publish(c);return result;
    });
  }
  @Patch("conversations/:id/read")
  read(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@Param("id")key:string){
    return this.run(t,h,async c=>{
     const result=found(await this.host.inbox.markRead(c,key));
-    this.host.events.publish(c.tenantId);return result;
+    this.host.events.publish(c);return result;
    });
  }
  @Patch("conversations/:id/contact")
@@ -162,7 +165,7 @@ export class InboxController{
          @Param("id")key:string,@Body()b:{personId?:string}){
   return this.run(t,h,async c=>{
    const result=found(await this.host.inbox.linkContact(c,key,b?.personId??""));
-   this.host.events.publish(c.tenantId);
+   this.host.events.publish(c);
    return this.host.get(c,key);
   });
  }
@@ -174,17 +177,17 @@ export class InboxController{
  @Post("conversations/:id/replies")
  reply(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
        @Param("id")key:string,@Body()b:{body:string}){
-  return this.run(t,h,async c=>{const result=found(await this.host.reply(c,key,b?.body));this.host.events.publish(c.tenantId);return result;});
+  return this.run(t,h,async c=>{const result=found(await this.host.reply(c,key,b?.body));this.host.events.publish(c);return result;});
  }
  @Post("conversations/:id/notes")
  note(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
       @Param("id")key:string,@Body()b:{body:string}){
-  return this.run(t,h,async c=>{const result=found(await this.host.inbox.note(c,key,b?.body));this.host.events.publish(c.tenantId);return result;});
+  return this.run(t,h,async c=>{const result=found(await this.host.inbox.note(c,key,b?.body));this.host.events.publish(c);return result;});
  }
  @Post("conversations/:id/simulator/inbound")
  simulate(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
           @Param("id")key:string,@Body()b:{body:string;externalMessageId:string}){
-  return this.run(t,h,async c=>{const result=found(await this.host.simulator.receive(c,{channel:"simulation",conversationId:key,body:b?.body,externalMessageId:b?.externalMessageId}));this.host.events.publish(c.tenantId);return result;});
+  return this.run(t,h,async c=>{const result=found(await this.host.simulator.receive(c,{channel:"simulation",conversationId:key,body:b?.body,externalMessageId:b?.externalMessageId}));this.host.events.publish(c);return result;});
  }
  @Get("metrics")
  metrics(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined){

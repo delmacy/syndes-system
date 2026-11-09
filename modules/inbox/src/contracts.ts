@@ -1,6 +1,6 @@
 import type {Actor,TenantDatabase,TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 export type {TenantDatabase,TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
-export type InboxContext=Readonly<{actor:Actor;tenantId:string}>;
+export type InboxContext=Readonly<{actor:Actor;tenantId:string;organizationId?:string;workspaceId?:string}>;
 export type ConversationStatus="open"|"pending"|"resolved";
 export type ConversationQueue="all"|"mine"|"unassigned";
 export type ChatScope="all"|"unread"|"favorites"|"groups"|"archived";
