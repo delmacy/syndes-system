@@ -15,6 +15,7 @@ on:
       - "tests/platform/platform-manager-network-smoke.py"
       - "tests/platform/platform-manager-keycloak-ci.mjs"
       - "tests/platform/test-master-secret-render.py"
+      - "tests/platform/platform-manager-host-gate.sh"
       - "docs/engineering/*PLATFORM-MANAGER*"
       - ".github/workflows/platform-manager.yml"
   pull_request:
@@ -32,6 +33,7 @@ on:
       - "tests/platform/platform-manager-network-smoke.py"
       - "tests/platform/platform-manager-keycloak-ci.mjs"
       - "tests/platform/test-master-secret-render.py"
+      - "tests/platform/platform-manager-host-gate.sh"
       - "docs/engineering/*PLATFORM-MANAGER*"
       - ".github/workflows/platform-manager.yml"
 permissions:
@@ -99,8 +101,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate disposable role-isolation test
-        run: bash -n tests/platform/platform-manager-postgres-smoke.sh
+      - name: Validate disposable role-isolation and operational gate scripts
+        run: bash -n tests/platform/platform-manager-postgres-smoke.sh tests/platform/platform-manager-host-gate.sh
       - name: Real PostgreSQL denied writes and tenant connections
         run: bash tests/platform/platform-manager-postgres-smoke.sh
 

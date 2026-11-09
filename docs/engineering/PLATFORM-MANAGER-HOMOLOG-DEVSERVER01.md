@@ -45,3 +45,13 @@ A role `syndes_master_api` continua **sem senha** e a API permanece **não impla
 - A nova rotina possui testes de unidade que verificam DSN fixo em `syndes_control`, rejeição de senha inválida, revogação obrigatória, ausência de arquivo ao falhar revogação e escopo da política. Um teste CI não prova que a AppRole foi provisionada no cofre operacional; esta é uma dependência humana ainda bloqueante.
 
 **Critério de desbloqueio:** AppRole criada e auditada, KV correto, renderização em tmpfs testada, role com senha correspondente, `/readyz` aprovado e principal de operador explicitamente autorizado. Sem isso, a homologação fica no estado **infraestrutura pronta, serviço não ativado**.
+
+## Verificação de execução estática e Product Gate
+
+A imagem Nginx foi criada no DevServer01 a partir do bundle CI `platform-manager-web-dist` (GitHub Actions run `42662879128`). O primeiro teste revelou arquivos de configuração e estáticos em modo 0600 num checkout privado: o usuário Nginx 101 não conseguia lê-los. Os dois Dockerfiles de frontend foram corrigidos para normalizar permissões **somente no build**, voltando ao UID 101 no runtime. O smoke de execução de `homolog-c1ac202` confirmou resposta HTTP 200 para `/` e `/master-runtime.json`, HTTP 404 para `/workspace-runtime.json`, `/readyz`, `/modules/core-crm/config` e `/v1/tenants/...`. Esses contêineres e redes foram descartados, **não há frontend publicado**.
+
+O comando de leitura `bash tests/platform/platform-manager-host-gate.sh` apresenta critérios `PASS`, `BLOCKED` e `WARN`. É deliberadamente não-mutante: usa metadados de Docker e PostgreSQL, não imprime valores de segredos e retorna código 2 quando falta um gate. Deve ser usado antes e depois de qualquer mudança operacional, e sua execução não substitui testes reais de login/401/403.
+
+A imagem Nginx construída com o checkout novo e arquivos da compilação antiga tem proveniência explicitada no manifesto `artifacts/web-dist/CI_ARTIFACT_MANIFEST.json`, ainda **local e fora de commits**; o bundle corresponde ao commit `3cb4f73`, sem mudanças de frontend React desde então. Para release final exigir o bundle CI do HEAD aprovado.
+
+**Bloqueios que não podem ser contornados:** a AppRole e o segredo de acesso ao Control DB precisam ser provisionados por operador autorizado; a role `syndes_master_api` não recebeu senha; a tabela `platform_operator_access` continua sem owner; ainda não há Tailscale Serve 9446 nem API em execução. O banco utilitário `postgres` ainda concede CONNECT via PUBLIC; revisar como restringi-lo sem impactar serviços existentes. Não promover a PR por testes de frontend isolados.
