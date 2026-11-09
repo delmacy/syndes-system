@@ -80,3 +80,11 @@ Baseline inicial 2026-11-09: master API 3/3; Core Host 23/23; frontend build apr
 ## 8. Registro obrigatório por tarefa
 
 Para cada item WBS: objetivo, arquivos, dependências, novos testes, resultado, evidência, commit/PR, estado. Logs de CI e e2e devem acompanhar a revisão. Nunca suprimir testes anteriores, remover trava SQL 002, fazer migração de tenant real ou merge automático.
+
+## 9. Decisão de produto posterior ao MVP — proprietário com duas frentes
+
+A proposta de `ADR-PLATFORM-OWNER-DUAL-CONTEXT.md` foi registrada após o escopo inicial. O proprietário global opera o **Syndes Platform Manager** apenas no Control Plane e também poderá trabalhar na conta operacional da própria fornecedora **Syndes**, que será um tenant convencional usando os módulos do **Syndes Workspace** (atendimento, CRM, funcionários e demais funcionalidades aprovadas para clientes). O mesmo operador humano pode acumular atribuições, mas os **grants, APIs, clients OIDC, tokens, bases e autorizações são independentes**.
+
+A hierarquia de responsabilidade operacional proposta distingue `Account Owner`/Titular da Conta, `Account Admin`, `Organization Admin`, `Workspace Manager/Supervisor`, `Agent` e `Viewer`. Esses nomes são **perfis de negócio futuros**, não roles já instaladas: hoje memberships de Organization e Workspace usam `admin/editor/viewer`, e `tenant_memberships` não contém titularidade da conta. A implementação dessas capacidades exige novo WBS, OpenFGA, migrations, trilhas de auditoria e testes negativos. Um funcionário responsável pela conta recebe privilégios apenas naquele tenant; não tem acesso a outros clientes ou à infraestrutura.
+
+**Impacto imediato neste PR:** preservar o MVP de visão geral/diretório e as suas fronteiras, sem adicionar menus fictícios ou embutir o Workspace no bundle do Manager. **Impacto futuro:** outro incremento deve provisionar a conta Syndes convencional, integrar Syndes Support (issue #32) e ligar as duas experiências por autenticação/contexto seguros; depender do Product Gate multi-org (issue #31). O owner global não pode ser inferido da única conta Keycloak ativa: segue exigida confirmação de identidade e bootstrap auditado.
