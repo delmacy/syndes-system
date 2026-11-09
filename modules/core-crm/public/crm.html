@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Syndes | CRM</title>
+  <link rel="stylesheet" href="/crm/styles.css">
+  <script src="/crm/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="identity"><div class="brandmark" aria-hidden="true">S</div><div><strong>SYNDES</strong><small>Core CRM</small></div></div>
+    <div class="topactions"><label for="tenant">Empresa (UUID)</label><input id="tenant" spellcheck="false" placeholder="UUID do tenant" aria-label="Tenant UUID">
+    <button id="login">Entrar com Keycloak</button><button id="logout" hidden>Sair</button></div>
+  </header>
+  <main class="shell">
+    <aside>
+      <p class="side-heading">GESTÃO</p>
+      <nav aria-label="Navegação principal">
+        <button class="nav active" data-view="people">◉ Pessoas</button>
+        <button class="nav" data-view="organizations">▦ Organizações</button>
+        <button class="nav" data-view="tools">⇄ Importar / exportar</button>
+      </nav>
+      <div class="aside-foot"><span class="status-dot"></span><span id="auth-label">Não autenticado</span></div>
+    </aside>
+    <section class="content">
+      <div class="intro"><div><p class="eyebrow">RELACIONAMENTO</p><h1 id="page-title">Pessoas</h1><p id="subtitle">Cadastros centralizados com separação por empresa.</p></div><div id="main-actions"><button id="refresh" class="secondary">Atualizar</button><button id="create">+ Novo cadastro</button></div></div>
+      <div class="notice" id="notice" role="status" aria-live="polite">Entre com Keycloak e informe o UUID da empresa para utilizar o CRM.</div>
+      <div id="people-view" class="view">
+        <div class="panel"><div class="toolbar"><input id="people-search" placeholder="Buscar por nome, telefone, e-mail, empresa, CNPJ ou tag" aria-label="Buscar pessoas"><button class="secondary" id="search-people">Pesquisar</button></div><div id="people-list" class="item-list"></div></div>
+      </div>
+      <div id="organizations-view" class="view" hidden>
+        <div class="panel"><div class="toolbar"><input id="org-search" placeholder="Buscar organizações" aria-label="Buscar organizações"><button class="secondary" id="search-org">Pesquisar</button></div><div id="org-list" class="item-list"></div></div>
+      </div>
+      <div id="tools-view" class="view" hidden>
+        <div class="panel"><h2>Importar contatos</h2><p>CSV UTF-8 com cabeçalho <code>name,email,phone</code>, até 500 pessoas e 1 MiB.</p><input id="csv-file" type="file" accept=".csv,text/csv"><button id="csv-import">Importar CSV</button></div>
+        <div class="panel"><h2>Exportar contatos</h2><p>Baixe um arquivo de até 1.000 pessoas, com proteção contra fórmulas em planilhas.</p><button id="csv-export" class="secondary">Exportar CSV</button></div>
+      </div>
+      <div class="panel detail" id="detail" hidden><div class="detail-head"><h2 id="detail-title">Cadastro</h2><button id="detail-close" class="secondary" aria-label="Fechar detalhes">✕</button></div><div id="detail-body"></div><div id="detail-actions"></div></div>
+    </section>
+  </main>
+</body>
+</html>
