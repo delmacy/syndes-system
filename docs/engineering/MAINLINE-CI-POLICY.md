@@ -18,14 +18,17 @@ Main estável não equivale a produção automaticamente. Releases são promovid
 - Suites não podem ser removidas ou ter assertions relaxadas apenas para obter CI verde.
 - Testes cross-tenant, autorização, migrations, contratos e E2E críticos são bloqueadores antes da liberação; desempenho pesado pertence ao gate de release, em ambiente isolado.
 
-## Proteção requerida da main (configuração administrativa no GitHub)
+## Política vigente da main — desenvolvimento (decisão do proprietário, 09/11/2026)
 
-1. Desabilitar push direto / exigir PR, revisão e resolução de conversas.
-2. Exigir Syndes CI Gate como status check obrigatório e impedir merges com branch desatualizada; preferir merge queue quando habilitada.
-3. Impedir bypass do gate por contas de serviço não autorizadas.
-4. Para deployment, exigir build por SHA da main, smoke em staging e aprovação de produção. Evitar usar tags móveis como origem do deploy.
+A `main` é a linha única de integração do produto e **fica sem branch protection administrativa nesta fase**. O proprietário autorizou commits/merges diretos na `main`; revisão obrigatória e bloqueio administrativo de merge ficam adiados até uma etapa posterior, definida pelo proprietário.
 
-**A presença do YAML, sozinha, NÃO configura branch protection nem protege um repositório contra push direto.**
+- Manter `Syndes Mainline CI` executando em PRs e em todo push para `main`, com o job agregador `Syndes CI Gate` verificando suites impactadas ou completas.
+- CI verde é condição de qualidade de engenharia. Sem branch protection, falhas de CI são alertas e não bloqueio automático de merge pelo GitHub; não tratá-las como comprovação de release.
+- Preferir PRs de vida curta derivados da `main` e merges após validação quando possível. Push direto está permitido nesta fase.
+- Não ativar multi-organização, migrar dados operacionais ou fazer deploy automaticamente por causa de um merge. Implantação em produção ainda exige gates específicos, artefatos por digest, staging, backup e rollback.
+- **Fase futura, não vigente:** quando o proprietário solicitar, reconsiderar required checks, aprovação de review, proibição de force push, merge queue e restrições administrativas. Não aplicar essas proteções antecipadamente por iniciativa de ferramentas ou agentes.
+
+Verificação em 09/11/2026: GitHub `main.protected=false`, sem rulesets ativos. A presença do YAML não constitui branch protection.
 
 ## Migração segura da cadeia legada
 
@@ -42,7 +45,7 @@ Estado inicial identificado em 2026-11-09: PRs empilhados a partir do Kernel, Co
 ## Critérios para considerar a migração concluída
 
 - main contém todo código funcional **aprovado**, e nenhum módulo depende de uma base de PR de longa duração;
-- o status Syndes CI Gate é obrigatório e funciona para PRs com e sem alterações de código;
+- o Syndes CI Gate funciona em PRs e no push para main e é monitorado pela engenharia, sem required-check administrativo nesta fase;
 - testes de segurança e isolamento são comprovados no estado integrado;
 - suites legadas não ficam silenciosamente sem sucessor;
 - deploy consome artefatos rastreáveis à main, com staging, release e rollback;
@@ -63,4 +66,8 @@ A candidata `integration/platform-support-preflight-20261109` consolidou os anti
 
 Como prevenção contra regressão silenciosa após excluir YAMLs redundantes, `scripts/ci/parity.test.mjs` fixa em testes automatizados os controles essenciais retirados dos workflows legados: rotas e dependências do planner, Go `vet/test -race/build/gofmt`, Core Host build, PostgreSQL real/restore, migration tenant-only, Keycloak, OpenFGA, OpenBao, redes privadas, scripts de owner/segredos Manager e E2E Playwright real. A suíte principal agora executa `node --test scripts/ci/*.test.mjs` e falha se alguma dessas verificações for removida sem migração explícita do contrato. Este **teste estático** confirma presença e encadeamento; ele **não substitui** os testes de execução reais do gate.
 
-O candidato com os três workflows apresentou `22/22` jobs com sucesso em [GitHub Actions #42681526208](https://github.com/delmacy/syndes-system/actions/runs/42681526208). Manter `main` protegido, exigir review independente e resolver os gates operacionais antes de merge; não confundir simplificação de YAML com implantação ou aprovação de segurança.
+O candidato com os três workflows apresentou `22/22` jobs com sucesso em [GitHub Actions #42681526208](https://github.com/delmacy/syndes-system/actions/runs/42681526208). Histórico: em 09/11/2026 houve proteção de main e exigência de review, posteriormente **revogadas por decisão expressa do proprietário**. O PR #47 foi promovido após 22/22 jobs aprovados no SHA 66081f3; requisitos operacionais permanecem separados para deploy.
+
+## Integração aprovada de código — PR #47 (09/11/2026)
+
+Com autorização explícita do proprietário para trabalhar na main sem branch protection, o PR #47 foi integrado pelo merge `4bba2ec1dfa97407fd1f33e9679a5dce35c55d3c` após `Syndes CI Gate` 22/22 verde no SHA candidato `66081f398248d1c55e9724f74ff84098ab7d8f4c` (run #42682866186). O merge não representa deploy de produção nem liberação do Product Gate #31 ou dos Release Gates Support e Platform Manager. A CI de push da main deverá ser monitorada separadamente.
