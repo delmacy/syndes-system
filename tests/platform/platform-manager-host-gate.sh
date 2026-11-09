@@ -88,17 +88,51 @@ if command -v jq >/dev/null && docker exec syndes-security-access-openbao-1 bao 
   ok "OpenBao initialized and unsealed"
 else stop "OpenBao sealed or unavailable"; fi
 
-if [[ -f /run/syndes/platform-manager/master_db_url ]]; then
-  ok "Protected master DB runtime secret mounted (contents not read)"
-else stop "Master DB runtime secret absent or inaccessible"; fi
+# The host secret is root-only under /run; an unprivileged auditor cannot
+# stat it. Inspect Docker's mounted individual file metadata, never its value.
+api_id=$(docker ps -q \
+  --filter 'label=com.docker.compose.project=syndes-master-admin' \
+  --filter 'label=com.docker.compose.service=master-api' | head -1)
+web_id=$(docker ps -q \
+  --filter 'label=com.docker.compose.project=syndes-master-admin' \
+  --filter 'label=com.docker.compose.service=master-web' | head -1)
+if [[ -n "$api_id" ]]; then
+  mounted=$(docker inspect "$api_id" --format '{{range .Mounts}}{{if eq .Destination "/run/secrets/master_db_url"}}{{.Source}}|{{.RW}}{{end}}{{end}}' 2>/dev/null || true)
+  if [[ "$mounted" == '/run/syndes/platform-manager/master_db_url|false' ]]; then
+    ok "Only the dedicated read-only secret file is mounted to API"
+  else stop "Master runtime secret missing, wrong source, or writable"; fi
+else stop "Master API not running; secret mount cannot be verified"; fi
 
-if tailscale serve status 2>/dev/null | grep -q ':9446'; then
+if tailscale serve status 2>/dev/null | grep -Fq ':9446 (tailnet only)'; then
   ok "Dedicated Tailnet HTTPS route provisioned"
 else stop "Dedicated Tailnet HTTPS route not configured"; fi
 
-if docker ps --format '{{.Names}}' | grep -qE '^.*master-(api|web)'; then
-  ok "Standalone manager runtime container detected"
-else stop "Standalone manager runtime not started"; fi
+if [[ -n "$api_id" && -n "$web_id" ]]; then
+  api_health=$(docker inspect "$api_id" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' 2>/dev/null || true)
+  web_health=$(docker inspect "$web_id" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' 2>/dev/null || true)
+  if [[ "$api_health" == healthy && "$web_health" == healthy ]]; then
+    ok "Both dedicated containers are healthy"
+  else
+    stop "Master API and web must both be healthy"
+  fi
+  # Validate network cardinality independently of user-visible container names.
+  api_nets=$(docker inspect "$api_id" --format '{{range $n, $_ := .NetworkSettings.Networks}}{{$n}} {{end}}' 2>/dev/null || true)
+  web_nets=$(docker inspect "$web_id" --format '{{range $n, $_ := .NetworkSettings.Networks}}{{$n}} {{end}}' 2>/dev/null || true)
+  private='syndes-master-admin_master-private'
+  if [[ " $api_nets " == *" syndes-master-data "* &&
+        " $api_nets " == *" syndes-master-identity "* &&
+        " $api_nets " == *" $private "* &&
+        "$(wc -w <<<"$api_nets")" -eq 3 &&
+        "$web_nets" == "$private " ]]; then
+    ok "API has exactly dedicated data/identity/private bridges; web only private"
+  else stop "Manager API/web network attachment does not match approved topology"; fi
+  if docker exec "$api_id" node -e "fetch('http://127.0.0.1:8085/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" >/dev/null 2>&1 &&
+     docker exec "$web_id" wget -q -O /dev/null http://127.0.0.1:8080/ >/dev/null 2>&1; then
+    ok "Actual API readiness and web HTTP response confirmed"
+  else stop "API readiness or frontend HTTP probe failed"; fi
+else
+  stop "Both dedicated API and web containers must be running"
+fi
 
 echo "GATE SUMMARY: PASS=$pass BLOCKED=$block WARN=$warn"
 if [[ "$block" -gt 0 ]]; then exit 2; fi
