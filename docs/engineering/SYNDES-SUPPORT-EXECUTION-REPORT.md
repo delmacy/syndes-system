@@ -29,3 +29,6 @@ Base verificada: `integration/workspace-org-crm-c2-20261109` @ `8e2fb5d1f0e0bc11
 
 ## Retificação de isolamento detectada na revisão pós-PR
 A auditoria de continuidade identificou que o instalador genérico enumerava a migration `support/001_support_cases` para todos os tenants. Corrigida a elegibilidade em `infra/postgres/bootstrap/support-migration-gate.sh` e em `migrate-modules-tenant.sh`, com teste negativo dedicado (sem configuração, UUID inválida, tenant comercial, tenant Syndes e módulos legados). O teste Git Bash local passa. A confirmação de CI será registrada separadamente; não houve migração de banco de clientes.
+
+## Teste do instalador completo (mocks, sem Docker real)
+O teste `tests/platform/support-migration-installer.test.sh` executa o **script operador verdadeiro**, substituindo somente Docker e jq por instrumentos sem rede que capturam as emissões SQL. Verifica CRM preservado no tenant comercial, Support não emitido para tenant comercial ou sem configuração e Support emitido somente para o tenant operacional Syndes. Git Bash local: PASS. Esse teste não utiliza dados reais, e não substitui as integrações PostgreSQL existentes.
