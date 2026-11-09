@@ -37,8 +37,8 @@ jobs:
             echo "::error::Expected at least 11 module AGENTS.md contracts; found $count"
             exit 1
           fi
-      - name: Prove fail-closed test selection
-        run: node --test scripts/ci/plan.test.mjs
+      - name: Prove fail-closed test selection and removed-workflow parity
+        run: node --test scripts/ci/*.test.mjs
       - name: Verify CI executor shell syntax
         run: bash -n scripts/ci/*.sh
       - name: Preserve the physical single-organization guard

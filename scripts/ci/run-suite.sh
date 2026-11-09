@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Central CI suite executor. Old module workflows remain active during parity migration.
+# Single mainline suite executor. Critical legacy coverage is pinned by parity.test.mjs.
 set -Eeuo pipefail
 cd "$(dirname "$0")/../.."
 
