@@ -7,18 +7,21 @@ import {chromium} from "playwright";
 const root=fileURLToPath(new URL("../",import.meta.url));
 const vite=fileURLToPath(new URL("../node_modules/vite/bin/vite.js",import.meta.url));
 const port=4188;
-const url="http://127.0.0.1:"+port;
-const server=spawn(process.execPath,[vite,"preview","--host","127.0.0.1",
+const remote=process.env.VISUAL_PREVIEW_URL;
+const url=remote??"http://127.0.0.1:"+port;
+const server=remote?null:spawn(process.execPath,[vite,"preview","--host","127.0.0.1",
  "--port",String(port),"--strictPort"],{cwd:root,stdio:"ignore",windowsHide:true});
 let browser;
 try{
- let up=false;
- for(let i=0;i<60;i++){
-  try{up=(await fetch(url)).ok;}catch{}
-  if(up)break;
-  await new Promise(r=>setTimeout(r,200));
+ if(!remote){
+  let up=false;
+  for(let i=0;i<60;i++){
+   try{up=(await fetch(url)).ok;}catch{}
+   if(up)break;
+   await new Promise(r=>setTimeout(r,200));
+  }
+  assert.equal(up,true,"Vite preview started");
  }
- assert.equal(up,true,"Vite preview started");
  try{browser=await chromium.launch({headless:true});}
  catch{browser=await chromium.launch({headless:true,channel:"chrome"});}
  const context=await browser.newContext({viewport:{width:1440,height:900}});
@@ -53,5 +56,5 @@ try{
  await context.close();
 }finally{
  await browser?.close().catch(()=>{});
- server.kill();
+ server?.kill();
 }
