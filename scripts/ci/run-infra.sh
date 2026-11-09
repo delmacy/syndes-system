@@ -114,8 +114,8 @@ for attempt in $(seq 1 40); do
   sleep 2
 done
 
-bash tests/platform/openbao-smoke.sh
-bash tests/platform/openfga-smoke.sh
+CI_RUNTIME_SMOKE=1 bash tests/platform/openbao-smoke.sh
+CI_RUNTIME_SMOKE=1 bash tests/platform/openfga-smoke.sh
 
 # Later modules may add a real bootable Core Host smoke suite.
 if [[ -f tests/platform/core-host-runtime-smoke.sh ]]; then
