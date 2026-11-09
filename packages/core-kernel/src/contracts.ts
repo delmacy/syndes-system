@@ -35,3 +35,13 @@ export class AccessDeniedError extends Error {
     this.name = "AccessDeniedError";
   }
 }
+
+/** Host-selected database handle. A client must never supply its DSN or role. */
+export type TenantDatabase = Readonly<{
+  tenantId:string;
+  query(sql:string,values:readonly unknown[]):Promise<{rows:Record<string,unknown>[];rowCount:number|null}>;
+}>;
+
+export interface TrustedTenantDatabaseProvider {
+  resolve(tenantId:string):Promise<TenantDatabase>;
+}

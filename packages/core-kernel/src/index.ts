@@ -6,7 +6,10 @@ export { CoreKernel } from "./kernel.js";
 export { ModuleRegistry } from "./module-registry.js";
 export { AccessDeniedError } from "./contracts.js";
 
-export type { Actor, TenancyPort, TenantAccessQuery, AuthorizationPort,
+export type { TenantDatabase, TrustedTenantDatabaseProvider, Actor, TenancyPort, TenantAccessQuery, AuthorizationPort,
   AuthorizationQuery, AuthorizationRequest } from "./contracts.js";
 export type { CoreKernelOptions } from "./kernel.js";
 export type { ModuleDefinition, ModuleInitializationContext } from "./module-registry.js";
+
+export {defineSyndesModule} from "./plugin.js";
+export type {SyndesPlugin} from "./plugin.js";
