@@ -1,4 +1,5 @@
 # Separate Master Admin deployment. It has NO network path to tenant Core.
+name: syndes-master-admin
 # Required operator-provisioned secrets are never stored in Git.
 services:
   master-api:

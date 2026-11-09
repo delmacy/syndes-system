@@ -38,6 +38,7 @@ with tempfile.TemporaryDirectory(prefix="syndes-manager-net-ci-") as temp:
         return json.loads(run(*args, env=env).stdout)
 
     manager = compose("infra/master-admin/compose.yaml")
+    assert manager["name"] == "syndes-master-admin"
     pg = compose("infra/postgres/compose.yaml", ci=True)
     security = compose("infra/security-access/compose.yaml", ci=True)
     core = compose("apps/core-host/compose.yaml", ci=True)

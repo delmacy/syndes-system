@@ -33,6 +33,7 @@ test("Master and Workspace are independent frontend origins, bundles and session
  assert.match(compose,/healthcheck:/);
  assert.match(compose,/condition: service_healthy/);
  assert.match(compose,/MASTER_DB_URL_FILE/);
+ assert.match(compose,/^name: syndes-master-admin$/m);
  const [postgresCompose,keycloakCompose,coreCompose]=await Promise.all([
   read("infra/postgres/compose.yaml"),
   read("infra/security-access/compose.yaml"),

@@ -31,11 +31,27 @@ for spec in 'syndes-master-data|syndes-postgres-postgres-1' 'syndes-master-ident
   fi
   internal=$(docker network inspect "$net" --format '{{.Internal}}')
   members=$(docker network inspect "$net" --format '{{range .Containers}}{{.Name}} {{end}}')
-  # Current homologation phase has no master-api container yet.
-  if [[ "$internal" != true || "$members" != "$expected " ]]; then
+  # Allow only the existing backend and (once deployed) the specifically
+  # labeled Manager API. The web service must never join either bridge.
+  expected_seen=false
+  admin_count=0
+  valid=true
+  for member in $members; do
+    if [[ "$member" == "$expected" ]]; then
+      expected_seen=true
+    else
+      label=$(docker inspect "$member" --format '{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}' 2>/dev/null || true)
+      if [[ "$label" == "syndes-master-admin|master-api" ]]; then
+        admin_count=$((admin_count+1))
+      else
+        valid=false
+      fi
+    fi
+  done
+  if [[ "$internal" != true || "$expected_seen" != true || "$valid" != true || "$admin_count" -gt 1 ]]; then
     stop "Dedicated network $net membership mismatch"
   else
-    ok "$net is internal with approved service only"
+    ok "$net is internal with only approved backend and Manager API (if deployed)"
   fi
 done
 
