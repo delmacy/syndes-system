@@ -12,3 +12,9 @@
 *.key
 *.p12
 *.pfx
+
+# Browser E2E fixtures and results: never commit runtime auth configuration
+apps/support-web/public/support-runtime.json
+apps/support-web/e2e-results/
+apps/support-web/test-results/
+apps/support-web/playwright-report/
