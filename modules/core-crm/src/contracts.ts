@@ -46,7 +46,8 @@ export type TimelineEntry = Readonly<{
   id:number;tenantId:string;personId:string;actorId:string;action:string;recordedAt:string;
 }>;
 
-export type CrmContext = Readonly<{actor:Actor;tenantId:string}>;
+export type CrmContext = Readonly<{actor:Actor;tenantId:string;
+  organizationId?:string;workspaceId?:string;scopeWriteAllowed?:boolean}>;
 
 export interface CrmRepository {
   createOrganization(tenantId:string,actorId:string,id:string,input:CreateOrganization):Promise<Organization>;

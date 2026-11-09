@@ -15,6 +15,8 @@ export const syndesPlugin=defineSyndesModule({
   apiModule:CrmHttpModule,
   publicOidcClientId:"syndes-crm-ui",
   permissions:[
+    // Entry gate for legacy CRUD/CSV/capabilities, in addition to action FGA.
+    {resource:"crm:context",actions:["read"]},
     {resource:"crm:people",actions:["read","write"]},
     {resource:"crm:organizations",actions:["read","write"]},
     {resource:"crm:relationships",actions:["write"]},
