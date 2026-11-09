@@ -23,7 +23,7 @@ Os arquivos específicos `sidebar.tsx`, `dialog.tsx`, `sheet.tsx`, `tooltip.tsx`
 
 ### Gerenciamento de dependências
 
-O monorepo ainda mantém instalação/lockfile independente por app, sem workspace raiz. Por isso, nesta fase, ambos consomem `@syndes/front-shared` por `file:../../packages/front-shared`; os `exports` apontam à fonte TSX, compatível com o Vite dos dois aplicativos. `react`, `react-dom` e `@base-ui/react` são **peerDependencies**, e Vite usa `resolve.dedupe` para impedir React duplicado mesmo quando existe `node_modules` em `packages/front-shared`. CSS Tailwind v4 de ambos escaneia o package via `@source`.
+O monorepo ainda mantém instalação/lockfile independente por app, sem workspace raiz. Por isso, nesta fase, ambos consomem `@syndes/front-shared` por `file:../../packages/front-shared`; os `exports` apontam à fonte TSX, compatível com o Vite dos dois aplicativos. No checkout fresco do CI, o npm cria o link local, mas o TypeScript resolve tipos pelo caminho real de `packages/front-shared`, que inicialmente não possui `node_modules`. O script `scripts/ensure-installed.mjs`, executado automaticamente por `prebuild`/`predev` (e no preview), instala as dependências do pacote **somente se estiverem ausentes**. Não depende de uma instalação prévia na máquina. `react`, `react-dom` e `@base-ui/react` são **peerDependencies**, e Vite usa `resolve.dedupe` para impedir React duplicado mesmo quando existe `node_modules` em `packages/front-shared`. CSS Tailwind v4 de ambos escaneia o package via `@source`.
 
 Foi identificado durante testes o erro `Cannot read properties of null (reading 'useRef')` ao carregar mais de uma cópia de React. A correção por `resolve.dedupe` foi verificada em Chromium na compilação real de preview.
 
@@ -43,3 +43,9 @@ O package é **interno e source-first**, não publicado em GitHub Packages nesta
 2. Ampliar o pacote somente quando o segundo consumidor precisar do componente; manter componentização e documentação no mesmo PR.
 3. Solicitar à frente responsável por Actions a adição de `packages/front-shared/**` como gatilho dos workflows relevantes e, quando oportuno, uma matriz de builds do package. **Não alterar workflows neste trabalho**, conforme divisão de responsabilidades.
 4. Definir tokens temáticos de marca para Manager e Workspace em pacote compartilhado quando os estilos estiverem estabilizados; não impor mudanças visuais arbitrárias agora.
+
+### Build de imagem Docker do Manager
+
+O job de imagem independente do Manager compila o frontend dentro do `apps/master-admin-web/Dockerfile`. O Dockerfile agora copia `packages/front-shared` no mesmo layout de monorepo **antes** do `npm ci`, executa o bootstrap pelo `prebuild` e produz o bundle em `/repo/apps/master-admin-web/dist`. A segunda etapa continua Nginx sem privilégios. Sem essa modificação, a dependência local `file:../../packages/front-shared` não existiria dentro do contexto da imagem.
+
+O Dockerfile `Dockerfile.runtime` existente (que apenas instala um bundle já compilado) não foi alterado. Não há compartilhamento de hostnames, sessões, endpoints nem assets de tenant em runtime.

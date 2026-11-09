@@ -51,3 +51,20 @@ test("React is externalized and normal manager authentication remains enabled",a
  assert.match(manager,/finishLogin\(cfg\)/);
  assert.match(manager,/new MasterApi\(token\)/);
 });
+
+test("fresh CI and Docker builds bootstrap source package without touching workflows",async()=>{
+ for(const app of ["master-admin-web","workspace-web"]){
+  const manifest=JSON.parse(await appSource("apps/"+app+"/package.json"));
+  assert.match(manifest.scripts.prebuild,/front-shared\/scripts\/ensure-installed\.mjs/);
+  assert.match(manifest.scripts.predev,/front-shared\/scripts\/ensure-installed\.mjs/);
+ }
+ const mgr=JSON.parse(await appSource("apps/master-admin-web/package.json"));
+ assert.match(mgr.scripts["prebuild:visual-preview"],/front-shared\/scripts\/ensure-installed\.mjs/);
+ const docker=await appSource("apps/master-admin-web/Dockerfile");
+ assert.match(docker,/COPY packages\/front-shared\//);
+ assert.match(docker,/WORKDIR \/repo/);
+ assert.match(docker,/RUN cd apps\/master-admin-web && npm run build/);
+ const installer=await source("scripts/ensure-installed.mjs");
+ assert.match(installer,/spawnSync/);
+ assert.match(installer,/node_modules/);
+});
