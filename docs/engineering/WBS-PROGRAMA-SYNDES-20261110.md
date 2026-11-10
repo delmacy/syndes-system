@@ -236,6 +236,10 @@
 - Pricing do Basic (R$ 69,90 nos meses 1 e 2, R$ 129,99 a partir do mês 3, até 3 usuários) é **planejado**, não preço implantado; validar com produto antes da cobrança.
 - Pós-MVP congelado permanece sem execução até uma nova priorização explícita.
 
+## Frente transversal vinculada — Account & Access / Kernel / schemas (10/11/2026)
+
+A arquitetura de administração unificada de acesso, entitlements por tenant e schemas individuais por módulo foi desdobrada em [ADR-ACCOUNT-KERNEL-MODULE-SCHEMAS-20261110.md](ADR-ACCOUNT-KERNEL-MODULE-SCHEMAS-20261110.md) e [WBS-ACCOUNT-KERNEL-MODULE-SCHEMAS-20261110.md](WBS-ACCOUNT-KERNEL-MODULE-SCHEMAS-20261110.md). As tarefas AK-00..AK-60 detalham dependências das frentes 00, 10, 30, 50, 70 e 95 **sem substituí-las**. Nenhuma tarefa implica deploy, migração operacional, desativação de SQL 002, liberação de multi-org ou alteração de GitHub Actions. A conversão de fixtures sem clientes comerciais é permitida, mas ambientes runtime exigem inventário/backup e gate próprio.
+
 ## Referências versionadas
 
 - [MVP Scope](../product/MVP-SCOPE.md), [Module Order](../product/MODULE-ORDER.md).
