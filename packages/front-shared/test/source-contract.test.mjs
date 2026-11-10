@@ -29,7 +29,17 @@ test("shared package cannot import auth, tenant, network or application features
 });
 
 test("both independent frontends use the same actual shared component implementations",async()=>{
- const manager=await appSource("apps/master-admin-web/src/App.tsx");
+ const managerPaths=[
+  "app/ManagerShell.tsx",
+  "auth/LoginScreen.tsx",
+  "features/overview/OverviewPage.tsx",
+  "features/tenants/TenantsPage.tsx",
+  "features/tenants/ClientDrawer.tsx",
+  "features/tenants/TenantTable.tsx",
+  "features/tenants/tenant-presentation.tsx",
+ ];
+ const manager=(await Promise.all(managerPaths.map(p=>
+  appSource("apps/master-admin-web/src/"+p)))).join("\n");
  assert.match(manager,/from "@syndes\/front-shared"/);
  assert.match(manager,/<Button unstyled\b/);
  assert.match(manager,/<Input unstyled\b/);
