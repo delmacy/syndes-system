@@ -61,7 +61,8 @@ git -c safe.directory="$repo" -C "$repo" cat-file -e "$source_sha^{commit}" ||
 git -c safe.directory="$repo" -C "$repo" diff --quiet "$source_sha" "$head" -- \
   apps/master-admin-web/src/ apps/master-admin-web/public/ \
   apps/master-admin-web/index.html apps/master-admin-web/vite.config.ts \
-  apps/master-admin-web/package.json apps/master-admin-web/package-lock.json ||
+  apps/master-admin-web/package.json apps/master-admin-web/package-lock.json \
+  packages/front-shared/ ||
   fail "Frontend source changed after validated CI artifact; rebuild it in CI"
 [[ -z "$(git -c safe.directory="$repo" -C "$repo" status --porcelain --untracked-files=no)" ]] ||
   fail "Tracked source has uncommitted changes"

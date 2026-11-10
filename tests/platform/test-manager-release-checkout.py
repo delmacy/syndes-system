@@ -34,6 +34,8 @@ class DedicatedCheckoutTests(unittest.TestCase):
         self.assertIn('check-tailnet-route.py',DEPLOY)
         self.assertIn('--mode free',DEPLOY)
         self.assertIn('source_sha',DEPLOY)
+        self.assertIn('packages/front-shared/',DEPLOY)
+        self.assertIn('apps/master-admin-web/package-lock.json',DEPLOY)
         self.assertIn('master_db_url',DEPLOY)
 
     def test_stop_requires_ownership_before_disabling_route(self):
