@@ -236,6 +236,10 @@
 - Pricing do Basic (R$ 69,90 nos meses 1 e 2, R$ 129,99 a partir do mês 3, até 3 usuários) é **planejado**, não preço implantado; validar com produto antes da cobrança.
 - Pós-MVP congelado permanece sem execução até uma nova priorização explícita.
 
+## Complemento aprovado — Metering e Billing futuro (2026-11-10)
+
+A fundação de medição/quota e o módulo futuro **Subscription & Billing** estão especificados em [BILLING-METERING-FOUNDATION-20261110.md](BILLING-METERING-FOUNDATION-20261110.md). Contratos de métricas, vínculo ao tenant e quotas entram como suporte de AK-10/AK-20/AK-30; preços, combos, promoções, faturas e PSP **não** entram no Kernel nem antecipam WBS 70.06. Billing será módulo próprio com schema lógico illing; pagamentos pertencem ao Billing, não o substituem. A fronteira do Control Plane, a auditoria, as regras de atraso registradas no AGENTS e a sequência de produto são preservadas. A proposta de schemas por módulo está na [PR #65](https://github.com/delmacy/syndes-system/pull/65), e o primeiro gate experimental do Kernel na [PR #66](https://github.com/delmacy/syndes-system/pull/66).
+
 ## Referências versionadas
 
 - [MVP Scope](../product/MVP-SCOPE.md), [Module Order](../product/MODULE-ORDER.md).

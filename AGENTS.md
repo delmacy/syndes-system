@@ -132,3 +132,13 @@ Uma entrega só é DONE quando:
 - testes automatizados relevantes verdes;
 - segurança revisada;
 - jornada de aceite demonstrável.
+
+## Arquitetura aprovada: Account, módulos, schemas e medição (2026-11-10)
+
+- Fonte das decisões: `docs/engineering/BILLING-METERING-FOUNDATION-20261110.md` e ADR/WBS de Account & Kernel da PR #65 (até integrar ao main); contrato inicial do Kernel na PR #66. WBS mestre permanece canônica.
+- `packages/core-kernel` define contratos portáveis, nunca preço, PSP, desconto, invoice ou conta comercial. `apps/core-host` integra pacotes confiáveis, tenant, Keycloak, OpenFGA, OpenBao, PostgreSQL e guards. `apps/account-access-api` e Organizations são as bases da administração única de contas, memberships, grants e validade — não criar cadastro de identidade paralelo.
+- Cada tenant mantém database próprio. Cada módulo possuirá schema curto exclusivo de domínio (`organizations`, `crm`, `inbox`, `whatsapp`, `support` etc.) após migração testada; Control Plane permanece em database separado. `_syndes` é reservado ao instalador/ledger; `read`/`reporting` a projeções somente com consumidores e dependências declaradas. Schema não substitui grants PostgreSQL nem OpenFGA.
+- O catálogo do Control Plane decidirá `entitled`, `installed`, `enabled` e `suspended` por tenant; negar módulo sem habilitação inclusive em workers. Não executar migrations de todos os módulos indiscriminadamente; desativar não implica `DROP CASCADE`. SQL 002/multi-org permanecem sujeitos a Product Gate #31.
+- Metering é medição técnica, com evento idempotente (`tenantId`, `meterId`, `sourceEventId`, `occurredAt`, `quantity`), sem precificação. Entitlements e quotas pertencem ao contrato/Control Plane. O módulo proprietário define a métrica e sua origem; não contar retry como consumo adicional.
+- `Subscription & Billing` (módulo `billing`, PRD-009) será construído posteriormente como domínio próprio de planos, preços versionados, combos, promoções, faturamento, impostos, pagamentos, créditos e PSP. **Payments não é o nome do módulo**; não antecipar funcionalidades financeiras enquanto Kernel/CRM/Inbox/WhatsApp e seus gates estiverem pendentes. Não confundir com módulo futuro `finance` para ERP dos tenants.
+- Neste ciclo, apenas contratos, quotas/entitlements e pontos de extensão justificados. Preservar a ordem MVP e as regras históricas de `paid_until`/inadimplência até uma revisão de produto explícita. Nenhum agente tem autorização implícita para alterar bancos operacionais ou realizar deploy por ler este documento.
