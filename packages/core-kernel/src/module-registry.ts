@@ -9,6 +9,8 @@ export interface ModuleInitializationContext {
 export interface ModuleDefinition {
   readonly id: string;
   readonly version: string;
+  /** Optional during migration; explicit ownership in Manifest V2. */
+  readonly schema?: string;
   readonly dependencies?: readonly string[];
   initialize?(context: ModuleInitializationContext): Promise<void> | void;
 }
@@ -27,6 +29,15 @@ export class ModuleRegistry {
     if (this.definitions.has(module.id)) {
       throw new Error(`Duplicate module: ${module.id}`);
     }
+    if (module.schema !== undefined) {
+      if (!/^[a-z][a-z0-9_]*$/.test(module.schema) ||
+          ["public", "pg_catalog", "information_schema", "_syndes", "read", "reporting"].includes(module.schema)) {
+        throw new Error("Invalid or reserved module schema: " + module.schema);
+      }
+      for (const other of this.definitions.values()) {
+        if (other.schema === module.schema) throw new Error("Duplicate module schema: " + module.schema);
+      }
+    }
     const dependencies = [...(module.dependencies ?? [])];
     if (new Set(dependencies).size !== dependencies.length || dependencies.includes(module.id) ||
         dependencies.some((id) => !MODULE_ID.test(id))) {
@@ -35,6 +46,8 @@ export class ModuleRegistry {
     const frozen = Object.freeze({ ...module, dependencies: Object.freeze(dependencies) });
     this.definitions.set(module.id, frozen);
   }
+
+  has(id: string): boolean { return this.definitions.has(id); }
 
   /**
    * Produces a deterministic, dependency-first order, rejecting both absent
