@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowUpRight, CalendarPlus, Clock3, ContactRound, Mail, NotebookText, Phone, RefreshCw, UserRoundX, Building2, Tags, Headset, History } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@syndes/front-shared/badge";
+import { Button } from "@syndes/front-shared/button";
 import type { Conversation, CrmNote, CrmTimelineEvent, CrmTag, Organization, Person, TenantApi } from "@/lib/api";
 
 type State = {

@@ -4,14 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node ../../packages/front-shared/scripts/ensure-installed.mjs",
     "dev": "vite --host 127.0.0.1",
+    "prebuild": "node ../../packages/front-shared/scripts/ensure-installed.mjs",
     "build": "tsc -b && vite build",
+    "prebuild:visual-preview": "node ../../packages/front-shared/scripts/ensure-installed.mjs",
+    "build:visual-preview": "tsc -b && vite build --mode visualpreview",
     "preview": "vite preview",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test tests/*.test.mjs ../../packages/front-shared/test/*.test.mjs",
     "test:browser": "node tests/browser-e2e.mjs"
   },
   "dependencies": {
+    "@base-ui/react": "^1.9.0",
     "@fontsource-variable/geist": "5.3.0",
+    "@syndes/front-shared": "file:../../packages/front-shared",
     "lucide-react": "1.66.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"

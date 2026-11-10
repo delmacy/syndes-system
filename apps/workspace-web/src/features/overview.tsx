@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, CircleCheck, ContactRound, Headphones, Inbox as InboxIcon, LockKeyhole, MessageSquareText, Sparkles, UsersRound } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@syndes/front-shared/badge";
+import { Button } from "@syndes/front-shared/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@syndes/front-shared/card";
 import type { TenantApi, InboxMetrics, Person, Conversation } from "@/lib/api";
 import type { View } from "@/lib/views";
 
