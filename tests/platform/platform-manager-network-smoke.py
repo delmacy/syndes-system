@@ -20,7 +20,8 @@ def run(*args, env=None, check=True, timeout=80):
 run(sys.executable, "tests/platform/test-manager-tailnet-route.py", timeout=12)
 run(sys.executable, "tests/platform/test-manager-keycloak-redirect.py", timeout=12)
 run(sys.executable, "tests/platform/test-manager-operator-provision.py", timeout=12)
-print("Manager Tailnet, Keycloak OIDC and OpenBao operator bootstrap safety: PASS")
+run(sys.executable, "tests/platform/test-manager-release-checkout.py", timeout=12)
+print("Manager Tailnet, Keycloak OIDC, OpenBao and checkout ownership safety: PASS")
 
 with tempfile.TemporaryDirectory(prefix="syndes-manager-net-ci-") as temp:
     tmp = pathlib.Path(temp)

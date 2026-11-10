@@ -3,9 +3,10 @@
 # Never touch other Tailscale routes, Core Host, Workspace, databases or secrets.
 set -Eeuo pipefail
 cd "$(dirname "$0")/../.."
-[[ "$PWD" == /home/delmacy/syndes-platform-manager-homolog ]] || {
-  echo "BLOCKED: wrong checkout" >&2; exit 2;
-}
+case "$(pwd -P)" in
+  /home/delmacy/syndes-platform-manager-homolog|/home/delmacy/syndes-platform-manager-release) ;;
+  *) echo "BLOCKED: wrong checkout, dedicated Manager release only" >&2; exit 2 ;;
+esac
 [[ "$EUID" == 0 ]] || { echo "BLOCKED: root operator required" >&2; exit 2; }
 runtime=/run/syndes/platform-manager
 [[ -s "$runtime/deployed-head" ]] || {

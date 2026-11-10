@@ -4,15 +4,17 @@
 # source-artifact conditions are met. Never deploys the old Workspace tree.
 set -Eeuo pipefail
 cd "$(dirname "$0")/../.."
-repo="$PWD"
+repo="$(pwd -P)"
 mode="${1:---preflight}"
 [[ "$mode" == --preflight || "$mode" == --apply ]] || {
   echo "Usage: homolog-deploy.sh --preflight|--apply" >&2; exit 2;
 }
 fail(){ echo "BLOCKED: $*" >&2; exit 2; }
 say(){ echo "GATE: $*"; }
-[[ "$repo" == /home/delmacy/syndes-platform-manager-homolog ]] ||
-  fail "Run only in the isolated DevServer01 homologation checkout"
+case "$repo" in
+  /home/delmacy/syndes-platform-manager-homolog|/home/delmacy/syndes-platform-manager-release) ;;
+  *) fail "Run only in an explicitly approved DevServer01 Manager release checkout" ;;
+esac
 command -v docker >/dev/null || fail "Docker unavailable"
 command -v jq >/dev/null || fail "jq unavailable"
 command -v tailscale >/dev/null || fail "Tailscale unavailable"
