@@ -17,3 +17,6 @@ export type { ModuleDefinition, ModuleInitializationContext } from "./module-reg
 
 export {defineSyndesModule} from "./plugin.js";
 export type {SyndesPlugin} from "./plugin.js";
+
+export {defineUsageMeter,validateUsageEvent} from './usage-metering.js';
+export type {UsageMeterDefinition,UsageEvent,UsageAggregation} from './usage-metering.js';
