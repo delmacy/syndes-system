@@ -1,0 +1,78 @@
+-- AK-30.02 — CANDIDATE, Control DB ONLY. Depends on AK-10.03 schema.
+-- Dedicated NOLOGIN role for verified installer attestations; DO NOT grant it
+-- to Core Host, tenant runtime or the generic Account & Access API.
+DO $role$ BEGIN
+  IF NOT EXISTS(SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='syndes_module_installer')
+  THEN CREATE ROLE syndes_module_installer NOLOGIN; END IF;
+END $role$;
+
+CREATE OR REPLACE FUNCTION public.attest_tenant_module_install(
+ p_tenant UUID,p_module TEXT,p_version TEXT,p_receipt TEXT,
+ p_request UUID,p_actor TEXT,p_reason TEXT
+) RETURNS TEXT LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog AS $fn$
+DECLARE
+ v_previous TEXT;v_installed TEXT;v_target TEXT;v_revision BIGINT;
+ v_replay RECORD;v_fingerprint TEXT;
+BEGIN
+ IF p_tenant IS NULL OR p_request IS NULL
+    OR p_module IS NULL OR p_module !~ '^[a-z][a-z0-9_]*$' OR length(p_module)>63
+    OR p_version IS NULL OR p_version !~ '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+       OR length(p_version)>80
+    OR p_receipt IS NULL OR p_receipt !~ '^[0-9a-f]{64}$'
+    OR p_actor IS NULL OR length(p_actor) NOT BETWEEN 1 AND 256
+    OR p_reason IS NULL OR length(p_reason) NOT BETWEEN 1 AND 500
+ THEN RAISE EXCEPTION 'Invalid installation attestation' USING ERRCODE='22023'; END IF;
+ v_fingerprint:=pg_catalog.md5(pg_catalog.jsonb_build_object(
+  'module',p_module,'version',p_version,'receipt',p_receipt,
+  'actor',p_actor,'reason',p_reason,'kind','installation.attest')::TEXT);
+ PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_tenant::TEXT||'/'||p_module,0));
+ SELECT a.* INTO v_replay FROM public.tenant_module_audit a
+   WHERE a.tenant_id=p_tenant AND a.request_id=p_request;
+ IF FOUND THEN
+   IF v_replay.payload_hash<>v_fingerprint OR v_replay.operation<>'installation.attest'
+   THEN RAISE EXCEPTION 'Attestation idempotency key mismatch' USING ERRCODE='23505'; END IF;
+   RETURN v_replay.result_state;
+ END IF;
+ IF NOT EXISTS(
+    SELECT 1 FROM public.tenant_registry t
+      JOIN public.tenant_module_entitlements e ON e.tenant_id=t.tenant_id
+      JOIN public.module_catalog_versions v ON v.module_id=e.module_id AND v.version=p_version
+    WHERE t.tenant_id=p_tenant AND t.state='active' AND e.module_id=p_module
+      AND e.state='granted' AND (e.valid_until IS NULL OR e.valid_until>clock_timestamp())
+      AND v.approved=TRUE
+ ) THEN RAISE EXCEPTION 'Attestation entitlement unavailable' USING ERRCODE='23514'; END IF;
+ IF EXISTS(
+   SELECT 1 FROM public.module_catalog_dependencies d
+    LEFT JOIN public.tenant_module_entitlements e
+      ON e.tenant_id=p_tenant AND e.module_id=d.dependency_id
+    LEFT JOIN public.tenant_module_installs i
+      ON i.tenant_id=p_tenant AND i.module_id=d.dependency_id
+    WHERE d.module_id=p_module AND d.version=p_version
+      AND (e.state IS DISTINCT FROM 'granted'
+           OR (e.valid_until IS NOT NULL AND e.valid_until<=clock_timestamp())
+           OR i.state IS DISTINCT FROM 'installed'
+           OR i.installed_version IS NULL OR i.verification_digest IS NULL)
+ ) THEN RAISE EXCEPTION 'Attestation dependency unavailable' USING ERRCODE='23514'; END IF;
+ SELECT state,target_version,installed_version,revision
+   INTO v_previous,v_target,v_installed,v_revision
+   FROM public.tenant_module_installs
+   WHERE tenant_id=p_tenant AND module_id=p_module FOR UPDATE;
+ IF v_previous IS DISTINCT FROM 'requested' OR v_target IS DISTINCT FROM p_version
+ THEN RAISE EXCEPTION 'Installation was not requested for this version' USING ERRCODE='23514'; END IF;
+ UPDATE public.tenant_module_installs
+   SET state='installed',installed_version=p_version,verification_digest=p_receipt,
+       verified_at=clock_timestamp(),revision=v_revision+1,updated_at=clock_timestamp()
+   WHERE tenant_id=p_tenant AND module_id=p_module;
+ INSERT INTO public.tenant_module_audit(
+   tenant_id,module_id,request_id,payload_hash,operation,actor_id,reason,
+   previous_state,result_state,target_version,result_revision)
+ VALUES(p_tenant,p_module,p_request,v_fingerprint,'installation.attest',
+   p_actor,p_reason,v_previous,'installed',p_version,v_revision+1);
+ RETURN 'installed';
+END
+$fn$;
+REVOKE ALL ON FUNCTION public.attest_tenant_module_install(
+ UUID,TEXT,TEXT,TEXT,UUID,TEXT,TEXT) FROM PUBLIC,syndes_core,syndes_module_operator;
+GRANT EXECUTE ON FUNCTION public.attest_tenant_module_install(
+ UUID,TEXT,TEXT,TEXT,UUID,TEXT,TEXT) TO syndes_module_installer;

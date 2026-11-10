@@ -257,3 +257,10 @@
 - **Base:** PRs #66 (Kernel), #69 (catálogo) e [documentação da lifecycle](AK-10-03-TENANT-MODULE-LIFECYCLE-20261110.md).
 - **Estado:** candidato SQL/ports/read adapter + transições auditadas e PG17 descartável; **PEND** integração/main/CI/Account & Access API/ambiente operacional. Entitled/requested/suspended não equivale a installed/enabled; funções administrativas não promovem esses estados até AK-30.
 - **Gate G1 aberto:** persistência com tenants A/B demonstrada em fixture; faltam AK-10.04 em rotas e workers, ledger SQL e identidades FGA/Keycloak reais. Nenhum bootstrap/deploy operacional foi alterado.
+
+### AK-30.01/02 — Ledger e instalador versionado (candidato inativo)
+
+- **Base:** PRs #66 → #69 → #70, com [evidência de instalador](AK-30-01-02-TENANT-INSTALLER-20261110.md).
+- **Estado:** PLAN/APPLY/VERIFY com ledger SQL protegido _syndes, checksums, digest, transações, rollback em falhas e attestation idempotente no Control DB foram implementados para fixture PG17 em dois DBs tenant e um Control DB. **PEND** main/CI, scripts registrados, identidade técnica real, ACL mínima, política de upgrade, organização/CRM real e restore/rollback operacional.
+- **Regra:** INSTALLED somente após VERIFY e atestação por operador técnico; ENABLED e controle efetivo de API/job continuam bloqueados pela AK-10.04. Nenhum banco operacional, UX, Actions ou SQL 002 alterados.
+- **Próximo gate:** AK-10.04 + AK-30.03/04/05 e inventário/backup autorizados para qualquer migração persistente. A PR #68 de Organizations continua candidata e inativa.
