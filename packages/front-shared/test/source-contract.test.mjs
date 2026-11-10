@@ -77,4 +77,7 @@ test("fresh CI and Docker builds bootstrap source package without touching workf
  const installer=await source("scripts/ensure-installed.mjs");
  assert.match(installer,/spawnSync/);
  assert.match(installer,/node_modules/);
+ assert.match(installer,/mkdirSync\(lock\)/,"Concurrent installs must use an exclusive lock");
+ assert.match(installer,/if\(!ready\(\)\)/,"Recheck install after lock acquisition");
+ assert.match(installer,/rmSync\(lock/,"Installer must clean its lock");
 });
