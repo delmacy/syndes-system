@@ -15,7 +15,7 @@
 No shell do **DevServer01** (não no chat):
 
 ```bash
-cd /home/delmacy/syndes-manager-main-stage-20261110
+cd /home/delmacy/syndes-manager-openbao-provision-20261110
 sudo python3 infra/master-admin/openbao/operator-provision.py --preflight
 sudo python3 infra/master-admin/openbao/operator-provision.py --apply
 ```
