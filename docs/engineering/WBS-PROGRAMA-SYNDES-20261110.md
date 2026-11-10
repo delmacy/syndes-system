@@ -244,3 +244,10 @@
 - [Support WBS](WBS-SYNDES-SUPPORT.md), [Support Release Gate](SYNDES-SUPPORT-RELEASE-GATE.md).
 - [Account Access](ACCOUNT-ACCESS-FOUNDATION.md), [Mainline CI](MAINLINE-CI-POLICY.md).
 - Issues [#22](https://github.com/delmacy/syndes-system/issues/22), [#31](https://github.com/delmacy/syndes-system/issues/31), [#32](https://github.com/delmacy/syndes-system/issues/32), [#37](https://github.com/delmacy/syndes-system/issues/37), [#38](https://github.com/delmacy/syndes-system/issues/38), [#39](https://github.com/delmacy/syndes-system/issues/39), [#49](https://github.com/delmacy/syndes-system/issues/49).
+
+
+### AK-10.02 — Catálogo de módulos (candidato; não operacional)
+
+- **Base:** PR #66 (Kernel 39b2654), ADR/WBS da PR #65 e [evidência do catálogo](AK-10-02-CONTROL-MODULE-CATALOG-20261110.md).
+- **Estado:** implementação candidata SQL/ports/adapter e PG17 descartável; PEND integração, CI, catálogo aprovado e Control DB operacional. Não cria entitlement (AK-10.03), não liga executeModule ao Host (AK-10.04), não instala migrations (AK-30) e não ativa schema Organizations da PR #68.
+- **Dependência crítica:** integrar PR #66, depois AK-10.03 → AK-10.04/AK-30 → AK-40.01.

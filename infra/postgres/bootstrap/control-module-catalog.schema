@@ -1,0 +1,44 @@
+-- AK-10.02. Control DB ONLY (syndes_control). Apply by an authorized operator.
+-- Not registered in tenant bootstrap/runtime migrations or API writes.
+-- Repeatable for an unchanged schema, not a checksum-ledger replacement (AK-30).
+CREATE TABLE IF NOT EXISTS public.module_catalog (
+  module_id TEXT PRIMARY KEY
+    CHECK (module_id ~ '^[a-z][a-z0-9_]*$' AND length(module_id) <= 63),
+  schema_name TEXT NOT NULL UNIQUE
+    CHECK (schema_name ~ '^[a-z][a-z0-9_]*$'
+       AND length(schema_name) <= 63
+       AND schema_name NOT IN ('public', 'pg_catalog', 'information_schema',
+                               '_syndes', 'read', 'reporting')
+       AND schema_name !~ '^pg_'),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS public.module_catalog_versions (
+  module_id TEXT NOT NULL REFERENCES public.module_catalog(module_id) ON DELETE RESTRICT,
+  version TEXT NOT NULL
+    CHECK (version ~ '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+       AND length(version) <= 80),
+  approved BOOLEAN NOT NULL DEFAULT false,
+  approved_at TIMESTAMPTZ,
+  approved_by TEXT CHECK (approved_by IS NULL OR length(approved_by) BETWEEN 1 AND 256),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (module_id, version),
+  CONSTRAINT module_release_approval_consistent CHECK
+    ((approved AND approved_at IS NOT NULL AND approved_by IS NOT NULL)
+       OR (NOT approved AND approved_at IS NULL AND approved_by IS NULL))
+);
+CREATE TABLE IF NOT EXISTS public.module_catalog_dependencies (
+  module_id TEXT NOT NULL,
+  version TEXT NOT NULL,
+  dependency_id TEXT NOT NULL REFERENCES public.module_catalog(module_id) ON DELETE RESTRICT,
+  PRIMARY KEY (module_id, version, dependency_id),
+  FOREIGN KEY (module_id, version)
+    REFERENCES public.module_catalog_versions(module_id, version) ON DELETE RESTRICT,
+  CHECK (module_id <> dependency_id)
+);
+REVOKE ALL ON public.module_catalog, public.module_catalog_versions,
+              public.module_catalog_dependencies FROM PUBLIC;
+-- Runtime has SELECT only; operator approval occurs outside the Host.
+REVOKE ALL ON public.module_catalog, public.module_catalog_versions,
+              public.module_catalog_dependencies FROM syndes_core;
+GRANT SELECT ON public.module_catalog, public.module_catalog_versions,
+                public.module_catalog_dependencies TO syndes_core;
