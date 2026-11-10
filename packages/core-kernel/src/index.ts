@@ -22,3 +22,6 @@ export type {ModuleAccessPort, ModuleAccessRequest, ModuleAuthorizationRequest} 
 
 export {resolveApprovedModules} from "./module-catalog.js";
 export type {CatalogApprovalRow, AvailableModule, ModuleCatalogPort} from "./module-catalog.js";
+
+export {projectTenantModuleStates} from "./module-lifecycle.js";
+export type {ModuleEntitlementState,ModuleInstallState,ModuleLifecycleRow,TenantModuleState,TenantModuleLifecyclePort} from "./module-lifecycle.js";

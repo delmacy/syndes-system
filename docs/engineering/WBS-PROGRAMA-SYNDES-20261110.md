@@ -251,3 +251,9 @@
 - **Base:** PR #66 (Kernel 39b2654), ADR/WBS da PR #65 e [evidência do catálogo](AK-10-02-CONTROL-MODULE-CATALOG-20261110.md).
 - **Estado:** implementação candidata SQL/ports/adapter e PG17 descartável; PEND integração, CI, catálogo aprovado e Control DB operacional. Não cria entitlement (AK-10.03), não liga executeModule ao Host (AK-10.04), não instala migrations (AK-30) e não ativa schema Organizations da PR #68.
 - **Dependência crítica:** integrar PR #66, depois AK-10.03 → AK-10.04/AK-30 → AK-40.01.
+
+### AK-10.03 — Entitlements e intenções de instalação por tenant
+
+- **Base:** PRs #66 (Kernel), #69 (catálogo) e [documentação da lifecycle](AK-10-03-TENANT-MODULE-LIFECYCLE-20261110.md).
+- **Estado:** candidato SQL/ports/read adapter + transições auditadas e PG17 descartável; **PEND** integração/main/CI/Account & Access API/ambiente operacional. Entitled/requested/suspended não equivale a installed/enabled; funções administrativas não promovem esses estados até AK-30.
+- **Gate G1 aberto:** persistência com tenants A/B demonstrada em fixture; faltam AK-10.04 em rotas e workers, ledger SQL e identidades FGA/Keycloak reais. Nenhum bootstrap/deploy operacional foi alterado.

@@ -7,6 +7,7 @@ import {loadInstalledPlugins,installModuleAssets} from "./module-host.js";
 import {TenantPgProvider} from "./tenant-database.js";
 import {ActorVerifier,PgMembership,FgaPermission,tenantUUID} from "./adapters.js";
 import {PgModuleCatalog} from "./module-catalog.js";
+import {PgModuleLifecycle} from "./module-lifecycle.js";
 import {loadCoreSecrets,openBaoSourceFromEnv,type CoreRuntimeSecrets} from "./secrets.js";
 
 function env(k:string):string{const v=process.env[k];if(!v?.trim())throw new Error("Missing "+k);return v}
@@ -18,10 +19,12 @@ class CoreService implements OnModuleDestroy{
  readonly verifier:ActorVerifier;
  readonly kernel:CoreKernel;
  readonly catalog:PgModuleCatalog;
+ readonly moduleStates:PgModuleLifecycle;
  constructor(@Inject(RUNTIME_SECRETS) credentials:CoreRuntimeSecrets,
              @Inject("SYNDES_MODULE_DEFINITIONS") modules:readonly ModuleDefinition[]) {
   this.db=new Pool({connectionString:credentials.controlDbUrl,max:5,connectionTimeoutMillis:3000,idleTimeoutMillis:10000});
   this.catalog=new PgModuleCatalog(this.db,modules);
+  this.moduleStates=new PgModuleLifecycle(this.db,this.catalog);
   this.verifier=new ActorVerifier(env("CORE_KEYCLOAK_ISSUER"),env("CORE_KEYCLOAK_AUDIENCE"),env("CORE_KEYCLOAK_JWKS_URL"));
   this.kernel=new CoreKernel({modules,
    tenancy:new PgMembership(this.db),
