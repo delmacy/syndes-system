@@ -19,7 +19,8 @@ def run(*args, env=None, check=True, timeout=80):
 # without connecting to a real Tailnet or changing any GitHub workflow.
 run(sys.executable, "tests/platform/test-manager-tailnet-route.py", timeout=12)
 run(sys.executable, "tests/platform/test-manager-keycloak-redirect.py", timeout=12)
-print("Manager Tailnet Serve ownership and Keycloak OIDC redirect safety: PASS")
+run(sys.executable, "tests/platform/test-manager-operator-provision.py", timeout=12)
+print("Manager Tailnet, Keycloak OIDC and OpenBao operator bootstrap safety: PASS")
 
 with tempfile.TemporaryDirectory(prefix="syndes-manager-net-ci-") as temp:
     tmp = pathlib.Path(temp)
