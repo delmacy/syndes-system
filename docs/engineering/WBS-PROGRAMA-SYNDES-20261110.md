@@ -216,6 +216,20 @@
 | **95.08** | Operar piloto com ao menos um cliente externo pagante | Suporte, onboarding, billing, monitoramento, backup real e feedback; sucesso MVP definido em `MVP-SCOPE.md` | 95.07 | BLOQ |
 | **95.09** | Pós-MVP congelado: Instagram, GCal, automações amplas, CRM avançado, OS, financeiro, estoque/ERP | Sem desenvolvimento sem novo Product Gate; inclui múltiplos WhatsApps, marketplace, native mobile, white-label, i18n, hyperscale | 95.08 | CONGELADO |
 
+## Acompanhamento AK-40.01 — Organizations / schemas (10/11/2026)
+
+A WBS técnica está proposta na [PR #65](https://github.com/delmacy/syndes-system/pull/65), ainda não integrada ao main de referência. Inventário e evidências em [AK-40-01-ORGANIZATIONS-SCHEMA-INVENTORY-20261110.md](AK-40-01-ORGANIZATIONS-SCHEMA-INVENTORY-20261110.md). AK-40.01 **não** é o item 40.01 desta WBS (tenant Syndes).
+
+| Item | Estado | Evidência / gate |
+| --- | --- | --- |
+| AK-40.01 — inventário SQL 001–007 e consumers | PREPARADO | Matriz de objetos, schemas, FKs, triggers, índices e dependências |
+| AK-40.01 — SQL candidato organizations | CÓDIGO LOCAL / INATIVO | schema-v2 + source SHA-256 + testes PG17 em DB descartável |
+| AK-40.01 — Kernel, Host e installer integrados | **BLOQ** | PRs #65–#67 e AK-10.02/03/04, AK-30.01/02/03 incompletos |
+| AK-40.01 — CI, staging, homologação e restore | **BLOQ** | Não migrar DB operacional; falta autorização FGA/Keycloak e backup/rollback real |
+| AK-40.02 — CRM | **BLOQ** | Gate de Organizations pendente, nenhum código de CRM migrado aqui |
+
+**Ambientes:** CÓDIGO candidato, CI integrada pendente, STAGING sem migração, PROD sem migração; SQL 002 / Gate #31 intactos; Actions permanece na frente delegada.
+
 ## Critérios transversais de pronto para cada item/PR
 
 1. **Escopo:** requisito aprovado, WBS ID e limites do que não será feito.
