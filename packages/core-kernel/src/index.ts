@@ -17,3 +17,5 @@ export type { ModuleDefinition, ModuleInitializationContext } from "./module-reg
 
 export {defineSyndesModule} from "./plugin.js";
 export type {SyndesPlugin} from "./plugin.js";
+export {requireModuleAccess} from "./module-access.js";
+export type {ModuleAccessPort, ModuleAccessRequest, ModuleAuthorizationRequest} from "./module-access.js";
