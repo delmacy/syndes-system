@@ -25,8 +25,9 @@ try{
  try{browser=await chromium.launch({headless:true});}
  catch{browser=await chromium.launch({headless:true,channel:"chrome"});}
  const context=await browser.newContext({viewport:{width:1440,height:900}});
- const network=[];
+ const network=[],uncaught=[];
  const page=await context.newPage();
+ page.on("pageerror",e=>uncaught.push(e.message));
  page.on("request",r=>{if(/\/v1\/|\/realms\/|\/protocol\/openid-connect\//.test(r.url()))network.push(r.url());});
  await page.goto(url);
  await page.getByTestId("visual-preview-banner").waitFor();
@@ -51,8 +52,21 @@ try{
  await page.getByLabel("Detalhes do cliente 11111111-1111-4111-8111-111111111111").click();
  await page.getByRole("dialog",{name:"Detalhes do cliente"}).waitFor();
  await page.getByRole("button",{name:"Fechar detalhes"}).click();
+ const mobile=await context.newPage();
+ mobile.on("pageerror",e=>uncaught.push(e.message));
+ mobile.on("request",r=>{if(/\/v1\/|\/realms\/|\/protocol\/openid-connect\//.test(r.url()))network.push(r.url());});
+ await mobile.setViewportSize({width:390,height:844});
+ await mobile.goto(url);
+ await mobile.getByTestId("visual-preview-banner").waitFor();
+ await mobile.getByRole("button",{name:"Abrir menu"}).click();
+ await mobile.getByRole("navigation").getByRole("button",{name:"Clientes"}).click();
+ await mobile.getByRole("heading",{name:"Clientes da plataforma"}).waitFor();
+ assert.equal(await mobile.getByRole("button",{name:"Fechar menu"}).count(),0,
+  "Mobile overlay must close after choosing a destination");
+ assert.deepEqual(uncaught,[],"Both desktop and mobile preview must render without JS exceptions");
  assert.deepEqual(network,[],"Preview must not call protected APIs or OIDC");
- console.log("VISUAL PREVIEW E2E PASS: no login, current navigation, demonstration banner, search, filtering, details and zero protected requests");
+ console.log("VISUAL PREVIEW E2E PASS: desktop/mobile navigation, demonstration banner, search, filtering, details and zero protected requests");
+ await mobile.close();
  await context.close();
 }finally{
  await browser?.close().catch(()=>{});
