@@ -106,3 +106,19 @@ test("write authorization stays in one actor-scoped statement with automatic aud
  assert.match(f.queries[3].sql,/platform_staff_access_audit/);
  assert.match(f.queries[4].sql,/platform_staff_team_members/);
 });
+
+test("staff migration remains opt-in and preserves physical SQL 002 preflight",async()=>{
+ const {readFile}=await import("node:fs/promises");
+ const {syndesPlugin}=await import("../dist/plugin.js");
+ assert.equal(syndesPlugin.migrations.some(x=>x.id.includes("007")||
+   x.fileUrl.includes("staff_roles")),false,
+   "Workforce staff schema must not enter automatic migrations before Product Gate");
+ const sql=await readFile(new URL("../sql/007_staff_roles_pre_release.sql",import.meta.url),"utf8");
+ for(const index of ["platform_legacy_single_organization","platform_legacy_single_workspace"])
+  assert.ok(sql.includes(index),"No removal of physical SQL 002 gate allowed");
+ assert.match(sql,/CREATE TABLE IF NOT EXISTS platform_staff_identity_links/);
+ assert.match(sql,/CREATE TABLE IF NOT EXISTS platform_workspace_staff_roles/);
+ assert.match(sql,/REVOKE ALL ON/);
+ assert.doesNotMatch(sql,/DROP INDEX\s+(?:IF EXISTS\s+)?platform_legacy_/i);
+ assert.doesNotMatch(sql,/\bINSERT INTO\s+platform_org_memberships/i);
+});
