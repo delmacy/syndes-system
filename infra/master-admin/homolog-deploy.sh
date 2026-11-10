@@ -66,13 +66,13 @@ git -c safe.directory="$repo" -C "$repo" diff --quiet "$source_sha" "$head" -- \
 # Validate private HTTPS host and OIDC issuer, no network changes yet.
 dns=$(tailscale status --json | jq -er '.Self.DNSName' | sed 's/\.$//')
 [[ "$dns" =~ ^[A-Za-z0-9.-]+\.ts\.net$ ]] || fail "Tailnet HTTPS identity not available"
-origin="https://$dns:9446"
+origin="https://$dns:9447"
 issuer=$(curl --fail --silent --show-error --max-time 5 \
   http://127.0.0.1:18080/realms/syndes/.well-known/openid-configuration | jq -er '.issuer')
 [[ "$issuer" == "https://$dns:9444/realms/syndes" ]] ||
   fail "Keycloak issuer does not match approved Tailnet host"
 if ! tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode free >/dev/null; then
-  fail "Port 9446 already assigned or Tailscale configuration unreadable; do not overwrite"
+  fail "Port 9447 already assigned or Tailscale configuration unreadable; do not overwrite"
 fi
 if docker ps -q --filter 'label=com.docker.compose.project=syndes-master-admin' | grep -q .; then
   fail "Manager Compose already running; use the dedicated gate, not redeployment"
@@ -111,7 +111,7 @@ rollback_on_error(){
     echo "HOMOLOG DEPLOY FAILED: rolling back only the isolated Manager stack" >&2
     if [[ "$route_owned" == true ]] &&
        tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode active >/dev/null 2>&1; then
-      tailscale serve --bg --https=9446 off || true
+      tailscale serve --bg --https=9447 off || true
     fi
     docker compose -f infra/master-admin/compose.yaml down --remove-orphans || true
   fi
@@ -129,9 +129,9 @@ tailscale serve get-config "$runtime/tailscale-before-manager.json"
 chmod 0600 "$runtime/tailscale-before-manager.json"
 # Never replace another operator's HTTPS route; recheck immediately before binding.
 tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode free >/dev/null ||
-  fail "Port 9446 changed during deploy; refusing to overwrite another application"
+  fail "Port 9447 changed during deploy; refusing to overwrite another application"
 # Tailnet HTTPS only (never funnel/public internet), no reset of existing routes.
-tailscale serve --bg --https=9446 http://127.0.0.1:18085
+tailscale serve --bg --https=9447 http://127.0.0.1:18085
 route_owned=true
 tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode active >/dev/null ||
   fail "Tailnet Serve route does not point to the dedicated Manager frontend"

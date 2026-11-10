@@ -15,7 +15,7 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 
-def config(port=9446, proxy="http://127.0.0.1:18085", routes=None):
+def config(port=9447, proxy="http://127.0.0.1:18085", routes=None):
     host = "fixture.tailnet.ts.net:" + str(port)
     return {
         "TCP": {str(port): {"HTTPS": True}},
@@ -35,12 +35,21 @@ class ManagerRouteChecks(unittest.TestCase):
         self.assertFalse(module.check(config(proxy="http://127.0.0.1:18086"), "active")[0])
         self.assertFalse(module.check(config(proxy="http://0.0.0.0:18085"), "active")[0])
 
+    def test_existing_visual_preview_on_9446_does_not_block_real_manager_on_9447(self):
+        existing = config(port=9446, proxy="http://127.0.0.1:18086")
+        self.assertTrue(module.check(existing, "free")[0])
+        self.assertFalse(module.check(existing, "active")[0])
+        active = config()
+        active["TCP"].update(existing["TCP"])
+        active["Web"].update(existing["Web"])
+        self.assertTrue(module.check(active, "active")[0])
+
     def test_foreign_route_and_ambiguous_mapping_are_rejected(self):
-        self.assertFalse(module.check({"TCP": {"9446": {"HTTPS": True}}, "Web": {}}, "free")[0])
+        self.assertFalse(module.check({"TCP": {"9447": {"HTTPS": True}}, "Web": {}}, "free")[0])
         self.assertFalse(module.check({"TCP": {}, "Web": config()["Web"]}, "free")[0])
         self.assertFalse(module.check({"TCP": {}, "Web": config()["Web"]}, "active")[0])
         other = config()
-        other["Web"]["other.tailnet.ts.net:9446"] = other["Web"]["fixture.tailnet.ts.net:9446"]
+        other["Web"]["other.tailnet.ts.net:9447"] = other["Web"]["fixture.tailnet.ts.net:9447"]
         self.assertFalse(module.check(other, "active")[0])
 
     def test_no_extra_routes_no_funnel_no_http(self):
@@ -48,10 +57,10 @@ class ManagerRouteChecks(unittest.TestCase):
                  "/admin": {"Proxy": "http://127.0.0.1:8888"}}
         self.assertFalse(module.check(config(routes=paths), "active")[0])
         no_https = config()
-        no_https["TCP"]["9446"] = {"HTTP": True}
+        no_https["TCP"]["9447"] = {"HTTP": True}
         self.assertFalse(module.check(no_https, "active")[0])
         public = config()
-        public["AllowFunnel"] = {"fixture.tailnet.ts.net:9446": True}
+        public["AllowFunnel"] = {"fixture.tailnet.ts.net:9447": True}
         self.assertFalse(module.check(public, "active")[0])
 
     def test_invalid_input_never_passes(self):

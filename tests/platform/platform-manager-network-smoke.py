@@ -18,7 +18,8 @@ def run(*args, env=None, check=True, timeout=80):
 # The existing infra regression job exercises Tailnet's release-gate logic
 # without connecting to a real Tailnet or changing any GitHub workflow.
 run(sys.executable, "tests/platform/test-manager-tailnet-route.py", timeout=12)
-print("Manager Tailnet Serve safety and ownership gate: PASS")
+run(sys.executable, "tests/platform/test-manager-keycloak-redirect.py", timeout=12)
+print("Manager Tailnet Serve ownership and Keycloak OIDC redirect safety: PASS")
 
 with tempfile.TemporaryDirectory(prefix="syndes-manager-net-ci-") as temp:
     tmp = pathlib.Path(temp)

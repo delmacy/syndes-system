@@ -9,7 +9,7 @@ import json
 import sys
 
 
-def check(config, mode, port=9446, target="http://127.0.0.1:18085"):
+def check(config, mode, port=9447, target="http://127.0.0.1:18085"):
     if not isinstance(config, dict):
         return False, "Malformed Tailscale Serve configuration"
     tcp, web = config.get("TCP", {}), config.get("Web", {})
@@ -46,7 +46,7 @@ def check(config, mode, port=9446, target="http://127.0.0.1:18085"):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", required=True, choices=("free", "active"))
-    parser.add_argument("--port", type=int, default=9446)
+    parser.add_argument("--port", type=int, default=9447)
     parser.add_argument("--target", default="http://127.0.0.1:18085")
     args = parser.parse_args()
     if not 1 <= args.port <= 65535 or args.target != "http://127.0.0.1:18085":
