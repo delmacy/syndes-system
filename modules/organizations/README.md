@@ -45,3 +45,12 @@ Site is reserved for a future content-publishing product; unit = physical branch
 
 Run npm test; optional disposable PostgreSQL integration uses
 SYNDES_ORG_TEST_PG_URL.
+
+## Schema V2 candidato — NÃO INSTALADO
+
+A preparação AK-40.01 fica em sql/schema-v2 com SHA-256 em SOURCE-MANIFEST.json.
+Regerar offline com node scripts/render-schema-v2.mjs e verificar com --check.
+**Nenhum arquivo é referenciado no plugin ativo ou autorizado para deploy.**
+Faltam catálogo/entitlement/ledger/installer e conversão das consultas do Host,
+Organizations, CRM, Inbox e WhatsApp. SQL 002 e Gate #31 permanecem ativos.
+Ver docs/engineering/AK-40-01-ORGANIZATIONS-SCHEMA-INVENTORY-20261110.md.
