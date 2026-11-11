@@ -9,7 +9,7 @@ const scope={
  actor:{kind:"user",id:"tested-oidc-sub"},
 };
 const noAccess=()=>{let databaseCalls=0,kernelCalls=0;
- const kernel={execute:async()=>{kernelCalls++;throw new AccessDeniedError()}};
+ const kernel={executeModule:async()=>{kernelCalls++;throw new AccessDeniedError()}};
  const tenants={withTransaction:async()=>{databaseCalls++;throw Error("unexpected db")}};
  return {service:new ServiceFunnelService(kernel,tenants),
   counters:()=>({databaseCalls,kernelCalls})};
@@ -84,12 +84,13 @@ test("invalid configuration, request keys and versions rejected before authoriza
 
 test("client cannot choose an FGA resource or a database lease",async()=>{
  let requested,dbCalls=0;
- const kernel={execute:async request=>{requested=request;throw new AccessDeniedError()}};
+ const kernel={executeModule:async request=>{requested=request;throw new AccessDeniedError()}};
  const tenants={withTransaction:async()=>{dbCalls++;throw Error("DB forbidden")}};
  const service=new ServiceFunnelService(kernel,tenants);
  await assert.rejects(service.board({...scope,resource:"platform:owner",
   databaseName:"syndes_control"},randomUUID()),AccessDeniedError);
- assert.equal(requested.resource,"service:attendances");
+ assert.equal(requested.moduleId,"service-management");
+ assert.equal(requested.resource,"service-management:attendances");
  assert.equal(requested.action,"read");
  assert.deepEqual(requested.actor,scope.actor);
  assert.equal(dbCalls,0);

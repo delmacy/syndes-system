@@ -1,0 +1,16 @@
+import {defineSyndesModule} from "@syndes/core-kernel";
+import {serviceManagementModule} from "./service.js";
+import {ServiceManagementHttpModule} from "./controller.js";
+
+export const syndesPlugin=defineSyndesModule({
+ definition:serviceManagementModule,
+ apiModule:ServiceManagementHttpModule,
+ permissions:[
+  {resource:"service-management:funnels",actions:["read","write"]},
+  {resource:"service-management:attendances",actions:["read","write"]},
+ ],
+ migrations:[{id:"001_service_funnels",
+  fileUrl:new URL("../sql/001_service_funnels.sql",import.meta.url).href}],
+ assets:[],
+});
+export {ServiceManagementHost,ServiceManagementController} from "./controller.js";

@@ -54,11 +54,14 @@ export class ServiceFunnelService{
  constructor(private readonly kernel:CoreKernel,
   private readonly tenants:TrustedTenantTransactionProvider){}
 
- private async run<T>(ctx:FunnelContext,resource:"service:funnels"|"service:attendances",
+ private async run<T>(ctx:FunnelContext,resource:"service-management:funnels"|"service-management:attendances",
   action:"read"|"write",permission:"admin"|"editor"|"viewer",
   work:(tx:TenantTransaction)=>Promise<T>):Promise<T>{
   validateContext(ctx);
-  return this.kernel.execute({actor:ctx.actor,tenantId:ctx.tenantId,resource,action},
+  // The module Control Plane admission runs *after* tenant/FGA and before
+  // resolving a tenant DB. A missing ENABLED gate is never a legacy fallback.
+  return this.kernel.executeModule({actor:ctx.actor,tenantId:ctx.tenantId,
+    moduleId:"service-management",resource,action},
    ()=>this.tenants.withTransaction(ctx.tenantId,async tx=>{
     if(tx.tenantId!==ctx.tenantId)throw new AccessDeniedError();
     const allowed=await tx.query(`
@@ -87,13 +90,47 @@ export class ServiceFunnelService{
    }));
  }
 
+ /** Published funnel definitions are shared read-only inside the selected scope.
+  * No drafts or customer messages are ever exposed by this endpoint. */
+ async listFunnels(ctx:FunnelContext){
+  return this.run(ctx,"service-management:funnels","read","viewer",async tx=>{
+   const rows=await tx.query(`
+    SELECT f.id::text, f.code,f.name,f.state,f.revision,
+      COALESCE(jsonb_agg(jsonb_build_object('id',s.id,'code',s.code,
+       'label',s.label,'position',s.position,'terminal',s.terminal)
+       ORDER BY s.position) FILTER(WHERE s.id IS NOT NULL),'[]'::jsonb) AS stages
+    FROM service_funnels f
+    LEFT JOIN service_funnel_stages s ON s.tenant_id=f.tenant_id
+      AND s.organization_id=f.organization_id AND s.workspace_id=f.workspace_id
+      AND s.funnel_id=f.id
+    WHERE f.tenant_id=$1::uuid AND f.organization_id=$2::uuid
+      AND f.workspace_id=$3::uuid AND f.state='published'
+    GROUP BY f.tenant_id,f.organization_id,f.workspace_id,f.id
+    ORDER BY f.name,f.id LIMIT 50
+   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId]);
+   return rows.rows.map(r=>({id:String(r.id),code:String(r.code),name:String(r.name),
+    revision:Number(r.revision),stages:r.stages}));
+  });
+ }
+
+ async get(ctx:FunnelContext,attendanceId:string){
+  if(!uid(attendanceId))throw new ServiceFunnelInputError("Invalid attendance");
+  return this.run(ctx,"service-management:attendances","read","viewer",async tx=>{
+   const r=await tx.query(`SELECT * FROM service_attendances
+    WHERE tenant_id=$1::uuid AND organization_id=$2::uuid
+      AND workspace_id=$3::uuid AND id=$4::uuid LIMIT 1`,
+    [ctx.tenantId,ctx.organizationId,ctx.workspaceId,attendanceId]);
+   return r.rows[0]?asAttendance(r.rows[0]):null;
+  });
+ }
+
  async publishSimpleFunnel(ctx:FunnelContext,input:Readonly<{
   code:string;name:string;stages:readonly FunnelStage[];
  }>){
   if(!input||typeof input.code!=="string"||!CODE.test(input.code)||!good(input.name))
    throw new ServiceFunnelInputError("Invalid funnel definition");
   guardStages(input.stages);
-  return this.run(ctx,"service:funnels","write","admin",async tx=>{
+  return this.run(ctx,"service-management:funnels","write","admin",async tx=>{
    const id=randomUUID(),scope=[ctx.tenantId,ctx.organizationId,ctx.workspaceId];
    const created=await tx.query(`
     INSERT INTO service_funnels(tenant_id,organization_id,workspace_id,
@@ -129,7 +166,7 @@ export class ServiceFunnelService{
    !REQUEST_KEY.test(input.idempotencyKey)||(
    input.conversationId!=null&&!uid(input.conversationId)))
    throw new ServiceFunnelInputError("Invalid funnel/conversation/idempotency reference");
-  return this.run(ctx,"service:attendances","write","editor",async tx=>{
+  return this.run(ctx,"service-management:attendances","write","editor",async tx=>{
    const id=randomUUID(),scope=[ctx.tenantId,ctx.organizationId,ctx.workspaceId];
    const r=await tx.query(`
     INSERT INTO service_attendances(tenant_id,organization_id,workspace_id,
@@ -170,7 +207,7 @@ export class ServiceFunnelService{
   if(!uid(input?.attendanceId)||!uid(input.nextStageId))
    throw new ServiceFunnelInputError("Invalid stage reference");
   requireVersion(input.expectedVersion);
-  return this.run(ctx,"service:attendances","write","editor",async tx=>{
+  return this.run(ctx,"service-management:attendances","write","editor",async tx=>{
    const r=await tx.query(`
     UPDATE service_attendances a
     SET stage_id=s.id,version=a.version+1,updated_at=clock_timestamp()
@@ -199,7 +236,7 @@ export class ServiceFunnelService{
    !input.assigneeId.trim()||input.assigneeId.length>256)
    throw new ServiceFunnelInputError("Invalid assignee");
   requireVersion(input.expectedVersion);
-  return this.run(ctx,"service:attendances","write","editor",async tx=>{
+  return this.run(ctx,"service-management:attendances","write","editor",async tx=>{
    const r=await tx.query(`
     UPDATE service_attendances a
     SET assigned_to=$6,version=a.version+1,updated_at=clock_timestamp()
@@ -230,7 +267,7 @@ export class ServiceFunnelService{
   if(!uid(input?.attendanceId)||!good(input.result,240))
    throw new ServiceFunnelInputError("Invalid close result");
   requireVersion(input.expectedVersion);
-  return this.run(ctx,"service:attendances","write","editor",async tx=>{
+  return this.run(ctx,"service-management:attendances","write","editor",async tx=>{
    const r=await tx.query(`
     UPDATE service_attendances a
     SET state='closed',result=$6,closed_at=clock_timestamp(),
@@ -252,7 +289,7 @@ export class ServiceFunnelService{
 
  async board(ctx:FunnelContext,funnelId:string){
   if(!uid(funnelId))throw new ServiceFunnelInputError("Invalid funnel");
-  return this.run(ctx,"service:attendances","read","viewer",async tx=>{
+  return this.run(ctx,"service-management:attendances","read","viewer",async tx=>{
    const r=await tx.query(`
     SELECT a.* FROM service_attendances a
     WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
@@ -266,7 +303,7 @@ export class ServiceFunnelService{
 
  async history(ctx:FunnelContext,attendanceId:string){
   if(!uid(attendanceId))throw new ServiceFunnelInputError("Invalid attendance");
-  return this.run(ctx,"service:attendances","read","viewer",async tx=>{
+  return this.run(ctx,"service-management:attendances","read","viewer",async tx=>{
    const r=await tx.query(`
     SELECT e.* FROM service_attendance_events e
     WHERE e.tenant_id=$1::uuid AND e.organization_id=$2::uuid

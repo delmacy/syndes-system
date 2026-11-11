@@ -89,7 +89,10 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
   const canTenant=(actor,tenantId)=>tenantId===tenants[0].tenantId?
    roles.includes(actor.id):actor.id==="owner-b";
   let authAllowed=true;
-  const kernel=new CoreKernel({modules:[{id:"platform",version:"0.1.0"}],
+  let moduleEnabled=true;
+  const kernel=new CoreKernel({modules:[{id:"platform",version:"0.1.0"},
+    {id:"service-management",version:"0.1.0",dependencies:["platform"]}],
+   moduleAccess:{canExecuteModule:async()=>moduleEnabled},
    tenancy:{canAccessTenant:async({actor,tenantId})=>canTenant(actor,tenantId)},
    authorization:{canAccess:async()=>authAllowed},
   });
@@ -126,6 +129,10 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    });
    assert.equal(funnel.state,"published");
    const pool=pools.get(tenants[0].tenantId);
+   const publishedList=await service.listFunnels(ctx(0,"viewer-a"));
+   assert.equal(publishedList.length,1);
+   assert.equal(publishedList[0].code,"suporte_cliente");
+   assert.deepEqual(publishedList[0].stages.map(s=>s.position),[1,2,3]);
    const steps=(await pool.query(`SELECT id::text,position,terminal
     FROM service_funnel_stages WHERE funnel_id=$1 ORDER BY position`,[funnel.id])).rows;
    assert.deepEqual(steps.map(x=>x.position),[1,2,3]);
@@ -161,6 +168,7 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    assert.match(attendance.protocol,/^ATD-\d+$/);
    assert.equal(attendance.version,1);
    assert.equal(attendance.conversationId,tenants[0].conversationId);
+   assert.equal((await service.get(ctx(0,"viewer-a"),attendance.id)).id,attendance.id);
    assert.equal((await service.board(ctx(0,"viewer-a"),funnel.id)).length,1);
    assert.equal(Number((await pools.get(tenants[0].tenantId).query(
     "SELECT count(*)::int AS n FROM inbox_conversations")).rows[0].n),before);
@@ -249,6 +257,12 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    authAllowed=false;
    await assert.rejects(service.board(ctx(0,"agent-a"),funnel.id),AccessDeniedError);
    authAllowed=true;
+   moduleEnabled=false;
+   await assert.rejects(service.board(ctx(0,"agent-a"),funnel.id),AccessDeniedError);
+   await assert.rejects(service.open(ctx(0,"agent-a"),{
+    funnelId:funnel.id,idempotencyKey:"module-suspended-case-20261111",
+   }),AccessDeniedError);
+   moduleEnabled=true;
    const count=Number((await pools.get(tenants[0].tenantId).query(
     "SELECT count(*)::int AS n FROM service_attendances")).rows[0].n);
    assert.equal(count,1);
