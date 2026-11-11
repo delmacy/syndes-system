@@ -33,6 +33,16 @@ Trabalhar funcionalmente em apenas um módulo de produto por vez:
 
 **Priorização mais recente (2026-11-01):** após a evolução da Inbox, o responsável pelo produto **autorizou concluir as tarefas pendentes do frontend Core CRM**, mantendo o escopo do MVP congelado. O foco imediato é validar e finalizar `feat/crm-workspace-completion` e seus critérios, não abrir novos módulos. CRM e Inbox **não são DONE** até Product Gate formal com testes de identidade/tenant reais e operação comprovada. A sequência comercial do MVP permanece inalterada.
 
+## Fronteiras de frontend e backend (decisão de 2026-11-10)
+
+- Leia docs/engineering/ADR-FRONTEND-BACKEND-COMPOSITION-20261110.md e docs/engineering/WBS-FRONTEND-BACKEND-COMPOSITION-20261110.md antes de refatorar Workspace, Manager, plugins NestJS ou contexto de organização.
+- Duas aplicações frontend por ambiente de confiança: apps/master-admin-web para Platform Manager e apps/workspace-web para os tenants; **não** criar frontend por módulo backend nem frontend separado para Account/Organization/Workspace.
+- Features React permanecem no frontend correspondente; modules/* são packages de backend NestJS, com plugin/manifests confiáveis. O CRM ainda possui assets legados em seu plugin: preservar consumidores até inventário e gate de migração.
+- packages/front-shared compartilha componentes visuais puros entre Manager e Workspace, **nunca** tokens, tenants, sessão, APIs ou autorização.
+- Account/Organization/Workspace são contextos, não módulos. Distinguir Platform Organization (empresa do tenant) de CRM Organization (empresa cadastrada como contato).
+- Antes de ativar navegação por módulos, exigir contrato tenant-safe de módulos realmente ENABLED e gate server-side em todos os controllers/jobs. Sem plugins frontend remotos, microfrontends, menus falsos, entitlement só visual ou nova engine genérica no MVP.
+- A interface de Account só cresce apoiada em serviço autorizado; Account Owner não recebe acesso CRM/Inbox sem grants de Organization/Workspace. Multi-org permanece bloqueado pelos gates #21/#31 e SQL 002.
+
 ## Princípios de engenharia
 
 - Preferir monólito modular enquanto não houver evidência concreta para separação.
