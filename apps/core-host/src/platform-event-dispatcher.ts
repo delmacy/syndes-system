@@ -86,7 +86,9 @@ export class TenantEventDispatcher{
     };
     let supported=false;
     try{
-     if(row.event_version!==1)throw Error("Event version unsupported");
+     const declaredVersion=Number(/\.v([1-9][0-9]*)$/.exec(type)?.[1]);
+     if(!Number.isSafeInteger(declaredVersion)||row.event_version!==declaredVersion)
+      throw Error("Event version/type mismatch");
      validatePlatformEvent(delivery);
      supported=true;
     }catch{/* malformed or unknown persisted event is preserved for review */}

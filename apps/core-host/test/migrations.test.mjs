@@ -36,6 +36,9 @@ test("module migration CLI enumerates and emits only installed package migration
  assert.match(inboxSql,/CREATE TABLE IF NOT EXISTS inbox_conversations/);
  const eventsSql=execFileSync(process.execPath,[cli,"--emit","platform_events","001_platform_events"],{encoding:"utf8"});
  assert.match(eventsSql,/CREATE TABLE IF NOT EXISTS platform_events.consumer_inbox/);
+ assert.deepEqual(list[5].migrations,["001_platform_events","002_event_type_version_consistency"]);
+ const versionSql=execFileSync(process.execPath,[cli,"--emit","platform_events","002_event_type_version_consistency"],{encoding:"utf8"});
+ assert.match(versionSql,/platform_outbox_type_version_matches/);
  const invalid=spawnSync(process.execPath,[cli,"--emit","crm","..\\secrets"],{encoding:"utf8"});
  assert.notEqual(invalid.status,0);
  assert.equal(invalid.stdout,"");

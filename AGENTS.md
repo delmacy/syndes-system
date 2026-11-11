@@ -149,4 +149,4 @@ Uma entrega só é DONE quando:
 - Dados de negócio permanecem nos módulos; eventos de cada tenant ficam apenas no schema platform_events dentro de seu database. Nunca usar syndes_control para dados de eventos tenant.
 - Publisher requer TenantPgProvider.withTransaction e lease fixado; query-only TenantDatabase não oferece atomicidade.
 - At least once, idempotência por consumer e efeito + inbox num COMMIT; sem JWTs artificiais de usuário, sem enforcement ENABLED ou DDL operacional antes dos gates.
-- Os eventos v1 são contratos; não declarar WhatsApp → Inbox → CRM integrado enquanto a cadeia vertical não for demonstrada em PG17 descartável.
+- O contrato `whatsapp.message.received.v2` referencia o BIGINT recebido como decimal canônico; v1 permanece compatível. A cadeia WhatsApp → Inbox → CRM → Inbox tem demonstração **PG17 descartável**, mas ainda não está ativada no Host, não passou pelo gate operacional nem foi homologada. Ver docs/engineering/ADR-EVENTS-WHATSAPP-INBOX-CRM-20261111.md e WBS-EVENTS-WHATSAPP-INBOX-CRM-20261111.md.

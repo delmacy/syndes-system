@@ -27,4 +27,4 @@ export {projectTenantModuleStates} from "./module-lifecycle.js";
 export type {ModuleEntitlementState,ModuleInstallState,ModuleLifecycleRow,TenantModuleState,TenantModuleLifecyclePort} from "./module-lifecycle.js";
 
 export {platformEventTypes,validatePlatformEvent} from "./platform-events.js";
-export type {PlatformEventType,EventProducer,PublishPlatformEvent,StoredPlatformEvent} from "./platform-events.js";
+export type {PlatformEventType,EventProducer,PublishPlatformEvent,StoredPlatformEvent,TransactionalEventPublisher} from "./platform-events.js";

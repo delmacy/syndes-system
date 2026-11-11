@@ -2,6 +2,7 @@
 export const platformEventTypes=Object.freeze([
  "crm.person.created.v1",
  "whatsapp.message.received.v1",
+ "whatsapp.message.received.v2",
  "inbox.participant.observed.v1",
  "crm.person.resolved.v1",
  "crm.person.review_required.v1",
@@ -15,6 +16,10 @@ export type PublishPlatformEvent=Readonly<{
  correlationId:string;causationId?:string|null;
  payload:Readonly<Record<string,unknown>>;
 }>;
+/** Module-facing contract: the Host owns the implementation, modules own their writes. */
+export interface TransactionalEventPublisher {
+ publish(tx:import("./contracts.js").TenantTransaction,event:PublishPlatformEvent):Promise<{eventId:string;inserted:boolean}>;
+}
 export type StoredPlatformEvent=PublishPlatformEvent & Readonly<{
  eventId:string;createdAt:Date;
 }>;
@@ -22,6 +27,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 const expected:Readonly<Record<PlatformEventType,Readonly<{producer:EventProducer;keys:readonly string[]}>>>={
  "crm.person.created.v1":{producer:"crm",keys:["personId"]},
  "whatsapp.message.received.v1":{producer:"whatsapp",keys:["inboundEventId","accountId"]},
+ "whatsapp.message.received.v2":{producer:"whatsapp",keys:["inboundEventId","accountId"]},
  "inbox.participant.observed.v1":{producer:"inbox",keys:["conversationId"]},
  "crm.person.resolved.v1":{producer:"crm",keys:["conversationId","personId"]},
  "crm.person.review_required.v1":{producer:"crm",keys:["conversationId","reason"]},
@@ -45,6 +51,9 @@ export function validatePlatformEvent(input:PublishPlatformEvent):void{
   if(key==="reason"){
    if(value!=="ambiguous"&&value!=="missing_identity"&&value!=="conflicting_link")
      throw new Error("Invalid identity review reason");
+  }else if(key==="inboundEventId"&&input.type==="whatsapp.message.received.v2"){
+   if(typeof value!=="string"||!/^[1-9][0-9]{0,18}$/.test(value)||BigInt(value)>9223372036854775807n)
+     throw new Error("Invalid WhatsApp bigint inbound reference");
   }else if(typeof value!=="string"||!UUID.test(value)){
    throw new Error("Invalid platform event reference");
   }

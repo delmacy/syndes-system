@@ -99,3 +99,7 @@ O Core Host é o único dono da configuração SYNDES_CRM_MODULE_GATE=legacy|enf
 ## Reconciliação WhatsApp (CRM-WA-01)
 
 CRM Person é canônica e Organization de plataforma determina ownership; ChannelIdentity WhatsApp nunca se equivale a um UserAccount. Só vínculos inequívocos por identidade externa ou telefone E.164 comprovadamente associado podem ser propostos. Não sobrescrever nomes confirmados com pushname de WhatsApp. O reconciliador atual é READ-ONLY; criação provisória, links transacionais, auditoria e revisão de ambiguidades permanecem pendentes. Não fazer DML no tenant real sem aprovação do dry-run.
+
+## CRM identity events — 2026-11-11
+
+`whatsapp-identity-events.ts` implementa `CrmWhatsAppIdentityPolicy` com correspondência exata no mesmo Platform Organization; usado tanto no evento `inbox.participant.observed.v1` quanto na revalidação final do Inbox. Resolved publica `crm.person.resolved.v1`; conflito/ambiguidade/ausência publica `crm.person.review_required.v1`, sem criar provisórios. Não escreve tabelas WhatsApp/Inbox. O evento de revisão exige consumidor e procedimento operacional futuros; não afirmar que existe tela de tratativa. Cadeia demonstrada em PostgreSQL descartável, não operante no Host.

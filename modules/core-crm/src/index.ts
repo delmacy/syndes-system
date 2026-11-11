@@ -4,6 +4,8 @@ export type { AuthorizedCrmDefaultContext } from "./context-guard.js";
 export { PgCrmRepository, PgCrmRepositoryFactory } from "./postgres.js";
 export { CrmValidationError, TenantDatabaseMismatchError } from "./contracts.js";
 export { isUuid } from "./validation.js";
+export {CrmWhatsAppIdentityPolicy,CrmWhatsAppIdentityConsumer} from "./whatsapp-identity-events.js";
+export type {CrmIdentityScope,CrmWhatsAppIdentitySource,CrmIdentityDecision} from "./whatsapp-identity-events.js";
 export type {
   CrmRepository, TenantDatabase, TrustedTenantDatabaseProvider, Organization,
   Person, PersonOrganization, CreateOrganization, CreatePerson, CrmContext,

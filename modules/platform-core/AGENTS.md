@@ -44,3 +44,4 @@ Capacidade transversal é DONE quando atende o módulo consumidor atual com segu
 - Nunca disparar migration em tenant operacional sem backup/restore testado, aprovação e janela de implantação. Control DB permanece fora desta mudança.
 - Dispatcher candidato: `apps/core-host/src/platform-event-dispatcher.ts`. Inscrições confiáveis, claim `FOR UPDATE SKIP LOCKED`, efeitos e consumer_inbox na mesma transação. Falhas temporárias de autorização e ausência de handler preservam entregas `suspended`; negativa explícita pode ir a `dead`.
 - Nenhum scheduler, FGA/ENABLED operacional ou worker automático antes de provisionamento autorizado. A engine testada em banco descartável não equivale a deploy.
+- O publisher/dispatcher devem validar a igualdade entre sufixo do tipo `.vN` e `event_version`. A migration 002 adiciona uma restrição no tenant ledger (não alterar a 001). Nenhuma DDL operacional antes de backup/restore e autorização.
