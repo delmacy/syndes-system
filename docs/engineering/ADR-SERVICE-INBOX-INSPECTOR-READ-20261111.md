@@ -22,7 +22,7 @@ Retorna um array JSON **de até 50 protocolos**, ordenados por criação mais re
 ## Autorização em camadas
 
 1. `Kernel.executeModule(inbox, inbox:conversations, read)` exige tenant membership, FGA de leitura da Inbox e módulo Inbox **ENABLED**.
-2. `Kernel.executeModule(service-management, service-management:attendances, read)` exige o próprio entitlement ENABLED, FGA de atendimento e membership do tenant.
+2. `Kernel.executeModule(service, service:attendances, read)` exige o próprio entitlement ENABLED, FGA de atendimento e membership do tenant.
 3. Na mesma conexão/transação PG17 pinada, os vínculos de Organization e Workspace do usuário precisam estar ativos; não há seleção default silenciosa.
 4. O SQL faz JOIN com `inbox_conversations` **somente** quando `tenant, organization e platform_current_workspace_id` correspondem ao protocolo. A equipe corrente é revalidada via `service_team_can_read` a cada consulta. Usuários revogados ou equipe anterior não veem protocolos daquela equipe.
 5. IDs de conversas inexistentes ou de outro tenant/Workspace retornam array vazio, não detalhes de autorização. Falhas na dependência/DB negam acesso.
@@ -36,3 +36,5 @@ A consulta não altera Inbox, CRM ou WhatsApp. Não usa eventos para leitura sí
 Prova local: `bash scripts/service-management/run_disposable_pg17.sh --disposable --ack-synthetic` (dois bancos sintéticos, 19/19 testes) verifica lookup por conversa, Inbox FGA negada, Inbox module suspended, separação A/B, equipe origem/destino após transferência, leitura de protocolos fechados, índice 003 reaplicado e preflight antes da migration 002. Os testes HTTP Nest cobrem 400/401/403/503 e ausência de banco após FGA negado.
 
 **Limites pendentes:** UI Inspector na worktree de frontend não alterada nesta execução; identity/FGA reais e grants, restore do staging, installer/Control ENABLED, papel SQL least privilege, monitoramento e Product Gate. O lookup é limitado a 50 protocolos por conversa neste recorte; paginação futura exige cursor estável e novo contrato. Não simular transferência entre Workspaces enquanto SQL002 e trigger de ownership legado impedirem esse fluxo.
+
+**SM-03C (11/11/2026):** módulo agora usa ID canônico `service`, pacote `@syndes/service` e schema próprio `service`; a URL pública `/service-management` não mudou. Testes de instalabilidade foram feitos apenas em PG17 sintético.

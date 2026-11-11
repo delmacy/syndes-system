@@ -19,17 +19,17 @@ const headers={
 };
 
 test("service-management plugin is valid but NOT in default Host installed modules",async()=>{
- assert.equal(syndesPlugin.definition.id,"service-management");
+ assert.equal(syndesPlugin.definition.id,"service");
  assert.equal(syndesPlugin.definition.version,"0.3.0");
  assert.deepEqual(syndesPlugin.migrations.map(x=>x.id),[
   "001_service_funnels","002_service_team_transfer",
   "003_service_conversation_inspector",
  ]);
  assert.deepEqual(syndesPlugin.permissions.map(x=>x.resource),[
-  "service-management:funnels","service-management:attendances","service-management:teams",
+  "service:funnels","service:attendances","service:teams",
  ]);
  const config=JSON.parse(await readFile(new URL("../../../apps/core-host/config/modules.json",import.meta.url),"utf8"));
- assert.equal(config.modules.some(m=>m==="@syndes/service-management/plugin"),false,
+ assert.equal(config.modules.some(m=>m==="@syndes/service/plugin"),false,
   "New plugin must not accidentally auto-mount in operational Host config");
 });
 
@@ -45,11 +45,11 @@ test("Nest opt-in HTTP adapter: JWT, scope, FGA and Module ENABLED fail closed",
   tenancy:{canAccessTenant:async({actor,tenantId})=>
    actor.id==="authorized-user"&&tenantId===TENANT},
   authorization:{canAccess:async({resource})=>
-   canAccess&&!(denyTeamGrant&&resource.startsWith("service-management:team:"))
+   canAccess&&!(denyTeamGrant&&resource.startsWith("service:team:"))
    &&!(denyInboxRead&&resource==="inbox:conversations")},
   moduleAccess:{canExecuteModule:async ({moduleId})=>{
    checks++;
-   assert.ok(["service-management","inbox"].includes(moduleId));
+   assert.ok(["service","inbox"].includes(moduleId));
    return moduleId==="inbox"?inboxEnabled:enabled;
   }},
  });
@@ -64,7 +64,7 @@ test("Nest opt-in HTTP adapter: JWT, scope, FGA and Module ENABLED fail closed",
      dbQueries++;
      if(sql.includes("SELECT set_config('syndes.service_actor_id'"))
       return {rows:[{set_config:"authorized-user"}],rowCount:1};
-     if(sql.includes("FROM platform_workspaces w")){
+     if(sql.includes("FROM public.platform_workspaces w")){
       assert.equal(params[0],TENANT);
       assert.equal(params[1],ORG);
       assert.equal(params[2],WORKSPACE);
@@ -73,9 +73,9 @@ test("Nest opt-in HTTP adapter: JWT, scope, FGA and Module ENABLED fail closed",
      }
      if(sql.includes("SELECT a.team_id::text AS team_id"))
       return {rows:[{team_id:null}],rowCount:1};
-     if(sql.includes("JOIN inbox_conversations c ON c.tenant_id=a.tenant_id")||
+     if(sql.includes("JOIN public.inbox_conversations c ON c.tenant_id=a.tenant_id")||
       sql.includes("SELECT t.id::text")||sql.includes("SELECT f.id::text")||
-      sql.includes("SELECT * FROM service_attendances"))
+      sql.includes("SELECT * FROM service.service_attendances"))
       return {rows:[],rowCount:0};
      throw new Error("Unexpected SQL query in HTTP test");
     },

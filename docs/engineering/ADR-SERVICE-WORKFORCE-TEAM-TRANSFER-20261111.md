@@ -8,8 +8,8 @@ O módulo `service-management` referencia **as equipes canônicas** de `Organiza
 
 ### Contrato de segurança
 
-1. **Identidade do Host:** JWT verificado fora do pacote, principal OIDC tipo `user`. `Kernel.executeModule` exige membership tenant, Control `ENABLED`, dependencies atestadas e OpenFGA para `service-management:attendances` e `service-management:teams`.
-2. **OpenFGA por equipe:** além de `service-management:teams/write`, cada transferência exige `service-management:team:<uuid>/write` da origem, quando existe, e do destino. Nenhuma presença em Workforce provisiona essas tuplas. Ausência ou indisponibilidade FGA nega por padrão.
+1. **Identidade do Host:** JWT verificado fora do pacote, principal OIDC tipo `user`. `Kernel.executeModule` exige membership tenant, Control `ENABLED`, dependencies atestadas e OpenFGA para `service:attendances` e `service:teams`.
+2. **OpenFGA por equipe:** além de `service:teams/write`, cada transferência exige `service:team:<uuid>/write` da origem, quando existe, e do destino. Nenhuma presença em Workforce provisiona essas tuplas. Ausência ou indisponibilidade FGA nega por padrão.
 3. **Escopo SQL:** Organization e Workspace selecionados e autorizados; mesma organização e workspace físico, SQL002 mantido. O autor precisa ter membership `admin` em ambos mais `platform_workspace_staff_roles=supervisor`, `platform_staff_identity_links=active` e funcionário CRM ativo e não arquivado. Uma designação de supervisor **não** é permissão FGA.
 4. **Destino:** a equipe está `active`, ligada explicitamente ao Workspace via `platform_staff_team_workspaces` e possui pelo menos um membro `active` com identidade, designation `agent|supervisor`, CRM employee ativo, pessoa do mesmo escopo e memberships ativos. Não encaminhar para equipes arquivadas, vazias ou cujo último agente foi revogado.
 5. **Concorrência:** preleitura da equipe sob tenant/escopo autorizado, avaliação FGA origem/destino, e update posterior com versão CAS e revalidação SQL em transação pinned. Se o estado mudar entre as etapas, update retorna conflito sem mutação ou evento. O motivo é obrigatório e vinculado ao evento por `SET LOCAL` na mesma transação. Ninguém fornece GUC diretamente pelo frontend.
@@ -31,3 +31,5 @@ O módulo `service-management` referencia **as equipes canônicas** de `Organiza
 ### Adendo Inspector (2026-11-11)
 
 A leitura por conversa da Inbox foi adicionada no módulo v0.3.0, com FGA dupla e filtro pela equipe atual. O Inspector não modifica ownership nem transfere a conversa. Ver `ADR-SERVICE-INBOX-INSPECTOR-READ-20261111.md`.
+
+**SM-03C (11/11/2026):** módulo agora usa ID canônico `service`, pacote `@syndes/service` e schema próprio `service`; a URL pública `/service-management` não mudou. Testes de instalabilidade foram feitos apenas em PG17 sintético.

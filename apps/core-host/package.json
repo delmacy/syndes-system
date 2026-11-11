@@ -19,7 +19,7 @@
     "@syndes/core-kernel": "file:../../packages/core-kernel",
     "@syndes/core-organizations": "file:../../modules/organizations",
     "@syndes/core-support": "file:../../modules/support",
-    "@syndes/service-management": "file:../../modules/service-management",
+    "@syndes/service": "file:../../modules/service-management",
     "@syndes/whatsapp": "file:../../modules/whatsapp",
     "jose": "6.1.2",
     "pg": "8.16.3",

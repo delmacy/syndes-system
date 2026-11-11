@@ -1,6 +1,6 @@
 # ADR — Gate de compatibilidade do Service Management com o instalador e Control Plane
 
-**Data:** 2026-11-11 · **Estado:** bloqueio técnico confirmado, ferramenta somente leitura implementada, remediação **não aplicada**.
+**Data:** 2026-11-11 · **Estado:** diagnóstico histórico concluído. **Remediação de código SM-03C implementada**, descrita em [ADR-SERVICE-CANONICAL-INSTALLER-SM03C-20261111.md](ADR-SERVICE-CANONICAL-INSTALLER-SM03C-20261111.md); somente ativação operacional permanece bloqueada.
 
 ## Contexto e decisão
 

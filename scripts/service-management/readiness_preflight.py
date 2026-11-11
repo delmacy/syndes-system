@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CONTAINER = "syndes-postgres-postgres-1"
 CONTROL_DB = "syndes_control"
 MAX_TENANTS = 50
-MODULE_SLUG = "@syndes/service-management/plugin"
+MODULE_SLUG = "@syndes/service/plugin"
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 DB_NAME = re.compile(r"^syndes_tenant_[0-9a-f]{32}$")
 CATALOG_ID = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
@@ -65,13 +65,13 @@ SELECT json_build_object(
  'workforce_teams',to_regclass('public.platform_staff_teams') IS NOT NULL,
  'workforce_team_workspace',to_regclass('public.platform_staff_team_workspaces') IS NOT NULL,
  'workforce_team_members',to_regclass('public.platform_staff_team_members') IS NOT NULL,
- 'service_funnels',to_regclass('public.service_funnels') IS NOT NULL,
- 'service_stages',to_regclass('public.service_funnel_stages') IS NOT NULL,
- 'service_attendances',to_regclass('public.service_attendances') IS NOT NULL,
- 'service_events',to_regclass('public.service_attendance_events') IS NOT NULL,
- 'service_team_guard',to_regprocedure('public.service_team_can_read(uuid,uuid,uuid,uuid,text)') IS NOT NULL,
+ 'service_funnels',to_regclass('service.service_funnels') IS NOT NULL,
+ 'service_stages',to_regclass('service.service_funnel_stages') IS NOT NULL,
+ 'service_attendances',to_regclass('service.service_attendances') IS NOT NULL,
+ 'service_events',to_regclass('service.service_attendance_events') IS NOT NULL,
+ 'service_team_guard',to_regprocedure('service.service_team_can_read(uuid,uuid,uuid,uuid,text)') IS NOT NULL,
  'service_inspector_index',EXISTS (
-   SELECT 1 FROM pg_catalog.pg_indexes WHERE schemaname='public'
+   SELECT 1 FROM pg_catalog.pg_indexes WHERE schemaname='service'
      AND indexname='service_attendance_inspector_conversation_idx'
  ),
  'module_ledger',to_regclass('_syndes.module_migrations') IS NOT NULL,
