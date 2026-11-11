@@ -288,3 +288,9 @@ A arquitetura de administração unificada de acesso, entitlements por tenant e 
 - **Correção de bug:** dependências INSTALLED **ou ENABLED** são elegíveis em APPLY/VERIFY/attestation: habilitar CRM não bloqueia a instalação posterior do Inbox.
 - **Evidência:** testes em PG17 descartável de dois bancos tenant e Control DB, sem SQL operacional, incluindo replay antigo negado após nova transição e drift negado antes de reabilitação.
 - **Ainda PEND:** CI SHA integrado, Control DB versioned migrations/backup, operador autenticado com role dedicada, reconciliador de ledger, upgrade/rollback, adaptação de todos os handlers/worker para executeModule, homologação em cluster real. Nem Manager nem Core Host recebem poder de ENABLE nesta fatia.
+
+### AK-30.04 — Control DB versioned migrations (planejamento e ensaio)
+
+- **Implementado:** [runner e gates](AK-30-04-CONTROL-DB-VERSIONED-MIGRATIONS-20261110.md), scripts/control/module_migrations.py com plano default somente SELECT, ordem fixa SHA-256, ledger versionado, transação atômica, retry NOOP, recusa de drift/fora de ordem/parcial, sem SQL de tenant. Testes unitários e PG17 descartável.
+- **Evidência operacional somente leitura:** Control DB PG17, 1 tenant ativo, cinco migrations pendentes; archive_mode=off, restaurabilidade ainda sem prova. Comando de aplicação real bloqueado por ausência de evidências de backup/restore e Product Gate.
+- **Próximo:** restore real autorizado, staging com Keycloak/OpenFGA/OpenBao, least-privilege operator, migração de todos handlers/jobs para executeModule, plano de rollback. **Sem deploy do catalog/activation nas bases reais nesta entrega.**
