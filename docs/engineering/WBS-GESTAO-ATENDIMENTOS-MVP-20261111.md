@@ -8,6 +8,7 @@
 | P0 | SM-02A | Modelo tenant-local: funil configurável com etapas, protocolo por atendimento, vínculo opcional Inbox, estados e histórico append-only; idempotência e PK/FK por tenant/org/ws | Organizations/CRM/Inbox + SQL002 | **Implementado; PG17 14/14; CI pendente; sem deploy** |
 | P0 | SM-02B | Serviço transacional: publicar funil simples, abrir protocolo, avançar etapa adjacente, atribuir funcionário ativo, fechar na etapa terminal; concorrência CAS | SM-02A | **Em execução, sem Host ativo** |
 | P0 | SM-02C | PG17 com 2 tenant DBs, escopo org/workspace negativo, versão concorrente, append-only, vínculo Inbox, migration reaplicável e restore sintético | SM-02A/B | **Código implementado; CI pendente** |
+| P0 | SM-02D | Registrar suite `service-management` no planner/runner da CI central, cobrindo npm check/build/test e PG17 segregado, sem duplicar workflows | Frente responsável pela CI e SM-02C | **Pendente — CI central ainda não executa os 14 testes novos** |
 | P0 | SM-03A | Registrar novo módulo Nest no registry/installer, dependências e Control module entitlement ENABLED, sem bypass | SM-02C + installer e Control staging | Pendente |
 | P0 | SM-03B | APIs REST seguras para criar, abrir, avançar, atribuir, concluir, listar e histórico; JWT, FGA, membership, 401/403/409 e escopo não forjável | SM-03A | Pendente |
 | P0 | SM-04A | Workforce: usuários/equipes existentes, eligibility & membership, grants origem/destino e auditoria de transferência | Workforce DC-2c / SM-03 | Bloqueado |

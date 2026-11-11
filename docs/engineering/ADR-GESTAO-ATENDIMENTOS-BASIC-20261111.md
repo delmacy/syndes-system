@@ -27,6 +27,8 @@
 
 `bash scripts/service-management/run_disposable_pg17.sh --disposable --ack-synthetic` exige flags explícitas, recusa contêiner/porta preexistente, usa PostgreSQL 17 novo com porta **loopback** 32772, banco separado por tenant, dados sintéticos, e apaga o contêiner no final. Evidência local: **14/14 testes aprovados** em PostgreSQL 17 descartável e segurança unitária. `service-funnels-pg17.test.mjs` cobre publicação e imutabilidade, Inbox opcional, atribuição autorizada, transição CAS, fechamento, eventos append-only, viewer/revogado/FGA denegado e isolamento de dois bancos. Nenhum número real ou PII é usado.
 
+**Lacuna de CI:** `scripts/ci/plan.mjs` e `run-suite.sh` ainda não definem suite `service-management`. Portanto o Mainline CI Gate não cobre automaticamente os testes desse pacote. **SM-02D** deve ser feito pela frente responsável por GitHub Actions/CI antes de declarar regressão contínua; a presente PR não altera workflows ou scripts CI.
+
 **Isto não equivale à homologação de release:** serviço FGA é port do Kernel simulado no teste, sem provisionar OpenFGA real; o workflow do produto ainda não está montado no Nest. Continuam pendentes Workforce/team e transferência, UI/Inspector/Kanban, restore operacional, migração de tenant e Product Gate.
 
 ## Sequência de rollout obrigatória
