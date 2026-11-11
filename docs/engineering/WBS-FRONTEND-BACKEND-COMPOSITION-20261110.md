@@ -21,9 +21,9 @@ A F1 (UI estrutural) pode avançar em paralelo à F2 (backend), mas uma navegaç
 | --- | --- | --- | --- | --- | --- |
 | FC-00.01 | P0 | Baseline source/deploy/PR: comparar apps/workspace-web, apps/master-admin-web, front-shared, Nest plugins, org legacy e Account Access | SHA, Docker release, worktree/branch e consumidores legados inventariados; nenhuma alteração em checkout sujo | — | PEND |
 | FC-00.02 | P0 | Congelar contratos frontend e nomenclatura Account, Platform Organization, CRM Organization, Workspace, Unit, Team | ADR aprovada; UI não confunde empresa da conta com contato empresarial no CRM; não duplicar entidade | FC-00.01 | PEND |
-| FC-01.01 | P0 | Extrair layout e navegação genéricos do monólito apps/workspace-web/src/App.tsx para app shell/components | Mesma aparência e operações atuais: Inbox, CRM, Settings, Overview; todos os testes anteriores preservados | FC-00.02 | PEND |
-| FC-01.02 | P0 | Extrair seleção de contexto autenticado Organization/Workspace e ciclo de vida scoped | Sem persistência entre logins; troca limpa SSE/estado/cache; refresh/logout não ressuscitam tenant anterior; requests in-flight abortados | FC-01.01 | PEND |
-| FC-01.03 | P0 | Registro tipado ESTÁTICO das features existentes e rotas, não runtime plugin marketplace | Componentes montados sem switch manual gigante; IDs/rotas únicos; erros e módulos desconhecidos fail-closed; 1 build React tenant | FC-01.01 | PEND |
+| FC-01.01 | P0 | Extrair layout e navegação genéricos do monólito apps/workspace-web/src/App.tsx para app shell/components | Mesma aparência e operações atuais: Inbox, CRM, Settings, Overview; todos os testes anteriores preservados | FC-00.02 | CODIFICADO; TESTES LOCAIS PASS, CI PEND |
+| FC-01.02 | P0 | Extrair seleção de contexto autenticado Organization/Workspace e ciclo de vida scoped | Sem persistência entre logins; troca limpa SSE/estado/cache; refresh/logout não ressuscitam tenant anterior; requests in-flight abortados | FC-01.01 | PARCIAL: A/B+logout PASS; abort in-flight PEND |
+| FC-01.03 | P0 | Registro tipado ESTÁTICO das features existentes e rotas, não runtime plugin marketplace | Componentes montados sem switch manual gigante; IDs/rotas únicos; erros e módulos desconhecidos fail-closed; 1 build React tenant | FC-01.01 | CODIFICADO; TESTES LOCAIS PASS, CI PEND |
 | FC-01.04 | P0 | Preservar front-shared como design system único e duas aplicações isoladas | Testes source contract + builds manager/workspace; nenhum token/tenant/session/API no shared | FC-01.01 | PARCIAL (package integrado) |
 | FC-02.01 | P0 | Inventariar CoreKernel.execute sem gate vs executeModule, endpoints Nest e workers/Go | Matriz rota→módulo→ator→tenant/org/workspace→FGA→ModuleAccess e caminhos de bypass, incluindo legado /crm | FC-00.01 | PEND |
 | FC-02.02 | P0 | Migrar controllers e jobs existentes para validação obrigatória por operação, sem mudar contrato público indevidamente | Tenant A autorizado, B sem entitlement negado, suspenso/revogado deny; erro Control DB fail-closed; integração com SQL legado controlada | FC-02.01, AK-10.04, AK-30.03 | BLOQ (migração operacional pendente) |
@@ -68,3 +68,7 @@ Alvo inicial seguro, independente do rollout de banco: extrair responsabilidade 
 - WBS-ACCOUNT-KERNEL-MODULE-SCHEMAS-20261110.md — módulos e scripts SQL.
 - WBS-PROGRAMA-SYNDES-20261110.md — WBS mestre e release.
 - docs/product/MVP-SCOPE.md e docs/product/MODULE-ORDER.md — prioridade comercial.
+
+## Incremento FC-01 em execução
+
+[Relatório de implementação](FC-01-WORKSPACE-SHELL-REGISTRY-IMPLEMENTATION-20261110.md): shell extraído, registry estático de quatro views, hash routing e contexto scoped por API com teste de navegador A/B e logout. Nenhum código do Manager ou backend alterado. FC-01.02 demanda cancelamento de requisições em voo e testes de corrida SSE; remount visual não basta. Estados acima indicam teste local, não deploy ou homologação.
