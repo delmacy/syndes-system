@@ -47,6 +47,7 @@ const migrations=[
  "../../../modules/organizations/sql/004_whatsapp_route_owner_guard.sql",
  "../../../modules/organizations/sql/005_scoped_relationship_integrity.sql",
  "../sql/001_platform_events.sql",
+ "../sql/002_event_type_version_consistency.sql",
 ];
 const count=async(pool,table)=>Number((await pool.query("SELECT count(*)::int AS n FROM "+table)).rows[0].n);
 const message=(tenantId,accountId,externalMessageId,externalId,phone,body="Mensagem de teste COMMIT ROLLBACK")=>({
@@ -113,6 +114,20 @@ test("PG17 disposable: real WhatsApp -> Inbox -> CRM -> Inbox with conservative 
   const guard={authorize:async q=>q.moduleId==="crm"&&!crmEnabled?"suspended":"enabled"};
   const worker=new TenantEventDispatcher(provider,subscribers,guard,"syndes-worker-integration-fixture");
 
+  await t.test("version/type migration is replay-safe and rejects mismatched v2 rows",async()=>{
+   await pool.query(await sql("../sql/002_event_type_version_consistency.sql"));
+   await assert.rejects(pool.query(`
+    INSERT INTO platform_events.outbox_events
+     (tenant_id,event_id,organization_id,workspace_id,event_type,event_version,
+      producer,aggregate_type,aggregate_id,idempotency_key,correlation_id,payload)
+    VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,
+     'whatsapp.message.received.v2',1,'whatsapp','whatsapp_account',$5::uuid,
+     $6,$7::uuid,$8::jsonb)
+   `,[tenantId,randomUUID(),orgId,workspaceId,accountId,randomUUID(),randomUUID(),
+       JSON.stringify({inboundEventId:"1",accountId})]),error=>error.code==="23514");
+   assert.equal(await count(pool,"platform_events.outbox_events"),0);
+  });
+
   await t.test("failure to publish rolls back the original WhatsApp inbound row",async()=>{
    const faulty=new WhatsAppTransactionalInboundBridge(provider,{
     publish:async()=>{throw Error("forced outbox unavailable")}
@@ -129,7 +144,10 @@ test("PG17 disposable: real WhatsApp -> Inbox -> CRM -> Inbox with conservative 
    assert.deepEqual(accepted,{accepted:true,duplicate:false});
    assert.equal(await count(pool,"whatsapp_inbound_events"),1);
    assert.equal(await count(pool,"platform_events.outbox_events"),1);
-   const raw=(await pool.query("SELECT payload::text AS text FROM platform_events.outbox_events")).rows[0].text;
+   const stored=(await pool.query("SELECT payload::text AS text,event_version,event_type FROM platform_events.outbox_events")).rows[0];
+   const raw=stored.text;
+   assert.equal(stored.event_type,"whatsapp.message.received.v2");
+   assert.equal(stored.event_version,2);
    assert.ok(!raw.includes("Mensagem")&&!raw.includes(trustedPhone)&&!raw.includes(trustedJid));
    assert.match(raw,/"inboundEventId": "[0-9]+"|"inboundEventId":"[0-9]+"/);
 

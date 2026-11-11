@@ -12,6 +12,10 @@
 
 **Inscrições testadas:** `inbox.message-received-v2`, `crm.resolve-person`, `inbox.crm-person-link`. São registros de handlers **no teste integrado**; a configuração de assinaturas no Host e as identidades FGA de serviço **não foram ativadas**.
 
+## Consistência do versionamento
+
+- A migration aditiva `apps/core-host/sql/002_event_type_version_consistency.sql` exige `event_version` igual ao sufixo `.vN` de `event_type`, sem reescrever dados históricos. A migration é reexecutável; falha fechada se encontrar versões inconsistentes que exijam reconciliação. O publisher obtém o número a partir do contrato tipado; o dispatcher verifica o par antes de rotear. O arquivo `001_platform_events.sql` já publicado não foi modificado.
+
 ## Compatibilidade e política de migração
 
 - O serviço `WhatsAppInboundStore` aceita **injetar explicitamente** a ponte transacional, mas seu construtor atual do Nest/HTTP não a injeta. O recebimento textual, suas outboxes legadas e a projeção atual continuam sem alteração operacional. **Não ativar dois projetores concorrentes** para a mesma origem até cutover planejado, ensaiado e autorizado.

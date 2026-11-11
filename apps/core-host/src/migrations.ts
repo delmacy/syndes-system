@@ -1,7 +1,10 @@
 import {loadInstalledPlugins} from "./module-host.js";
 import {readFile} from "node:fs/promises";
 import {fileURLToPath} from "node:url";
-const PLATFORM_EVENTS={id:"platform_events",migrations:[{id:"001_platform_events",fileUrl:new URL("../sql/001_platform_events.sql",import.meta.url).href}]};
+const PLATFORM_EVENTS={id:"platform_events",migrations:[
+ {id:"001_platform_events",fileUrl:new URL("../sql/001_platform_events.sql",import.meta.url).href},
+ {id:"002_event_type_version_consistency",fileUrl:new URL("../sql/002_event_type_version_consistency.sql",import.meta.url).href},
+]};
 
 /** Operator-only CLI. Prints trusted, installed migrations on stdout.
  * Never accepts a raw filename, SQL text, DSN or tenant identifier. */

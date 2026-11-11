@@ -3,6 +3,7 @@
 | ID | Entrega | Estado | Gate/evidência |
 |---|---|---|---|
 | WA-E01 | Contrato `whatsapp.message.received.v2` com referência BIGINT decimal | Implementado em worktree | unit tests de contrato |
+| EV-V02 | Publisher/dispatcher com versão real e migration 002 de consistência | Implementado em worktree | PG17: replay-safe, rejeita versão divergente |
 | WA-E02 | Publicação WhatsApp inbound + outbox no mesmo COMMIT | Implementado em worktree | rollback PG17; ponte opt-in |
 | WA-E03 | Porta de leitura scoped de inbound e comando de rota/ack | Implementado em worktree | PG17 integrado, sem SQL cross-owner de escrita |
 | IN-E01 | Inbox consome inbound e publica ParticipantObserved | Implementado em worktree | rollback/crash/idempotência PG17 |
