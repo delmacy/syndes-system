@@ -56,3 +56,75 @@ test("SSE watch denies foreign tenancy and FGA before any tenant DB lease",async
  await assert.rejects(service.watch({tenantId:A,actor:{id:"bob",kind:"user"}}),AccessDeniedError);
  assert.equal(selected,0);
 });
+
+test("enforced SSE immediately closes after a rejected module check and emits no stale event",async()=>{
+ const bus=new InboxChangeBus();
+ const scope={tenantId:A,organizationId:"33333333-3333-4333-8333-333333333333",
+  workspaceId:"44444444-4444-4444-8444-444444444444"};
+ const output=[];
+ let close;
+ let enabled=true;
+ const sink={
+  setHeader:()=>{},
+  write:data=>{output.push(data);return true},
+  end:()=>output.push("END"),
+  on:(event,handler)=>{if(event==="close")close=handler},
+ };
+ bus.connect(scope,sink,async()=>enabled,10);
+ await new Promise(resolve=>setTimeout(resolve,25));
+ assert.equal(bus.count(scope),1);
+ assert.equal(output.filter(x=>x.includes("event: changed")).length,1);
+ enabled=false;
+ bus.publish(scope);
+ await new Promise(resolve=>setTimeout(resolve,30));
+ assert.equal(bus.count(scope),0);
+ assert.equal(output.filter(x=>x.includes("event: changed")).length,1);
+ assert.equal(output.at(-1),"END");
+ close();
+});
+test("enforced SSE closes on periodic check without publishing any event",async()=>{
+ const bus=new InboxChangeBus();
+ const output=[];
+ let allowed=true;
+ const sink={setHeader:()=>{},write:s=>{output.push(s);return true},end:()=>output.push("END"),on:()=>{}};
+ bus.connect(A,sink,async()=>allowed,5);
+ await new Promise(resolve=>setTimeout(resolve,10));
+ allowed=false;
+ await new Promise(resolve=>setTimeout(resolve,25));
+ assert.equal(bus.count(A),0);
+ assert.equal(output.at(-1),"END");
+});
+test("enforced SSE closes on failed provider, prevents in-flight writes after revoke",async()=>{
+ const bus=new InboxChangeBus();
+ let release;
+ let fail=false;
+ const output=[];
+ const sink={setHeader:()=>{},write:s=>{output.push(s);return true},end:()=>output.push("END"),on:()=>{}};
+ const scope={tenantId:A,organizationId:"33333333-3333-4333-8333-333333333333",
+  workspaceId:"44444444-4444-4444-8444-444444444444"};
+ const validate=()=>fail
+  ?Promise.reject(Error("Control outage"))
+  :new Promise(resolve=>{release=resolve});
+ bus.connect(scope,sink,validate,200);
+ await new Promise(resolve=>setImmediate(resolve));
+ release(true);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(bus.count(scope),1);
+ fail=true;
+ bus.publish(scope);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(bus.count(scope),0);
+ assert.equal(output.at(-1),"END");
+ assert.equal(output.filter(x=>x.includes("event: changed")).length,1);
+});
+test("SSE rejects a reauthorization that exceeds its timeout",async()=>{
+ const bus=new InboxChangeBus();
+ const messages=[];
+ const sink={setHeader:()=>{},write:msg=>{messages.push(msg);return true},
+  end:()=>messages.push("END"),on:()=>{}};
+ bus.connect(A,sink,()=>new Promise(resolve=>setTimeout(()=>resolve(true),85)),10,20);
+ await new Promise(resolve=>setTimeout(resolve,48));
+ assert.equal(bus.count(A),0);
+ assert.equal(messages.at(-1),"END");
+ assert.equal(messages.some(x=>x.startsWith("event: changed")),false);
+});

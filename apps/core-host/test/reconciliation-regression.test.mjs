@@ -41,8 +41,12 @@ test("Inbox SSE remains one scoped, authorized endpoint",async()=>{
  assert.equal([...inbox.matchAll(/@Get\("events"\)/g)].length,1);
  assert.equal([...service.matchAll(/\bwatch\(ctx:InboxContext\):Promise<void>/g)].length,1);
  assert.match(inbox,/@Get\("events"\)\s+async eventsStream\([^\n]*@SelectedScope\(\)/);
- assert.match(inbox,/this\.host\.events\.connect\(context,response\)/,
-  "SSE connection must carry the scoped authorization context");
+ assert.match(inbox,/this\.host\.events\.connect\(context,response,validate\)/,
+  "SSE connection must carry scoped context and a conditional admission validator");
+ assert.match(inbox,/this\.host\.requiresStreamRevalidation/,
+  "only an explicitly enforced Host can turn on the live authorization recheck");
+ assert.match(inbox,/this\.host\.revalidateStream\(context,h,selection\)/,
+  "SSE must revalidate the original principal and selection, not only the tenant");
  assert.doesNotMatch(inbox,/this\.host\.events\.connect\(t,response\)/,
   "Tenant-only SSE must not be reintroduced by mainline reconciliation");
 });

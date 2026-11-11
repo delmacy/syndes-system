@@ -18,11 +18,14 @@ export class InboxDefaultContextGuard{
  constructor(
   private readonly kernel:CoreKernel,
   private readonly databases:TrustedTenantDatabaseProvider,
+  /** Enable only after Control DB readiness / restore and tenant backfill. */
+  private readonly enforceModuleGate=false,
  ){}
  async resolve(tenantId:string,actor:Actor,selection?:RequestedOperationalScope):Promise<AuthorizedInboxDefaultContext>{
   // Tenant membership and an existing Inbox read grant MUST pass before DB.
   if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&!selection)throw new AccessDeniedError();
-  return this.kernel.execute({actor,tenantId,resource:"inbox:conversations",action:"read"},async()=>{
+  const admission={actor,tenantId,resource:"inbox:conversations",action:"read"} as const;
+  const resolveContext=async()=>{
    const db=await this.databases.resolve(tenantId);
    if(db.tenantId!==tenantId)throw new InboxTenantMismatchError();
    if(selection){
@@ -54,6 +57,9 @@ export class InboxDefaultContextGuard{
    const row=result.rows[0];
    if(!row)throw new AccessDeniedError();
    return {tenantId,actor,organizationId:String(row.organization_id),workspaceId:String(row.workspace_id)};
-  });
+  };
+  if(this.enforceModuleGate)
+   return this.kernel.executeModule({...admission,moduleId:"inbox"},resolveContext);
+  return this.kernel.execute(admission,resolveContext);
  }
 }

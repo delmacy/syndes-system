@@ -18,6 +18,7 @@ export class InboxHost{
  readonly simulator:SimulatedChannelAdapter;
  readonly events:InboxChangeBus;
  readonly scope:InboxDefaultContextGuard;
+ readonly requiresStreamRevalidation:boolean;
  constructor(
   @Inject(CORE_RUNTIME) private readonly core:InboxHostRuntime,
   @Inject(TENANT_DATABASES) pools:TrustedTenantDatabaseProvider,
@@ -31,8 +32,9 @@ export class InboxHost{
   }
  ){
   this.events=events;
+  this.requiresStreamRevalidation=core.inboxModuleGateMode==="enforce";
   const repo=new PgInboxRepositoryFactory(pools);
-  this.scope=new InboxDefaultContextGuard(core.kernel,pools);
+  this.scope=new InboxDefaultContextGuard(core.kernel,pools,core.inboxModuleGateMode==="enforce");
   this.inbox=new InboxService(core.kernel,(tenantId,scope)=>repo.forTenant(tenantId,scope));
   this.simulator=new SimulatedChannelAdapter(this.inbox);
  }
@@ -73,6 +75,16 @@ export class InboxHost{
    tenantId:ctx.tenantId,actor:ctx.actor,action:"write",resource:"inbox:messages",
   },()=>this.whatsappReply!.enqueue(ctx,conversationId,body));
  }
+ async revalidateStream(context:InboxContext,bearer:string|undefined,selection?:RequestedOperationalScope):Promise<boolean>{
+  // Module suspension and a stale JWT revoke an already-connected SSE stream.
+  // Never reuse a user-supplied scope without checking both memberships again.
+  const actor=await this.core.verifier.verify(bearer);
+  if(actor.id!==context.actor.id||actor.kind!==context.actor.kind)throw new AccessDeniedError();
+  const actual=await this.scope.resolve(context.tenantId,actor,selection);
+  if(actual.organizationId!==context.organizationId||actual.workspaceId!==context.workspaceId)
+   throw new AccessDeniedError();
+  return true;
+ }
  async run<T>(tenantId:string,authorization:string|undefined,task:(context:InboxContext)=>Promise<T>,selection?:RequestedOperationalScope):Promise<T>{
   try{id(tenantId,"tenant")}catch{throw new HttpException("Invalid tenant ID",400)}
   let actor;
@@ -109,7 +121,12 @@ export class InboxController{
     @Res()response:SseSink):Promise<void>{
    // Before writing HTTP headers, verify JWT + tenancy membership + inbox read access.
    const context=await this.run(t,h,async c=>{await this.host.inbox.watch(c);return c;},selection);
-   try{this.host.events.connect(context,response);}
+   // In enforcement mode, re-check the original principal, scoped memberships,
+   // tenant FGA and ENABLED state while the stream remains open.
+   const validate=this.host.requiresStreamRevalidation
+    ?()=>this.host.revalidateStream(context,h,selection)
+    :undefined;
+   try{this.host.events.connect(context,response,validate);}
    catch{throw new HttpException("Too many live connections",429);}
  }
  @Get("conversations")

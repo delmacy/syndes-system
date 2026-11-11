@@ -53,3 +53,12 @@ Fluxo: receber → visualizar → atribuir → responder → acompanhar.
 - handoff;
 - cross-tenant denial;
 - reconnect/retry onde aplicável.
+
+
+## ModuleAccess e SSE (FC-02.02)
+
+O Core Host define SYNDES_INBOX_MODULE_GATE=legacy|enforce. Ausente preserva legacy até migrations Control DB, backup/restore, entitlements e receipts de todos os tenants. A flag nunca vem de usuário, frontend, header ou query.
+
+Com enforce, todo ingresso HTTP/SSE passa por InboxDefaultContextGuard e CoreKernel.executeModule com moduleId inbox ANTES de tenant DB, mantendo JWT, tenant membership, FGA por ação, SQL 002 e Organization/Workspace. SSE verifica JWT/escopo/FGA/ENABLED periodicamente e antes dos eventos; falha e timeout fecham o stream. Não converter erro de ModuleAccess em legacy. Isso não protege ainda callbacks/outbox/go gateway WhatsApp; continuam tarefas FC-02.02. Não liberar funcionalidades no frontend até servidor e read model tenant-safe.
+
+Ver docs/engineering/FC-02-02-INBOX-MODULE-GATE-SSE-20261111.md. A worktree raiz do DevServer01 é de outra frente de UX e deve ser preservada.
