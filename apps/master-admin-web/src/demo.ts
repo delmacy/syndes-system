@@ -4,7 +4,8 @@
  * Enabled only in a dedicated VITE_DEMO_PREVIEW=true build, behind a static
  * Nginx server whose /v1/* routes are disabled.
  */
-import {MasterApi,type Operator,type Overview,type Tenant,type TenantPage} from "./api";
+import {MasterApi,ApiError,type Operator,type Overview,type Tenant,type TenantPage,
+ type TenantModuleInventory} from "./api";
 
 export const exampleTenants:readonly Tenant[]=Object.freeze([
  {id:"11111111-1111-4111-8111-111111111111",displayName:"Empresa Alfa [DEMONSTRAÇÃO]",
@@ -46,5 +47,9 @@ export class DemoMasterApi extends MasterApi {
   const found=exampleTenants.find(item=>item.id===id);
   if(!found)throw Error("Registro de demonstração inexistente.");
   return found;
+ }
+ override async tenantModules(_id:string,_signal?:AbortSignal):Promise<TenantModuleInventory>{
+  // Never invent entitlements or installations for preview-only tenants.
+  throw new ApiError("Pré-visualização sem catálogo operacional conectado.",503);
  }
 }

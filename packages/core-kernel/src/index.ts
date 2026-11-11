@@ -19,3 +19,9 @@ export {defineSyndesModule} from "./plugin.js";
 export type {SyndesPlugin} from "./plugin.js";
 export {requireModuleAccess} from "./module-access.js";
 export type {ModuleAccessPort, ModuleAccessRequest, ModuleAuthorizationRequest} from "./module-access.js";
+
+export {resolveApprovedModules} from "./module-catalog.js";
+export type {CatalogApprovalRow, AvailableModule, ModuleCatalogPort} from "./module-catalog.js";
+
+export {projectTenantModuleStates} from "./module-lifecycle.js";
+export type {ModuleEntitlementState,ModuleInstallState,ModuleLifecycleRow,TenantModuleState,TenantModuleLifecyclePort} from "./module-lifecycle.js";

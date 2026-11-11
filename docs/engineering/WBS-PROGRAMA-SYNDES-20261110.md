@@ -248,3 +248,30 @@ A arquitetura de administração unificada de acesso, entitlements por tenant e 
 - [Support WBS](WBS-SYNDES-SUPPORT.md), [Support Release Gate](SYNDES-SUPPORT-RELEASE-GATE.md).
 - [Account Access](ACCOUNT-ACCESS-FOUNDATION.md), [Mainline CI](MAINLINE-CI-POLICY.md).
 - Issues [#22](https://github.com/delmacy/syndes-system/issues/22), [#31](https://github.com/delmacy/syndes-system/issues/31), [#32](https://github.com/delmacy/syndes-system/issues/32), [#37](https://github.com/delmacy/syndes-system/issues/37), [#38](https://github.com/delmacy/syndes-system/issues/38), [#39](https://github.com/delmacy/syndes-system/issues/39), [#49](https://github.com/delmacy/syndes-system/issues/49).
+
+
+### AK-10.02 — Catálogo de módulos (candidato; não operacional)
+
+- **Base:** PR #66 (Kernel 39b2654), ADR/WBS da PR #65 e [evidência do catálogo](AK-10-02-CONTROL-MODULE-CATALOG-20261110.md).
+- **Estado:** implementação candidata SQL/ports/adapter e PG17 descartável; PEND integração, CI, catálogo aprovado e Control DB operacional. Não cria entitlement (AK-10.03), não liga executeModule ao Host (AK-10.04), não instala migrations (AK-30) e não ativa schema Organizations da PR #68.
+- **Dependência crítica:** integrar PR #66, depois AK-10.03 → AK-10.04/AK-30 → AK-40.01.
+
+### AK-10.03 — Entitlements e intenções de instalação por tenant
+
+- **Base:** PRs #66 (Kernel), #69 (catálogo) e [documentação da lifecycle](AK-10-03-TENANT-MODULE-LIFECYCLE-20261110.md).
+- **Estado:** candidato SQL/ports/read adapter + transições auditadas e PG17 descartável; **PEND** integração/main/CI/Account & Access API/ambiente operacional. Entitled/requested/suspended não equivale a installed/enabled; funções administrativas não promovem esses estados até AK-30.
+- **Gate G1 aberto:** persistência com tenants A/B demonstrada em fixture; faltam AK-10.04 em rotas e workers, ledger SQL e identidades FGA/Keycloak reais. Nenhum bootstrap/deploy operacional foi alterado.
+
+### AK-30.01/02 — Ledger e instalador versionado (candidato inativo)
+
+- **Base:** PRs #66 → #69 → #70, com [evidência de instalador](AK-30-01-02-TENANT-INSTALLER-20261110.md).
+- **Estado:** PLAN/APPLY/VERIFY com ledger SQL protegido _syndes, checksums, digest, transações, rollback em falhas e attestation idempotente no Control DB foram implementados para fixture PG17 em dois DBs tenant e um Control DB. **PEND** main/CI, scripts registrados, identidade técnica real, ACL mínima, política de upgrade, organização/CRM real e restore/rollback operacional.
+- **Regra:** INSTALLED somente após VERIFY e atestação por operador técnico; ENABLED e controle efetivo de API/job continuam bloqueados pela AK-10.04. Nenhum banco operacional, UX, Actions ou SQL 002 alterados.
+- **Próximo gate:** AK-10.04 + AK-30.03/04/05 e inventário/backup autorizados para qualquer migração persistente. A PR #68 de Organizations continua candidata e inativa.
+
+### AK-20 — Consulta de módulos no Platform Manager (Control Plane read model)
+
+- **Decisão:** [ADR da composição Control/Tenant](ADR-CONTROL-TENANT-MODULE-COMPOSITION-20261110.md). Reusar master-admin-api, master-admin-web, account-access-api e front-shared; não duplicar backend, frontend ou tokens.
+- **Candidato:** endpoint GET /v1/platform/admin/tenants/:id/modules com autorização própria de operador e sem acesso a tenant DB; frontend no detalhe do cliente, sem operação mutável nem dados falsos em preview. Script control-module-manager-readonly.schema **não aplicado**. Testes A/B e ACL em PG17 descartável.
+- **Bloqueio:** schemas AK-10.02/03 e role read-only de produção não ativadas; endpoint devolve 503 até migration autorizada. Não habilitar usuários, módulos, licenciamento ou dados operacionais pelo Manager.
+- **Próximo:** AK-10.04 em handlers e workers, API de comando com identidade, RBAC, auditoria e instalador técnico isolado.

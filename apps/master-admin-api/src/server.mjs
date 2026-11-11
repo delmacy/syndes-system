@@ -1,3 +1,4 @@
+import {readTenantModuleInventory} from "./modules/tenant-module-inventory.mjs";
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const states=new Set(["all","active","provisioned","suspended"]);
 const roles=new Set(["owner","operator","viewer"]);
@@ -47,8 +48,9 @@ export function createHandler({verify,pool,publicOrigin}){
    const uri=new URL(req.url??"/","http://master-internal");
    const pathname=uri.pathname;
    const base="/v1/platform/admin";
+   const modulePath=new RegExp("^"+base+"/tenants/([0-9a-z-]+)/modules$","i").exec(pathname);
    const allowed=pathname===base+"/me"||pathname===base+"/summary"||
-     pathname===base+"/tenants"||
+     pathname===base+"/tenants"||modulePath!==null||
      new RegExp("^"+base+"/tenants/[0-9a-z-]+$","i").test(pathname);
    if(!allowed||req.method!=="GET")return failure(res,404,"Not found");
 
@@ -112,6 +114,14 @@ export function createHandler({verify,pool,publicOrigin}){
      return reply(res,200,{total:Number(count.rows[0]?.total??0),page,
       pageSize:25,items:rows.rows.map(tenant)});
     }catch{return failure(res,503,"Control plane unavailable");}
+   }
+   if(modulePath){
+    const tenantId=modulePath[1];
+    if(!UUID.test(tenantId)||uri.search)return failure(res,400,"Invalid tenant identifier");
+    try{
+     const inventory=await readTenantModuleInventory(pool,tenantId);
+     return inventory?reply(res,200,inventory):failure(res,404,"Tenant not found");
+    }catch{return failure(res,503,"Module inventory unavailable");}
    }
    const id=pathname.slice((base+"/tenants/").length);
    if(!UUID.test(id))return failure(res,400,"Invalid tenant identifier");

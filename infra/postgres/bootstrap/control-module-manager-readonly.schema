@@ -1,0 +1,18 @@
+-- AK-20 candidate only, Control DB ONLY, NOT included in bootstrap.
+-- Run after approved AK-10.02 and AK-10.03 schema migrations, with audited
+-- migration tooling. syndes_master_api remains NOINHERIT, read-only and
+-- has NO privileges on databases of tenants.
+DO $role$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='syndes_master_api')
+ THEN RAISE EXCEPTION 'Dedicated manager SQL role is not provisioned';
+ END IF;
+END $role$;
+REVOKE ALL ON public.module_catalog,public.module_catalog_versions,
+  public.module_catalog_dependencies,public.tenant_module_entitlements,
+  public.tenant_module_installs FROM syndes_master_api;
+GRANT SELECT ON public.module_catalog,public.module_catalog_versions,
+  public.tenant_module_entitlements,public.tenant_module_installs
+  TO syndes_master_api;
+-- Not granted: tenant_module_audit (unless a separately approved audit API),
+-- transition_* functions, attestation functions, tenant DB DDL or any secrets.

@@ -1,0 +1,273 @@
+-- AK-10.03 — Control DB ONLY; offline candidate, NOT part of bootstrap.
+-- Requires control.schema + control-module-catalog.schema, superuser/operator
+-- migration authorization and a checked version ledger before any persistent use.
+-- NO runtime module enablement or installer verification is provided here.
+DO $role$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='syndes_module_operator')
+  THEN CREATE ROLE syndes_module_operator NOLOGIN; END IF;
+END $role$;
+
+CREATE TABLE IF NOT EXISTS public.tenant_module_entitlements (
+  tenant_id UUID NOT NULL REFERENCES public.tenant_registry(tenant_id) ON DELETE RESTRICT,
+  module_id TEXT NOT NULL REFERENCES public.module_catalog(module_id) ON DELETE RESTRICT,
+  state TEXT NOT NULL CHECK(state IN ('granted','suspended','revoked')),
+  valid_until TIMESTAMPTZ,
+  revision BIGINT NOT NULL DEFAULT 1 CHECK(revision > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY(tenant_id,module_id)
+);
+CREATE INDEX IF NOT EXISTS tenant_module_entitlements_by_module
+  ON public.tenant_module_entitlements(module_id,state);
+
+CREATE TABLE IF NOT EXISTS public.tenant_module_installs (
+  tenant_id UUID NOT NULL,
+  module_id TEXT NOT NULL,
+  target_version TEXT NOT NULL,
+  state TEXT NOT NULL CHECK(state IN ('requested','installed','enabled','suspended','retired')),
+  installed_version TEXT,
+  verification_digest TEXT,
+  verified_at TIMESTAMPTZ,
+  revision BIGINT NOT NULL DEFAULT 1 CHECK(revision > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY(tenant_id,module_id),
+  FOREIGN KEY(tenant_id,module_id)
+    REFERENCES public.tenant_module_entitlements(tenant_id,module_id) ON DELETE RESTRICT,
+  FOREIGN KEY(module_id,target_version)
+    REFERENCES public.module_catalog_versions(module_id,version) ON DELETE RESTRICT,
+  FOREIGN KEY(module_id,installed_version)
+    REFERENCES public.module_catalog_versions(module_id,version) ON DELETE RESTRICT,
+  CONSTRAINT verified_install_requires_receipt CHECK (
+    (installed_version IS NULL AND verification_digest IS NULL AND verified_at IS NULL)
+    OR (installed_version IS NOT NULL AND verification_digest ~ '^[0-9a-f]{64}$'
+        AND verified_at IS NOT NULL)
+  ),
+  CONSTRAINT active_install_requires_receipt CHECK(
+    state NOT IN ('installed','enabled')
+    OR (installed_version=target_version AND verification_digest IS NOT NULL AND verified_at IS NOT NULL)
+  )
+);
+
+CREATE TABLE IF NOT EXISTS public.tenant_module_audit (
+  event_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  tenant_id UUID NOT NULL REFERENCES public.tenant_registry(tenant_id) ON DELETE RESTRICT,
+  module_id TEXT NOT NULL REFERENCES public.module_catalog(module_id) ON DELETE RESTRICT,
+  request_id UUID NOT NULL,
+  payload_hash TEXT NOT NULL CHECK(payload_hash ~ '^[0-9a-f]{32}$'),
+  operation TEXT NOT NULL CHECK (operation ~ '^(entitlement|installation)\.[a-z_]+$'),
+  actor_id TEXT NOT NULL CHECK (length(actor_id) BETWEEN 1 AND 256),
+  reason TEXT NOT NULL CHECK (length(reason) BETWEEN 1 AND 500),
+  previous_state TEXT,
+  result_state TEXT NOT NULL,
+  target_version TEXT,
+  result_revision BIGINT NOT NULL CHECK (result_revision > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  UNIQUE(tenant_id,request_id)
+);
+CREATE INDEX IF NOT EXISTS tenant_module_audit_by_entity
+  ON public.tenant_module_audit(tenant_id,module_id,event_id DESC);
+
+-- The append-only log never silently changes in-place, even for the operator.
+CREATE OR REPLACE FUNCTION public.reject_tenant_module_audit_mutation()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY INVOKER
+SET search_path=pg_catalog AS $fn$
+BEGIN
+  RAISE EXCEPTION 'Module lifecycle audit is append-only' USING ERRCODE='42501';
+END
+$fn$;
+DROP TRIGGER IF EXISTS tenant_module_audit_no_mutation ON public.tenant_module_audit;
+CREATE TRIGGER tenant_module_audit_no_mutation
+BEFORE UPDATE OR DELETE ON public.tenant_module_audit
+FOR EACH ROW EXECUTE FUNCTION public.reject_tenant_module_audit_mutation();
+
+-- Operator calls are serialized per tenant/module and become a single audit
+-- record. The privileged connection MUST be established by the future vetted
+-- Account & Access service, not with request-supplied actor identity.
+CREATE OR REPLACE FUNCTION public.transition_tenant_module_entitlement(
+  p_tenant UUID, p_module TEXT, p_command TEXT,
+  p_request UUID, p_actor TEXT, p_reason TEXT,
+  p_valid_until TIMESTAMPTZ DEFAULT NULL
+) RETURNS TEXT LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog AS $fn$
+DECLARE
+  v_fingerprint TEXT;
+  v_previous TEXT;
+  v_next TEXT;
+  v_expiry TIMESTAMPTZ;
+  v_revision BIGINT;
+  v_replay RECORD;
+BEGIN
+  IF p_tenant IS NULL OR p_request IS NULL OR
+     p_module IS NULL OR p_module !~ '^[a-z][a-z0-9_]*$' OR length(p_module)>63 OR
+     p_command IS NULL OR p_command NOT IN ('grant','suspend','resume','revoke') OR
+     p_actor IS NULL OR length(p_actor) NOT BETWEEN 1 AND 256 OR
+     p_reason IS NULL OR length(p_reason) NOT BETWEEN 1 AND 500 OR
+     (p_command <> 'grant' AND p_valid_until IS NOT NULL) THEN
+    RAISE EXCEPTION 'Invalid entitlement transition' USING ERRCODE='22023';
+  END IF;
+  v_fingerprint:=pg_catalog.md5(pg_catalog.jsonb_build_object(
+    'module',p_module,'command',p_command,'actor',p_actor,'reason',p_reason,
+    'validUntil',p_valid_until,'kind','entitlement')::TEXT);
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_tenant::TEXT||'/'||p_module,0));
+  SELECT a.* INTO v_replay FROM public.tenant_module_audit a
+   WHERE a.tenant_id=p_tenant AND a.request_id=p_request;
+  IF FOUND THEN
+    IF v_replay.payload_hash<>v_fingerprint OR v_replay.operation<>'entitlement.'||p_command
+    THEN RAISE EXCEPTION 'Idempotency key reused with different intent' USING ERRCODE='23505'; END IF;
+    RETURN v_replay.result_state;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.tenant_registry t WHERE t.tenant_id=p_tenant
+      AND (t.state='active' OR p_command IN ('suspend','revoke'))
+  ) THEN RAISE EXCEPTION 'Tenant unavailable' USING ERRCODE='23514'; END IF;
+  IF p_command='grant' AND NOT EXISTS (
+    SELECT 1 FROM public.module_catalog_versions v
+    WHERE v.module_id=p_module AND v.approved=TRUE
+  ) THEN RAISE EXCEPTION 'Release unavailable' USING ERRCODE='23514'; END IF;
+  SELECT e.state,e.valid_until,e.revision INTO v_previous,v_expiry,v_revision
+    FROM public.tenant_module_entitlements e
+    WHERE e.tenant_id=p_tenant AND e.module_id=p_module FOR UPDATE;
+  IF p_command='grant' THEN
+    IF p_valid_until IS NOT NULL AND p_valid_until<=pg_catalog.clock_timestamp()
+    THEN RAISE EXCEPTION 'Entitlement expiry must be future' USING ERRCODE='23514'; END IF;
+    v_next:='granted';v_expiry:=p_valid_until;
+  ELSIF p_command='suspend' AND v_previous IN ('granted','suspended') THEN
+    v_next:='suspended';
+  ELSIF p_command='revoke' AND v_previous IS NOT NULL THEN
+    v_next:='revoked';
+  ELSIF p_command='resume' AND v_previous IN ('granted','suspended') AND
+        (v_expiry IS NULL OR v_expiry>pg_catalog.clock_timestamp()) THEN
+    v_next:='granted';
+  ELSE RAISE EXCEPTION 'Invalid entitlement state transition' USING ERRCODE='23514';
+  END IF;
+  IF v_previous IS NULL THEN
+    v_revision:=1;
+    INSERT INTO public.tenant_module_entitlements(tenant_id,module_id,state,valid_until,revision)
+    VALUES(p_tenant,p_module,v_next,v_expiry,v_revision);
+  ELSE
+    v_revision:=v_revision+1;
+    UPDATE public.tenant_module_entitlements
+      SET state=v_next,valid_until=v_expiry,revision=v_revision,updated_at=clock_timestamp()
+      WHERE tenant_id=p_tenant AND module_id=p_module;
+  END IF;
+  INSERT INTO public.tenant_module_audit(tenant_id,module_id,request_id,payload_hash,
+    operation,actor_id,reason,previous_state,result_state,result_revision)
+  VALUES(p_tenant,p_module,p_request,v_fingerprint,'entitlement.'||p_command,
+    p_actor,p_reason,v_previous,v_next,v_revision);
+  RETURN v_next;
+END
+$fn$;
+
+-- Installation intent is NOT proof of SQL migration completion. Only requests,
+-- suspension, resumption of intent and logical retirement are allowed.
+-- 'installed' / 'enabled' are reserved for the versioned installer (AK-30).
+CREATE OR REPLACE FUNCTION public.transition_tenant_module_install_intent(
+  p_tenant UUID, p_module TEXT, p_version TEXT, p_command TEXT,
+  p_request UUID, p_actor TEXT, p_reason TEXT
+) RETURNS TEXT LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog AS $fn$
+DECLARE
+  v_fingerprint TEXT;
+  v_previous TEXT;
+  v_next TEXT;
+  v_revision BIGINT;
+  v_target_version TEXT;
+  v_replay RECORD;
+BEGIN
+  IF p_tenant IS NULL OR p_request IS NULL OR
+    p_module IS NULL OR p_module !~ '^[a-z][a-z0-9_]*$' OR length(p_module)>63 OR
+    p_version IS NULL OR length(p_version)>80 OR
+    p_command IS NULL OR p_command NOT IN ('request','suspend','resume','retire') OR
+    p_actor IS NULL OR length(p_actor) NOT BETWEEN 1 AND 256 OR
+    p_reason IS NULL OR length(p_reason) NOT BETWEEN 1 AND 500 THEN
+    RAISE EXCEPTION 'Invalid install intent' USING ERRCODE='22023';
+  END IF;
+  v_fingerprint:=pg_catalog.md5(pg_catalog.jsonb_build_object(
+    'module',p_module,'version',p_version,'command',p_command,
+    'actor',p_actor,'reason',p_reason,'kind','installation')::TEXT);
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_tenant::TEXT||'/'||p_module,0));
+  SELECT a.* INTO v_replay FROM public.tenant_module_audit a
+    WHERE a.tenant_id=p_tenant AND a.request_id=p_request;
+  IF FOUND THEN
+    IF v_replay.payload_hash<>v_fingerprint OR v_replay.operation<>'installation.'||p_command
+    THEN RAISE EXCEPTION 'Idempotency key reused with different intent' USING ERRCODE='23505'; END IF;
+    RETURN v_replay.result_state;
+  END IF;
+  IF NOT EXISTS (
+     SELECT 1 FROM public.tenant_registry t WHERE t.tenant_id=p_tenant
+     AND (t.state='active' OR p_command IN ('suspend','retire'))
+  ) THEN RAISE EXCEPTION 'Tenant unavailable' USING ERRCODE='23514'; END IF;
+  IF p_command IN ('request','resume') AND NOT EXISTS(
+    SELECT 1 FROM public.tenant_module_entitlements e
+      JOIN public.module_catalog_versions v ON v.module_id=e.module_id AND v.version=p_version
+    WHERE e.tenant_id=p_tenant AND e.module_id=p_module
+      AND e.state='granted' AND (e.valid_until IS NULL OR e.valid_until>clock_timestamp())
+      AND v.approved=TRUE
+  ) THEN RAISE EXCEPTION 'Entitlement or version unavailable' USING ERRCODE='23514'; END IF;
+  -- A release may be approved without its dependencies being entitled for
+  -- this tenant. Never admit an install intent with missing/suspended/expired
+  -- tenant-level dependency entitlements. Runtime activation checks more.
+  IF p_command IN ('request','resume') AND EXISTS(
+    SELECT 1 FROM public.module_catalog_dependencies d
+      LEFT JOIN public.tenant_module_entitlements dep
+        ON dep.tenant_id=p_tenant AND dep.module_id=d.dependency_id
+    WHERE d.module_id=p_module AND d.version=p_version
+      AND (dep.state IS DISTINCT FROM 'granted'
+           OR (dep.valid_until IS NOT NULL AND dep.valid_until<=clock_timestamp()))
+  ) THEN RAISE EXCEPTION 'Tenant module dependency unavailable' USING ERRCODE='23514'; END IF;
+  SELECT i.state,i.revision,i.target_version INTO v_previous,v_revision,v_target_version
+    FROM public.tenant_module_installs i
+    WHERE i.tenant_id=p_tenant AND i.module_id=p_module FOR UPDATE;
+  -- Suspending, resuming and retiring must never rewrite the recorded release
+  -- to one selected by an API caller. Only an uninstalled pending request may
+  -- change its desired target release.
+  IF v_previous IS NOT NULL AND (p_command <> 'request' OR v_previous <> 'requested')
+     AND v_target_version<>p_version THEN
+    RAISE EXCEPTION 'Installation target version mismatch' USING ERRCODE='23514';
+  END IF;
+  IF p_command='request' AND v_previous IS NULL THEN
+    v_next:='requested';
+  ELSIF p_command='request' AND v_previous='requested' THEN
+    v_next:='requested';
+  ELSIF p_command='resume' AND v_previous='suspended' THEN
+    v_next:='requested';
+  ELSIF p_command='suspend' AND v_previous IN ('requested','installed','enabled','suspended') THEN
+    v_next:='suspended';
+  ELSIF p_command='retire' AND v_previous IS NOT NULL THEN
+    v_next:='retired';
+  ELSE RAISE EXCEPTION 'Invalid install intent state transition' USING ERRCODE='23514'; END IF;
+  IF v_previous IS NULL THEN
+    v_revision:=1;
+    INSERT INTO public.tenant_module_installs(tenant_id,module_id,target_version,state,revision)
+    VALUES(p_tenant,p_module,p_version,v_next,v_revision);
+  ELSE
+    v_revision:=v_revision+1;
+    UPDATE public.tenant_module_installs
+      SET state=v_next,target_version=p_version,
+          -- This intent path cannot attest an installation or create ENABLED state.
+          installed_version=NULL,verification_digest=NULL,verified_at=NULL,
+          revision=v_revision,updated_at=clock_timestamp()
+      WHERE tenant_id=p_tenant AND module_id=p_module;
+  END IF;
+  INSERT INTO public.tenant_module_audit(tenant_id,module_id,request_id,payload_hash,
+    operation,actor_id,reason,previous_state,result_state,target_version,result_revision)
+  VALUES(p_tenant,p_module,p_request,v_fingerprint,'installation.'||p_command,
+    p_actor,p_reason,v_previous,v_next,p_version,v_revision);
+  RETURN v_next;
+END
+$fn$;
+
+REVOKE ALL ON public.tenant_module_entitlements, public.tenant_module_installs,
+              public.tenant_module_audit FROM PUBLIC,syndes_core,syndes_module_operator;
+GRANT SELECT ON public.tenant_module_entitlements,public.tenant_module_installs TO syndes_core;
+REVOKE ALL ON FUNCTION public.reject_tenant_module_audit_mutation() FROM PUBLIC,syndes_core,syndes_module_operator;
+REVOKE ALL ON FUNCTION public.transition_tenant_module_entitlement(UUID,TEXT,TEXT,UUID,TEXT,TEXT,TIMESTAMPTZ)
+  FROM PUBLIC,syndes_core;
+REVOKE ALL ON FUNCTION public.transition_tenant_module_install_intent(UUID,TEXT,TEXT,TEXT,UUID,TEXT,TEXT)
+  FROM PUBLIC,syndes_core;
+GRANT EXECUTE ON FUNCTION public.transition_tenant_module_entitlement(UUID,TEXT,TEXT,UUID,TEXT,TEXT,TIMESTAMPTZ)
+  TO syndes_module_operator;
+GRANT EXECUTE ON FUNCTION public.transition_tenant_module_install_intent(UUID,TEXT,TEXT,TEXT,UUID,TEXT,TEXT)
+  TO syndes_module_operator;

@@ -38,3 +38,7 @@ For production, provision and rotate per-tenant OpenBao KV records as part of th
 ## Installed package modules
 
 Business API controllers and UI files are **not part of Core Host**. The generic loader reads `apps/core-host/config/modules.json`, imports the approved packages' `./plugin` entry points, validates dependencies and registers their Nest API modules and exact static assets. The Core CRM is the first installed reference module. `/modules/:moduleId/config` exposes only public OIDC client metadata declared by each package. All business routes remain protected by CoreKernel membership and OpenFGA permission checks. See `docs/engineering/CORE-MODULE-MOUNTING.md`.
+
+## Tenant module installer (AK-30 candidate)
+
+An operator-only, inactive candidate is implemented in src/module-installer.ts with PLAN/APPLY/VERIFY and a protected tenant ledger. It is NOT mounted in Nest or callable over HTTP; Core Host runtime's tenant role must not have migration DDL privilege. See docs/engineering/AK-30-01-02-TENANT-INSTALLER-20261110.md. Both PostgreSQL bootstrap SQL candidates are not registered in operational setup. The separate Platform Manager frontend will eventually show **administrative states** through authenticated Control Plane APIs; it must not open tenant DB connections or execute SQL.

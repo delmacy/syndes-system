@@ -16,14 +16,17 @@ test("API uses isolated read-only routes and signed bearer",async t=>{
  await api.me(); await api.overview();
  await api.tenants({query:"abc",state:"active",page:2});
  await api.tenant("11111111-1111-4111-8111-111111111111");
+ await api.tenantModules("11111111-1111-4111-8111-111111111111");
  assert.deepEqual(calls.map(x=>x.url),[
  "/v1/platform/admin/me","/v1/platform/admin/summary",
  "/v1/platform/admin/tenants?query=abc&state=active&page=2",
- "/v1/platform/admin/tenants/11111111-1111-4111-8111-111111111111"
+ "/v1/platform/admin/tenants/11111111-1111-4111-8111-111111111111",
+ "/v1/platform/admin/tenants/11111111-1111-4111-8111-111111111111/modules"
  ]);
  for(const x of calls){assert.equal(x.opts.headers.Authorization,"Bearer signed-token");assert.equal(x.opts.cache,"no-store");}
  assert.throws(()=>api.tenant("bad-id"),e=>e instanceof ApiError&&e.status===400);
- assert.equal(calls.length,4);
+ assert.throws(()=>api.tenantModules("bad-id"),e=>e instanceof ApiError&&e.status===400);
+ assert.equal(calls.length,5);
 });
 test("API denies expired, unauthorized and failing requests",async t=>{
  const {MasterApi,ApiError}=await loadClient(),prior=globalThis.fetch;
