@@ -7,8 +7,15 @@
  */
 import {createHash} from "node:crypto";
 import {readFile} from "node:fs/promises";
-import {syndesPlugin} from "@syndes/service/plugin";
 import type {TrustedModuleRelease} from "./module-installer.js";
+
+// The Host must build without compiled optional plugins. Only the privileged
+// operator installer resolves this trusted, fixed package specifier on demand.
+const SERVICE_PLUGIN_SPECIFIER="@syndes/service/plugin";
+type ReleasePlugin=Readonly<{
+ definition:Readonly<{id:string;version:string;dependencies?:readonly string[]}>;
+ migrations:readonly Readonly<{id:string;fileUrl:string}>[];
+}>;
 
 const IMAGE=/^sha256:[0-9a-f]{64}$/;
 const sha=(body:string)=>createHash("sha256").update(body,"utf8").digest("hex");
@@ -26,7 +33,11 @@ export async function loadTrustedServiceRelease(
  imageDigest:string,
 ):Promise<TrustedModuleRelease>{
  if(!IMAGE.test(imageDigest))throw new Error("Verified immutable image digest required");
- if(syndesPlugin.definition.id!=="service"||
+ // Lazily import reviewed release artifacts only during installer invocation.
+ // A missing/broken package is a hard failure, never a fallback to HTTP input.
+ const imported=await import(SERVICE_PLUGIN_SPECIFIER) as {syndesPlugin?:ReleasePlugin};
+ const syndesPlugin=imported.syndesPlugin;
+ if(!syndesPlugin||syndesPlugin.definition.id!=="service"||
     syndesPlugin.definition.version!=="0.3.0"||
     syndesPlugin.migrations.length!==expected.length||
     !syndesPlugin.definition.dependencies?.includes("organizations")||

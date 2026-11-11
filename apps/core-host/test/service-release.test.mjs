@@ -1,15 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {createHash} from "node:crypto";
+import {existsSync} from "node:fs";
+import {fileURLToPath} from "node:url";
 import {loadTrustedServiceRelease} from "../dist/service-release.js";
 import {PgModuleInstaller} from "../dist/module-installer.js";
 
 const digest="sha256:"+createHash("sha256").update("synthetic-build").digest("hex");
+// Base Host mainline CI intentionally skips build of optional, unmounted
+// Service plugin. Full manifest tests are run by disposable Service runner.
+const optionalPluginBuilt=existsSync(fileURLToPath(
+ new URL("../../../modules/service-management/dist/plugin.js",import.meta.url)));
 const sha=sql=>createHash("sha256").update(sql).digest("hex");
 const mockDb={query:async()=>{throw Error("Unexpected Control access")}};
 const noTenants=async()=>{throw Error("Unexpected tenant provider access")};
 
-test("Service release manifest uses canonical ID, isolated schema and SQL checksum",async()=>{
+test("Service release manifest uses canonical ID, isolated schema and SQL checksum",
+ {skip:!optionalPluginBuilt},async()=>{
  const manifest=await loadTrustedServiceRelease(digest);
  assert.equal(manifest.id,"service");
  assert.equal(manifest.schema,"service");
@@ -44,7 +51,8 @@ test("Service release manifest uses canonical ID, isolated schema and SQL checks
  ]) instanceof PgModuleInstaller,true);
 });
 
-test("Service release requires operator-verified digest, no caller-selected SQL",async()=>{
+test("Service release requires operator-verified digest, no caller-selected SQL",
+ {skip:!optionalPluginBuilt},async()=>{
  for(const fake of ["latest","","sha256:broken","a".repeat(64),undefined])
   await assert.rejects(loadTrustedServiceRelease(fake),/digest/);
  const first=await loadTrustedServiceRelease(digest);
