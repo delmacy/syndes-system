@@ -44,6 +44,9 @@ export class TenantApi {
   private readonly token: string;
   private readonly unauthorized: () => void;
   private readonly selection?:WorkspaceSelection;
+  private readonly lifetime = new AbortController();
+  private readonly children = new Set<TenantApi>();
+  private parent?: TenantApi;
   constructor(tenantId: string, token: string, unauthorized: () => void, selection?:WorkspaceSelection) {
     this.tenantId = tenantId;
     this.token = token;
@@ -51,10 +54,34 @@ export class TenantApi {
     this.selection = selection;
   }
 
-  withScope(selection:WorkspaceSelection):TenantApi{
-    // Immutable per-organization client. Switching React's API instance
-    // closes old SSE streams and discards cached records in all features.
-    return new TenantApi(this.tenantId,this.token,this.unauthorized,selection);
+  /** A dedicated client for one rendered Workspace context, including legacy.
+   * Do not use the directory/session client for operational module requests.
+   */
+  forWorkspace(selection: WorkspaceSelection | null): TenantApi {
+    if (this.lifetime.signal.aborted) throw new DOMException("Sessão encerrada", "AbortError");
+    const scoped = new TenantApi(this.tenantId, this.token, this.unauthorized, selection ?? undefined);
+    scoped.parent = this;
+    this.children.add(scoped);
+    return scoped;
+  }
+  withScope(selection:WorkspaceSelection):TenantApi {
+    return this.forWorkspace(selection);
+  }
+  /** Invalidate ALL in-flight responses and streams for THIS instance.
+   * Aborting a mutation's HTTP request does not roll back a server-side write;
+   * callers must verify its result before retrying.
+   */
+  dispose(): void {
+    if (this.disposed) return;
+    this.lifetime.abort();
+    for (const child of this.children) child.dispose();
+    this.children.clear();
+    this.parent?.children.delete(this);
+    this.parent = undefined;
+  }
+  get disposed(): boolean { return this.lifetime.signal.aborted; }
+  private assertActive(): void {
+    if (this.disposed) throw new DOMException("Contexto de Workspace encerrado", "AbortError");
   }
   private scopeHeaders():Record<string,string>{
     return this.selection?{
@@ -70,6 +97,7 @@ export class TenantApi {
       "/organizations/"+encodeURIComponent(organizationId)+"/workspaces");
   }
   private async request<T>(module: "crm" | "inbox" | "whatsapp" | "platform", path: string, method = "GET", body?: object): Promise<T> {
+    this.assertActive();
     const response = await fetch(
       "/v1/tenants/" + encodeURIComponent(this.tenantId) + "/" + module + path,
       { method, headers: {
@@ -78,19 +106,24 @@ export class TenantApi {
           ...(body ? { "Content-Type": "application/json" } : {})
         },
         ...(body ? { body: JSON.stringify(body) } : {}),
-        cache: "no-store",
+        cache: "no-store", signal: this.lifetime.signal,
       },
     );
+    this.assertActive(); // Handles fetch mocks/transports that ignore abort.
     if (response.status === 401) this.unauthorized();
+    this.assertActive();
     if (!response.ok) {
       const detail: unknown = await response.json().catch(() => null);
+      this.assertActive();
       const message = (detail as { message?: unknown } | null)?.message;
       throw new ApiError(response.status,
         response.status === 403 ? "Você não tem permissão para esta ação." :
         response.status === 401 ? "Sessão expirada. Entre novamente." :
         typeof message === "string" ? message : "Erro na operação (" + response.status + ").");
     }
-    return (response.status === 204 ? null : await response.json()) as T;
+    const value: unknown = response.status === 204 ? null : await response.json();
+    this.assertActive(); // Never release a stale body to a mounted feature.
+    return value as T;
   }
 
   whatsappAccounts(){return this.request<WhatsAppAccount[]>("whatsapp","/accounts")}
@@ -184,13 +217,19 @@ export class TenantApi {
   }
   importPeopleCsv(csv: string) { return this.request<CrmImportResult>("crm", "/imports/csv", "POST", { csv }); }
   async exportPeopleCsv(): Promise<string> {
+    this.assertActive();
     const response=await fetch("/v1/tenants/" + encodeURIComponent(this.tenantId) + "/crm/exports/csv", {
-      headers:{Authorization:"Bearer " + this.token,...this.scopeHeaders()}, cache:"no-store",
+      headers:{Authorization:"Bearer " + this.token,...this.scopeHeaders()},
+      cache:"no-store",signal:this.lifetime.signal,
     });
+    this.assertActive();
     if(response.status===401)this.unauthorized();
+    this.assertActive();
     if(!response.ok)throw new ApiError(response.status,
       response.status===403?"Você não tem permissão para exportar.":"Falha na exportação ("+response.status+").");
-    return response.text();
+    const csv = await response.text();
+    this.assertActive();
+    return csv;
   }
   createPerson(body: { name: string; email?: string; phone?: string }) {
     return this.request<Person>("crm", "/people", "POST", body);
@@ -204,12 +243,18 @@ export class TenantApi {
    * Reconnect is the caller's responsibility; each 60s connection is reauthorized.
    */
   async watchInbox(signal: AbortSignal, onChange: () => void): Promise<void> {
+    this.assertActive();
+    const lifetime = AbortSignal.any([signal, this.lifetime.signal]);
+    if (lifetime.aborted) return;
     const response = await fetch(
       "/v1/tenants/" + encodeURIComponent(this.tenantId) + "/inbox/events",
       {headers:{Authorization:"Bearer " + this.token,Accept:"text/event-stream",...this.scopeHeaders()},
-        signal,cache:"no-store"},
+        signal:lifetime,cache:"no-store"},
     );
+    this.assertActive();
+    if(lifetime.aborted)return;
     if(response.status===401)this.unauthorized();
+    this.assertActive();
     if(!response.ok)throw new ApiError(response.status,
       response.status===403?"Sem permissão para notificações da Inbox.":"Realtime indisponível.");
     if(!response.body)throw new Error("SSE sem corpo de resposta");
@@ -217,8 +262,9 @@ export class TenantApi {
     const decoder=new TextDecoder();
     let buffer="";
     try {
-      while(!signal.aborted){
+      while(!lifetime.aborted){
         const {value,done}=await reader.read();
+        if(lifetime.aborted)break;
         if(done)break;
         buffer+=decoder.decode(value,{stream:true}).replaceAll("\r\n","\n");
         // Cap event buffer to avoid unbounded memory growth from malformed peers.
@@ -227,6 +273,7 @@ export class TenantApi {
         while(pos>=0){
           const frame=buffer.slice(0,pos);
           buffer=buffer.slice(pos+2);
+          if(lifetime.aborted)break;
           if(frame.split("\n").some(line=>line.trim()==="event: changed"))onChange();
           pos=buffer.indexOf("\n\n");
         }

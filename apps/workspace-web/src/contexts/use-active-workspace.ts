@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { TenantApi, type WorkspaceSelection } from "@/lib/api";
 
 export type AvailableScope = WorkspaceSelection & { label: string; isDefault: boolean };
@@ -69,10 +69,14 @@ export function useActiveWorkspace(baseApi: TenantApi | null) {
       return { ...prev, selection: next };
     });
   };
+  // Each rendered scope has a distinct, disposable transport. The base client
+  // remains available ONLY for reading the authenticated scope directory.
   const api = useMemo(
-    () => baseApi && selection ? baseApi.withScope(selection) : baseApi,
+    () => baseApi ? baseApi.forWorkspace(selection) : null,
     [baseApi, selection],
   );
+  useLayoutEffect(() => () => api?.dispose(), [api]);
+  useEffect(() => () => baseApi?.dispose(), [baseApi]);
 
   return { api, availableScopes: entries, activeScope: selection, activeScopeKey: scopeKey(selection),
     scopeLoadError, selectScope };

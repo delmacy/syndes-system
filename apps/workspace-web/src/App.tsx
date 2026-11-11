@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { WorkspaceShell } from "@/app/workspace-shell";
 import { useHashView } from "@/app/use-hash-view";
@@ -15,7 +15,6 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [loginError, setLoginError] = useState("");
-
   const logout = useCallback(() => {
     markSignedOut();
     setToken(null);
@@ -50,6 +49,9 @@ export default function App() {
     () => token && config ? new TenantApi(config.tenantId, token, logout) : null,
     [token, config, logout],
   );
+  // Logout and principal changes abort the root and all scoped clients during
+  // the layout commit, before an old Workspace view can be painted again.
+  useLayoutEffect(() => () => baseApi?.dispose(), [baseApi]);
   const { api, activeScopeKey, availableScopes, scopeLoadError, selectScope } =
     useActiveWorkspace(baseApi);
 
