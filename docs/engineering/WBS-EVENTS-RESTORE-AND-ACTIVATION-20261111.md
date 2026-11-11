@@ -8,7 +8,7 @@
 | P0 | EV-DR04 | Testar restore real de backups de Control e tenant em área segregada, com evidência de escopo, segurança, roles e RTO/RPO | **Bloqueado: autorização e plano de janela** |
 | P0 | EV-ST01 | Aplicar Control migrations 001–006 em staging homologado | **Bloqueado por EV-DR04 e gates** |
 | P0 | EV-ST02 | Aplicar `platform_events` migrations 001–002 no tenant de staging, com prova de rollback | **Bloqueado por EV-DR04 e gates** |
-| P0 | EV-ST03 | Provisionar identidade técnica, FGA/ENABLED, ACL de delivery, descoberta de tenants e dispatcher com ciclo de vida | **Pendente; sem tocar produção** |
+| P0 | EV-ST03 | Provisionar identidade técnica, FGA/ENABLED, ACL de delivery, descoberta de tenants e dispatcher com ciclo de vida | **Pendente operacionalmente**; admissão, service grants e batch limitados demonstrados em OpenFGA/PG17 descartáveis; sem service principal real nem scheduler |
 | P1 | EV-ST04 | Ensaio de cutover WhatsApp textual (projetor legado vs novo, sem duplicar) e rollback | **Pendente** |
 | P1 | EV-UX01 | Revisão visual do Workspace e Manager com requisitos atuais, sem inventar menus/telas | **Disponível localmente; acesso HTTPS Tailnet do usuário a validar** |
 | P1 | EV-UX02 | Teste autenticado de mensagem → Inbox → CRM → vínculo e recuperação CRM indisponível | **Pendente de EV-ST01–04** |
