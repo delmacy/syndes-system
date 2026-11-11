@@ -82,6 +82,19 @@ test("invalid configuration, request keys and versions rejected before authoriza
  assert.deepEqual(counters(),{databaseCalls:0,kernelCalls:0});
 });
 
+test("malformed team transfer is rejected before FGA or database",async()=>{
+ const {service,counters}=noAccess();
+ const valid={attendanceId:randomUUID(),destinationTeamId:randomUUID(),
+  expectedVersion:1,reason:"Valido motivo de transferencia"};
+ for(const input of [
+  {...valid,destinationTeamId:"another-tenant"},
+  {...valid,attendanceId:"bogus"},
+  {...valid,reason:"abc"},
+  {...valid,expectedVersion:0},
+ ])await assert.rejects(service.transferTeam(scope,input),ServiceFunnelInputError);
+ assert.deepEqual(counters(),{databaseCalls:0,kernelCalls:0});
+});
+
 test("client cannot choose an FGA resource or a database lease",async()=>{
  let requested,dbCalls=0;
  const kernel={executeModule:async request=>{requested=request;throw new AccessDeniedError()}};

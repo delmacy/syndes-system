@@ -41,3 +41,7 @@
 6. Priorizar piloto de atendimento real antes de avançar editor visual, templates ou motor de automações.
 
 **Restrição:** SQL 002 single Organization/Workspace não é removido. Mesmo com FKs tenant/org/ws, isso não libera multi-org nem cross-Workspace.
+
+### Adendo SM-04 (11/11/2026)
+
+O domínio v0.2.0 traz migração 002 e integração com as **equipes existentes do Workforce 007**, com OpenFGA dinâmica origem/destino, supervisor ativo, CAS e histórico de transferência; detalhes e gates constam em `ADR-SERVICE-WORKFORCE-TEAM-TRANSFER-20261111.md`. Não está ativo operacionalmente.

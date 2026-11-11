@@ -29,9 +29,11 @@ const migrations=[
  "../../../modules/inbox/sql/001_inbox_foundation.sql",
  "../../../modules/whatsapp/sql/001_whatsapp_accounts.sql",
  "../../../modules/organizations/sql/003_legacy_ownership.sql",
+ "../../../modules/organizations/sql/007_staff_roles_pre_release.sql",
  "../sql/001_service_funnels.sql",
+ "../sql/002_service_team_transfer.sql",
 ];
-const roles=["owner-a","agent-a","viewer-a","revoked-a"];
+const roles=["owner-a","agent-a","agent-b","outsider-a","viewer-a","revoked-a"];
 const inserts=async(pool,{tenantId,orgId,workspaceId,conversationId},people)=>{
  await pool.query(`INSERT INTO platform_organizations(tenant_id,id,display_name,is_default)
  VALUES($1,$2,'Fixture organization',true)`,[tenantId,orgId]);
@@ -81,20 +83,24 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    for(const migration of migrations)await pool.query(await sql(migration));
    await inserts(pool,x,i===0?
      [["owner-a","admin","active"],["agent-a","editor","active"],
+      ["agent-b","editor","active"],["outsider-a","editor","active"],
       ["viewer-a","viewer","active"],["revoked-a","editor","revoked"]]:
      [["owner-b","admin","active"]]);
    // Re-apply the migration to verify that it does not rewrite existing data.
    await pool.query(await sql("../sql/001_service_funnels.sql"));
+   await pool.query(await sql("../sql/002_service_team_transfer.sql"));
   }
   const canTenant=(actor,tenantId)=>tenantId===tenants[0].tenantId?
    roles.includes(actor.id):actor.id==="owner-b";
   let authAllowed=true;
+  let deniedTeamResource=null;
   let moduleEnabled=true;
   const kernel=new CoreKernel({modules:[{id:"platform",version:"0.1.0"},
-    {id:"service-management",version:"0.1.0",dependencies:["platform"]}],
+    {id:"service-management",version:"0.2.0",dependencies:["platform"]}],
    moduleAccess:{canExecuteModule:async()=>moduleEnabled},
    tenancy:{canAccessTenant:async({actor,tenantId})=>canTenant(actor,tenantId)},
-   authorization:{canAccess:async()=>authAllowed},
+   authorization:{canAccess:async({resource})=>
+    authAllowed&&resource!==deniedTeamResource},
   });
   await kernel.start();
   const providers={resolve:async tenantId=>{
@@ -219,6 +225,153 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    assert.deepEqual(history.map(x=>x.version),[1,2,3,4,5]);
   });
 
+  await t.test("Workforce 007 teams: staffed destination, supervisor, isolation and audit",async()=>{
+   const pool=pools.get(tenants[0].tenantId);
+   const scope=tenants[0];
+   // Real Workforce tables: CRM employee is not OIDC principal; the only
+   // bridge is explicit staff_identity_links plus active scoped designation.
+   for(const actor of ["owner-a","agent-a","agent-b","outsider-a"]){
+    const person=randomUUID(),employee=randomUUID();
+    await pool.query(`INSERT INTO crm_people(tenant_id,id,name,platform_organization_id)
+      VALUES($1,$2,$3,$4)`,[scope.tenantId,person,"Synthetic staff",scope.orgId]);
+    await pool.query(`INSERT INTO crm_employees(tenant_id,id,person_id,job_title)
+      VALUES($1,$2,$3,'Operator')`,[scope.tenantId,employee,person]);
+    await pool.query(`INSERT INTO platform_staff_identity_links(
+      tenant_id,organization_id,id,employee_id,principal_id,bound_by)
+      VALUES($1,$2,$3,$4,$5,'owner-a')`,
+      [scope.tenantId,scope.orgId,randomUUID(),employee,actor]);
+    await pool.query(`INSERT INTO platform_workspace_staff_roles(
+      tenant_id,organization_id,workspace_id,principal_id,business_role,
+      assigned_by,changed_by) VALUES($1,$2,$3,$4,$5,'owner-a','owner-a')`,
+      [scope.tenantId,scope.orgId,scope.workspaceId,actor,
+       actor==="owner-a"?"supervisor":"agent"]);
+   }
+   const source=randomUUID(),dest=randomUUID(),empty=randomUUID();
+   for(const [team,name] of [[source,"Equipe Alfa"],[dest,"Equipe Beta"],[empty,"Equipe Vazia"]]){
+    await pool.query(`INSERT INTO platform_staff_teams(
+      tenant_id,organization_id,id,name,created_by) VALUES($1,$2,$3,$4,'owner-a')`,
+      [scope.tenantId,scope.orgId,team,name]);
+    await pool.query(`INSERT INTO platform_staff_team_workspaces(
+      tenant_id,organization_id,team_id,workspace_id) VALUES($1,$2,$3,$4)`,
+      [scope.tenantId,scope.orgId,team,scope.workspaceId]);
+   }
+   for(const [team,actor] of [[source,"agent-a"],[dest,"agent-b"]]){
+    await pool.query(`INSERT INTO platform_staff_team_members(
+      tenant_id,organization_id,team_id,principal_id,team_role,assigned_by)
+      VALUES($1,$2,$3,$4,'member','owner-a')`,
+      [scope.tenantId,scope.orgId,team,actor]);
+   }
+   const options=await service.listTeams(ctx(0,"owner-a"));
+   assert.deepEqual(new Set(options.map(x=>x.id)),new Set([source,dest]));
+   assert.deepEqual((await service.listTeams(ctx(0,"agent-a"))).map(x=>x.id),[source]);
+   assert.deepEqual((await service.listTeams(ctx(0,"outsider-a"))).map(x=>x.id),[]);
+   assert.deepEqual(await service.listTeams(ctx(0,"viewer-a")),[]);
+   let routed=await service.open(ctx(0,"agent-a"),{
+    funnelId:funnel.id,idempotencyKey:"team-routing-test-20261111",
+   });
+   assert.equal(routed.teamId,null);
+   deniedTeamResource="service-management:team:"+source;
+   await assert.rejects(service.transferTeam(ctx(0,"owner-a"),{
+    attendanceId:routed.id,destinationTeamId:source,expectedVersion:1,
+    reason:"Equipe sem grant FGA explícito",
+   }),AccessDeniedError);
+   deniedTeamResource=null;
+   assert.equal((await service.get(ctx(0,"owner-a"),routed.id)).version,1);
+   await assert.rejects(service.transferTeam(ctx(0,"owner-a"),{
+    attendanceId:routed.id,destinationTeamId:empty,expectedVersion:1,
+    reason:"Sem equipe habilitada",
+   }),ServiceFunnelConflictError);
+   await assert.rejects(service.transferTeam(ctx(0,"agent-a"),{
+    attendanceId:routed.id,destinationTeamId:source,expectedVersion:1,
+    reason:"Sem permissao administrativa",
+   }),AccessDeniedError);
+   routed=await service.transferTeam(ctx(0,"owner-a"),{
+    attendanceId:routed.id,destinationTeamId:source.toUpperCase(),expectedVersion:1,
+    reason:"Encaminhado para equipe Alfa",
+   });
+   assert.equal(routed.teamId,source);
+   assert.equal(routed.version,2);
+   assert.equal((await service.get(ctx(0,"agent-a"),routed.id)).teamId,source);
+   assert.equal(await service.get(ctx(0,"agent-b"),routed.id),null);
+   assert.deepEqual(await service.history(ctx(0,"agent-b"),routed.id),[]);
+   assert.equal((await service.board(ctx(0,"agent-b"),funnel.id)).length,0);
+   routed=await service.assign(ctx(0,"owner-a"),{
+    attendanceId:routed.id,assigneeId:"agent-a",expectedVersion:2,
+   });
+   assert.equal(routed.assignedTo,"agent-a");
+   deniedTeamResource="service-management:team:"+source;
+   await assert.rejects(service.transferTeam(ctx(0,"owner-a"),{
+    attendanceId:routed.id,destinationTeamId:dest,expectedVersion:3,
+    reason:"Sem grant FGA na origem",
+   }),AccessDeniedError);
+   deniedTeamResource="service-management:team:"+dest;
+   await assert.rejects(service.transferTeam(ctx(0,"owner-a"),{
+    attendanceId:routed.id,destinationTeamId:dest,expectedVersion:3,
+    reason:"Sem grant FGA no destino",
+   }),AccessDeniedError);
+   deniedTeamResource=null;
+   await assert.rejects(service.assign(ctx(0,"owner-a"),{
+    attendanceId:routed.id,assigneeId:"agent-b",expectedVersion:3,
+   }),ServiceFunnelConflictError);
+   await assert.rejects(service.transferTeam(ctx(0,"owner-a"),{
+    attendanceId:routed.id,destinationTeamId:dest,expectedVersion:2,
+    reason:"Concurrency stale routing",
+   }),ServiceFunnelConflictError);
+   routed=await service.transferTeam(ctx(0,"owner-a"),{
+    attendanceId:routed.id,destinationTeamId:dest,expectedVersion:3,
+    reason:"Escalado à equipe Beta",
+   });
+   assert.equal(routed.teamId,dest);
+   assert.equal(routed.version,4);
+   assert.equal(routed.assignedTo,null,"Old team assignment never follows transfer");
+   assert.equal(await service.get(ctx(0,"agent-a"),routed.id),null);
+   assert.deepEqual(await service.history(ctx(0,"agent-a"),routed.id),[]);
+   assert.equal((await service.board(ctx(0,"agent-a"),funnel.id)).length,0);
+   assert.equal((await service.get(ctx(0,"agent-b"),routed.id)).teamId,dest);
+   assert.equal((await service.board(ctx(0,"agent-b"),funnel.id)).length,1);
+   const history=await service.history(ctx(0,"agent-b"),routed.id);
+   assert.deepEqual(history.map(x=>x.action),[
+    "created","team_transferred","assigned","team_transferred",
+   ]);
+   assert.deepEqual(history.filter(x=>x.action==="team_transferred")
+    .map(x=>[x.previousTeamId,x.nextTeamId,x.transferReason]),[
+     [null,source,"Encaminhado para equipe Alfa"],
+     [source,dest,"Escalado à equipe Beta"],
+    ]);
+   await assert.rejects(service.advance(ctx(0,"agent-a"),{
+    attendanceId:routed.id,nextStageId:secondStage,expectedVersion:4,
+   }),ServiceFunnelConflictError);
+   await assert.rejects(service.transferTeam({...ctx(0,"owner-a"),
+     workspaceId:tenants[1].workspaceId},{
+    attendanceId:routed.id,destinationTeamId:source,expectedVersion:4,
+    reason:"Escopo cruzado recusado",
+   }),AccessDeniedError);
+   await assert.rejects(service.transferTeam(ctx(1,"owner-b"),{
+    attendanceId:routed.id,destinationTeamId:source,expectedVersion:4,
+    reason:"Tenant cruzado recusado",
+   }),ServiceFunnelConflictError);
+   await assert.rejects(service.transferTeam(ctx(0,"owner-a"),{
+    attendanceId:routed.id,destinationTeamId:dest,expectedVersion:4,
+    reason:"Mesma equipe não gera transição",
+   }),ServiceFunnelConflictError);
+   // Revocation immediately strips a former team member's visibility.
+   await pool.query(`UPDATE platform_workspace_staff_roles SET state='revoked',
+      changed_by='owner-a',changed_at=clock_timestamp()
+      WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3
+       AND principal_id='agent-b'`,
+    [scope.tenantId,scope.orgId,scope.workspaceId]);
+   assert.equal(await service.get(ctx(0,"agent-b"),routed.id),null);
+   assert.equal((await service.board(ctx(0,"agent-b"),funnel.id)).length,0);
+   assert.equal((await service.get(ctx(0,"owner-a"),routed.id)).teamId,dest);
+   // Migration re-apply does not rewrite protocol owner, audit, or columns.
+   await pool.query(await sql("../sql/002_service_team_transfer.sql"));
+   assert.equal(Number((await pool.query(`SELECT count(*)::int AS n
+     FROM service_attendance_events WHERE attendance_id=$1`,[routed.id])).rows[0].n),4);
+   await assert.rejects(pool.query(`UPDATE service_attendances SET
+      team_id=$1,version=version+1 WHERE id=$2`,[source,routed.id]),
+     e=>e.code==="23514");
+  });
+
   await t.test("SQL audit append-only; no direct mutation without trusted tx actor",async()=>{
    const pool=pools.get(tenants[0].tenantId);
    await assert.rejects(pool.query(`UPDATE service_attendance_events SET
@@ -265,7 +418,7 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    moduleEnabled=true;
    const count=Number((await pools.get(tenants[0].tenantId).query(
     "SELECT count(*)::int AS n FROM service_attendances")).rows[0].n);
-   assert.equal(count,1);
+   assert.equal(count,2);
   });
 
   await t.test("input errors are rejected before any query or mutation",async()=>{
