@@ -29,8 +29,8 @@ const migrations=[
  "../../../modules/inbox/sql/001_inbox_foundation.sql",
  "../../../modules/whatsapp/sql/001_whatsapp_accounts.sql",
  "../../../modules/organizations/sql/003_legacy_ownership.sql",
- "../../../modules/organizations/sql/007_staff_roles_pre_release.sql",
  "../sql/001_service_funnels.sql",
+ "../../../modules/organizations/sql/007_staff_roles_pre_release.sql",
  "../sql/002_service_team_transfer.sql",
 ];
 const roles=["owner-a","agent-a","agent-b","outsider-a","viewer-a","revoked-a"];
@@ -80,7 +80,20 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    await admin.query('CREATE DATABASE "'+name+'"');created.push(name);
    const pool=new pg.Pool({connectionString:dsn(name),max:5});
    pools.set(x.tenantId,pool);
-   for(const migration of migrations)await pool.query(await sql(migration));
+   for(const migration of migrations){
+    // A partially installed service 001 MUST NOT permit the team
+    // transfer schema without the manually reviewed Workforce 007.
+    if(migration.endsWith("007_staff_roles_pre_release.sql")){
+     await assert.rejects(pool.query(await sql("../sql/002_service_team_transfer.sql")),
+      e=>e.code==="55000","Team migration must refuse missing Workforce 007");
+     const columns=await pool.query(`SELECT count(*)::int AS count
+       FROM information_schema.columns WHERE table_schema=current_schema()
+        AND table_name='service_attendances' AND column_name='team_id'`);
+     assert.equal(columns.rows[0].count,0,
+      "Rejected migration must roll back all added columns");
+    }
+    await pool.query(await sql(migration));
+   }
    await inserts(pool,x,i===0?
      [["owner-a","admin","active"],["agent-a","editor","active"],
       ["agent-b","editor","active"],["outsider-a","editor","active"],

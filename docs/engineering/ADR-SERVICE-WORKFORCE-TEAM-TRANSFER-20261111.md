@@ -22,6 +22,7 @@ O módulo `service-management` referencia **as equipes canônicas** de `Organiza
 - **Ordem:** Organizations 001/002, CRM 001/003, Inbox/WhatsApp, Organizations 003, Workforce **007 manual** e Service Management 001; somente depois Service Management **002**, após backup/restore homologado e migration ledger aprovado. Testes PG17 descartáveis não substituem restore operacional.
 - **Roles least privilege:** runtime não pode ser superuser/owner do database, não pode alterar os gatilhos de auditoria, e precisa de SELECT mínimo para as tabelas Workforce acima. Validar em staging real.
 - **Installer/entitlements:** migration 002 está no descriptor do plugin e na imagem, mas o plugin segue ausente de `apps/core-host/config/modules.json`. `Control ENABLED`, FGA dinâmica de origem/destino e instâncias operacionais ainda não foram configurados.
+- **Pré-requisito e rollback testados:** o fixture PG17 instala Service 001 antes de Workforce 007, tenta Service 002, exige erro SQLSTATE `55000` e comprova que `team_id` não foi criado pela transação recusada; só depois instala Workforce 007, aplica Service 002 e repete a migration sem corromper protocolos/auditoria.
 - **CI:** não alterar workflow desta frente. Cobertura do módulo `service-management` no pipeline central permanece na Issue #94; a suíte PG17 local passou 18/18 com migração reaplicada.
 - **Frontend:** nenhuma UI é liberada pela implementação; Inspector/Lista/Kanban somente após módulo habilitado, dados reais e autorização no Host. Não adicionar dados fictícios ou componentes duplicados.
 
