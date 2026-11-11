@@ -22,14 +22,17 @@ Trabalhar funcionalmente em apenas um módulo de produto por vez:
 1. Core CRM
 2. Inbox
 3. WhatsApp
-4. Scheduling
-5. AI First-Level Assistant
-6. Documents
-7. Email
-8. Onboarding
-9. Subscription & Billing
-10. Commercial Website
-11. Release Candidate
+4. **Gestão de Atendimentos Básica (PRD-003A)**
+5. Scheduling
+6. AI First-Level Assistant
+7. Documents
+8. Email
+9. Onboarding
+10. Subscription & Billing
+11. Commercial Website
+12. Release Candidate
+
+**Atualização 2026-11-11:** Funil Básico PRD-003A passou ao MVP e deve acompanhar CRM/Inbox/WhatsApp antes de Scheduling; o construtor avançado F0–F8 permanece congelado. A WBS 55 registra gates e a entrega de domínio não significa API/UI/produção.
 
 **Priorização mais recente (2026-11-01):** após a evolução da Inbox, o responsável pelo produto **autorizou concluir as tarefas pendentes do frontend Core CRM**, mantendo o escopo do MVP congelado. O foco imediato é validar e finalizar `feat/crm-workspace-completion` e seus critérios, não abrir novos módulos. CRM e Inbox **não são DONE** até Product Gate formal com testes de identidade/tenant reais e operação comprovada. A sequência comercial do MVP permanece inalterada.
 
@@ -155,3 +158,7 @@ Uma entrega só é DONE quando:
 - Restore drill: `scripts/events/disposable_restore_drill.py --disposable --ack-synthetic` usa apenas PostgreSQL 17 sintético em contêiner novo sem rede, compara Control/tenant ledgers após pg_dump/pg_restore e testa replay idempotente. **Não é restore operacional homologado**, não autoriza migration de Control/tenant nem alterações de serviço. ADR: `docs/engineering/ADR-EVENTS-DISPOSABLE-RESTORE-DRILL-20261111.md`.
 - Worker admission/staging: `apps/core-host/src/platform-event-worker-admission.ts` exige acesso ENABLED do Control, org/workspace ativos e grant real da identidade service. `platform-event-worker-composition.ts` monta as assinaturas WhatsApp/Inbox/CRM **sem iniciar worker nem injetar bridge no Nest**. O adapter `platform-event-service-grant.ts` usa objeto OpenFGA `event_delivery` e principal `service:` distintos de usuário; **o modelo/tuples são candidatos, não aplicados no store operacional**. Nenhum fallback para JWT/claim/frontend. ADRs `docs/engineering/ADR-EVENTS-STAGING-WORKER-ADMISSION-20261111.md` e `ADR-EVENTS-OPENFGA-SERVICE-GRANTS-20261111.md`.
 - Runner sintético: `scripts/events/run_disposable_staging.sh --disposable --ack-synthetic` inicia PostgreSQL 17 e OpenFGA descartáveis **somente com binding loopback** e exercita a cadeia completa. `TenantEventWorkerBatch` aceita no máximo 100 tentativas e não tem scheduler. **Nunca tratar esse teste como restore real, staging aprovado ou ativação do Host.** ADR `docs/engineering/ADR-EVENTS-DISPOSABLE-STAGING-20261111.md`.
+
+## Gestão de Atendimentos no MVP (decisão 2026-11-11)
+
+Gestão de Atendimentos Básica é módulo separado de CRM, Inbox e Syndes Support. É responsável por funil/etapas/protocolo/atribuição/auditoria; não reescreve mensagens nem gera equipes fictícias. O pacote `modules/service-management` representa **SM-02 de domínio**, ainda não conectado à API Nest nem à UI. Sem templates, designer visual, motor genérico, SLAs avançados, transferências cross-org ou multi-org SQL002. Requer tenancy, Organization/Workspace membership, OpenFGA e Product Gate. Ver `docs/product/PRD-003A-GESTAO-ATENDIMENTOS-MVP.md`, `docs/engineering/WBS-GESTAO-ATENDIMENTOS-MVP-20261111.md` e WBS 80 pós-MVP.

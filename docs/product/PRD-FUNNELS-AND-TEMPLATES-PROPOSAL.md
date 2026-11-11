@@ -1,6 +1,6 @@
 # PRD — Construtor de Funis, Templates e Gestão de Atendimentos (PROPOSTA)
 
-**Status:** proposta para decisão de escopo; não implementado nem aprovado como substituto do MVP atual.
+**Status:** o recorte **Básico** foi aprovado para o MVP em 2026-11-11 como `PRD-003A-GESTAO-ATENDIMENTOS-MVP.md`; o criador completo F0–F8 deste documento permanece **proposta pós-MVP**, não autorizado para implementação.
 **Data:** 2026-11-08
 **Responsável pelo processo:** administrador autorizado do tenant.
 **Relação com documentos existentes:** complementa a Inbox/CRM; requer decisão de Product Gate antes de alterar docs/product/MVP-SCOPE.md e docs/product/MODULE-ORDER.md.
