@@ -1,0 +1,157 @@
+-- AK-30 Control Plane Events 006. Offline migration ONLY, never tenant DB.
+-- Apply exclusively after 001..005 via checksum-pinned module_migrations.py.
+-- Real application requires backup, RESTORE rehearsal and explicit operator gate.
+DO $guard$
+BEGIN
+ IF current_database()<>'syndes_control' OR
+    current_setting('server_version_num')::integer NOT BETWEEN 170000 AND 179999
+ THEN RAISE EXCEPTION 'Control event migration database/version gate denied'
+      USING ERRCODE='42501';
+ END IF;
+ IF to_regclass('public.tenant_module_audit') IS NULL
+ THEN RAISE EXCEPTION 'Control module audit ledger missing' USING ERRCODE='42P01';
+ END IF;
+END
+$guard$;
+
+-- Composite audit scope is used to prevent mismatched tenant/module subject IDs.
+CREATE UNIQUE INDEX IF NOT EXISTS tenant_module_audit_control_event_scope_uq
+ ON public.tenant_module_audit(event_id,tenant_id,module_id);
+
+CREATE SCHEMA IF NOT EXISTS control_events;
+REVOKE ALL ON SCHEMA control_events FROM PUBLIC;
+
+CREATE TABLE IF NOT EXISTS control_events.outbox_events (
+ event_id UUID PRIMARY KEY,
+ audit_event_id BIGINT NOT NULL UNIQUE,
+ tenant_id UUID NOT NULL REFERENCES public.tenant_registry(tenant_id) ON DELETE RESTRICT,
+ module_id TEXT NOT NULL REFERENCES public.module_catalog(module_id) ON DELETE RESTRICT,
+ event_type TEXT NOT NULL CHECK (event_type IN (
+  'platform.module.entitlement.changed.v1',
+  'platform.module.installation.changed.v1'
+ )),
+ event_version INTEGER NOT NULL CHECK (
+  event_version=substring(event_type FROM '\.v([1-9][0-9]*)$')::integer
+ ),
+ producer TEXT NOT NULL DEFAULT 'module_lifecycle'
+    CHECK (producer='module_lifecycle'),
+ aggregate_type TEXT NOT NULL DEFAULT 'tenant_module'
+    CHECK (aggregate_type='tenant_module'),
+ aggregate_key TEXT NOT NULL CHECK (
+  aggregate_key ~ '^[a-z][a-z0-9_]*$' AND length(aggregate_key)<=63
+  AND aggregate_key=module_id
+ ),
+ operation TEXT NOT NULL CHECK (operation ~ '^(entitlement|installation)\.[a-z_]+$'),
+ result_state TEXT NOT NULL CHECK (
+  (event_type='platform.module.entitlement.changed.v1'
+    AND result_state IN ('granted','suspended','revoked'))
+  OR
+  (event_type='platform.module.installation.changed.v1'
+    AND result_state IN ('requested','installed','enabled','suspended','retired'))
+ ),
+ correlation_id UUID NOT NULL,
+ payload JSONB NOT NULL CHECK (
+  jsonb_typeof(payload)='object' AND payload ? 'auditEventId'
+  AND octet_length(payload::text)<=512
+ ),
+ routing_state TEXT NOT NULL DEFAULT 'pending'
+    CHECK (routing_state IN ('pending','routed','unsupported')),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ routed_at TIMESTAMPTZ,
+ CHECK ((routing_state='pending' AND routed_at IS NULL)
+    OR (routing_state<>'pending' AND routed_at IS NOT NULL)),
+ FOREIGN KEY(audit_event_id,tenant_id,module_id)
+  REFERENCES public.tenant_module_audit(event_id,tenant_id,module_id)
+  ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS control_outbox_pending_idx
+ ON control_events.outbox_events(created_at,event_id)
+ WHERE routing_state='pending';
+CREATE INDEX IF NOT EXISTS control_outbox_tenant_module_idx
+ ON control_events.outbox_events(tenant_id,module_id,created_at);
+
+CREATE TABLE IF NOT EXISTS control_events.event_deliveries (
+ event_id UUID NOT NULL REFERENCES control_events.outbox_events(event_id) ON DELETE RESTRICT,
+ consumer_id TEXT NOT NULL CHECK (consumer_id ~ '^[a-z][a-z0-9_.-]{1,95}$'),
+ state TEXT NOT NULL DEFAULT 'pending'
+  CHECK (state IN ('pending','processing','retry','completed','dead','suspended')),
+ attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts BETWEEN 0 AND 12),
+ next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ lease_owner UUID,
+ lease_until TIMESTAMPTZ,
+ claimed_at TIMESTAMPTZ,
+ completed_at TIMESTAMPTZ,
+ failed_at TIMESTAMPTZ,
+ last_error_class TEXT CHECK (
+  last_error_class IN ('transient','permanent','unauthorized','unsupported','suspended')
+ ),
+ PRIMARY KEY(event_id,consumer_id),
+ CHECK ((state='processing' AND lease_owner IS NOT NULL AND lease_until IS NOT NULL)
+   OR (state<>'processing' AND lease_owner IS NULL AND lease_until IS NULL))
+);
+CREATE INDEX IF NOT EXISTS control_delivery_due_idx
+ ON control_events.event_deliveries(next_attempt_at,event_id,consumer_id)
+ WHERE state IN ('pending','retry','suspended');
+CREATE INDEX IF NOT EXISTS control_delivery_expired_idx
+ ON control_events.event_deliveries(lease_until) WHERE state='processing';
+
+CREATE TABLE IF NOT EXISTS control_events.consumer_inbox (
+ event_id UUID NOT NULL,
+ consumer_id TEXT NOT NULL,
+ processed_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(event_id,consumer_id),
+ FOREIGN KEY(event_id,consumer_id)
+  REFERENCES control_events.event_deliveries(event_id,consumer_id) ON DELETE RESTRICT
+);
+
+-- Append-only audit insertion is the domain COMMIT boundary.
+-- No controller, worker or tenant database can publish control events directly.
+CREATE OR REPLACE FUNCTION control_events.enqueue_module_audit()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY INVOKER
+SET search_path=pg_catalog AS $event$
+DECLARE event_name TEXT;
+BEGIN
+ IF NEW.operation LIKE 'entitlement.%' THEN
+  event_name:='platform.module.entitlement.changed.v1';
+ ELSIF NEW.operation LIKE 'installation.%' THEN
+  event_name:='platform.module.installation.changed.v1';
+ ELSE
+  RAISE EXCEPTION 'Unexpected Control module audit operation' USING ERRCODE='23514';
+ END IF;
+ INSERT INTO control_events.outbox_events(
+  event_id,audit_event_id,tenant_id,module_id,event_type,event_version,
+  producer,aggregate_type,aggregate_key,operation,result_state,
+  correlation_id,payload,created_at
+ ) VALUES(
+  gen_random_uuid(),NEW.event_id,NEW.tenant_id,NEW.module_id,event_name,1,
+  'module_lifecycle','tenant_module',NEW.module_id,NEW.operation,
+  NEW.result_state,NEW.request_id,
+  jsonb_build_object('auditEventId',NEW.event_id::text),NEW.created_at
+ );
+ RETURN NEW;
+END
+$event$;
+
+DO $trigger$
+BEGIN
+ IF NOT EXISTS(
+  SELECT 1 FROM pg_catalog.pg_trigger
+  WHERE tgrelid='public.tenant_module_audit'::regclass
+    AND tgname='control_module_audit_event_outbox'
+    AND NOT tgisinternal
+ ) THEN
+  CREATE TRIGGER control_module_audit_event_outbox
+  AFTER INSERT ON public.tenant_module_audit
+  FOR EACH ROW EXECUTE FUNCTION control_events.enqueue_module_audit();
+ END IF;
+END
+$trigger$;
+
+-- No Control runtime service identity has been provisioned for this ledger.
+REVOKE ALL ON ALL TABLES IN SCHEMA control_events
+ FROM PUBLIC,syndes_core,syndes_module_operator,
+      syndes_module_installer,syndes_module_activator,syndes_master_api;
+COMMENT ON SCHEMA control_events IS
+ 'Control Plane ONLY. Never store tenant business events or message payloads here';
+COMMENT ON TABLE control_events.outbox_events IS
+ 'Control module audit -> durable outbox in the same Control DB transaction';

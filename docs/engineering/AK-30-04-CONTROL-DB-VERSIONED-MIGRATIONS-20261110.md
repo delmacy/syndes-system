@@ -1,6 +1,6 @@
 # AK-30.04 — Migração versionada e pré-flight do Control DB
 
-**Estado:** ferramenta de preparação/reconciliação. As cinco migrations continuam **não aplicadas** no ambiente operacional e não foram registradas no bootstrap do Core Host. Data: 2026-11-10.
+**Estado:** ferramenta de preparação/reconciliação. As cinco migrations originais continuam **não aplicadas** no ambiente operacional e não foram registradas no bootstrap do Core Host. Atualização de 2026-11-11: a sexta migration candidata `006_control_events` foi acrescentada ao runner, também sem aplicação operacional. Data inicial: 2026-11-10.
 
 ## Artefato de execução
 
@@ -12,6 +12,7 @@ Ordem imutável:
 3. 003_attestation: control-module-attestation.schema
 4. 004_activation: control-module-activation.schema
 5. 005_manager_readonly: control-module-manager-readonly.schema
+6. 006_control_events: control-module-events.schema (outbox global de auditoria dos módulos, **sem dispatcher ativo**).
 
 O ledger public.control_module_schema_migrations contém migration_key, SHA-256, commit da release e timestamp. Sem grants de runtime. O plano detecta checksum diferente, histórico fora de ordem, migrations desconhecidas e tabelas de módulos existentes sem ledger. Nesses casos **interrompe sem tentar corrigir automaticamente**.
 
@@ -43,5 +44,6 @@ Antes de autorizar aplicação real:
 - O PostgreSQL mostrou archive_mode=off: isso **não comprova falta de snapshots/backups**, mas não há arquivamento contínuo WAL para PITR. Sem restore ensaiado, não autorizar deploy.
 - PostgreSQL 17 descartável: cinco migrations aplicadas com ledger/commit/checksum; reexecução NOOP e checksum divergente bloqueado. Unit tests do planejador em scripts/control/test_module_migrations.py.
 - Nenhuma migração real aplicada nem credencial criada.
+- Incremento de 2026-11-11: a migration 006 foi aplicada e reexecutada **somente** em PostgreSQL 17 descartável, junto com 001–005, com trigger transacional, escopo FK e restrições de privilégios testados. O relatório histórico de cinco migrations PENDING permanece válido para o pré-flight anterior; após a PR4 o planejamento passa a listar seis scripts candidatos.
 
 **Próximo gate:** backup/restore real e staging com identidades, least-privilege operator, reconciliação por tenant, todos handlers/workers protegidos e deploy com rollback observável.
