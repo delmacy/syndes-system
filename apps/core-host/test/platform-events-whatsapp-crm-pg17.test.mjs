@@ -6,6 +6,7 @@ import pg from "pg";
 import {TenantPgProvider,expectedTenantDatabase} from "../dist/tenant-database.js";
 import {TenantEventPublisher} from "../dist/platform-event-publisher.js";
 import {TenantEventDispatcher} from "../dist/platform-event-dispatcher.js";
+import {composeTenantEventWorker} from "../dist/platform-event-worker-composition.js";
 import {WhatsAppInboundStore} from "../../../modules/whatsapp/dist/inbound-http.js";
 import {WhatsAppTransactionalInboundBridge,PostgresWhatsAppInboundMessageReader}
  from "../../../modules/whatsapp/dist/event-bridge.js";
@@ -298,6 +299,53 @@ test("PG17 disposable: real WhatsApp -> Inbox -> CRM -> Inbox with conservative 
    assert.equal(stillUnlinked.rows[0].crm_person_id,null);
   });
 
+  await t.test("trusted Host composition connects actual modules without auto-start or user token",async()=>{
+   const stage=composeTenantEventWorker({
+    databases:provider,
+    modules:{canExecuteModule:async q=>q.actor.kind==="service"&&
+      ["crm","inbox"].includes(q.moduleId)&&q.tenantId===tenantId},
+    serviceGrants:{canProcess:async q=>q.actor.kind==="service"&&
+      q.actor.id==="syndes-events-service"&&q.tenantId===tenantId&&
+      q.organizationId===orgId&&q.workspaceId===workspaceId},
+    principalId:"syndes-events-service",
+   });
+   assert.deepEqual(stage.subscriberIds,[
+    "inbox.message-received-v2","crm.resolve-person","inbox.crm-person-link",
+   ]);
+   // Mere composition must neither install a scheduler nor modify any ledger.
+   const initial=await count(pool,"platform_events.outbox_events");
+   assert.equal(await count(pool,"platform_events.outbox_events"),initial);
+   const freshPerson=randomUUID(),freshPhone="+5511955512345",
+    freshJid="5511955512345@s.whatsapp.net";
+   await pool.query(
+    "INSERT INTO crm_people(tenant_id,id,name,phone,platform_organization_id) VALUES($1,$2,'Fresh known person',$3,$4)",
+    [tenantId,freshPerson,freshPhone,orgId]);
+   await pool.query(
+    "INSERT INTO crm_channel_identities(tenant_id,id,person_id,channel,external_id,platform_organization_id) VALUES($1,$2,$3,'whatsapp',$4,$5)",
+    [tenantId,randomUUID(),freshPerson,freshJid,orgId]);
+   const accepted=await stage.bridge.persist(
+    tenantId,message(tenantId,accountId,randomUUID(),freshJid,freshPhone));
+   assert.equal(accepted.duplicate,false);
+   let progressed=0;
+   for(let i=0;i<12;i++){
+    await stage.dispatcher.routePending(tenantId);
+    const result=await stage.dispatcher.processNext(tenantId);
+    if(result==="delivered")progressed++;
+    if(result==="empty")break;
+    assert.notEqual(result,"dead");
+    assert.notEqual(result,"retry");
+    assert.notEqual(result,"suspended");
+   }
+   assert.equal(progressed,3);
+   const matches=(await pool.query(`
+    SELECT c.crm_person_id::text AS person_id FROM inbox_conversations c
+    JOIN whatsapp_conversation_routes r ON r.tenant_id=c.tenant_id
+      AND r.conversation_id=c.id
+    WHERE r.recipient_external_id=$1 AND c.platform_organization_id=$2::uuid
+   `,[freshJid,orgId])).rows;
+   assert.equal(matches.length,1);
+   assert.equal(matches[0].person_id,freshPerson);
+  });
   await provider.onModuleDestroy();
  }finally{
   if(pool)await pool.end().catch(()=>{});
