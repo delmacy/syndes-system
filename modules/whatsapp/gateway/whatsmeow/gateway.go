@@ -30,6 +30,11 @@ type whatsmeowGateway struct {
 	clients    map[string]*whatsmeow.Client
 	qrMu       sync.Mutex
 	qrSessions map[string]*qrSession
+	coverage   eventCoverage
+}
+
+func (gateway *whatsmeowGateway) Coverage(accountID string) map[string]uint64 {
+	return gateway.coverage.snapshot(accountID)
 }
 
 func newWhatsmeowGateway(container *sqlstore.Container, db *sql.DB, callback *callbackClient) *whatsmeowGateway {
@@ -345,10 +350,16 @@ func (gateway *whatsmeowGateway) registerClientHandler(accountID, tenantID strin
 			gateway.historyForEvent(tenantID, accountID, client, event)
 		case *events.Message:
 			if event.Info.Chat.Server == types.NewsletterServer || !validChatJID(event.Info.Chat) {
+				gateway.coverage.observe(accountID, "chat_unsupported")
 				return
 			}
 			body := acceptedChatText(event)
-			if body == "" || event.Info.ID == "" || event.Info.Timestamp.IsZero() {
+			if body == "" {
+				gateway.coverage.observe(accountID, "live_"+classifyInboundMessage(event))
+				return
+			}
+			if event.Info.ID == "" || event.Info.Timestamp.IsZero() {
+				gateway.coverage.observe(accountID, "live_invalid_metadata")
 				return
 			}
 			source := event.Info.MessageSource
@@ -359,8 +370,10 @@ func (gateway *whatsmeowGateway) registerClientHandler(accountID, tenantID strin
 				sender = chat
 			}
 			if !validChatJID(sender) {
+				gateway.coverage.observe(accountID, "live_invalid_sender")
 				return
 			}
+			gateway.coverage.observe(accountID, "live_text_offered_to_queue")
 			go func() {
 				phone := ""
 				if !isGroup {

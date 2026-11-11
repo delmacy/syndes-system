@@ -8,7 +8,11 @@
   "exports": {
     ".": "./dist/accounts.js",
     "./contracts": "./dist/contracts/index.js",
-    "./plugin": "./dist/plugin.js"
+    "./plugin": "./dist/plugin.js",
+    "./crm-link-plan": {
+      "types": "./dist/crm-link-plan.d.ts",
+      "default": "./dist/crm-link-plan.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

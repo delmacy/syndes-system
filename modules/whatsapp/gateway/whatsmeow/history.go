@@ -88,7 +88,12 @@ func (gateway *whatsmeowGateway) handleHistory(tenantID, accountID string, clien
 				continue
 			}
 			body := acceptedChatText(msg)
-			if body == "" || msg.Info.ID == "" || msg.Info.Timestamp.IsZero() {
+			if body == "" {
+				gateway.coverage.observe(accountID, "history_"+classifyInboundMessage(msg))
+				continue
+			}
+			if msg.Info.ID == "" || msg.Info.Timestamp.IsZero() {
+				gateway.coverage.observe(accountID, "history_invalid_metadata")
 				continue
 			}
 			senderJID := msg.Info.Sender
@@ -97,8 +102,10 @@ func (gateway *whatsmeowGateway) handleHistory(tenantID, accountID string, clien
 			}
 			sender := senderJID.String()
 			if sender == "" || !validChatJID(senderJID) {
+				gateway.coverage.observe(accountID, "history_invalid_sender")
 				continue
 			}
+			gateway.coverage.observe(accountID, "history_text_offered_to_queue")
 			phone := ""
 			if !isGroup {
 				phone = verifiedPhone(chatJID)

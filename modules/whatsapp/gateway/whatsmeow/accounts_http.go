@@ -29,6 +29,36 @@ func authorizedTenant(header, master, tenantID string) bool {
 	return subtle.ConstantTimeCompare([]byte(token), []byte(tenantToken(master, tenantID))) == 1
 }
 func installAccountRoutes(mux *http.ServeMux, db *sql.DB, provider gateway, master string) {
+	// Metadata-only coverage, scoped to an enabled account and internal tenant
+	// bearer token. No message text, JIDs, numbers or media are exposed.
+	mux.HandleFunc("GET /v1/tenants/{tenantId}/accounts/{accountId}/diagnostics/coverage", func(w http.ResponseWriter, r *http.Request) {
+		tenantID, accountID := r.PathValue("tenantId"), r.PathValue("accountId")
+		if !authorizedTenant(r.Header.Get("Authorization"), master, tenantID) {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"code": "unauthorized"})
+			return
+		}
+		if !validUUID(accountID) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"code": "invalid_account"})
+			return
+		}
+		var active bool
+		if db == nil || db.QueryRowContext(r.Context(),
+			"SELECT enabled FROM syndes_whatsapp_accounts WHERE tenant_id=$1 AND account_id=$2",
+			tenantID, accountID).Scan(&active) != nil || !active {
+			writeJSON(w, http.StatusNotFound, map[string]string{"code": "account_unavailable"})
+			return
+		}
+		reader, ok := provider.(interface {
+			Coverage(string) map[string]uint64
+		})
+		if !ok {
+			writeJSON(w, http.StatusNotImplemented, map[string]string{"code": "coverage_unavailable"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"scope": "account", "durability": "process_memory", "counters": reader.Coverage(accountID),
+		})
+	})
 	// Internal-only endpoints. A scoped token is not sufficient by itself:
 	// the caller must also use an enabled, paired tenant-owned account.
 	mux.HandleFunc("GET /v1/tenants/{tenantId}/accounts/{accountId}/avatar", func(w http.ResponseWriter, r *http.Request) {
