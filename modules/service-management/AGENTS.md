@@ -14,3 +14,8 @@
 ## Contrato Inspector (v0.3.0)
 
 `byConversation` e endpoint GET correspondente usam `Kernel.executeModule(inbox)` mais `Kernel.executeModule(service-management)` e verificação de `platform_current_workspace_id` no SQL. Apenas até 50 protocolos visíveis, sem textos de conversa nem nome de contato; entidade Inbox permanece dona da conversa. `003_service_conversation_inspector.sql` apenas cria índice parcial, após Workforce 007 e Service 002, e nunca deve ser aplicado automaticamente a bancos operacionais. Nenhuma alteração no frontend sem Product Gate.
+
+
+## Bloqueio de instalabilidade (SM-03C/03D)
+
+A versão 0.3.0 está no main como código *opt-in*, mas o ID `service-management` não é aceito pelo Control Catalog, as migrations atuais não criam schemas próprios por módulo e incluem transações internas. Não burlar `PgModuleInstaller` executando SQL em `public`; não conceder FGA/ENABLED antes de corrigir canonicidade, ownership físico e manifest de release. Preflight de segurança: `scripts/service-management/readiness_preflight.py` (offline; opcional leitura local). A ADR de contrato é `docs/engineering/ADR-SERVICE-INSTALLER-COMPATIBILITY-PREFLIGHT-20261111.md`.
