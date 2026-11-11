@@ -12,6 +12,18 @@
     "./crm-link-plan": {
       "types": "./dist/crm-link-plan.d.ts",
       "default": "./dist/crm-link-plan.js"
+    },
+    "./event-bridge": {
+      "types": "./dist/event-bridge.d.ts",
+      "default": "./dist/event-bridge.js"
+    },
+    "./event-route-commands": {
+      "types": "./dist/event-route-commands.d.ts",
+      "default": "./dist/event-route-commands.js"
+    },
+    "./event-identity-reader": {
+      "types": "./dist/event-identity-reader.d.ts",
+      "default": "./dist/event-identity-reader.js"
     }
   },
   "scripts": {

@@ -2,6 +2,7 @@ import {createHash,timingSafeEqual} from "node:crypto";
 import {Body,Controller,Headers,HttpException,Inject,Injectable,Module,Param,Post} from "@nestjs/common";
 import type {TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 import {validIncomingEnvelope,validChatEnvelope,validContactEnvelope,validReceiptEnvelope,type IncomingWhatsAppEnvelope,type IncomingWhatsAppChatEnvelope,type IncomingWhatsAppContactEnvelope,type IncomingWhatsAppReceiptEnvelope} from "./inbound-contract.js";
+import type {WhatsAppTransactionalInboundBridge} from "./event-bridge.js";
 
 export function verifyWebhookToken(configured:string|undefined,header:string|undefined):boolean{
  if(!configured||!header?.startsWith("Bearer "))return false;
@@ -11,8 +12,13 @@ export function verifyWebhookToken(configured:string|undefined,header:string|und
  return provided.length===configured.length&&timingSafeEqual(a,b);
 }
 export class WhatsAppInboundStore{
- constructor(private readonly pools:TrustedTenantDatabaseProvider){}
+ constructor(private readonly pools:TrustedTenantDatabaseProvider,
+  private readonly transactionalBridge?:WhatsAppTransactionalInboundBridge){}
  async persist(tenantId:string,event:IncomingWhatsAppEnvelope|IncomingWhatsAppChatEnvelope|IncomingWhatsAppContactEnvelope|IncomingWhatsAppReceiptEnvelope){
+  // The Host must explicitly opt in after migration and worker gates; the
+  // operational legacy textual path remains the default.
+  if(event.type==="whatsapp.message.received"&&this.transactionalBridge)
+   return this.transactionalBridge.persist(tenantId,event);
   const db=await this.pools.resolve(tenantId);
   if(db.tenantId!==tenantId)throw new Error("Tenant database mismatch");
   // Account membership and insertion are enforced together, avoiding a check/write race.

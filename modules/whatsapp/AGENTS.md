@@ -84,3 +84,7 @@ Suportar vínculo de JID/LID/telefone a ChannelIdentity do CRM; não usar telefo
 O gateway mede eventos text-only e conteúdo descartado antes da fila, SEM corpo, número, nome ou JID nos contadores. Os contadores são em memória e não substituem o ledger persistido; não habilitar logs de mensagens nem inventar retenção. A rota interna /diagnostics/coverage exige token do tenant e conta ativa.
 
 O planejador crm-link-plan.ts é somente SELECT e recusa cross-org, LID sem telefone verificado e correspondência ambígua. Nunca converter propose_provisional em pessoa automaticamente, nem fazer merge por nome parecido. A escrita transacional auditável exige etapa distinta, homologação e aprovação. Ver docs/engineering/WA-DATA-01-CRM-WA-01-20261111.md e WBS-WA-DATA-CRM-WA-20261111.md.
+
+## WhatsApp → Platform Events (opt-in técnico)
+
+`event-bridge.ts` é um produtor transacional `whatsapp.message.received.v2` com referência decimal do ID BIGINT, sem corpo/JID/telefone na outbox. `event-route-commands.ts` é a porta pública de comando WhatsApp usada pela Inbox (rota e confirmação), e `event-identity-reader.ts` é read-only para CRM. A nova ponte só é usada se explicitamente injetada no `WhatsAppInboundStore`; o Nest/HTTP atual não a injeta e continua no modo legacy. Não coexistir dois projetores do mesmo inbound em produção; não mudar Workflows, Control DB, mídia ou SQL 002. Ver ADR-EVENTS-WHATSAPP-INBOX-CRM-20261111.md.
