@@ -37,8 +37,8 @@ export class WhatsAppTransactionalInboundBridge{
    const payload=JSON.stringify(input);
    const record=await tx.query(`
     INSERT INTO whatsapp_inbound_events
-      (tenant_id,account_id,external_message_id,event_type,payload)
-    VALUES($1::uuid,$2::uuid,$3,$4,$5::jsonb)
+      (tenant_id,account_id,external_message_id,event_type,payload,projection_path)
+    VALUES($1::uuid,$2::uuid,$3,$4,$5::jsonb,'events')
     ON CONFLICT(tenant_id,account_id,external_message_id) DO NOTHING
     RETURNING id::text
    `,[tenantId,input.accountId,input.message.externalMessageId,input.type,payload]);
@@ -47,13 +47,18 @@ export class WhatsAppTransactionalInboundBridge{
    if(!inboundId){
     duplicate=true;
     const previous=await tx.query(`
-     SELECT id::text,payload=$4::jsonb AS same_payload
+     SELECT id::text,payload=$4::jsonb AS same_payload,projection_path
      FROM whatsapp_inbound_events
      WHERE tenant_id=$1::uuid AND account_id=$2::uuid AND external_message_id=$3
     `,[tenantId,input.accountId,input.message.externalMessageId,payload]);
     if(previous.rows.length!==1||previous.rows[0].same_payload!==true)
      throw new Error("WhatsApp inbound duplicate conflicts with original payload");
     inboundId=String(previous.rows[0].id);
+    // A duplicate first written to the legacy queue belongs to that queue.
+    // Never emit a second events-path projection for an existing legacy row.
+    if(previous.rows[0].projection_path==="legacy")return {accepted:true,duplicate:true};
+    if(previous.rows[0].projection_path!=="events")
+     throw Error("Unexpected immutable WhatsApp projection path");
    }
    // BIGINT identifier is a canonical decimal string in v2.
    // No JID, phone, message body or contact name enters the platform ledger.
@@ -96,7 +101,7 @@ export class PostgresWhatsAppInboundMessageReader implements WhatsAppInboundMess
     AND w.organization_id=o.id AND w.id=$4::uuid AND w.status='active'
    WHERE e.tenant_id=$1::uuid AND e.account_id=$2::uuid
     AND e.id=$3::bigint AND e.event_type='whatsapp.message.received'
-    AND o.id=$5::uuid
+    AND o.id=$5::uuid AND e.projection_path='events'
    FOR SHARE OF e,a,o,w
   `,[lookup.tenantId,lookup.accountId,lookup.inboundEventId,
       lookup.workspaceId,lookup.organizationId]);

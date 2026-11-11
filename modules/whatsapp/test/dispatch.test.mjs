@@ -10,6 +10,7 @@ test('projects event atomically into tenant inbox',async()=>{
  const db={tenantId,query:async(sql,args)=>{calls.push({sql,args});return {rows:calls.length===1?[{id:42,payload:event}]:[{id:42}]}}};
  const projection=new WhatsAppInboxProjection({resolve:async()=>db});
  assert.equal(await projection.deliverNext(tenantId),'delivered');
+ assert.ok(calls[0].sql.includes("to_jsonb(e)->>'projection_path'"));
  assert.match(calls[1].sql,/inbox_conversations/);
  assert.match(calls[1].sql,/inbox_messages/);
  assert.match(calls[1].sql,/processed_at=clock_timestamp/);

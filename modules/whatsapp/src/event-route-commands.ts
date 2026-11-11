@@ -62,7 +62,7 @@ export class PgWhatsAppConversationRouteCommands implements WhatsAppConversation
   const ack=await tx.query(`
    UPDATE whatsapp_inbound_events SET processed_at=COALESCE(processed_at,clock_timestamp())
    WHERE tenant_id=$1::uuid AND account_id=$2::uuid AND id=$3::bigint
-     AND event_type='whatsapp.message.received'
+     AND event_type='whatsapp.message.received' AND projection_path='events'
    RETURNING id::text
   `,[input.tenantId,input.accountId,input.inboundEventId]);
   if(ack.rows.length!==1)throw Error("WhatsApp inbound acknowledgement missing");

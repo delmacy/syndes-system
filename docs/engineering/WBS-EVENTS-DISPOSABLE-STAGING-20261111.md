@@ -3,7 +3,7 @@
 | ID | Entrega | Estado/evidência |
 |---|---|---|
 | EV-STG01 | `TenantEventWorkerBatch` limitado, sem timers/scheduler/HTTP | Implementado; 4 testes unitários |
-| EV-STG02 | Fixture PG17 com Control 001–006, tenant migrations e dados sintéticos | Implementado, banco descartado após teste |
+| EV-STG02 | Fixture PG17 com Control 001–006, tenant migrations incluindo WhatsApp 008 e dados sintéticos | Implementado, banco descartado após teste |
 | EV-STG03 | OpenFGA v1.22.1 real com modelo service e grants por consumidor | Implementado no teste; store em memória |
 | EV-STG04 | Execução de 3 consumidores WhatsApp → Inbox → CRM → Inbox com `TenantEventWorkerBatch` | Implementado; PostgreSQL+FGA integrados |
 | EV-STG05 | Negar sem grant, suspender com módulo desabilitado, retomar, deduplicar e revogar | Implementado, testado |
