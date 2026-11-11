@@ -36,7 +36,7 @@ function requireVersion(version:unknown):number{
 }
 function guardStages(stages:unknown):asserts stages is FunnelStage[]{
  if(!Array.isArray(stages)||stages.length<2||stages.length>8||
-  !stages.every(s=>s&&CODE.test(s.code)&&good(s.label,120))||
+  !stages.every(s=>s&&typeof s.code==="string"&&CODE.test(s.code)&&good(s.label,120))||
   new Set(stages.map(s=>s.code)).size!==stages.length)
   throw new ServiceFunnelInputError("Two to eight distinct named stages required");
 }
@@ -90,7 +90,8 @@ export class ServiceFunnelService{
  async publishSimpleFunnel(ctx:FunnelContext,input:Readonly<{
   code:string;name:string;stages:readonly FunnelStage[];
  }>){
-  if(!input||!CODE.test(input.code)||!good(input.name))throw new ServiceFunnelInputError("Invalid funnel definition");
+  if(!input||typeof input.code!=="string"||!CODE.test(input.code)||!good(input.name))
+   throw new ServiceFunnelInputError("Invalid funnel definition");
   guardStages(input.stages);
   return this.run(ctx,"service:funnels","write","admin",async tx=>{
    const id=randomUUID(),scope=[ctx.tenantId,ctx.organizationId,ctx.workspaceId];
@@ -124,7 +125,8 @@ export class ServiceFunnelService{
  async open(ctx:FunnelContext,input:Readonly<{
   funnelId:string;conversationId?:string|null;idempotencyKey:string;
  }>){
-  if(!uid(input?.funnelId)||!REQUEST_KEY.test(input.idempotencyKey)||(
+  if(!uid(input?.funnelId)||typeof input.idempotencyKey!=="string"||
+   !REQUEST_KEY.test(input.idempotencyKey)||(
    input.conversationId!=null&&!uid(input.conversationId)))
    throw new ServiceFunnelInputError("Invalid funnel/conversation/idempotency reference");
   return this.run(ctx,"service:attendances","write","editor",async tx=>{

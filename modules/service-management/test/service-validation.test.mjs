@@ -55,7 +55,20 @@ test("invalid configuration, request keys and versions rejected before authoriza
    {code:"only",label:"Only stage"},
   ],
  }),ServiceFunnelInputError);
- for(const key of ["x","../../../secrets","invalid key","a".repeat(121)]){
+ for(const code of [undefined,null,{},42]){
+  await assert.rejects(service.publishSimpleFunnel(scope,{
+   code,name:"Valid funnel",stages:[
+    {code:"start",label:"First stage"},{code:"finish",label:"Final stage"},
+   ],
+  }),ServiceFunnelInputError);
+ }
+ await assert.rejects(service.publishSimpleFunnel(scope,{
+  code:"valid",name:"Valid funnel",stages:[
+   {code:undefined,label:"First stage"},{code:"finish",label:"Final stage"},
+  ],
+ }),ServiceFunnelInputError);
+ for(const key of ["x","../../../secrets","invalid key","a".repeat(121),
+   undefined,null,{},42]){
   await assert.rejects(service.open(scope,{
    funnelId:randomUUID(),idempotencyKey:key,
   }),ServiceFunnelInputError);
