@@ -137,15 +137,43 @@ test("PG17 disposable: independent deliveries, worker identity, leases and crash
    for(let i=0;i<2;i++)assert.equal(await worker.processNext(A),"delivered");
    assert.equal(await effects(A,id),2);
   });
-  await t.test("authorization outage fails closed with no business effect",async()=>{
+  await t.test("authorization outage fails closed but preserves the event for recovery",async()=>{
    const id=await publish(A,orgA);await worker.routePending(A);
    gate="error";
+   assert.equal(await worker.processNext(A),"suspended");
+   assert.equal(await worker.processNext(A),"suspended");
+   assert.equal(await effects(A,id),0);
+   const d=(await pools.get(A).query("SELECT state,last_error_class,attempts FROM platform_events.event_deliveries WHERE tenant_id=$1 AND event_id=$2 AND state='suspended'",[A,id])).rows[0];
+   assert.equal(d.last_error_class,"suspended");
+   assert.equal(d.attempts,0);
+   gate="enabled";
+   await pools.get(A).query("UPDATE platform_events.event_deliveries SET next_attempt_at=clock_timestamp() WHERE tenant_id=$1 AND event_id=$2",[A,id]);
+   await worker.processNext(A);await worker.processNext(A);
+   assert.equal(await effects(A,id),2);
+  });
+  await t.test("explicit authorization denial is terminal without effect",async()=>{
+   const id=await publish(A,orgA);await worker.routePending(A);
+   gate="denied";
    assert.equal(await worker.processNext(A),"dead");
    assert.equal(await worker.processNext(A),"dead");
    assert.equal(await effects(A,id),0);
-   const d=(await pools.get(A).query("SELECT state,last_error_class FROM platform_events.event_deliveries WHERE tenant_id=$1 AND event_id=$2 AND state='dead'",[A,id])).rows[0];
-   assert.equal(d.last_error_class,"unauthorized");
+   const d=(await pools.get(A).query(
+    "SELECT count(*)::int AS n FROM platform_events.event_deliveries WHERE tenant_id=$1 AND event_id=$2 AND state='dead' AND last_error_class='unauthorized'",
+    [A,id])).rows[0];
+   assert.equal(d.n,2);
    gate="enabled";
+  });
+  await t.test("temporarily missing registered handler suspends and later resumes",async()=>{
+   const id=await publish(A,orgA);await worker.routePending(A);
+   const emptyWorker=new TenantEventDispatcher(provider,[],guard,"syndes-worker-test");
+   assert.equal(await emptyWorker.processNext(A),"suspended");
+   assert.equal(await emptyWorker.processNext(A),"suspended");
+   assert.equal(await effects(A,id),0);
+   await pools.get(A).query(
+    "UPDATE platform_events.event_deliveries SET next_attempt_at=clock_timestamp() WHERE tenant_id=$1 AND event_id=$2",
+    [A,id]);
+   await worker.processNext(A);await worker.processNext(A);
+   assert.equal(await effects(A,id),2);
   });
   await t.test("permanent handler failure does not retry indefinitely",async()=>{
    const id=await publish(A,orgA);await worker.routePending(A);

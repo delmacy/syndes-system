@@ -5,7 +5,7 @@ import {
  type TenantTransaction,type TrustedTenantTransactionProvider,
 } from "@syndes/core-kernel";
 
-const UUID=/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i;
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_ATTEMPTS=8;
 const LEASE_SECONDS=30;
 const SUSPENSION_SECONDS=60;
@@ -232,17 +232,18 @@ export class TenantEventDispatcher{
   if(!claim)return "empty";
   const consumer=this.consumers.get(claim.consumerId);
   if(!consumer||!consumer.types.includes(claim.eventType)){
-   await this.changeClaim(tenantId,claim,"dead","permanent");
-   return "dead";
+   // Not installed/unavailable is recoverable, not evidence of a permanent error.
+   await this.changeClaim(tenantId,claim,"suspended","suspended");
+   return "suspended";
   }
-  let status:"enabled"|"suspended"|"denied";
+  let status:"enabled"|"suspended"|"denied"|"unavailable";
   try{
    status=await this.authorization.authorize({
     actor:this.actor,tenantId,organizationId:claim.organizationId,workspaceId:claim.workspaceId,
     consumerId:claim.consumerId,moduleId:consumer.moduleId,eventType:claim.eventType,
    });
-  }catch{status="denied"}
-  if(status==="suspended"){
+  }catch{status="unavailable"}
+  if(status==="suspended"||status==="unavailable"){
    await this.changeClaim(tenantId,claim,"suspended","suspended");
    return "suspended";
   }

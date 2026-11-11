@@ -9,7 +9,7 @@
 - Claim usa `FOR UPDATE SKIP LOCKED`, lease de 30 segundos, `lease_owner` UUID e limite de 8 tentativas. Falhas transitórias têm backoff 5/10/20/40/... segundos, limitado a 3600 segundos.
 - Consumidor executa efeito de domínio, registra `consumer_inbox` e confirma `event_deliveries` **na mesma transação PostgreSQL fixada**. Falha em qualquer ponto provoca rollback integral. Repetições verificam primeiro o inbox.
 - Evento com versão/tipo/payload não suportado muda para `routing_state='unsupported'` e permanece disponível à revisão, sem criar efeitos.
-- Erros de negócio permanentes vão a `dead`, sem incluir conteúdo de mensagem em logs/registro de erros.
+- Erros de negócio permanentes e negativas explícitas de autorização vão a `dead`, sem incluir conteúdo de mensagem em logs/registro de erros. Falhas transitórias do port de autorização e handlers temporariamente ausentes ficam em `suspended` com recuperação; não são interpretadas como negativas definitivas.
 - Leases expirados podem ser reclamados por outro worker; esgotamento de tentativas termina em `dead`.
 
 ## Fronteiras e autorização
