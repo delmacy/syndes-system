@@ -64,3 +64,16 @@ test("UI composition: Manager shell, login and features remain separate",()=>{
  }
  assert.doesNotMatch(overview+tenants+table,/from ["']\.\.\/\.\.\/demo["']/);
 });
+
+test("tenant module inventory is visible only in existing client details",()=>{
+ const panel=read("features/tenants/TenantModulesPanel.tsx");
+ const api=read("api.ts");
+ const demo=read("demo.ts");
+ assert.match(drawer,/api\.tenantModules\(tenantId,/);
+ assert.match(drawer,/<TenantModulesPanel/);
+ assert.match(panel,/Nenhum estado foi presumido/);
+ assert.match(panel,/execução exige autorização/);
+ assert.match(api,/tenantModules\(id:string/);
+ assert.match(demo,/never invent entitlements|Never invent entitlements/i);
+ assert.doesNotMatch(app,/view==="modules"|view==="billing"/);
+});

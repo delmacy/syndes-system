@@ -264,3 +264,10 @@
 - **Estado:** PLAN/APPLY/VERIFY com ledger SQL protegido _syndes, checksums, digest, transações, rollback em falhas e attestation idempotente no Control DB foram implementados para fixture PG17 em dois DBs tenant e um Control DB. **PEND** main/CI, scripts registrados, identidade técnica real, ACL mínima, política de upgrade, organização/CRM real e restore/rollback operacional.
 - **Regra:** INSTALLED somente após VERIFY e atestação por operador técnico; ENABLED e controle efetivo de API/job continuam bloqueados pela AK-10.04. Nenhum banco operacional, UX, Actions ou SQL 002 alterados.
 - **Próximo gate:** AK-10.04 + AK-30.03/04/05 e inventário/backup autorizados para qualquer migração persistente. A PR #68 de Organizations continua candidata e inativa.
+
+### AK-20 — Consulta de módulos no Platform Manager (Control Plane read model)
+
+- **Decisão:** [ADR da composição Control/Tenant](ADR-CONTROL-TENANT-MODULE-COMPOSITION-20261110.md). Reusar master-admin-api, master-admin-web, account-access-api e front-shared; não duplicar backend, frontend ou tokens.
+- **Candidato:** endpoint GET /v1/platform/admin/tenants/:id/modules com autorização própria de operador e sem acesso a tenant DB; frontend no detalhe do cliente, sem operação mutável nem dados falsos em preview. Script control-module-manager-readonly.schema **não aplicado**. Testes A/B e ACL em PG17 descartável.
+- **Bloqueio:** schemas AK-10.02/03 e role read-only de produção não ativadas; endpoint devolve 503 até migration autorizada. Não habilitar usuários, módulos, licenciamento ou dados operacionais pelo Manager.
+- **Próximo:** AK-10.04 em handlers e workers, API de comando com identidade, RBAC, auditoria e instalador técnico isolado.

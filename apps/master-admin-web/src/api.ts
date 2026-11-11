@@ -5,6 +5,16 @@ export type Overview={total:number;active:number;provisioned:number;suspended:nu
 export type Tenant={id:string;displayName:string|null;status:"active"|"provisioned"|"suspended";
  createdAt:string;activeMembers:number};
 export type TenantPage={total:number;page:number;pageSize:number;items:Tenant[]};
+export type TenantModule={
+ moduleId:string;approvedVersions:string[];
+ entitlementState:"granted"|"suspended"|"revoked"|null;
+ entitled:boolean;validUntil:string|null;
+ installationState:"requested"|"installed"|"enabled"|"suspended"|"retired"|null;
+ targetVersion:string|null;installedVersion:string|null;verifiedAt:string|null;
+};
+export type TenantModuleInventory={
+ tenantId:string;tenantStatus:"active"|"provisioned"|"suspended";items:TenantModule[];
+};
 export class ApiError extends Error{constructor(message:string,readonly status:number){super(message);}}
 export class MasterApi{
  constructor(private readonly token:string){}
@@ -27,5 +37,9 @@ export class MasterApi{
  tenant(id:string,signal?:AbortSignal){
   if(!/^[0-9a-f-]{36}$/i.test(id))throw new ApiError("Identificador inválido",400);
   return this.get<Tenant>("/tenants/"+encodeURIComponent(id),signal);
+ }
+ tenantModules(id:string,signal?:AbortSignal){
+  if(!/^[0-9a-f-]{36}$/i.test(id))throw new ApiError("Identificador inválido",400);
+  return this.get<TenantModuleInventory>("/tenants/"+encodeURIComponent(id)+"/modules",signal);
  }
 }
