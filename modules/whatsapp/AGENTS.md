@@ -85,6 +85,10 @@ O gateway mede eventos text-only e conteúdo descartado antes da fila, SEM corpo
 
 O planejador crm-link-plan.ts é somente SELECT e recusa cross-org, LID sem telefone verificado e correspondência ambígua. Nunca converter propose_provisional em pessoa automaticamente, nem fazer merge por nome parecido. A escrita transacional auditável exige etapa distinta, homologação e aprovação. Ver docs/engineering/WA-DATA-01-CRM-WA-01-20261111.md e WBS-WA-DATA-CRM-WA-20261111.md.
 
+## Exclusividade de projetor (WA-CUT, 2026-11-11)
+
+A migration 008 cria `whatsapp_inbound_events.projection_path` com default `legacy`, imutável; para `events`, exige inbound textual. `WhatsAppInboxProjection` filtra legacy com compatibilidade antes/depois da migration; `WhatsAppTransactionalInboundBridge` grava path events e NÃO publica para duplicado legacy; as portas de read/ack do novo caminho só aceitam events. **Não confundir isso com um switch operacional instalado**: antes de ativar ingress novo deve-se provar que nenhuma instância antiga do worker legado sem filtro continua rodando. Snapshot/chat/contact/receipt, outbound e histórico permanecem no legado. Sem mudança de `projection_path` por UPDATE. Ver ADR-WHATSAPP-SINGLE-PROJECTOR-20261111.md.
+
 ## WhatsApp → Platform Events (opt-in técnico)
 
 `event-bridge.ts` é um produtor transacional `whatsapp.message.received.v2` com referência decimal do ID BIGINT, sem corpo/JID/telefone na outbox. `event-route-commands.ts` é a porta pública de comando WhatsApp usada pela Inbox (rota e confirmação), e `event-identity-reader.ts` é read-only para CRM. A nova ponte só é usada se explicitamente injetada no `WhatsAppInboundStore`; o Nest/HTTP atual não a injeta e continua no modo legacy. Não coexistir dois projetores do mesmo inbound em produção; não mudar Workflows, Control DB, mídia ou SQL 002. Ver ADR-EVENTS-WHATSAPP-INBOX-CRM-20261111.md.

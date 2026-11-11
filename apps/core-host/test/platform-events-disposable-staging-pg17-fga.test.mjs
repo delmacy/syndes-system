@@ -43,6 +43,7 @@ const tenantMigrations=[
  "../../../modules/whatsapp/sql/003_whatsapp_outbound_inbox.sql",
  "../../../modules/whatsapp/sql/004_whatsapp_conversation_phone.sql",
  "../../../modules/whatsapp/sql/005_whatsapp_history.sql",
+ "../../../modules/whatsapp/sql/008_whatsapp_projection_owner.sql",
  "../../../modules/organizations/sql/003_legacy_ownership.sql",
  "../../../modules/organizations/sql/004_whatsapp_route_owner_guard.sql",
  "../../../modules/organizations/sql/005_scoped_relationship_integrity.sql",

@@ -34,6 +34,9 @@ test("module migration CLI enumerates and emits only installed package migration
  assert.match(sql,/CREATE TABLE IF NOT EXISTS crm_people/);
  const inboxSql=execFileSync(process.execPath,[cli,"--emit","inbox","001_inbox_foundation"],{encoding:"utf8"});
  assert.match(inboxSql,/CREATE TABLE IF NOT EXISTS inbox_conversations/);
+ const projectionSql=execFileSync(process.execPath,[cli,"--emit","whatsapp","008_whatsapp_projection_owner"],{encoding:"utf8"});
+ assert.match(projectionSql,/whatsapp_inbound_projection_path_check/);
+ assert.equal(list[2].migrations.at(-1),"008_whatsapp_projection_owner");
  const eventsSql=execFileSync(process.execPath,[cli,"--emit","platform_events","001_platform_events"],{encoding:"utf8"});
  assert.match(eventsSql,/CREATE TABLE IF NOT EXISTS platform_events.consumer_inbox/);
  assert.deepEqual(list[5].migrations,["001_platform_events","002_event_type_version_consistency"]);

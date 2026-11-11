@@ -29,6 +29,8 @@ export class WhatsAppInboxProjection {
     JOIN platform_workspaces w ON w.tenant_id=a.tenant_id
       AND w.organization_id=a.platform_organization_id AND w.is_default AND w.status='active'
     WHERE e.tenant_id=$1::uuid AND e.processed_at IS NULL AND e.failed_at IS NULL
+      -- Safe before and after migration 008: absent column means legacy.
+      AND COALESCE(to_jsonb(e)->>'projection_path','legacy')='legacy'
     ORDER BY e.id LIMIT 1`,[tenantId]);
   const row=pending.rows[0] as {id?:unknown;payload?:unknown}|undefined;
   if(!row)return "empty";
