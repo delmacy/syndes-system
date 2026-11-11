@@ -42,3 +42,5 @@ Capacidade transversal é DONE quando atende o módulo consumidor atual com segu
 - Infraestrutura em apps/core-host/src/tenant-database.ts e platform-event-publisher.ts.
 - Migration 001 emitida via apps/core-host/dist/migrations.js --emit platform_events 001_platform_events; deve depender de organizations 001.
 - Nunca disparar migration em tenant operacional sem backup/restore testado, aprovação e janela de implantação. Control DB permanece fora desta mudança.
+- Dispatcher candidato: `apps/core-host/src/platform-event-dispatcher.ts`. Inscrições confiáveis, claim `FOR UPDATE SKIP LOCKED`, efeitos e consumer_inbox na mesma transação. Falhas temporárias de autorização e ausência de handler preservam entregas `suspended`; negativa explícita pode ir a `dead`.
+- Nenhum scheduler, FGA/ENABLED operacional ou worker automático antes de provisionamento autorizado. A engine testada em banco descartável não equivale a deploy.

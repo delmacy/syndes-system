@@ -133,7 +133,7 @@ export class TenantPgProvider implements TrustedTenantTransactionProvider,OnModu
           query:async(sql:string,values:readonly unknown[])=>{
             if(!active)throw new Error('Transaction lease already closed');
             // Transaction boundaries are never available to business callbacks.
-            if(/\b(?:BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/i.test(sql))
+            if(/(?:^|;)\s*(?:BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/i.test(sql))
               throw new Error('Transaction boundary forbidden inside pinned lease');
             const r=await client.query(sql,[...values]);
             return {rows:r.rows as Record<string,unknown>[],rowCount:r.rowCount};
