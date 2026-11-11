@@ -13,3 +13,8 @@ O pacote expõe `GET /v1/tenants/:tenantId/service-management/teams` e `PATCH /v
 ## Inspector Inbox — lookup por conversa (v0.3.0, opt-in)
 
 `GET /v1/tenants/:tenantId/service-management/conversations/:conversationId/attendances` retorna protocolos autorizados (abertos e encerrados) vinculados à conversa. Requer JWT e seletores Organization/Workspace, FGA/ENABLED de Inbox e Service, ownership atual da conversa e visibilidade da equipe. Sem mensagens nem dados pessoais; `003_service_conversation_inspector.sql` adiciona um índice parcial após Service 002. Limite de 50 resultados, sem paginação neste MVP. Contrato e gates: `docs/engineering/ADR-SERVICE-INBOX-INSPECTOR-READ-20261111.md`. A interface não é criada neste pacote.
+
+
+## Estado de instalação (gate técnico SM-03C)
+
+**Não instalável via Control/installer atual:** descriptor `service-management` conflita com os IDs SQL suportados; migrations 001–003 ainda usam schema público/relativo e `BEGIN/COMMIT` dentro do SQL, enquanto o instalador exige schema exclusivo e controle total da transação. Não rodar SQL manual no tenant. Execute `python3 scripts/service-management/readiness_preflight.py --json --strict` para conferir o bloqueio; `--local-read-only --ack-catalog` apenas lê metadados locais. Revisão de arquitetura e próximos passos: `docs/engineering/ADR-SERVICE-INSTALLER-COMPATIBILITY-PREFLIGHT-20261111.md`.

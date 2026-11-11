@@ -170,3 +170,8 @@ Versão 0.2.0 do pacote `modules/service-management` adiciona schema `002_servic
 ## Inspector da Inbox — contrato de leitura SM-05A (2026-11-11)
 
 Service Management v0.3.0 adiciona consulta read-only `/v1/tenants/:tenantId/service-management/conversations/:conversationId/attendances` com FGA/ENABLED duplo da Inbox e do próprio módulo. Ownership `platform_current_workspace_id` e `service_team_can_read` são obrigatórios no SQL, sem duplicar mensagens/contatos nem inferir tenant/org/ws. Migration aditiva 003 é apenas índice, requer Workforce 007 e Service 002, sem instalação operacional. Frontend existente de outro chat permanece intocado; consultar `docs/engineering/ADR-SERVICE-INBOX-INSPECTOR-READ-20261111.md`.
+
+
+## Gate Service Management / instalador (11/11/2026)
+
+Não instalar ou ativar `@syndes/service-management` v0.3.0: o Control Catalog e PgModuleInstaller aceitam apenas IDs SQL compatíveis com `^[a-z][a-z0-9_]*$`, enquanto a package/descriptor usa `service-management`; migrations 001–003 ainda criam tabelas sem schema próprio e contêm `BEGIN/COMMIT` internos, incompatíveis com o ciclo transacional do installer. **SM-03C é P0 bloqueante** antes de staging; nenhuma DDL operacional ou UI fictícia. Rodar `python3 scripts/service-management/readiness_preflight.py --strict` (offline por default), opcionalmente `--local-read-only --ack-catalog` para ler só catálogos locais. A ferramenta nunca libera instalação sozinha nem deve receber secrets/DSN. Ver `docs/engineering/ADR-SERVICE-INSTALLER-COMPATIBILITY-PREFLIGHT-20261111.md` e WBS SM-03C/03D.
