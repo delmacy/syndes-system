@@ -294,3 +294,11 @@ A arquitetura de administração unificada de acesso, entitlements por tenant e 
 - **Implementado:** [runner e gates](AK-30-04-CONTROL-DB-VERSIONED-MIGRATIONS-20261110.md), scripts/control/module_migrations.py com plano default somente SELECT, ordem fixa SHA-256, ledger versionado, transação atômica, retry NOOP, recusa de drift/fora de ordem/parcial, sem SQL de tenant. Testes unitários e PG17 descartável.
 - **Evidência operacional somente leitura:** Control DB PG17, 1 tenant ativo, cinco migrations pendentes; archive_mode=off, restaurabilidade ainda sem prova. Comando de aplicação real bloqueado por ausência de evidências de backup/restore e Product Gate.
 - **Próximo:** restore real autorizado, staging com Keycloak/OpenFGA/OpenBao, least-privilege operator, migração de todos handlers/jobs para executeModule, plano de rollback. **Sem deploy do catalog/activation nas bases reais nesta entrega.**
+
+## Adendo — Composição frontend/backend e sequência de implementação (2026-11-10)
+
+A arquitetura definitiva está em [ADR-FRONTEND-BACKEND-COMPOSITION-20261110.md](ADR-FRONTEND-BACKEND-COMPOSITION-20261110.md); a nova [WBS de composição](WBS-FRONTEND-BACKEND-COMPOSITION-20261110.md) detalha as etapas **FC-00 → FC-05** sem substituir os WBS 00/10/20/30/50/95. Dois frontends por audiência (Manager e tenant), não um frontend por módulo: features React dentro de apps/workspace-web, backend NestJS em modules/*, primitivos compartilhados via packages/front-shared.
+
+**Ordem de trabalho:** inventário e contratos → shell/context selector/registry estático mantendo UI → gate backend em controllers/jobs e endpoint tenant-safe de módulos → Account e Organization com API real → homologação Manager/backup/restore/E2E. Account/Organization/Workspace são contextos; CRM/Inbox/WhatsApp são módulos. Organization da plataforma e Organization do CRM não são a mesma entidade.
+
+**Estado:** documento consolidado e plano; não autorizam SQL operacional, liberação multi-org, remoção da trava SQL 002, novo produto ou deploy. Código de catálogo, activation e migration está integrado à main em PRs #72–#75, mas não foi executado no Control DB real, e o Manager segue com demo visual na :9446.
