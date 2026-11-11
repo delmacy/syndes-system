@@ -110,8 +110,8 @@ test("client cannot choose an FGA resource or a database lease",async()=>{
  const service=new ServiceFunnelService(kernel,tenants);
  await assert.rejects(service.board({...scope,resource:"platform:owner",
   databaseName:"syndes_control"},randomUUID()),AccessDeniedError);
- assert.equal(requested.moduleId,"service-management");
- assert.equal(requested.resource,"service-management:attendances");
+ assert.equal(requested.moduleId,"service");
+ assert.equal(requested.resource,"service:attendances");
  assert.equal(requested.action,"read");
  assert.deepEqual(requested.actor,scope.actor);
  assert.equal(dbCalls,0);

@@ -6,9 +6,9 @@ export const syndesPlugin=defineSyndesModule({
  definition:serviceManagementModule,
  apiModule:ServiceManagementHttpModule,
  permissions:[
-  {resource:"service-management:funnels",actions:["read","write"]},
-  {resource:"service-management:attendances",actions:["read","write"]},
-  {resource:"service-management:teams",actions:["read","write"]},
+  {resource:"service:funnels",actions:["read","write"]},
+  {resource:"service:attendances",actions:["read","write"]},
+  {resource:"service:teams",actions:["read","write"]},
  ],
  migrations:[{id:"001_service_funnels",
   fileUrl:new URL("../sql/001_service_funnels.sql",import.meta.url).href},

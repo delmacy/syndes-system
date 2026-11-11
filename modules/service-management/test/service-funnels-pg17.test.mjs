@@ -35,6 +35,18 @@ const migrations=[
  "../sql/003_service_conversation_inspector.sql",
 ];
 const roles=["owner-a","agent-a","agent-b","outsider-a","viewer-a","revoked-a"];
+const applyService=async(pool,file)=>{
+ const client=await pool.connect();
+ try{
+  await client.query("BEGIN");
+  await client.query("SET LOCAL search_path=pg_catalog");
+  if(file.endsWith("001_service_funnels.sql"))
+   await client.query("CREATE SCHEMA IF NOT EXISTS service");
+  await client.query(await sql(file));
+  await client.query("COMMIT");
+ }catch(e){await client.query("ROLLBACK");throw e}
+ finally{client.release()}
+};
 const inserts=async(pool,{tenantId,orgId,workspaceId,conversationId},people)=>{
  await pool.query(`INSERT INTO platform_organizations(tenant_id,id,display_name,is_default)
  VALUES($1,$2,'Fixture organization',true)`,[tenantId,orgId]);
@@ -85,17 +97,18 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
     // A partially installed service 001 MUST NOT permit the team
     // transfer schema without the manually reviewed Workforce 007.
     if(migration.endsWith("007_staff_roles_pre_release.sql")){
-     await assert.rejects(pool.query(await sql("../sql/002_service_team_transfer.sql")),
+     await assert.rejects(applyService(pool,"../sql/002_service_team_transfer.sql"),
       e=>e.code==="55000","Team migration must refuse missing Workforce 007");
-     await assert.rejects(pool.query(await sql("../sql/003_service_conversation_inspector.sql")),
+     await assert.rejects(applyService(pool,"../sql/003_service_conversation_inspector.sql"),
       e=>e.code==="55000","Inspector cannot be installed before team migration");
      const columns=await pool.query(`SELECT count(*)::int AS count
-       FROM information_schema.columns WHERE table_schema=current_schema()
+       FROM information_schema.columns WHERE table_schema='service'
         AND table_name='service_attendances' AND column_name='team_id'`);
      assert.equal(columns.rows[0].count,0,
       "Rejected migration must roll back all added columns");
     }
-    await pool.query(await sql(migration));
+    if(migration.startsWith("../sql/"))await applyService(pool,migration);
+    else await pool.query(await sql(migration));
    }
    await inserts(pool,x,i===0?
      [["owner-a","admin","active"],["agent-a","editor","active"],
@@ -103,9 +116,9 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
       ["viewer-a","viewer","active"],["revoked-a","editor","revoked"]]:
      [["owner-b","admin","active"]]);
    // Re-apply the migration to verify that it does not rewrite existing data.
-   await pool.query(await sql("../sql/001_service_funnels.sql"));
-   await pool.query(await sql("../sql/002_service_team_transfer.sql"));
-   await pool.query(await sql("../sql/003_service_conversation_inspector.sql"));
+   await applyService(pool,"../sql/001_service_funnels.sql");
+   await applyService(pool,"../sql/002_service_team_transfer.sql");
+   await applyService(pool,"../sql/003_service_conversation_inspector.sql");
   }
   const canTenant=(actor,tenantId)=>tenantId===tenants[0].tenantId?
    roles.includes(actor.id):actor.id==="owner-b";
@@ -115,7 +128,7 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
   let moduleEnabled=true,inboxEnabled=true;
   const kernel=new CoreKernel({modules:[{id:"platform",version:"0.1.0"},
     {id:"inbox",version:"0.1.0",dependencies:["platform"]},
-    {id:"service-management",version:"0.3.0",dependencies:["platform"]}],
+    {id:"service",version:"0.3.0",dependencies:["platform"]}],
    moduleAccess:{canExecuteModule:async({moduleId})=>
     moduleId==="inbox"?inboxEnabled:moduleEnabled},
    tenancy:{canAccessTenant:async({actor,tenantId})=>canTenant(actor,tenantId)},
@@ -161,11 +174,11 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    assert.equal(publishedList[0].code,"suporte_cliente");
    assert.deepEqual(publishedList[0].stages.map(s=>s.position),[1,2,3]);
    const steps=(await pool.query(`SELECT id::text,position,terminal
-    FROM service_funnel_stages WHERE funnel_id=$1 ORDER BY position`,[funnel.id])).rows;
+    FROM service.service_funnel_stages WHERE funnel_id=$1 ORDER BY position`,[funnel.id])).rows;
    assert.deepEqual(steps.map(x=>x.position),[1,2,3]);
    assert.deepEqual(steps.map(x=>x.terminal),[false,false,true]);
    [,{id:secondStage},{id:thirdStage}]=steps;
-   await assert.rejects(pool.query(`UPDATE service_funnel_stages
+   await assert.rejects(pool.query(`UPDATE service.service_funnel_stages
     SET label='Reescrever' WHERE funnel_id=$1`,[funnel.id]),e=>e.code==="23514");
    await assert.rejects(service.publishSimpleFunnel(ctx(0,"viewer-a"),{
     code:"outro",name:"Não autorizado",stages:[
@@ -191,7 +204,7 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
     idempotencyKey:"browser-command-open-20261111",
    }),ServiceFunnelConflictError);
    assert.equal(Number((await pools.get(tenants[0].tenantId).query(
-    "SELECT count(*)::int AS n FROM service_attendances")).rows[0].n),1);
+    "SELECT count(*)::int AS n FROM service.service_attendances")).rows[0].n),1);
    assert.match(attendance.protocol,/^ATD-\d+$/);
    assert.equal(attendance.version,1);
    assert.equal(attendance.conversationId,tenants[0].conversationId);
@@ -304,7 +317,7 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
     idempotencyKey:"team-routing-test-20261111",
    });
    assert.equal(routed.teamId,null);
-   deniedTeamResource="service-management:team:"+source;
+   deniedTeamResource="service:team:"+source;
    await assert.rejects(service.transferTeam(ctx(0,"owner-a"),{
     attendanceId:routed.id,destinationTeamId:source,expectedVersion:1,
     reason:"Equipe sem grant FGA explícito",
@@ -337,12 +350,12 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
     attendanceId:routed.id,assigneeId:"agent-a",expectedVersion:2,
    });
    assert.equal(routed.assignedTo,"agent-a");
-   deniedTeamResource="service-management:team:"+source;
+   deniedTeamResource="service:team:"+source;
    await assert.rejects(service.transferTeam(ctx(0,"owner-a"),{
     attendanceId:routed.id,destinationTeamId:dest,expectedVersion:3,
     reason:"Sem grant FGA na origem",
    }),AccessDeniedError);
-   deniedTeamResource="service-management:team:"+dest;
+   deniedTeamResource="service:team:"+dest;
    await assert.rejects(service.transferTeam(ctx(0,"owner-a"),{
     attendanceId:routed.id,destinationTeamId:dest,expectedVersion:3,
     reason:"Sem grant FGA no destino",
@@ -416,21 +429,21 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    assert.deepEqual(new Set((await service.byConversation(ctx(0,"owner-a"),
     scope.conversationId)).map(x=>x.id)),new Set([attendance.id,routed.id]));
    // Migration re-apply does not rewrite protocol owner, audit, or columns.
-   await pool.query(await sql("../sql/002_service_team_transfer.sql"));
+   await applyService(pool,"../sql/002_service_team_transfer.sql");
    assert.equal(Number((await pool.query(`SELECT count(*)::int AS n
-     FROM service_attendance_events WHERE attendance_id=$1`,[routed.id])).rows[0].n),4);
-   await assert.rejects(pool.query(`UPDATE service_attendances SET
+     FROM service.service_attendance_events WHERE attendance_id=$1`,[routed.id])).rows[0].n),4);
+   await assert.rejects(pool.query(`UPDATE service.service_attendances SET
       team_id=$1,version=version+1 WHERE id=$2`,[source,routed.id]),
      e=>e.code==="23514");
   });
 
   await t.test("SQL audit append-only; no direct mutation without trusted tx actor",async()=>{
    const pool=pools.get(tenants[0].tenantId);
-   await assert.rejects(pool.query(`UPDATE service_attendance_events SET
+   await assert.rejects(pool.query(`UPDATE service.service_attendance_events SET
     action='created' WHERE attendance_id=$1`,[attendance.id]),e=>e.code==="23514");
-   await assert.rejects(pool.query("DELETE FROM service_attendance_events"),e=>e.code==="23514");
-   await assert.rejects(pool.query("TRUNCATE service_attendance_events"),e=>e.code==="23514");
-   await assert.rejects(pool.query(`UPDATE service_attendances
+   await assert.rejects(pool.query("DELETE FROM service.service_attendance_events"),e=>e.code==="23514");
+   await assert.rejects(pool.query("TRUNCATE service.service_attendance_events"),e=>e.code==="23514");
+   await assert.rejects(pool.query(`UPDATE service.service_attendances
     SET version=version+1 WHERE id=$1`,[attendance.id]),e=>e.code==="23514");
   });
 
@@ -471,7 +484,7 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    }),AccessDeniedError);
    moduleEnabled=true;
    const count=Number((await pools.get(tenants[0].tenantId).query(
-    "SELECT count(*)::int AS n FROM service_attendances")).rows[0].n);
+    "SELECT count(*)::int AS n FROM service.service_attendances")).rows[0].n);
    assert.equal(count,2);
   });
 

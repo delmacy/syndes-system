@@ -54,4 +54,21 @@ fi
  SYNDES_FUNNEL_PG_URL="postgresql://postgres:ci-only-disposable-funnel-20261111@127.0.0.1:$port/postgres" \
  SYNDES_FUNNEL_DISPOSABLE=FUNNEL_PG17_ONLY npm test --silent
 )
-echo "SERVICE FUNNEL SM-02 PASSED on synthetic disposable PG17; no operational migrations"
+
+# Installer contract runs against the SAME disposable PG17 cluster only.
+# Prepare the shared Nest packages in this isolated worktree, then exercise
+# PgModuleInstaller plan/apply/verify with actual Service SQL + protected ledger.
+# No Control production client, no real tenant database, no operational DDL.
+for folder in modules/organizations modules/core-crm modules/inbox modules/whatsapp modules/support; do
+ (cd "$folder" && npm ci --ignore-scripts --no-audit --no-fund --silent && npm run build --silent)
+done
+(
+ cd apps/core-host
+ npm ci --ignore-scripts --no-audit --no-fund --silent
+ npm run link-peers --silent
+ npm run build --silent
+ SYNDES_FUNNEL_PG_URL="postgresql://postgres:ci-only-disposable-funnel-20261111@127.0.0.1:$port/postgres" \
+ SYNDES_FUNNEL_DISPOSABLE=FUNNEL_PG17_ONLY node --test \
+  test/service-release.test.mjs test/service-installer-pg17.test.mjs
+)
+echo "SERVICE FUNNEL SM-03C DOMAIN + OFFICIAL INSTALLER PASSED on synthetic disposable PG17; no operational migrations"

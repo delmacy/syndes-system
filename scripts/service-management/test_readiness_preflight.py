@@ -34,17 +34,17 @@ def tenant(**patches):
 
 
 class PreflightTests(unittest.TestCase):
-    def test_actual_source_fails_closed_on_installer_id_schema_transaction(self):
+    def test_actual_source_is_compatible_but_activating_it_remains_blocked(self):
         source=mod.source_contract()
         self.assertEqual(source["module_version"],"0.3.0")
-        self.assertFalse(source["source_compatible"])
-        self.assertEqual(source["module_id"],"incompatible")
-        self.assertTrue(source["checks"]["three_reviewed_migrations_declared"])
-        self.assertTrue(source["checks"]["release_version_consistent"])
-        self.assertTrue(source["checks"]["runtime_plugin_deliberately_unmounted"])
-        for blocker in ("control_module_id_compatible","installer_transaction_safe",
-                        "module_owned_schema_qualified"):
-            self.assertIn(blocker,source["blockers"])
+        self.assertEqual(source["module_id"],"service")
+        self.assertTrue(source["source_compatible"],source["blockers"])
+        self.assertEqual(source["blockers"],[])
+        self.assertTrue(all(source["checks"].values()))
+        self.assertIn("to_regclass(\'service.service_attendances\')",mod.TENANT_SQL)
+        self.assertIn("schemaname=\'service\'",mod.TENANT_SQL)
+        self.assertNotIn("to_regclass(\'public.service_attendances\')",mod.TENANT_SQL)
+        self.assertFalse(mod.inventory()["safe_to_install_or_enable"])
 
     def test_repaired_source_is_recognized_without_mutating_repo(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -63,12 +63,12 @@ class PreflightTests(unittest.TestCase):
                 (r/path).parent.mkdir(parents=True,exist_ok=True)
                 text=(mod.ROOT/path).read_text()
                 if path.endswith("service.ts"):
-                    text=text.replace('moduleId:"service-management"','moduleId:"service"')
-                    text=text.replace('id:"service-management"','id:"service"')
+                    text=text.replace('moduleId:"service"','moduleId:"service"')
+                    text=text.replace('id:"service"','id:"service"')
                 if path.endswith("plugin.ts"):
                     text=text.replace('{resource:"service-management:','{resource:"service:')
                 if path.endswith("package.json") and "package-lock" not in path:
-                    text=text.replace('"name": "@syndes/service-management"',
+                    text=text.replace('"name": "@syndes/service"',
                                       '"name": "@syndes/service"')
                 (r/path).write_text(text)
             sql_dir=r/"modules/service-management/sql"
@@ -84,8 +84,14 @@ class PreflightTests(unittest.TestCase):
                 "BEGIN;\nCREATE TABLE IF NOT EXISTS service.service_funnels(id UUID);\nCOMMIT;")
             self.assertIn("installer_transaction_safe",mod.source_contract(r)["blockers"])
             (r/"apps/core-host/config/modules.json").write_text(
-                '{"modules":["@syndes/service-management/plugin"]}')
+                '{"modules":["@syndes/service/plugin"]}')
             self.assertIn("runtime_plugin_deliberately_unmounted",
+                          mod.source_contract(r)["blockers"])
+            (r/"apps/core-host/config/modules.json").write_text('{"modules":[]}')
+            (r/"modules/service-management/package.json").write_text(
+              (r/"modules/service-management/package.json").read_text()
+              .replace('"@syndes/service"','"@syndes/foreign"'))
+            self.assertIn("host_package_id_matches_descriptor",
                           mod.source_contract(r)["blockers"])
 
     def test_readonly_exec_is_fixed_no_arbitrary_sql_or_database(self):

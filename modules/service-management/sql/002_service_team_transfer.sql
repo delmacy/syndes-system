@@ -1,61 +1,60 @@
 -- SM-04: ONLY for approved staging after Organizations/manual 007 and service 001.
 -- This schema is a tenant-local opt-in. No changes to Control, Inbox or CRM.
-BEGIN;
 DO $preflight$ BEGIN
- IF to_regclass('service_attendances') IS NULL OR
-    to_regclass('service_attendance_events') IS NULL OR
-    to_regclass('platform_staff_teams') IS NULL OR
-    to_regclass('platform_staff_team_workspaces') IS NULL OR
-    to_regclass('platform_staff_team_members') IS NULL OR
-    to_regclass('platform_staff_identity_links') IS NULL OR
-    to_regclass('platform_workspace_staff_roles') IS NULL OR
+ IF to_regclass('service.service_attendances') IS NULL OR
+    to_regclass('service.service_attendance_events') IS NULL OR
+    to_regclass('public.platform_staff_teams') IS NULL OR
+    to_regclass('public.platform_staff_team_workspaces') IS NULL OR
+    to_regclass('public.platform_staff_team_members') IS NULL OR
+    to_regclass('public.platform_staff_identity_links') IS NULL OR
+    to_regclass('public.platform_workspace_staff_roles') IS NULL OR
     NOT EXISTS(SELECT 1 FROM pg_indexes
-     WHERE schemaname=current_schema() AND indexname='platform_legacy_single_organization') OR
+     WHERE schemaname='public' AND indexname='platform_legacy_single_organization') OR
     NOT EXISTS(SELECT 1 FROM pg_indexes
-     WHERE schemaname=current_schema() AND indexname='platform_legacy_single_workspace') THEN
+     WHERE schemaname='public' AND indexname='platform_legacy_single_workspace') THEN
   RAISE EXCEPTION 'Service teams require manual Workforce 007 and SQL002'
    USING ERRCODE='55000';
  END IF;
 END $preflight$;
 
-ALTER TABLE service_attendances ADD COLUMN IF NOT EXISTS team_id UUID;
-ALTER TABLE service_attendance_events ADD COLUMN IF NOT EXISTS previous_team_id UUID;
-ALTER TABLE service_attendance_events ADD COLUMN IF NOT EXISTS next_team_id UUID;
-ALTER TABLE service_attendance_events ADD COLUMN IF NOT EXISTS transfer_reason VARCHAR(240);
+ALTER TABLE service.service_attendances ADD COLUMN IF NOT EXISTS team_id UUID;
+ALTER TABLE service.service_attendance_events ADD COLUMN IF NOT EXISTS previous_team_id UUID;
+ALTER TABLE service.service_attendance_events ADD COLUMN IF NOT EXISTS next_team_id UUID;
+ALTER TABLE service.service_attendance_events ADD COLUMN IF NOT EXISTS transfer_reason VARCHAR(240);
 DO $constraints$ BEGIN
- IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='service_attendances'::regclass
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='service.service_attendances'::regclass
     AND conname='service_team_workspace_fk') THEN
-  ALTER TABLE service_attendances ADD CONSTRAINT service_team_workspace_fk
+  ALTER TABLE service.service_attendances ADD CONSTRAINT service_team_workspace_fk
    FOREIGN KEY(tenant_id,organization_id,team_id,workspace_id)
-   REFERENCES platform_staff_team_workspaces(tenant_id,organization_id,team_id,workspace_id)
+   REFERENCES public.platform_staff_team_workspaces(tenant_id,organization_id,team_id,workspace_id)
    ON DELETE RESTRICT;
  END IF;
 END $constraints$;
-ALTER TABLE service_attendance_events
+ALTER TABLE service.service_attendance_events
  DROP CONSTRAINT IF EXISTS service_attendance_events_action_check;
-ALTER TABLE service_attendance_events ADD CONSTRAINT service_attendance_events_action_check
+ALTER TABLE service.service_attendance_events ADD CONSTRAINT service_attendance_events_action_check
  CHECK(action IN ('created','stage_changed','assigned','closed','team_transferred'));
 CREATE INDEX IF NOT EXISTS service_attendance_active_team_idx
- ON service_attendances(tenant_id,organization_id,workspace_id,team_id,state)
+ ON service.service_attendances(tenant_id,organization_id,workspace_id,team_id,state)
  WHERE team_id IS NOT NULL;
 
 -- Business designation is NOT an OpenFGA tuple. Both Host module/resource FGA
 -- and tenant+org+workspace membership are separately required.
-CREATE OR REPLACE FUNCTION service_team_is_supervisor(t UUID,o UUID,w UUID,subject TEXT)
+CREATE OR REPLACE FUNCTION service.service_team_is_supervisor(t UUID,o UUID,w UUID,subject TEXT)
 RETURNS BOOLEAN STABLE LANGUAGE SQL SECURITY INVOKER AS $fn$
  SELECT EXISTS(
- SELECT 1 FROM platform_workspace_staff_roles r
- JOIN platform_staff_identity_links l ON l.tenant_id=r.tenant_id
+ SELECT 1 FROM public.platform_workspace_staff_roles r
+ JOIN public.platform_staff_identity_links l ON l.tenant_id=r.tenant_id
    AND l.organization_id=r.organization_id AND l.principal_id=r.principal_id
    AND l.state='active'
- JOIN crm_employees e ON e.tenant_id=l.tenant_id AND e.id=l.employee_id
+ JOIN public.crm_employees e ON e.tenant_id=l.tenant_id AND e.id=l.employee_id
    AND e.active=true
- JOIN crm_people p ON p.tenant_id=e.tenant_id AND p.id=e.person_id
+ JOIN public.crm_people p ON p.tenant_id=e.tenant_id AND p.id=e.person_id
    AND p.archived_at IS NULL AND p.platform_organization_id=r.organization_id
- JOIN platform_org_memberships om ON om.tenant_id=r.tenant_id
+ JOIN public.platform_org_memberships om ON om.tenant_id=r.tenant_id
    AND om.organization_id=r.organization_id AND om.principal_id=r.principal_id
    AND om.state='active' AND om.role IN ('admin','editor')
- JOIN platform_workspace_memberships wm ON wm.tenant_id=r.tenant_id
+ JOIN public.platform_workspace_memberships wm ON wm.tenant_id=r.tenant_id
    AND wm.organization_id=r.organization_id AND wm.workspace_id=r.workspace_id
    AND wm.principal_id=r.principal_id AND wm.state='active'
    AND wm.role IN ('admin','editor')
@@ -64,31 +63,31 @@ RETURNS BOOLEAN STABLE LANGUAGE SQL SECURITY INVOKER AS $fn$
  );
 $fn$;
 
-CREATE OR REPLACE FUNCTION service_team_can_read(t UUID,o UUID,w UUID,team UUID,subject TEXT)
+CREATE OR REPLACE FUNCTION service.service_team_can_read(t UUID,o UUID,w UUID,team UUID,subject TEXT)
 RETURNS BOOLEAN STABLE LANGUAGE SQL SECURITY INVOKER AS $fn$
  SELECT CASE WHEN team IS NULL THEN true ELSE
- service_team_is_supervisor(t,o,w,subject) OR EXISTS(
- SELECT 1 FROM platform_staff_team_members tm
- JOIN platform_staff_teams st ON st.tenant_id=tm.tenant_id
+ service.service_team_is_supervisor(t,o,w,subject) OR EXISTS(
+ SELECT 1 FROM public.platform_staff_team_members tm
+ JOIN public.platform_staff_teams st ON st.tenant_id=tm.tenant_id
    AND st.organization_id=tm.organization_id AND st.id=tm.team_id AND st.state='active'
- JOIN platform_staff_team_workspaces tw ON tw.tenant_id=tm.tenant_id
+ JOIN public.platform_staff_team_workspaces tw ON tw.tenant_id=tm.tenant_id
    AND tw.organization_id=tm.organization_id AND tw.team_id=tm.team_id
    AND tw.workspace_id=w
- JOIN platform_workspace_staff_roles r ON r.tenant_id=tm.tenant_id
+ JOIN public.platform_workspace_staff_roles r ON r.tenant_id=tm.tenant_id
    AND r.organization_id=tm.organization_id AND r.workspace_id=w
    AND r.principal_id=tm.principal_id AND r.state='active'
    AND r.business_role IN ('agent','supervisor')
- JOIN platform_staff_identity_links l ON l.tenant_id=tm.tenant_id
+ JOIN public.platform_staff_identity_links l ON l.tenant_id=tm.tenant_id
    AND l.organization_id=tm.organization_id AND l.principal_id=tm.principal_id
    AND l.state='active'
- JOIN crm_employees e ON e.tenant_id=l.tenant_id AND e.id=l.employee_id
+ JOIN public.crm_employees e ON e.tenant_id=l.tenant_id AND e.id=l.employee_id
    AND e.active=true
- JOIN crm_people p ON p.tenant_id=e.tenant_id AND p.id=e.person_id
+ JOIN public.crm_people p ON p.tenant_id=e.tenant_id AND p.id=e.person_id
    AND p.archived_at IS NULL AND p.platform_organization_id=tm.organization_id
- JOIN platform_org_memberships om ON om.tenant_id=tm.tenant_id
+ JOIN public.platform_org_memberships om ON om.tenant_id=tm.tenant_id
    AND om.organization_id=tm.organization_id AND om.principal_id=tm.principal_id
    AND om.state='active' AND om.role IN ('admin','editor')
- JOIN platform_workspace_memberships wm ON wm.tenant_id=tm.tenant_id
+ JOIN public.platform_workspace_memberships wm ON wm.tenant_id=tm.tenant_id
    AND wm.organization_id=tm.organization_id AND wm.workspace_id=w
    AND wm.principal_id=tm.principal_id AND wm.state='active'
    AND wm.role IN ('admin','editor')
@@ -97,23 +96,23 @@ RETURNS BOOLEAN STABLE LANGUAGE SQL SECURITY INVOKER AS $fn$
  ) END;
 $fn$;
 
-CREATE OR REPLACE FUNCTION service_team_is_staffed(t UUID,o UUID,w UUID,team UUID)
+CREATE OR REPLACE FUNCTION service.service_team_is_staffed(t UUID,o UUID,w UUID,team UUID)
 RETURNS BOOLEAN STABLE LANGUAGE SQL SECURITY INVOKER AS $fn$
  SELECT EXISTS(
- SELECT 1 FROM platform_staff_team_members tm
- JOIN platform_staff_teams st ON st.tenant_id=tm.tenant_id
+ SELECT 1 FROM public.platform_staff_team_members tm
+ JOIN public.platform_staff_teams st ON st.tenant_id=tm.tenant_id
    AND st.organization_id=tm.organization_id AND st.id=tm.team_id AND st.state='active'
- JOIN platform_staff_team_workspaces tw ON tw.tenant_id=tm.tenant_id
+ JOIN public.platform_staff_team_workspaces tw ON tw.tenant_id=tm.tenant_id
    AND tw.organization_id=tm.organization_id AND tw.team_id=tm.team_id
    AND tw.workspace_id=w
  WHERE tm.tenant_id=t AND tm.organization_id=o AND tm.team_id=team
-   AND tm.state='active' AND service_team_can_read(t,o,w,team,tm.principal_id)
+   AND tm.state='active' AND service.service_team_can_read(t,o,w,team,tm.principal_id)
  );
 $fn$;
 
 -- Explicit opt-in upgrade of the old guard and audit in exactly the same tx.
 -- No backfill, no rewriting old protocols, and SQL002 remains physically active.
-CREATE OR REPLACE FUNCTION service_funnel_attendance_guard()
+CREATE OR REPLACE FUNCTION service.service_funnel_attendance_guard()
 RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER AS $$
 DECLARE actor text; previous_pos int; next_pos int; terminal_stage boolean;
 BEGIN
@@ -122,11 +121,11 @@ BEGIN
   RAISE EXCEPTION 'Trusted service actor required' USING ERRCODE='23514';
  END IF;
  IF NOT EXISTS(
-  SELECT 1 FROM platform_workspaces w
-  JOIN platform_organizations o ON o.tenant_id=w.tenant_id AND o.id=w.organization_id
-  JOIN platform_org_memberships om ON om.tenant_id=w.tenant_id
+  SELECT 1 FROM public.platform_workspaces w
+  JOIN public.platform_organizations o ON o.tenant_id=w.tenant_id AND o.id=w.organization_id
+  JOIN public.platform_org_memberships om ON om.tenant_id=w.tenant_id
    AND om.organization_id=w.organization_id AND om.principal_id=actor
-  JOIN platform_workspace_memberships wm ON wm.tenant_id=w.tenant_id
+  JOIN public.platform_workspace_memberships wm ON wm.tenant_id=w.tenant_id
    AND wm.organization_id=w.organization_id AND wm.workspace_id=w.id
    AND wm.principal_id=actor
   WHERE w.tenant_id=NEW.tenant_id AND w.organization_id=NEW.organization_id
@@ -137,8 +136,8 @@ BEGIN
   RAISE EXCEPTION 'Authorized workspace editor required' USING ERRCODE='23514';
  END IF;
  IF NEW.assigned_to IS NOT NULL AND NOT EXISTS(
-  SELECT 1 FROM platform_workspace_memberships wm
-  JOIN platform_org_memberships om ON om.tenant_id=wm.tenant_id
+  SELECT 1 FROM public.platform_workspace_memberships wm
+  JOIN public.platform_org_memberships om ON om.tenant_id=wm.tenant_id
    AND om.organization_id=wm.organization_id AND om.principal_id=wm.principal_id
   WHERE wm.tenant_id=NEW.tenant_id AND wm.organization_id=NEW.organization_id
    AND wm.workspace_id=NEW.workspace_id AND wm.principal_id=NEW.assigned_to
@@ -148,24 +147,24 @@ BEGIN
   RAISE EXCEPTION 'Assignee has no active workspace permission' USING ERRCODE='23514';
  END IF;
  IF NEW.team_id IS NOT NULL AND NEW.assigned_to IS NOT NULL
-   AND NOT service_team_can_read(NEW.tenant_id,NEW.organization_id,
+   AND NOT service.service_team_can_read(NEW.tenant_id,NEW.organization_id,
      NEW.workspace_id,NEW.team_id,NEW.assigned_to) THEN
   RAISE EXCEPTION 'Assignee is not active in the routed team'
    USING ERRCODE='23514';
  END IF;
  IF NEW.inbox_conversation_id IS NOT NULL AND NOT EXISTS(
-  SELECT 1 FROM inbox_conversations c WHERE c.tenant_id=NEW.tenant_id
+  SELECT 1 FROM public.inbox_conversations c WHERE c.tenant_id=NEW.tenant_id
    AND c.id=NEW.inbox_conversation_id AND c.platform_organization_id=NEW.organization_id
    AND c.platform_current_workspace_id=NEW.workspace_id
  ) THEN
   RAISE EXCEPTION 'Inbox conversation outside attendance scope' USING ERRCODE='23514';
  END IF;
- IF NOT EXISTS(SELECT 1 FROM service_funnels f
+ IF NOT EXISTS(SELECT 1 FROM service.service_funnels f
   WHERE f.tenant_id=NEW.tenant_id AND f.organization_id=NEW.organization_id
    AND f.workspace_id=NEW.workspace_id AND f.id=NEW.funnel_id AND f.state='published') THEN
   RAISE EXCEPTION 'Published funnel required' USING ERRCODE='23514';
  END IF;
- SELECT position,terminal INTO next_pos,terminal_stage FROM service_funnel_stages
+ SELECT position,terminal INTO next_pos,terminal_stage FROM service.service_funnel_stages
   WHERE tenant_id=NEW.tenant_id AND organization_id=NEW.organization_id
    AND workspace_id=NEW.workspace_id AND funnel_id=NEW.funnel_id AND id=NEW.stage_id;
  IF next_pos IS NULL THEN
@@ -195,17 +194,17 @@ BEGIN
      NEW.closed_at IS DISTINCT FROM OLD.closed_at OR
      length(btrim(coalesce(current_setting('syndes.service_transfer_reason',true),'')))
        NOT BETWEEN 4 AND 240 OR
-     NOT service_team_is_supervisor(NEW.tenant_id,NEW.organization_id,
+     NOT service.service_team_is_supervisor(NEW.tenant_id,NEW.organization_id,
        NEW.workspace_id,actor) OR
-     NOT service_team_can_read(OLD.tenant_id,OLD.organization_id,
+     NOT service.service_team_can_read(OLD.tenant_id,OLD.organization_id,
        OLD.workspace_id,OLD.team_id,actor) OR
-     NOT service_team_is_staffed(NEW.tenant_id,NEW.organization_id,
+     NOT service.service_team_is_staffed(NEW.tenant_id,NEW.organization_id,
        NEW.workspace_id,NEW.team_id) THEN
    RAISE EXCEPTION 'Team transfer requires authorized source, staffed target and reason'
      USING ERRCODE='23514';
   END IF;
  ELSIF NEW.stage_id IS DISTINCT FROM OLD.stage_id THEN
-  SELECT position INTO previous_pos FROM service_funnel_stages
+  SELECT position INTO previous_pos FROM service.service_funnel_stages
    WHERE tenant_id=OLD.tenant_id AND organization_id=OLD.organization_id
     AND workspace_id=OLD.workspace_id AND funnel_id=OLD.funnel_id AND id=OLD.stage_id;
   IF NEW.state<>'open' OR abs(next_pos-previous_pos)<>1
@@ -226,10 +225,10 @@ BEGIN
  END IF;
  RETURN NEW;
 END $$;
-CREATE OR REPLACE FUNCTION service_funnel_audit()
+CREATE OR REPLACE FUNCTION service.service_funnel_audit()
 RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER AS $$
 BEGIN
- INSERT INTO service_attendance_events(
+ INSERT INTO service.service_attendance_events(
   tenant_id,organization_id,workspace_id,attendance_id,actor_id,action,
   previous_stage_id,next_stage_id,previous_assignee,next_assignee,result,version,
   previous_team_id,next_team_id,transfer_reason)
@@ -249,4 +248,3 @@ BEGIN
     ELSE NULL END);
  RETURN NEW;
 END $$;
-COMMIT;
