@@ -51,7 +51,7 @@ BEGIN
     WHERE d.module_id=p_module AND d.version=p_version
       AND (e.state IS DISTINCT FROM 'granted'
            OR (e.valid_until IS NOT NULL AND e.valid_until<=clock_timestamp())
-           OR i.state IS DISTINCT FROM 'installed'
+           OR i.state IS NULL OR i.state NOT IN ('installed','enabled')
            OR i.installed_version IS NULL OR i.verification_digest IS NULL)
  ) THEN RAISE EXCEPTION 'Attestation dependency unavailable' USING ERRCODE='23514'; END IF;
  SELECT state,target_version,installed_version,revision

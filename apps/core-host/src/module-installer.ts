@@ -44,6 +44,16 @@ export interface TrustedInstallAttestor {
   /** Must use a separately authenticated installer role, NEVER Host runtime. */
   attestInstallation(request:InstallAttestation):Promise<void>;
 }
+export type ModuleActivationRequest=InstallAttestation & Readonly<{
+  command:"enable"|"disable";
+}>;
+export interface TrustedModuleActivator {
+  /** Requires a dedicated NOLOGIN activation role, not Host or Manager. */
+  transitionActivation(request:ModuleActivationRequest):Promise<"enabled"|"installed">;
+}
+export type ActivationIntent=Readonly<{
+  requestId:string;actorId:string;reason:string;
+}>;
 type PoolProvider=(tenantId:string)=>Promise<Pool>;
 type Control=Pick<Pool,"query">;
 type ControlRow=Readonly<{
@@ -72,6 +82,7 @@ export class PgModuleInstaller {
     private readonly resolveInstallerPool:PoolProvider,
     releases:readonly TrustedModuleRelease[],
     private readonly attestor?:TrustedInstallAttestor,
+    private readonly activator?:TrustedModuleActivator,
   ){
     const definitions:ModuleDefinition[]=[{id:"platform",version:"0.1.0"}];
     for(const item of releases){
@@ -146,13 +157,13 @@ export class PgModuleInstaller {
       "JOIN public.tenant_module_installs i ON i.tenant_id=e.tenant_id AND i.module_id=e.module_id",
       "WHERE t.tenant_id=$1::uuid AND t.state='active' AND e.module_id=$2",
       "AND e.state='granted' AND (e.valid_until IS NULL OR e.valid_until>clock_timestamp())",
-      "AND i.state IN ('requested','installed')",
+      "AND i.state IN ('requested','installed','enabled')",
     ].join(" "),[tenantId,item.id]);
     const row=r.rows[0];
     const expected=expectedTenantDatabase(tenantId);
     if(!row||row.database_name!==expected.database_name||
        row.role_name!==expected.role_name||row.target_version!==item.version||
-       (row.state==="installed" &&
+       (row.state!=="requested" &&
         (row.installed_version!==item.version||row.verification_digest!==this.receipt(item))))deny();
     return row;
   }
@@ -191,7 +202,7 @@ export class PgModuleInstaller {
     for(const row of rows.rows){
       const dep=this.release(row.dependency_id);
       if(row.entitlement_state!=="granted"||row.entitlement_current!==true||
-         row.install_state!=="installed"||row.installed_version!==dep.version||
+         !["installed","enabled"].includes(row.install_state??"")||row.installed_version!==dep.version||
          row.verification_digest!==this.receipt(dep))deny();
       this.matchLedger(dep,ledger,true);
       const ns=await db.query<{exists:boolean}>("SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname=$1) AS exists",[dep.schema]);
@@ -239,7 +250,7 @@ export class PgModuleInstaller {
    */
   async apply(tenantId:string,moduleId:string,
               attestation?:Omit<InstallAttestation,"tenantId"|"moduleId"|"version"|"receipt">):
-    Promise<Readonly<{plan:MigrationPlan;verified:InstallerVerification;controlState:"installed"|"requested"}>> {
+    Promise<Readonly<{plan:MigrationPlan;verified:InstallerVerification;controlState:"installed"|"requested"|"enabled"}>> {
     const item=this.release(moduleId);
     await this.gate(tenantId,item);
     const db=await this.resolveInstallerPool(tenantId);
@@ -288,8 +299,50 @@ export class PgModuleInstaller {
     const current=await this.gate(tenantId,item);
     return Object.freeze({
       plan:await this.plan(tenantId,moduleId),verified,
-      controlState:current.state==="installed"?"installed":"requested",
+      controlState:current.state==="enabled"?"enabled":
+        current.state==="installed"?"installed":"requested",
     });
+  }
+
+  /** Only the privileged activation service may call this method.
+   * Re-verifies physical tenant ledger BEFORE enabling in Control DB.
+   * A Control DB activation result alone is not physical proof.
+   */
+  async enable(tenantId:string,moduleId:string,intent:ActivationIntent):Promise<InstallerVerification>{
+    if(!this.activator||!tenantUUID(tenantId))deny();
+    this.validateIntent(intent);
+    const item=this.release(moduleId);
+    const verified=await this.verify(tenantId,moduleId);
+    // Do not accept an activation result without the exact manifest receipt.
+    if(verified.receipt!==this.receipt(item))deny();
+    const result=await this.activator!.transitionActivation({
+      ...intent,tenantId,moduleId,version:item.version,receipt:verified.receipt,
+      command:"enable",
+    });
+    if(result!=="enabled")deny();
+    return verified;
+  }
+
+  /** Incident response: disabling must work even when a tenant is suspended
+   * or the tenant SQL ledger cannot be read. The restricted Control DB function
+   * still requires the exact receipt and a valid ENABLED state.
+   */
+  async disable(tenantId:string,moduleId:string,intent:ActivationIntent):Promise<void>{
+    if(!this.activator||!tenantUUID(tenantId))deny();
+    this.validateIntent(intent);
+    const item=this.release(moduleId);
+    const result=await this.activator!.transitionActivation({
+      ...intent,tenantId,moduleId,version:item.version,receipt:this.receipt(item),
+      command:"disable",
+    });
+    if(result!=="installed")deny();
+  }
+  private validateIntent(intent:ActivationIntent):void{
+    if(!intent||!tenantUUID(intent.requestId)||
+       typeof intent.actorId!=="string"||!intent.actorId.trim()||
+       intent.actorId.length>256||
+       typeof intent.reason!=="string"||!intent.reason.trim()||
+       intent.reason.length>500)deny();
   }
 
   /** Read-only: confirms physical SQL ledger checksum and explicit objects.
@@ -331,5 +384,28 @@ export class PgControlInstallAttestor implements TrustedInstallAttestor {
       [request.tenantId,request.moduleId,request.version,request.receipt,
        request.requestId,request.actorId,request.reason]);
     if(r.rows[0]?.result!=="installed")deny();
+  }
+}
+
+/** This Control DB adapter needs the dedicated activation role.
+ * Never register it as a Nest provider on Core Host or on the Manager API.
+ */
+export class PgControlModuleActivator implements TrustedModuleActivator {
+  constructor(private readonly db:Pick<Pool,"query">){}
+  async transitionActivation(request:ModuleActivationRequest):Promise<"enabled"|"installed">{
+    if(!request||!tenantUUID(request.tenantId)||!ID.test(request.moduleId)||
+       !VERSION.test(request.version)||!HASH.test(request.receipt)||
+       !tenantUUID(request.requestId)||
+       !["enable","disable"].includes(request.command)||
+       typeof request.actorId!=="string"||!request.actorId.trim()||
+       request.actorId.length>256||
+       typeof request.reason!=="string"||!request.reason.trim()||
+       request.reason.length>500)deny();
+    const result=await this.db.query<{result:string}>(
+      "SELECT public.transition_tenant_module_activation($1::uuid,$2,$3,$4,$5,$6::uuid,$7,$8) AS result",
+      [request.tenantId,request.moduleId,request.version,request.receipt,
+       request.command,request.requestId,request.actorId,request.reason]);
+    if(result.rows[0]?.result!==(request.command==="enable"?"enabled":"installed"))deny();
+    return result.rows[0].result as "enabled"|"installed";
   }
 }

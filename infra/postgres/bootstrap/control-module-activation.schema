@@ -1,0 +1,130 @@
+-- AK-30.03 — CANDIDATE, Control DB ONLY. NOT applied automatically.
+-- Requires control.schema, control-module-catalog.schema,
+-- control-module-lifecycle.schema and control-module-attestation.schema.
+-- The caller MUST re-verify the per-tenant physical ledger and JWT/authorization
+-- before using a dedicated activation role; this function sees Control DB only.
+DO $role$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='syndes_module_activator')
+ THEN CREATE ROLE syndes_module_activator NOLOGIN; END IF;
+END $role$;
+
+CREATE OR REPLACE FUNCTION public.transition_tenant_module_activation(
+  p_tenant UUID,p_module TEXT,p_version TEXT,p_receipt TEXT,p_command TEXT,
+  p_request UUID,p_actor TEXT,p_reason TEXT
+) RETURNS TEXT LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog AS $fn$
+DECLARE
+  v_fingerprint TEXT;
+  v_replay RECORD;
+  v_previous TEXT;
+  v_target TEXT;
+  v_installed TEXT;
+  v_receipt TEXT;
+  v_revision BIGINT;
+  v_next TEXT;
+BEGIN
+  IF p_tenant IS NULL OR p_request IS NULL OR
+    p_module IS NULL OR p_module !~ '^[a-z][a-z0-9_]*$' OR length(p_module)>63 OR
+    p_version IS NULL OR p_version !~ '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+      OR length(p_version)>80 OR
+    p_receipt IS NULL OR p_receipt !~ '^[0-9a-f]{64}$' OR
+    p_command IS NULL OR p_command NOT IN ('enable','disable') OR
+    p_actor IS NULL OR length(p_actor) NOT BETWEEN 1 AND 256 OR
+    p_reason IS NULL OR length(p_reason) NOT BETWEEN 1 AND 500
+  THEN RAISE EXCEPTION 'Invalid module activation command' USING ERRCODE='22023'; END IF;
+
+  v_fingerprint:=pg_catalog.md5(pg_catalog.jsonb_build_object(
+    'module',p_module,'version',p_version,'receipt',p_receipt,
+    'command',p_command,'actor',p_actor,'reason',p_reason,
+    'kind','installation.activation')::TEXT);
+  -- Same advisory lock as install intent and installer attestation, preventing
+  -- double activation and serializing Control metadata updates.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_tenant::TEXT||'/'||p_module,0));
+  SELECT a.* INTO v_replay FROM public.tenant_module_audit a
+    WHERE a.tenant_id=p_tenant AND a.request_id=p_request;
+  IF FOUND THEN
+    IF v_replay.payload_hash<>v_fingerprint OR
+       v_replay.operation<>'installation.'||p_command
+    THEN RAISE EXCEPTION 'Activation idempotency key mismatch' USING ERRCODE='23505'; END IF;
+    -- A historical replay must not claim ENABLED after a later DISABLE.
+    -- The previous request remains in audit, but the caller needs a fresh
+    -- idempotency key for a new transition from the actual current state.
+    IF NOT EXISTS (
+      SELECT 1 FROM public.tenant_module_installs i
+      WHERE i.tenant_id=p_tenant AND i.module_id=p_module
+        AND i.state=v_replay.result_state
+        AND i.installed_version=p_version AND i.target_version=p_version
+        AND i.verification_digest=p_receipt
+    ) THEN RAISE EXCEPTION 'Stale activation replay' USING ERRCODE='23514'; END IF;
+    RETURN v_replay.result_state;
+  END IF;
+
+  -- A suspended tenant may disable an already enabled module, but never
+  -- activate. This makes incident revocation available without new grants.
+  IF NOT EXISTS(
+    SELECT 1 FROM public.tenant_registry t WHERE t.tenant_id=p_tenant
+      AND (t.state='active' OR p_command='disable')
+  ) THEN RAISE EXCEPTION 'Tenant unavailable' USING ERRCODE='23514'; END IF;
+
+  IF p_command='enable' THEN
+    IF NOT EXISTS(
+      SELECT 1 FROM public.tenant_module_entitlements e
+        JOIN public.module_catalog_versions v
+          ON v.module_id=e.module_id AND v.version=p_version
+      WHERE e.tenant_id=p_tenant AND e.module_id=p_module
+        AND e.state='granted'
+        AND (e.valid_until IS NULL OR e.valid_until>clock_timestamp())
+        AND v.approved=TRUE
+    ) THEN RAISE EXCEPTION 'Unapproved or unentitled release' USING ERRCODE='23514'; END IF;
+    -- A release may have globally approved deps but lack installed and
+    -- ENABLED dependencies for this particular tenant.
+    IF EXISTS(
+      SELECT 1 FROM public.module_catalog_dependencies d
+        LEFT JOIN public.tenant_module_entitlements e
+          ON e.tenant_id=p_tenant AND e.module_id=d.dependency_id
+        LEFT JOIN public.tenant_module_installs i
+          ON i.tenant_id=p_tenant AND i.module_id=d.dependency_id
+        LEFT JOIN public.module_catalog_versions v
+          ON v.module_id=d.dependency_id AND v.version=i.installed_version
+      WHERE d.module_id=p_module AND d.version=p_version
+        AND (e.state IS DISTINCT FROM 'granted'
+          OR (e.valid_until IS NOT NULL AND e.valid_until<=clock_timestamp())
+          OR i.state IS DISTINCT FROM 'enabled'
+          OR i.installed_version IS NULL
+          OR i.installed_version IS DISTINCT FROM i.target_version
+          OR i.verification_digest IS NULL
+          OR i.verified_at IS NULL
+          OR v.approved IS DISTINCT FROM TRUE)
+    ) THEN RAISE EXCEPTION 'Module dependency not enabled' USING ERRCODE='23514'; END IF;
+  END IF;
+  SELECT i.state,i.target_version,i.installed_version,i.verification_digest,i.revision
+    INTO v_previous,v_target,v_installed,v_receipt,v_revision
+    FROM public.tenant_module_installs i
+    WHERE i.tenant_id=p_tenant AND i.module_id=p_module FOR UPDATE;
+  IF v_target IS DISTINCT FROM p_version OR v_installed IS DISTINCT FROM p_version
+     OR v_receipt IS DISTINCT FROM p_receipt
+  THEN RAISE EXCEPTION 'Verified installation does not match release' USING ERRCODE='23514'; END IF;
+  IF p_command='enable' AND v_previous='installed' THEN
+    v_next:='enabled';
+  ELSIF p_command='disable' AND v_previous='enabled' THEN
+    v_next:='installed';
+  ELSE RAISE EXCEPTION 'Invalid activation state transition' USING ERRCODE='23514'; END IF;
+  v_revision:=v_revision+1;
+  UPDATE public.tenant_module_installs
+    SET state=v_next,revision=v_revision,updated_at=clock_timestamp()
+    WHERE tenant_id=p_tenant AND module_id=p_module;
+  INSERT INTO public.tenant_module_audit(
+    tenant_id,module_id,request_id,payload_hash,operation,actor_id,reason,
+    previous_state,result_state,target_version,result_revision)
+  VALUES(p_tenant,p_module,p_request,v_fingerprint,'installation.'||p_command,
+    p_actor,p_reason,v_previous,v_next,p_version,v_revision);
+  RETURN v_next;
+END
+$fn$;
+REVOKE ALL ON FUNCTION public.transition_tenant_module_activation(
+ UUID,TEXT,TEXT,TEXT,TEXT,UUID,TEXT,TEXT)
+ FROM PUBLIC,syndes_core,syndes_module_operator,syndes_module_installer;
+GRANT EXECUTE ON FUNCTION public.transition_tenant_module_activation(
+ UUID,TEXT,TEXT,TEXT,TEXT,UUID,TEXT,TEXT)
+ TO syndes_module_activator;

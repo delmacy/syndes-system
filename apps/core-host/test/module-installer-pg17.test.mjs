@@ -4,7 +4,7 @@ import {randomUUID,randomBytes,createHash} from "node:crypto";
 import {readFile} from "node:fs/promises";
 import {fileURLToPath} from "node:url";
 import pg from "pg";
-import {PgModuleInstaller,PgControlInstallAttestor} from "../dist/module-installer.js";
+import {PgModuleInstaller,PgControlInstallAttestor,PgControlModuleActivator} from "../dist/module-installer.js";
 
 const rawUrl=process.env.SYNDES_AK30_PG_URL;
 const safe=(()=>{
@@ -50,7 +50,7 @@ test("AK-30 versioned installer: Control DB plus 2 separate PG17 tenant database
     const mapping=id=>"syndes_tenant_"+id.replaceAll("-","");
     const dbNames=[controlName,mapping(A),mapping(B)];
     const created=[];
-    let control,operator,attestorClient;
+    let control,operator,attestorClient,activatorClient;
     const pools=[];
     try{
       const version=await admin.query("SELECT current_setting('server_version_num')::int AS n");
@@ -59,10 +59,11 @@ test("AK-30 versioned installer: Control DB plus 2 separate PG17 tenant database
       control=new Client({connectionString:testDb(rawUrl,controlName)});
       await control.connect();
       await control.query("DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='syndes_core') THEN CREATE ROLE syndes_core NOLOGIN; END IF; END $$");
-      for(const script of ["control.schema","control-module-catalog.schema","control-module-lifecycle.schema","control-module-attestation.schema"]){
+      for(const script of ["control.schema","control-module-catalog.schema","control-module-lifecycle.schema","control-module-attestation.schema","control-module-activation.schema"]){
         await control.query(await fixtureSql(script));
       }
       await control.query(await fixtureSql("control-module-attestation.schema"));
+      await control.query(await fixtureSql("control-module-activation.schema"));
       const poolsByTenant=new Map();
       for(const id of [A,B]){
         const pool=new Pool({connectionString:testDb(rawUrl,mapping(id)),max:3});
@@ -74,6 +75,9 @@ test("AK-30 versioned installer: Control DB plus 2 separate PG17 tenant database
       await operator.query("SET ROLE syndes_module_operator");
       attestorClient=new Client({connectionString:testDb(rawUrl,controlName)});await attestorClient.connect();
       await attestorClient.query("SET ROLE syndes_module_installer");
+      activatorClient=new Client({connectionString:testDb(rawUrl,controlName)});
+      await activatorClient.connect();
+      await activatorClient.query("SET ROLE syndes_module_activator");
       for(const id of [A,B,C]){
         const suffix=id.replaceAll("-","");
         await control.query(
@@ -108,7 +112,8 @@ test("AK-30 versioned installer: Control DB plus 2 separate PG17 tenant database
         return pool;
       };
       const trustedAttestor=new PgControlInstallAttestor(attestorClient);
-      const installer=new PgModuleInstaller(control,resolver,releases,trustedAttestor);
+      const trustedActivator=new PgControlModuleActivator(activatorClient);
+      const installer=new PgModuleInstaller(control,resolver,releases,trustedAttestor,trustedActivator);
       const unattested=new PgModuleInstaller(control,resolver,releases);
 
       await t.test("plan is read-only, tenant-specific and only for approved requested release",async()=>{
@@ -164,6 +169,40 @@ test("AK-30 versioned installer: Control DB plus 2 separate PG17 tenant database
         const after=await control.query("SELECT COUNT(*)::int AS n FROM public.tenant_module_audit WHERE tenant_id=$1 AND operation='installation.attest'",[A]);
         assert.equal(after.rows[0].n,1);
       });
+      await t.test("CRM activation requires physical verification and privileged role",async()=>{
+        const first={requestId:randomUUID(),actorId:"verified-activator-fixture",reason:"enable-approved-crm"};
+        await assert.rejects(operator.query(
+          "SELECT public.transition_tenant_module_activation($1,'crm','0.1.0',$2,'enable',$3,'impersonator','not-allowed')",
+          [A,"a".repeat(64),randomUUID()]),e=>e.code==="42501");
+        await assert.rejects(attestorClient.query(
+          "SELECT public.transition_tenant_module_activation($1,'crm','0.1.0',$2,'enable',$3,'impersonator','not-allowed')",
+          [A,"a".repeat(64),randomUUID()]),e=>e.code==="42501");
+        await assert.rejects(trustedActivator.transitionActivation({
+          tenantId:A,moduleId:"crm",version:"0.1.0",receipt:"a".repeat(64),
+          command:"enable",requestId:randomUUID(),actorId:"verified-activator-fixture",
+          reason:"forged-receipt",
+        }),e=>e.code==="23514");
+        assert.equal((await installer.enable(A,"crm",first)).verified,true);
+        const state=await control.query(
+          "SELECT state,verification_digest FROM public.tenant_module_installs WHERE tenant_id=$1 AND module_id='crm'",[A]);
+        assert.equal(state.rows[0].state,"enabled");
+        assert.equal(state.rows[0].verification_digest,(await installer.verify(A,"crm")).receipt);
+        const before=await control.query(
+          "SELECT COUNT(*)::int AS n FROM public.tenant_module_audit WHERE tenant_id=$1 AND operation='installation.enable'",[A]);
+        await installer.enable(A,"crm",first);
+        const after=await control.query(
+          "SELECT COUNT(*)::int AS n FROM public.tenant_module_audit WHERE tenant_id=$1 AND operation='installation.enable'",[A]);
+        assert.equal(before.rows[0].n,1);
+        assert.equal(after.rows[0].n,1,"Replay does not produce duplicate events");
+        await assert.rejects(installer.enable(A,"crm",{...first,reason:"different-intent"}),e=>e.code==="23505");
+        const rerun=await installer.apply(A,"crm");
+        assert.equal(rerun.controlState,"enabled");
+      });
+      await t.test("Inbox cannot activate before installation even with CRM enabled",async()=>{
+        await assert.rejects(installer.enable(A,"inbox",{
+          requestId:randomUUID(),actorId:"verified-activator-fixture",reason:"not-installed",
+        }),/Access denied/);
+      });
       await t.test("Inbox installs only for tenant A with verified CRM; B remains CRM only",async()=>{
         const run=await installer.apply(A,"inbox",{
           requestId:randomUUID(),actorId:"verified-installer-fixture",reason:"approved-inbox",
@@ -173,6 +212,36 @@ test("AK-30 versioned installer: Control DB plus 2 separate PG17 tenant database
         assert.equal((await poolsByTenant.get(B).query("SELECT to_regclass('inbox.conversations') IS NOT NULL AS yes")).rows[0].yes,false);
         const before=(await control.query("SELECT state FROM public.tenant_module_installs WHERE tenant_id=$1 AND module_id='inbox'",[B])).rows;
         assert.deepEqual(before,[]);
+      });
+      await t.test("Inbox activation, dependency disable, recovery and replay",async()=>{
+        const first={requestId:randomUUID(),actorId:"verified-activator-fixture",reason:"enable-inbox"};
+        const success=await installer.enable(A,"inbox",first);
+        assert.equal(success.verified,true);
+        const disabled={requestId:randomUUID(),actorId:"verified-activator-fixture",reason:"emergency-disable"};
+        await installer.disable(A,"crm",disabled);
+        await installer.disable(A,"crm",disabled); // replay, no duplicate audit
+        await assert.rejects(installer.enable(A,"crm",{
+          ...disabled,reason:"rebind-intent",
+        }),e=>e.code==="23505");
+        assert.equal((await control.query(
+          "SELECT state FROM public.tenant_module_installs WHERE tenant_id=$1 AND module_id='crm'",[A])).rows[0].state,"installed");
+        await assert.rejects(installer.enable(A,"inbox",{
+          requestId:randomUUID(),actorId:"verified-activator-fixture",reason:"dependency-not-enabled",
+        }),e=>e.code==="23514");
+        await installer.enable(A,"crm",{
+          requestId:randomUUID(),actorId:"verified-activator-fixture",reason:"restore-enabled",
+        });
+        await assert.rejects(installer.disable(A,"crm",disabled),e=>e.code==="23514",
+          "Historical disable replay must not claim success after CRM was re-enabled");
+        assert.equal((await installer.verify(A,"inbox")).verified,true);
+      });
+      await t.test("role cannot bypass explicit activation gates",async()=>{
+        await assert.rejects(operator.query(
+          "UPDATE public.tenant_module_installs SET state='enabled' WHERE tenant_id=$1",[A]),e=>e.code==="42501");
+        await assert.rejects(attestorClient.query(
+          "UPDATE public.tenant_module_installs SET state='enabled' WHERE tenant_id=$1",[A]),e=>e.code==="42501");
+        await assert.rejects(activatorClient.query(
+          "UPDATE public.tenant_module_installs SET state='enabled' WHERE tenant_id=$1",[A]),e=>e.code==="42501");
       });
       await t.test("tenant B CRM install is independent and has no optional Inbox schema",async()=>{
         const result=await installer.apply(B,"crm",{
@@ -214,6 +283,27 @@ test("AK-30 versioned installer: Control DB plus 2 separate PG17 tenant database
         await db.query("UPDATE _syndes.module_migrations SET checksum=$1 WHERE module_id='crm' AND migration_id='001_people'",[before.rows[0].checksum]);
         assert.equal((await installer.verify(A,"crm")).verified,true);
       });
+      await t.test("physical drift denies reenable and leaves Control state installed",async()=>{
+        const db=poolsByTenant.get(A);
+        await installer.disable(A,"inbox",{
+          requestId:randomUUID(),actorId:"verified-activator-fixture",reason:"check-drift",
+        });
+        const before=await db.query(
+          "SELECT checksum FROM _syndes.module_migrations WHERE module_id='inbox' AND migration_id='001_conversations'");
+        await db.query("UPDATE _syndes.module_migrations SET checksum=$1 WHERE module_id='inbox' AND migration_id='001_conversations'",["e".repeat(64)]);
+        try{
+          await assert.rejects(installer.enable(A,"inbox",{
+            requestId:randomUUID(),actorId:"verified-activator-fixture",reason:"drifted-ledger",
+          }),/Access denied/);
+          assert.equal((await control.query(
+            "SELECT state FROM public.tenant_module_installs WHERE tenant_id=$1 AND module_id='inbox'",[A])).rows[0].state,"installed");
+        }finally{
+          await db.query("UPDATE _syndes.module_migrations SET checksum=$1 WHERE module_id='inbox' AND migration_id='001_conversations'",[before.rows[0].checksum]);
+        }
+        await installer.enable(A,"inbox",{
+          requestId:randomUUID(),actorId:"verified-activator-fixture",reason:"verified-reenable",
+        });
+      });
       await t.test("Control attestation is role-isolated and refuses non-requested transitions",async()=>{
         await operator.query("SELECT 1");
         await assert.rejects(operator.query(
@@ -224,6 +314,19 @@ test("AK-30 versioned installer: Control DB plus 2 separate PG17 tenant database
           receipt:"f".repeat(64),requestId:randomUUID(),actorId:"verified-installer-fixture",reason:"forged-receipt",
         }),e=>e.code==="23514");
       });
+      await t.test("disable remains possible on suspended tenant and corrupted tenant ledger",async()=>{
+        const intention={requestId:randomUUID(),actorId:"verified-activator-fixture",reason:"enable-before-suspension"};
+        await installer.enable(B,"crm",intention);
+        await control.query("UPDATE public.tenant_registry SET state='suspended' WHERE tenant_id=$1",[B]);
+        const disable={requestId:randomUUID(),actorId:"verified-activator-fixture",reason:"security-incident"};
+        await installer.disable(B,"crm",disable);
+        assert.equal((await control.query(
+          "SELECT state FROM public.tenant_module_installs WHERE tenant_id=$1 AND module_id='crm'",[B])).rows[0].state,"installed");
+        await assert.rejects(installer.enable(B,"crm",{
+          requestId:randomUUID(),actorId:"verified-activator-fixture",reason:"suspended-tenant",
+        }),/Access denied/);
+        await control.query("UPDATE public.tenant_registry SET state='active' WHERE tenant_id=$1",[B]);
+      });
       await t.test("physical relation loss denies verify even when ledger says applied",async()=>{
         const db=poolsByTenant.get(B);
         await db.query("DROP TABLE crm.activities");
@@ -233,9 +336,10 @@ test("AK-30 versioned installer: Control DB plus 2 separate PG17 tenant database
     }finally{
       if(operator)await operator.end();
       if(attestorClient)await attestorClient.end();
+      if(activatorClient)await activatorClient.end();
       if(control)await control.end();
       await Promise.all(pools.map(pool=>pool.end()));
-      for(const db of created.reverse())await admin.query('DROP DATABASE "'+db+'" WITH (FORCE)');
+      for(const db of created.reverse())await admin.query('DROP DATABASE "'+db+'"');
       await admin.end();
     }
   });
