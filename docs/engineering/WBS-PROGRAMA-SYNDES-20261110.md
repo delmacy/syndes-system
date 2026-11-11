@@ -275,3 +275,9 @@ A arquitetura de administração unificada de acesso, entitlements por tenant e 
 - **Candidato:** endpoint GET /v1/platform/admin/tenants/:id/modules com autorização própria de operador e sem acesso a tenant DB; frontend no detalhe do cliente, sem operação mutável nem dados falsos em preview. Script control-module-manager-readonly.schema **não aplicado**. Testes A/B e ACL em PG17 descartável.
 - **Bloqueio:** schemas AK-10.02/03 e role read-only de produção não ativadas; endpoint devolve 503 até migration autorizada. Não habilitar usuários, módulos, licenciamento ou dados operacionais pelo Manager.
 - **Próximo:** AK-10.04 em handlers e workers, API de comando com identidade, RBAC, auditoria e instalador técnico isolado.
+
+### AK-10.04 — Gate efetivo no Host (parcial)
+
+- **Candidato implementado:** [contrato AK-10.04](AK-10-04-CONTROL-ENABLED-MODULE-GATE-20261110.md) / PgEffectiveModuleAccess conectado ao CoreKernel.moduleAccess. Concede somente entitled + enabled + release/build aprovada + metadados verificados + dependências todas habilitadas no mesmo tenant. Falha fechada em erro de catálogo ou Control DB.
+- **Limite:** SOMENTE CoreKernel.executeModule, sem mudança dos controllers legados que ainda chamam execute nem jobs. Nenhum tenant é automaticamente habilitado. **Gate operacional ainda PEND** até AK-30 attestation/ENABLED com identidade, migração de rotas/workers e rollout seguro.
+- **Evidência:** unit tests + PG17 descartável A/B/C/D e testes de version/expiry/dependency; CI do SHA integrado obrigatória.
