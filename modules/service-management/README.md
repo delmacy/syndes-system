@@ -9,3 +9,7 @@ Referências: `docs/product/PRD-003A-GESTAO-ATENDIMENTOS-MVP.md` e `docs/enginee
 ## Equipes Workforce (versão 0.2.0, código opt-in)
 
 O pacote expõe `GET /v1/tenants/:tenantId/service-management/teams` e `PATCH /v1/tenants/:tenantId/service-management/attendances/:id/team` (`destinationTeamId`, `expectedVersion`, `reason`), **somente se o plugin for explicitamente ativado pelo Host após homologação**. A transferência preserva protocolo/conversa e histórico, limpa responsável antigo e exige grants OpenFGA de origem e destino e supervisor real. Instalação ordenada de `Organizations/007_staff_roles_pre_release.sql` (manual), `Service/001` e `Service/002` após backup/restore, Control attestation e grants. Consulte `ADR-SERVICE-WORKFORCE-TEAM-TRANSFER-20261111.md`; não use endpoints nem a migration em produção sem gates.
+
+## Inspector Inbox — lookup por conversa (v0.3.0, opt-in)
+
+`GET /v1/tenants/:tenantId/service-management/conversations/:conversationId/attendances` retorna protocolos autorizados (abertos e encerrados) vinculados à conversa. Requer JWT e seletores Organization/Workspace, FGA/ENABLED de Inbox e Service, ownership atual da conversa e visibilidade da equipe. Sem mensagens nem dados pessoais; `003_service_conversation_inspector.sql` adiciona um índice parcial após Service 002. Limite de 50 resultados, sem paginação neste MVP. Contrato e gates: `docs/engineering/ADR-SERVICE-INBOX-INSPECTOR-READ-20261111.md`. A interface não é criada neste pacote.

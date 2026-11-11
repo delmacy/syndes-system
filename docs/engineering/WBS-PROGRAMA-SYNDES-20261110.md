@@ -153,7 +153,7 @@
 | **55.02 / SM-02** | Funil com 2–8 etapas configuráveis, protocolo independente de conversa, vínculo Inbox opcional, atribuição a pessoa autorizada, mudança adjacente e encerramento com trilha SQL append-only; testes PG A/B | CRM, Inbox, Organizations e SQL002 | Domínio PR #93 no main, PG17 sintético 14/14; CI módulo Issue #94, Host plugin em preparação |
 | **55.03 / SM-03** | Integração do novo módulo no Host/installer, entitlements ENABLED, APIs REST OIDC+FGA+membership e erros 401/403/409 | 55.02, 10.02–10.05, 50.08 | Código plugin/HTTP opt-in testado localmente; ativação e FGA/Control reais BLOQ |
 | **55.04 / SM-04** | Equipes canônicas Workforce 007, grants FGA origem/destino, transferência com CAS e auditoria no mesmo Workspace | 30.06–30.11, 55.03 | Código SM-04 em branch; PG17 sintético verde; staging/Control ainda BLOQ |
-| **55.05 / SM-05** | Inspector Inbox e lista/Kanban funcional com dados autorizados, frontend compartilhado apenas visual | 55.03–55.04 | BLOQ |
+| **55.05 / SM-05** | Inspector Inbox com API read-only por conversa (SM-05A-API opt-in), UI e lista/Kanban funcional com dados autorizados, frontend compartilhado apenas visual | 55.03–55.04 | API Inspector implementada/testada em branch; UI/Product Gate BLOQ |
 | **55.06 / SM-06** | Restore real/staging, smoke JWT/tenant A-B/Workspace, rollback, browser e Product Gate | 10.07, 55.05, 95.03 | BLOQ |
 
 **Fronteiras:** suporte `modules/support` é específico da Syndes; CRM mantém pessoas, Inbox conversa, WhatsApp mensagens. O módulo Basic **não** introduz templates, designer, SLA avançado, BPMN ou motor de automação. Cada fase precisa de CI, migrations com rollback e Product Gate, sem instalar SQL em produção automaticamente.

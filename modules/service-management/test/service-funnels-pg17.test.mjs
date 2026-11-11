@@ -32,6 +32,7 @@ const migrations=[
  "../sql/001_service_funnels.sql",
  "../../../modules/organizations/sql/007_staff_roles_pre_release.sql",
  "../sql/002_service_team_transfer.sql",
+ "../sql/003_service_conversation_inspector.sql",
 ];
 const roles=["owner-a","agent-a","agent-b","outsider-a","viewer-a","revoked-a"];
 const inserts=async(pool,{tenantId,orgId,workspaceId,conversationId},people)=>{
@@ -86,6 +87,8 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
     if(migration.endsWith("007_staff_roles_pre_release.sql")){
      await assert.rejects(pool.query(await sql("../sql/002_service_team_transfer.sql")),
       e=>e.code==="55000","Team migration must refuse missing Workforce 007");
+     await assert.rejects(pool.query(await sql("../sql/003_service_conversation_inspector.sql")),
+      e=>e.code==="55000","Inspector cannot be installed before team migration");
      const columns=await pool.query(`SELECT count(*)::int AS count
        FROM information_schema.columns WHERE table_schema=current_schema()
         AND table_name='service_attendances' AND column_name='team_id'`);
@@ -102,18 +105,23 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    // Re-apply the migration to verify that it does not rewrite existing data.
    await pool.query(await sql("../sql/001_service_funnels.sql"));
    await pool.query(await sql("../sql/002_service_team_transfer.sql"));
+   await pool.query(await sql("../sql/003_service_conversation_inspector.sql"));
   }
   const canTenant=(actor,tenantId)=>tenantId===tenants[0].tenantId?
    roles.includes(actor.id):actor.id==="owner-b";
   let authAllowed=true;
+  let inboxReadAllowed=true;
   let deniedTeamResource=null;
-  let moduleEnabled=true;
+  let moduleEnabled=true,inboxEnabled=true;
   const kernel=new CoreKernel({modules:[{id:"platform",version:"0.1.0"},
-    {id:"service-management",version:"0.2.0",dependencies:["platform"]}],
-   moduleAccess:{canExecuteModule:async()=>moduleEnabled},
+    {id:"inbox",version:"0.1.0",dependencies:["platform"]},
+    {id:"service-management",version:"0.3.0",dependencies:["platform"]}],
+   moduleAccess:{canExecuteModule:async({moduleId})=>
+    moduleId==="inbox"?inboxEnabled:moduleEnabled},
    tenancy:{canAccessTenant:async({actor,tenantId})=>canTenant(actor,tenantId)},
    authorization:{canAccess:async({resource})=>
-    authAllowed&&resource!==deniedTeamResource},
+    authAllowed&&resource!==deniedTeamResource&&
+    (resource!=="inbox:conversations"||inboxReadAllowed)},
   });
   await kernel.start();
   const providers={resolve:async tenantId=>{
@@ -188,6 +196,18 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    assert.equal(attendance.version,1);
    assert.equal(attendance.conversationId,tenants[0].conversationId);
    assert.equal((await service.get(ctx(0,"viewer-a"),attendance.id)).id,attendance.id);
+   const inspector=await service.byConversation(ctx(0,"viewer-a"),
+    tenants[0].conversationId);
+   assert.deepEqual(inspector.map(x=>x.id),[attendance.id]);
+   assert.equal(inspector[0].protocol,attendance.protocol);
+   inboxReadAllowed=false;
+   await assert.rejects(service.byConversation(ctx(0,"agent-a"),
+    tenants[0].conversationId),AccessDeniedError);
+   inboxReadAllowed=true;
+   inboxEnabled=false;
+   await assert.rejects(service.byConversation(ctx(0,"agent-a"),
+    tenants[0].conversationId),AccessDeniedError);
+   inboxEnabled=true;
    assert.equal((await service.board(ctx(0,"viewer-a"),funnel.id)).length,1);
    assert.equal(Number((await pools.get(tenants[0].tenantId).query(
     "SELECT count(*)::int AS n FROM inbox_conversations")).rows[0].n),before);
@@ -280,7 +300,8 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    assert.deepEqual((await service.listTeams(ctx(0,"outsider-a"))).map(x=>x.id),[]);
    assert.deepEqual(await service.listTeams(ctx(0,"viewer-a")),[]);
    let routed=await service.open(ctx(0,"agent-a"),{
-    funnelId:funnel.id,idempotencyKey:"team-routing-test-20261111",
+    funnelId:funnel.id,conversationId:scope.conversationId,
+    idempotencyKey:"team-routing-test-20261111",
    });
    assert.equal(routed.teamId,null);
    deniedTeamResource="service-management:team:"+source;
@@ -305,6 +326,10 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    assert.equal(routed.teamId,source);
    assert.equal(routed.version,2);
    assert.equal((await service.get(ctx(0,"agent-a"),routed.id)).teamId,source);
+   assert.deepEqual(new Set((await service.byConversation(ctx(0,"agent-a"),
+    scope.conversationId)).map(x=>x.id)),new Set([routed.id,attendance.id]));
+   assert.deepEqual((await service.byConversation(ctx(0,"agent-b"),
+    scope.conversationId)).map(x=>x.id),[attendance.id]);
    assert.equal(await service.get(ctx(0,"agent-b"),routed.id),null);
    assert.deepEqual(await service.history(ctx(0,"agent-b"),routed.id),[]);
    assert.equal((await service.board(ctx(0,"agent-b"),funnel.id)).length,0);
@@ -341,6 +366,10 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    assert.deepEqual(await service.history(ctx(0,"agent-a"),routed.id),[]);
    assert.equal((await service.board(ctx(0,"agent-a"),funnel.id)).length,0);
    assert.equal((await service.get(ctx(0,"agent-b"),routed.id)).teamId,dest);
+   assert.deepEqual((await service.byConversation(ctx(0,"agent-a"),
+    scope.conversationId)).map(x=>x.id),[attendance.id]);
+   assert.deepEqual(new Set((await service.byConversation(ctx(0,"agent-b"),
+    scope.conversationId)).map(x=>x.id)),new Set([routed.id,attendance.id]));
    assert.equal((await service.board(ctx(0,"agent-b"),funnel.id)).length,1);
    const history=await service.history(ctx(0,"agent-b"),routed.id);
    assert.deepEqual(history.map(x=>x.action),[
@@ -376,6 +405,16 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    assert.equal(await service.get(ctx(0,"agent-b"),routed.id),null);
    assert.equal((await service.board(ctx(0,"agent-b"),funnel.id)).length,0);
    assert.equal((await service.get(ctx(0,"owner-a"),routed.id)).teamId,dest);
+   // SQL002 keeps the physical context single. This query verifies our
+   // Inspector lookup against canonical Inbox ownership without faking
+   // a cross-Workspace transfer or bypassing the ownership trigger.
+   const currentScope=await pool.query(`SELECT platform_organization_id::text
+    AS org,platform_current_workspace_id::text AS workspace
+    FROM inbox_conversations WHERE tenant_id=$1 AND id=$2`,
+    [scope.tenantId,scope.conversationId]);
+   assert.deepEqual(currentScope.rows,[{org:scope.orgId,workspace:scope.workspaceId}]);
+   assert.deepEqual(new Set((await service.byConversation(ctx(0,"owner-a"),
+    scope.conversationId)).map(x=>x.id)),new Set([attendance.id,routed.id]));
    // Migration re-apply does not rewrite protocol owner, audit, or columns.
    await pool.query(await sql("../sql/002_service_team_transfer.sql"));
    assert.equal(Number((await pool.query(`SELECT count(*)::int AS n
@@ -402,6 +441,8 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    });
    assert.equal((await service.board(ctx(1,"owner-b"),funnel.id)).length,0);
    assert.deepEqual(await service.history(ctx(1,"owner-b"),attendance.id),[]);
+   assert.deepEqual(await service.byConversation(ctx(1,"owner-b"),
+    tenants[0].conversationId),[]);
    await assert.rejects(service.open(ctx(1,"owner-b"),{
     funnelId:funnel.id,conversationId:tenants[0].conversationId,
     idempotencyKey:"foreign-tenant-case-20261111",

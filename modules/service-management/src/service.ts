@@ -20,7 +20,7 @@ export type FunnelContext=Readonly<{
  tenantId:string;organizationId:string;workspaceId:string;actor:Actor;
 }>;
 export type FunnelStage=Readonly<{code:string;label:string}>;
-const definition=Object.freeze({id:"service-management",version:"0.2.0",
+const definition=Object.freeze({id:"service-management",version:"0.3.0",
  dependencies:["platform","organizations","crm","inbox"]});
 
 function validateContext(ctx:FunnelContext):void{
@@ -112,6 +112,35 @@ export class ServiceFunnelService{
    return rows.rows.map(r=>({id:String(r.id),code:String(r.code),name:String(r.name),
     revision:Number(r.revision),stages:r.stages}));
   });
+ }
+
+ /** Inbox Inspector read model: protocols linked to one conversation.
+  * Requires both Inbox module/FGA admission and Service module/FGA admission.
+  * Query is tenant/org/workspace pinned, checks Inbox CURRENT scope again
+  * and filters routed cases by the active Workforce team at query time.
+  * Never reads or changes WhatsApp messages or copies CRM contact details. */
+ async byConversation(ctx:FunnelContext,conversationId:string){
+  if(!uid(conversationId))throw new ServiceFunnelInputError("Invalid conversation");
+  validateContext(ctx);
+  return this.kernel.executeModule({
+   actor:ctx.actor,tenantId:ctx.tenantId,moduleId:"inbox",
+   resource:"inbox:conversations",action:"read",
+  },()=>this.run(ctx,"service-management:attendances","read","viewer",async tx=>{
+   const r=await tx.query(`
+    SELECT a.* FROM service_attendances a
+    JOIN inbox_conversations c ON c.tenant_id=a.tenant_id
+     AND c.id=a.inbox_conversation_id
+     AND c.platform_organization_id=a.organization_id
+     AND c.platform_current_workspace_id=a.workspace_id
+    WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
+      AND a.workspace_id=$3::uuid AND a.inbox_conversation_id=$4::uuid
+      AND service_team_can_read(
+       a.tenant_id,a.organization_id,a.workspace_id,a.team_id,$5)
+    ORDER BY a.created_at DESC,a.id DESC LIMIT 50
+   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,
+     conversationId,ctx.actor.id]);
+   return r.rows.map(asAttendance);
+  }));
  }
 
  async get(ctx:FunnelContext,attendanceId:string){
