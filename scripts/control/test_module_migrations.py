@@ -15,7 +15,7 @@ class ControlMigrationTests(unittest.TestCase):
         files = migration.release_files()
         self.assertEqual([entry[0] for entry in files], [
             "001_catalog", "002_lifecycle", "003_attestation",
-            "004_activation", "005_manager_readonly",
+            "004_activation", "005_manager_readonly", "006_control_events",
         ])
         for _, name, expected, body in files:
             self.assertEqual(expected, hashlib.sha256((migration.BOOT / name).read_bytes()).hexdigest())
@@ -27,8 +27,8 @@ class ControlMigrationTests(unittest.TestCase):
         self.assertIn("SET LOCAL lock_timeout='5s'", text)
         self.assertIn("pg_advisory_xact_lock", text)
         self.assertTrue(text.strip().endswith("SELECT 'CONTROL_MODULE_MIGRATIONS_COMMITTED' AS marker;"))
-        self.assertEqual(text.count("\\if :migrate_"), 5)
-        self.assertEqual(text.count("\\endif"), 5)
+        self.assertEqual(text.count("\\if :migrate_"), 6)
+        self.assertEqual(text.count("\\endif"), 6)
         offsets = [text.index("VALUES('" + entry[0] + "'") for entry in migration.release_files()]
         self.assertEqual(offsets, sorted(offsets))
 

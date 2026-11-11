@@ -22,6 +22,7 @@ MIGRATIONS = (
     ("003_attestation", "control-module-attestation.schema"),
     ("004_activation", "control-module-activation.schema"),
     ("005_manager_readonly", "control-module-manager-readonly.schema"),
+    ("006_control_events", "control-module-events.schema"),
 )
 ALLOWED_CONTAINER = re.compile(r"^[a-z][a-z0-9-]{5,90}$")
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
