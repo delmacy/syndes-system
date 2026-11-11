@@ -6,3 +6,7 @@
 - `ServiceFunnelService` exige `CoreKernel.executeModule` (tenant + FGA por recurso + Control ENABLED fail-closed), ator `user`, transação pinned `TrustedTenantTransactionProvider`, membership Organization/Workspace ativo. SQL trigger exige `syndes.service_actor_id` definido em transação, valida mudanças e gera eventos append-only no mesmo commit.
 - Sem autorização por `assigned_to` sozinho: attribution não concede acesso; só membros existentes e ativos podem assumir. UI não controla DSN nem cria membership.
 - Testes de PG17+Nest HTTP exigem fixture isolada e tokens sintéticos explicitamente autorizados, nunca utilizar banco operational. PRD em `docs/product/PRD-003A-GESTAO-ATENDIMENTOS-MVP.md`, WBS em `docs/engineering/WBS-GESTAO-ATENDIMENTOS-MVP-20261111.md`.
+
+## Transferência intra-Workspace (v0.2.0, PR de SM-04)
+
+`002_service_team_transfer.sql` exige Workforce Organizations 007 pré-release manual e SQL002 ativo. Não aplicar em databases operacionais nem alterar grants. `transferTeam` exige módulo ENABLED, FGA de atendimentos/teams e FGA dinâmica origem/destino; ator deve ter staff designation supervisor e vínculo real CRM/Workspace, destino com agente elegível. Mesma conversa, mesmo protocolo, versão CAS, limpa assignee, escreve motivo e auditoria append-only. GET/board/histórico e alterações filtram membros ativos da equipe atual; revogação remove visão. Sem cross-org, cross-workspace, motor de SLA ou frontend até Product Gate.

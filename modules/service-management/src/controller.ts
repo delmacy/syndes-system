@@ -81,6 +81,11 @@ export class ServiceManagementController{
   @Param("funnelId")id:string){
   return this.run(t,a,o,w,ctx=>this.host.service.board(ctx,id));
  }
+ @Get("teams")
+ teams(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
+  @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown){
+  return this.run(t,a,o,w,ctx=>this.host.service.listTeams(ctx));
+ }
  @Post("attendances")
  open(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
@@ -114,6 +119,14 @@ export class ServiceManagementController{
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
   @Param("id")id:string,@Body()body:{assigneeId:string;expectedVersion:number}){
   return this.run(t,a,o,w,ctx=>this.host.service.assign(ctx,{...body,attendanceId:id}));
+ }
+ @Patch("attendances/:id/team")
+ transferTeam(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
+  @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
+  @Param("id")id:string,
+  @Body()body:{destinationTeamId:string;expectedVersion:number;reason:string}){
+  return this.run(t,a,o,w,ctx=>this.host.service.transferTeam(ctx,{
+   ...body,attendanceId:id}));
  }
  @Post("attendances/:id/close")
  close(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,

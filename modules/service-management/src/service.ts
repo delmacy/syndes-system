@@ -20,7 +20,7 @@ export type FunnelContext=Readonly<{
  tenantId:string;organizationId:string;workspaceId:string;actor:Actor;
 }>;
 export type FunnelStage=Readonly<{code:string;label:string}>;
-const definition=Object.freeze({id:"service-management",version:"0.1.0",
+const definition=Object.freeze({id:"service-management",version:"0.2.0",
  dependencies:["platform","organizations","crm","inbox"]});
 
 function validateContext(ctx:FunnelContext):void{
@@ -45,6 +45,7 @@ const asAttendance=(r:Record<string,unknown>)=>({
  funnelId:val(r.funnel_id),stageId:val(r.stage_id),
  conversationId:r.inbox_conversation_id==null?null:val(r.inbox_conversation_id),
  assignedTo:r.assigned_to==null?null:val(r.assigned_to),
+ teamId:r.team_id==null?null:val(r.team_id),
  state:val(r.state),result:r.result==null?null:val(r.result),
  version:Number(r.version),
 });
@@ -54,7 +55,7 @@ export class ServiceFunnelService{
  constructor(private readonly kernel:CoreKernel,
   private readonly tenants:TrustedTenantTransactionProvider){}
 
- private async run<T>(ctx:FunnelContext,resource:"service-management:funnels"|"service-management:attendances",
+ private async run<T>(ctx:FunnelContext,resource:"service-management:funnels"|"service-management:attendances"|"service-management:teams",
   action:"read"|"write",permission:"admin"|"editor"|"viewer",
   work:(tx:TenantTransaction)=>Promise<T>):Promise<T>{
   validateContext(ctx);
@@ -118,8 +119,10 @@ export class ServiceFunnelService{
   return this.run(ctx,"service-management:attendances","read","viewer",async tx=>{
    const r=await tx.query(`SELECT * FROM service_attendances
     WHERE tenant_id=$1::uuid AND organization_id=$2::uuid
-      AND workspace_id=$3::uuid AND id=$4::uuid LIMIT 1`,
-    [ctx.tenantId,ctx.organizationId,ctx.workspaceId,attendanceId]);
+      AND workspace_id=$3::uuid AND id=$4::uuid
+      AND service_team_can_read(tenant_id,organization_id,workspace_id,team_id,$5)
+    LIMIT 1`,
+    [ctx.tenantId,ctx.organizationId,ctx.workspaceId,attendanceId,ctx.actor.id]);
    return r.rows[0]?asAttendance(r.rows[0]):null;
   });
  }
@@ -215,6 +218,7 @@ export class ServiceFunnelService{
     WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
      AND a.workspace_id=$3::uuid AND a.id=$4::uuid AND a.state='open'
      AND a.version=$5
+     AND service_team_can_read(a.tenant_id,a.organization_id,a.workspace_id,a.team_id,$7)
      AND current.tenant_id=a.tenant_id AND current.organization_id=a.organization_id
      AND current.workspace_id=a.workspace_id AND current.funnel_id=a.funnel_id
      AND current.id=a.stage_id
@@ -223,7 +227,7 @@ export class ServiceFunnelService{
      AND s.id=$6::uuid AND abs(s.position-current.position)=1
     RETURNING a.*
    `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,input.attendanceId,
-       input.expectedVersion,input.nextStageId]);
+       input.expectedVersion,input.nextStageId,ctx.actor.id]);
    if(r.rows.length!==1)throw new ServiceFunnelConflictError();
    return asAttendance(r.rows[0]);
   });
@@ -244,6 +248,9 @@ export class ServiceFunnelService{
      AND a.workspace_id=$3::uuid AND a.id=$4::uuid
      AND a.version=$5 AND a.state='open'
      AND a.assigned_to IS DISTINCT FROM $6
+     AND service_team_can_read(a.tenant_id,a.organization_id,a.workspace_id,a.team_id,$7)
+     AND (a.team_id IS NULL OR service_team_can_read(a.tenant_id,
+       a.organization_id,a.workspace_id,a.team_id,$6))
      AND EXISTS(
       SELECT 1 FROM platform_workspace_memberships wm
       JOIN platform_org_memberships om
@@ -255,7 +262,7 @@ export class ServiceFunnelService{
        AND wm.role IN ('admin','editor') AND om.role IN ('admin','editor'))
     RETURNING *
    `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,input.attendanceId,
-       input.expectedVersion,input.assigneeId]);
+       input.expectedVersion,input.assigneeId,ctx.actor.id]);
    if(r.rows.length!==1)throw new ServiceFunnelConflictError();
    return asAttendance(r.rows[0]);
   });
@@ -275,13 +282,92 @@ export class ServiceFunnelService{
     WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
      AND a.workspace_id=$3::uuid AND a.id=$4::uuid
      AND a.version=$5 AND a.state='open'
+     AND service_team_can_read(a.tenant_id,a.organization_id,a.workspace_id,a.team_id,$7)
      AND EXISTS(SELECT 1 FROM service_funnel_stages s
       WHERE s.tenant_id=a.tenant_id AND s.organization_id=a.organization_id
        AND s.workspace_id=a.workspace_id AND s.funnel_id=a.funnel_id
        AND s.id=a.stage_id AND s.terminal)
     RETURNING *
    `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,input.attendanceId,
-       input.expectedVersion,input.result.trim()]);
+       input.expectedVersion,input.result.trim(),ctx.actor.id]);
+   if(r.rows.length!==1)throw new ServiceFunnelConflictError();
+   return asAttendance(r.rows[0]);
+  });
+ }
+
+ /** Teams are owned by Organizations/Workforce. This read-only projection
+  * exposes only staffed teams in the caller's workspace, never creates roles. */
+ async listTeams(ctx:FunnelContext){
+  return this.run(ctx,"service-management:teams","read","viewer",async tx=>{
+   const r=await tx.query(`
+    SELECT t.id::text,t.name FROM platform_staff_teams t
+    JOIN platform_staff_team_workspaces tw ON tw.tenant_id=t.tenant_id
+      AND tw.organization_id=t.organization_id AND tw.team_id=t.id
+    WHERE t.tenant_id=$1::uuid AND t.organization_id=$2::uuid
+     AND tw.workspace_id=$3::uuid AND t.state='active'
+     AND service_team_is_staffed(t.tenant_id,t.organization_id,tw.workspace_id,t.id)
+     AND service_team_can_read(t.tenant_id,t.organization_id,tw.workspace_id,t.id,$4)
+    ORDER BY t.name,t.id LIMIT 50
+   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,ctx.actor.id]);
+   return r.rows.map(x=>({id:val(x.id),name:val(x.name)}));
+  });
+ }
+
+ /** Transfer requires both FGA grants, active workspace admin and active
+  * Workforce supervisor status. It changes only team/assignment/version,
+  * never the Inbox conversation and never any FGA membership or grant. */
+ async transferTeam(ctx:FunnelContext,input:Readonly<{
+  attendanceId:string;destinationTeamId:string;expectedVersion:number;reason:string;
+ }>){
+  if(!uid(input?.attendanceId)||!uid(input.destinationTeamId)||
+      !good(input.reason,240)||input.reason.trim().length<4)
+   throw new ServiceFunnelInputError("Invalid destination or transfer reason");
+  requireVersion(input.expectedVersion);
+  const destinationTeamId=input.destinationTeamId.toLowerCase();
+  validateContext(ctx);
+  // Team-level OpenFGA is in addition to the module permission and
+  // Workforce supervisor designation. Grants must be provisioned explicitly.
+  // Read old ownership under the same scoped/authorized tenant provider; CAS
+  // in the final write rejects changes racing this pre-authorization.
+  const current=await this.run(ctx,"service-management:attendances","write","admin",async tx=>{
+   const r=await tx.query(`SELECT a.team_id::text AS team_id
+    FROM service_attendances a
+    WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
+     AND a.workspace_id=$3::uuid AND a.id=$4::uuid
+     AND a.version=$5 AND a.state='open'
+     AND service_team_can_read(a.tenant_id,a.organization_id,a.workspace_id,a.team_id,$6)
+    LIMIT 1`,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,
+     input.attendanceId,input.expectedVersion,ctx.actor.id]);
+   return r.rows[0]?r.rows[0].team_id as string|null:undefined;
+  });
+  if(current===undefined||current===destinationTeamId)
+   throw new ServiceFunnelConflictError();
+  const teamResources=[...(current?[current]:[]),destinationTeamId];
+  for(const teamId of teamResources){
+   await this.kernel.executeModule({actor:ctx.actor,tenantId:ctx.tenantId,
+    moduleId:"service-management",resource:"service-management:team:"+teamId,
+    action:"write"},async()=>{});
+  }
+  await this.kernel.executeModule({actor:ctx.actor,tenantId:ctx.tenantId,
+   moduleId:"service-management",resource:"service-management:teams",action:"write"},
+   async()=>{});
+  return this.run(ctx,"service-management:attendances","write","admin",async tx=>{
+   await tx.query("SELECT set_config('syndes.service_transfer_reason',$1,true)",
+    [input.reason.trim()]);
+   const r=await tx.query(`
+    UPDATE service_attendances a
+      SET team_id=$6::uuid,assigned_to=NULL,version=a.version+1,
+        updated_at=clock_timestamp()
+    WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
+      AND a.workspace_id=$3::uuid AND a.id=$4::uuid
+      AND a.version=$5 AND a.state='open'
+      AND a.team_id IS DISTINCT FROM $6::uuid
+      AND service_team_is_supervisor(a.tenant_id,a.organization_id,a.workspace_id,$7)
+      AND service_team_can_read(a.tenant_id,a.organization_id,a.workspace_id,a.team_id,$7)
+      AND service_team_is_staffed(a.tenant_id,a.organization_id,a.workspace_id,$6::uuid)
+    RETURNING *
+   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,input.attendanceId,
+     input.expectedVersion,destinationTeamId,ctx.actor.id]);
    if(r.rows.length!==1)throw new ServiceFunnelConflictError();
    return asAttendance(r.rows[0]);
   });
@@ -295,8 +381,9 @@ export class ServiceFunnelService{
     WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
      AND a.workspace_id=$3::uuid AND a.funnel_id=$4::uuid
      AND a.state='open'
+     AND service_team_can_read(a.tenant_id,a.organization_id,a.workspace_id,a.team_id,$5)
     ORDER BY a.updated_at DESC,a.id DESC LIMIT 100
-   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,funnelId]);
+   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,funnelId,ctx.actor.id]);
    return r.rows.map(asAttendance);
   });
  }
@@ -306,10 +393,14 @@ export class ServiceFunnelService{
   return this.run(ctx,"service-management:attendances","read","viewer",async tx=>{
    const r=await tx.query(`
     SELECT e.* FROM service_attendance_events e
+    JOIN service_attendances a ON a.tenant_id=e.tenant_id
+      AND a.organization_id=e.organization_id AND a.workspace_id=e.workspace_id
+      AND a.id=e.attendance_id
     WHERE e.tenant_id=$1::uuid AND e.organization_id=$2::uuid
      AND e.workspace_id=$3::uuid AND e.attendance_id=$4::uuid
+     AND service_team_can_read(a.tenant_id,a.organization_id,a.workspace_id,a.team_id,$5)
     ORDER BY e.id ASC LIMIT 200
-   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,attendanceId]);
+   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,attendanceId,ctx.actor.id]);
    return r.rows.map(e=>({
     action:val(e.action),actorId:val(e.actor_id),version:Number(e.version),
     previousStageId:e.previous_stage_id==null?null:val(e.previous_stage_id),
@@ -317,6 +408,9 @@ export class ServiceFunnelService{
     previousAssignee:e.previous_assignee==null?null:val(e.previous_assignee),
     nextAssignee:e.next_assignee==null?null:val(e.next_assignee),
     result:e.result==null?null:val(e.result),
+    previousTeamId:e.previous_team_id==null?null:val(e.previous_team_id),
+    nextTeamId:e.next_team_id==null?null:val(e.next_team_id),
+    transferReason:e.transfer_reason==null?null:val(e.transfer_reason),
    }));
   });
  }

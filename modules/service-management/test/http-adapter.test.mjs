@@ -20,9 +20,10 @@ const headers={
 
 test("service-management plugin is valid but NOT in default Host installed modules",async()=>{
  assert.equal(syndesPlugin.definition.id,"service-management");
- assert.deepEqual(syndesPlugin.migrations.map(x=>x.id),["001_service_funnels"]);
+ assert.equal(syndesPlugin.definition.version,"0.2.0");
+ assert.deepEqual(syndesPlugin.migrations.map(x=>x.id),["001_service_funnels","002_service_team_transfer"]);
  assert.deepEqual(syndesPlugin.permissions.map(x=>x.resource),[
-  "service-management:funnels","service-management:attendances",
+  "service-management:funnels","service-management:attendances","service-management:teams",
  ]);
  const config=JSON.parse(await readFile(new URL("../../../apps/core-host/config/modules.json",import.meta.url),"utf8"));
  assert.equal(config.modules.some(m=>m==="@syndes/service-management/plugin"),false,
@@ -30,7 +31,7 @@ test("service-management plugin is valid but NOT in default Host installed modul
 });
 
 test("Nest opt-in HTTP adapter: JWT, scope, FGA and Module ENABLED fail closed",async()=>{
- let enabled=false,canAccess=true,hasDb=true,dbQueries=0,txCalls=0,checks=0;
+ let enabled=false,canAccess=true,denyTeamGrant=false,hasDb=true,dbQueries=0,txCalls=0,checks=0;
  const kernel=new CoreKernel({
   modules:[{id:"platform",version:"0.1.0"},
    {id:"organizations",version:"0.1.0",dependencies:["platform"]},
@@ -39,7 +40,8 @@ test("Nest opt-in HTTP adapter: JWT, scope, FGA and Module ENABLED fail closed",
    syndesPlugin.definition],
   tenancy:{canAccessTenant:async({actor,tenantId})=>
    actor.id==="authorized-user"&&tenantId===TENANT},
-  authorization:{canAccess:async()=>canAccess},
+  authorization:{canAccess:async({resource})=>
+   canAccess&&!(denyTeamGrant&&resource.startsWith("service-management:team:"))},
   moduleAccess:{canExecuteModule:async ({moduleId})=>{
    checks++;
    assert.equal(moduleId,"service-management");
@@ -55,6 +57,8 @@ test("Nest opt-in HTTP adapter: JWT, scope, FGA and Module ENABLED fail closed",
     tenantId,[PINNED_TENANT_TRANSACTION]:true,
     query:async(sql,params=[])=>{
      dbQueries++;
+     if(sql.includes("SELECT set_config('syndes.service_actor_id'"))
+      return {rows:[{set_config:"authorized-user"}],rowCount:1};
      if(sql.includes("FROM platform_workspaces w")){
       assert.equal(params[0],TENANT);
       assert.equal(params[1],ORG);
@@ -62,7 +66,9 @@ test("Nest opt-in HTTP adapter: JWT, scope, FGA and Module ENABLED fail closed",
       assert.equal(params[3],"authorized-user");
       return {rows:[{ok:1}],rowCount:1};
      }
-     if(sql.includes("SELECT f.id::text")||sql.includes("SELECT * FROM service_attendances"))
+     if(sql.includes("SELECT a.team_id::text AS team_id"))
+      return {rows:[{team_id:null}],rowCount:1};
+     if(sql.includes("SELECT t.id::text")||sql.includes("SELECT f.id::text")||sql.includes("SELECT * FROM service_attendances"))
       return {rows:[],rowCount:0};
      throw new Error("Unexpected SQL query in HTTP test");
     },
@@ -110,6 +116,26 @@ test("Nest opt-in HTTP adapter: JWT, scope, FGA and Module ENABLED fail closed",
   assert.deepEqual(await allowed.json(),[]);
   assert.equal(txCalls,2);
   assert.ok(dbQueries>=2);
+  const teams=await send(route.replace("/funnels","/teams"));
+  assert.equal(teams.status,200);
+  assert.deepEqual(await teams.json(),[]);
+  const teamRoute=route.replace("/funnels","/attendances/"+FOREIGN+"/team");
+  const validTeamBody={destinationTeamId:FOREIGN,expectedVersion:1,
+   reason:"Encaminhado por supervisor autorizado"};
+  const patch=(body)=>fetch(base+teamRoute,{
+   method:"PATCH",headers:{...headers,"content-type":"application/json"},
+   body:JSON.stringify(body),
+  });
+  assert.equal((await patch({...validTeamBody,reason:"x"})).status,400);
+  denyTeamGrant=true;
+  assert.equal((await patch(validTeamBody)).status,403,
+   "Team-specific FGA grant must deny before mutation");
+  denyTeamGrant=false;
+  const beforeSuspend=txCalls;
+  enabled=false;
+  assert.equal((await patch(validTeamBody)).status,403);
+  assert.equal(txCalls,beforeSuspend,"Module suspension denies before database");
+  enabled=true;
   const absent=await send(route.replace("/funnels","/attendances/"+FOREIGN));
   assert.equal(absent.status,404);
   // Reading does not require a command mutation or fabricate Kanban data.
