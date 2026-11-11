@@ -149,9 +149,9 @@
 
 | ID | Entrega e aceite | Dependências | Estado |
 |---|---|---|---|
-| **55.01 / SM-01** | Aprovar recorte Basic e atualizar baseline, PRD, AGENTS e WBS; F0–F8 avançado permanece pós-MVP | Decisão 11/11 | Escopo reconciliado em branch; CI pendente |
-| **55.02 / SM-02** | Funil com 2–8 etapas configuráveis, protocolo independente de conversa, vínculo Inbox opcional, atribuição a pessoa autorizada, mudança adjacente e encerramento com trilha SQL append-only; testes PG A/B | CRM, Inbox, Organizations e SQL002 | Implementado em branch; PG17 sintético 14/14; planner CI do novo módulo e runtime pendentes |
-| **55.03 / SM-03** | Integração do novo módulo no Host/installer, entitlements ENABLED, APIs REST OIDC+FGA+membership e erros 401/403/409 | 55.02, 10.02–10.05, 50.08 | BLOQ |
+| **55.01 / SM-01** | Aprovar recorte Basic e atualizar baseline, PRD, AGENTS e WBS; F0–F8 avançado permanece pós-MVP | Decisão 11/11 | Integrado ao main via PR #93 com CI #127 verde |
+| **55.02 / SM-02** | Funil com 2–8 etapas configuráveis, protocolo independente de conversa, vínculo Inbox opcional, atribuição a pessoa autorizada, mudança adjacente e encerramento com trilha SQL append-only; testes PG A/B | CRM, Inbox, Organizations e SQL002 | Domínio PR #93 no main, PG17 sintético 14/14; CI módulo Issue #94, Host plugin em preparação |
+| **55.03 / SM-03** | Integração do novo módulo no Host/installer, entitlements ENABLED, APIs REST OIDC+FGA+membership e erros 401/403/409 | 55.02, 10.02–10.05, 50.08 | Código plugin/HTTP opt-in testado localmente; ativação e FGA/Control reais BLOQ |
 | **55.04 / SM-04** | Atribuição a equipes Workforce reais, elegibilidade/transferência e auditoria de origem/destino no mesmo Workspace | 30.06–30.11, 55.03 | BLOQ |
 | **55.05 / SM-05** | Inspector Inbox e lista/Kanban funcional com dados autorizados, frontend compartilhado apenas visual | 55.03–55.04 | BLOQ |
 | **55.06 / SM-06** | Restore real/staging, smoke JWT/tenant A-B/Workspace, rollback, browser e Product Gate | 10.07, 55.05, 95.03 | BLOQ |

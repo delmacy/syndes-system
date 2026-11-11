@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "default": "./dist/plugin.js"
     }
   },
   "scripts": {
@@ -20,9 +24,20 @@
     "@syndes/core-kernel": "file:../../packages/core-kernel"
   },
   "devDependencies": {
+    "@nestjs/platform-express": "12.2.0",
     "@types/node": "22.18.6",
     "pg": "^8.16.3",
     "typescript": "5.9.3"
   },
-  "files": ["dist", "sql", "README.md"]
+  "files": [
+    "dist",
+    "sql",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "@nestjs/common": "12.2.0",
+    "@nestjs/core": "12.2.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
+  }
 }
