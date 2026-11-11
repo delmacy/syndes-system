@@ -95,3 +95,7 @@ O responsável pelo produto autorizou concluir as tarefas pendentes de frontend 
 ## Gate ENABLED por módulo (FC-02.02, candidato)
 
 O Core Host é o único dono da configuração SYNDES_CRM_MODULE_GATE=legacy|enforce; legacy é default compatível enquanto Control DB real não foi migrado. Nunca aceitar modo vindo de cliente, header, feature flag React ou parâmetro de URL. Quando enforce, toda API CRM passa por CrmDefaultContextGuard → CoreKernel.executeModule com módulo confiável crm antes do lease do banco tenant. Manter FGA por recurso e operação, SQL 002 e as relações Organization/Workspace mesmo se ModuleAccessPort responder true. Não ativar em DevServer01 sem restore/backfill e controle de todos os tenants. Ver docs/engineering/FC-02-02-CRM-MODULE-GATE-CANDIDATE-20261110.md; continuidade de Inbox/WhatsApp/Support segue FC-02.01/02.
+
+## Reconciliação WhatsApp (CRM-WA-01)
+
+CRM Person é canônica e Organization de plataforma determina ownership; ChannelIdentity WhatsApp nunca se equivale a um UserAccount. Só vínculos inequívocos por identidade externa ou telefone E.164 comprovadamente associado podem ser propostos. Não sobrescrever nomes confirmados com pushname de WhatsApp. O reconciliador atual é READ-ONLY; criação provisória, links transacionais, auditoria e revisão de ambiguidades permanecem pendentes. Não fazer DML no tenant real sem aprovação do dry-run.

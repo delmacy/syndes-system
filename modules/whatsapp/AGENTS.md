@@ -78,3 +78,9 @@ Suportar vínculo de JID/LID/telefone a ChannelIdentity do CRM; não usar telefo
 - suspension/reactivation;
 - mock provider stress;
 - provider real em escala reduzida.
+
+## WA-DATA-01 e CRM-WA-01 (2026-11-11)
+
+O gateway mede eventos text-only e conteúdo descartado antes da fila, SEM corpo, número, nome ou JID nos contadores. Os contadores são em memória e não substituem o ledger persistido; não habilitar logs de mensagens nem inventar retenção. A rota interna /diagnostics/coverage exige token do tenant e conta ativa.
+
+O planejador crm-link-plan.ts é somente SELECT e recusa cross-org, LID sem telefone verificado e correspondência ambígua. Nunca converter propose_provisional em pessoa automaticamente, nem fazer merge por nome parecido. A escrita transacional auditável exige etapa distinta, homologação e aprovação. Ver docs/engineering/WA-DATA-01-CRM-WA-01-20261111.md e WBS-WA-DATA-CRM-WA-20261111.md.
