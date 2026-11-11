@@ -9,6 +9,7 @@ import {ActorVerifier,PgMembership,FgaPermission,tenantUUID} from "./adapters.js
 import {PgModuleCatalog} from "./module-catalog.js";
 import {PgModuleLifecycle} from "./module-lifecycle.js";
 import {PgEffectiveModuleAccess} from "./module-effective-access.js";
+import {crmModuleGateMode} from "./module-gate-rollout.js";
 import {loadCoreSecrets,openBaoSourceFromEnv,type CoreRuntimeSecrets} from "./secrets.js";
 
 function env(k:string):string{const v=process.env[k];if(!v?.trim())throw new Error("Missing "+k);return v}
@@ -21,8 +22,10 @@ class CoreService implements OnModuleDestroy{
  readonly kernel:CoreKernel;
  readonly catalog:PgModuleCatalog;
  readonly moduleStates:PgModuleLifecycle;
+ readonly crmModuleGateMode:"legacy"|"enforce";
  constructor(@Inject(RUNTIME_SECRETS) credentials:CoreRuntimeSecrets,
              @Inject("SYNDES_MODULE_DEFINITIONS") modules:readonly ModuleDefinition[]) {
+  this.crmModuleGateMode=crmModuleGateMode(process.env.SYNDES_CRM_MODULE_GATE);
   this.db=new Pool({connectionString:credentials.controlDbUrl,max:5,connectionTimeoutMillis:3000,idleTimeoutMillis:10000});
   this.catalog=new PgModuleCatalog(this.db,modules);
   this.moduleStates=new PgModuleLifecycle(this.db,this.catalog);

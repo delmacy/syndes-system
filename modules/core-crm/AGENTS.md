@@ -90,3 +90,8 @@ Tenant B não acessa dados de Tenant A.
 ## Autorização recente de finalização (2026-11-01)
 
 O responsável pelo produto autorizou concluir as tarefas pendentes de frontend Core CRM nesta iteração, mesmo após priorização anterior da Inbox. A implementação do Workspace permanece modular e exige capacidades por ação, formulários, registros relacionados e testes. A branch `feat/crm-workspace-completion` documenta o progresso em `docs/product/CORE-CRM-FRONTEND-COMPLETION.md`. **Não declarar Product Gate fechado apenas com CI ou mocks**.
+
+
+## Gate ENABLED por módulo (FC-02.02, candidato)
+
+O Core Host é o único dono da configuração SYNDES_CRM_MODULE_GATE=legacy|enforce; legacy é default compatível enquanto Control DB real não foi migrado. Nunca aceitar modo vindo de cliente, header, feature flag React ou parâmetro de URL. Quando enforce, toda API CRM passa por CrmDefaultContextGuard → CoreKernel.executeModule com módulo confiável crm antes do lease do banco tenant. Manter FGA por recurso e operação, SQL 002 e as relações Organization/Workspace mesmo se ModuleAccessPort responder true. Não ativar em DevServer01 sem restore/backfill e controle de todos os tenants. Ver docs/engineering/FC-02-02-CRM-MODULE-GATE-CANDIDATE-20261110.md; continuidade de Inbox/WhatsApp/Support segue FC-02.01/02.

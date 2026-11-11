@@ -21,7 +21,7 @@ export class CrmHost {
    const extras=new PgCrmExtrasFactory(pools);
    this.crm=new CrmService(core.kernel,(id,organizationId)=>repos.forTenant(id,organizationId));
    this.extra=new CrmExtras(core.kernel,(id,organizationId)=>extras.forTenant(id,organizationId));
-   this.scope=new CrmDefaultContextGuard(core.kernel,pools);
+   this.scope=new CrmDefaultContextGuard(core.kernel,pools,core.crmModuleGateMode==="enforce");
  }
  async context(tenantId:string,bearer:string|undefined,selection?:RequestedOperationalScope):Promise<CrmContext>{
    if(!isUuid(tenantId))throw new HttpException("Invalid tenant ID",400);
