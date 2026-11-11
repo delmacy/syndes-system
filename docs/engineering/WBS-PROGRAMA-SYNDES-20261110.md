@@ -281,3 +281,10 @@ A arquitetura de administração unificada de acesso, entitlements por tenant e 
 - **Candidato implementado:** [contrato AK-10.04](AK-10-04-CONTROL-ENABLED-MODULE-GATE-20261110.md) / PgEffectiveModuleAccess conectado ao CoreKernel.moduleAccess. Concede somente entitled + enabled + release/build aprovada + metadados verificados + dependências todas habilitadas no mesmo tenant. Falha fechada em erro de catálogo ou Control DB.
 - **Limite:** SOMENTE CoreKernel.executeModule, sem mudança dos controllers legados que ainda chamam execute nem jobs. Nenhum tenant é automaticamente habilitado. **Gate operacional ainda PEND** até AK-30 attestation/ENABLED com identidade, migração de rotas/workers e rollout seguro.
 - **Evidência:** unit tests + PG17 descartável A/B/C/D e testes de version/expiry/dependency; CI do SHA integrado obrigatória.
+
+### AK-30.03 — Comandos auditados de ENABLED/DISABLE (candidato inativo)
+
+- **Implementado:** [contrato e testes](AK-30-03-MODULE-ACTIVATION-20261110.md), role exclusiva syndes_module_activator NOLOGIN e comandos Control SQL installation.enable/disable, com replay/concorrência, checks de entitlement, versão, receipt e dependências ENABLED. PgModuleInstaller verifica ledger físico antes de ENABLE. DISABLE preserva instalação verificada e funciona mesmo com tenant suspenso.
+- **Correção de bug:** dependências INSTALLED **ou ENABLED** são elegíveis em APPLY/VERIFY/attestation: habilitar CRM não bloqueia a instalação posterior do Inbox.
+- **Evidência:** testes em PG17 descartável de dois bancos tenant e Control DB, sem SQL operacional, incluindo replay antigo negado após nova transição e drift negado antes de reabilitação.
+- **Ainda PEND:** CI SHA integrado, Control DB versioned migrations/backup, operador autenticado com role dedicada, reconciliador de ledger, upgrade/rollback, adaptação de todos os handlers/worker para executeModule, homologação em cluster real. Nem Manager nem Core Host recebem poder de ENABLE nesta fatia.
