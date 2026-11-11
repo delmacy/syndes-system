@@ -45,3 +45,12 @@ export type TenantDatabase = Readonly<{
 export interface TrustedTenantDatabaseProvider {
   resolve(tenantId:string):Promise<TenantDatabase>;
 }
+
+/** Pinned one-connection SQL lease. Lifecycle is controlled by the host. */
+export const PINNED_TENANT_TRANSACTION:unique symbol=Symbol("syndes.tenant.transaction");
+export type TenantTransaction=TenantDatabase & Readonly<{[PINNED_TENANT_TRANSACTION]:true}>;
+/** Optional capability: existing query-only providers remain supported, but
+ * publication and consumer effects must require this stronger port. */
+export interface TrustedTenantTransactionProvider extends TrustedTenantDatabaseProvider {
+ withTransaction<T>(tenantId:string,work:(tx:TenantTransaction)=>Promise<T>):Promise<T>;
+}

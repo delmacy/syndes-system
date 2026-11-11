@@ -142,3 +142,11 @@ Uma entrega só é DONE quando:
 - testes automatizados relevantes verdes;
 - segurança revisada;
 - jornada de aceite demonstrável.
+
+## Event infrastructure (2026-11-11)
+
+- Leia docs/engineering/ADR-PLATFORM-EVENTS-20261111.md e WBS-PLATFORM-EVENTS-20261111.md antes de introduzir novos eventos.
+- Dados de negócio permanecem nos módulos; eventos de cada tenant ficam apenas no schema platform_events dentro de seu database. Nunca usar syndes_control para dados de eventos tenant.
+- Publisher requer TenantPgProvider.withTransaction e lease fixado; query-only TenantDatabase não oferece atomicidade.
+- At least once, idempotência por consumer e efeito + inbox num COMMIT; sem JWTs artificiais de usuário, sem enforcement ENABLED ou DDL operacional antes dos gates.
+- Os eventos v1 são contratos; não declarar WhatsApp → Inbox → CRM integrado enquanto a cadeia vertical não for demonstrada em PG17 descartável.

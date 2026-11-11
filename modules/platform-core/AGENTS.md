@@ -35,3 +35,10 @@ Fornecer somente as capacidades transversais necessárias para os módulos atuai
 ## Done
 
 Capacidade transversal é DONE quando atende o módulo consumidor atual com segurança e testes, sem ampliar a plataforma por antecipação.
+
+## Platform Events — primeiro incremento
+
+- Contratos tipados em packages/core-kernel/src/platform-events.ts.
+- Infraestrutura em apps/core-host/src/tenant-database.ts e platform-event-publisher.ts.
+- Migration 001 emitida via apps/core-host/dist/migrations.js --emit platform_events 001_platform_events; deve depender de organizations 001.
+- Nunca disparar migration em tenant operacional sem backup/restore testado, aprovação e janela de implantação. Control DB permanece fora desta mudança.
