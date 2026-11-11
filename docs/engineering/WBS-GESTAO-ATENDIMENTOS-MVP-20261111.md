@@ -13,7 +13,7 @@
 | P0 | SM-03B | APIs REST de criar/abrir/avançar/atribuir/concluir/listar/histórico; OIDC/FGA+ENABLED+membership, 401/403/409/503, E2E com identidade real | SM-03A | **Controller HTTP implementado como plugin não montado; testes Nest sintéticos aprovados, smoke real pendente** |
 | P0 | SM-04A | Workforce: equipes existentes, ligação ativa CRM/Staff, elegibilidade e grants FGA origem/destino, auditoria | Workforce DC-2c/007 + SM-03 | **Código implementado e PG17 sintético testado; Workforce 007 operacional/FGA/restore bloqueados** |
 | P1 | SM-04B | Transferência CAS entre equipes staffed do mesmo Workspace, motivo/auditoria e revogação de visibilidade na origem | SM-04A | **Código/API/PG17 testados; não ativado; CI e staging pendentes** |
-| P1 | SM-05A | Inspector da Inbox: protocolo/etapa/responsável/histórico, sem duplicar mensagens ou alterar fontes canônicas | SM-03 + Inbox Product Gate | Pendente |
+| P1 | SM-05A | Inspector Inbox: consulta por conversa com FGA dupla (Inbox+Service), ownership corrente, visibilidade de equipe e índice PG; UI real sem duplicar mensagens | SM-03 + Inbox Product Gate | **Backend opt-in implementado/testado (SM-05A-API); UI e identidade/Control reais pendentes** |
 | P1 | SM-05B | Lista/Kanban por etapa com mesmo serviço e filtros autorizados, incluindo mobile e testes de navegadores | SM-05A | Pendente |
 | P0 | SM-06A | Staging autorizado: backup/restore **real**, grants, tenant A/B, concorrência, idempotência e rollback de migration | Gates DR/Control/WA | Bloqueado |
 | P0 | SM-06B | Produto: gestor e operador testam criação→atendimento→atribuição→mudança→conclusão→fila; Product Gate formal, métricas sem PII | SM-04/05/06A | Pendente |
@@ -23,3 +23,5 @@ A migração aditiva `002_service_team_transfer.sql` depende da migration **manu
 **Fronteiras:** nenhuma UI até endpoint autorizado real; nenhuma extensão do estado da Inbox como motor de funil; sem templates, editor visual, BPMN ou SLA avançado (WBS80). Não renomear Support, nem assumir multidomínio org/workspace liberado. Não criar lógica de faturamento por execução.
 
 **Regra de status:** `CODED != TESTED != INTEGRATED != OPERATIONAL != DONE`. Uma PR verde comprova apenas o que ela de fato testar. Release permanece condicionado a restore real homologado, identidade/tenant/Organization/Workspace, autorização, dados confiáveis e primeiro cliente pagante.
+
+**SM-05A-API (2026-11-11):** contrato de leitura `GET /v1/tenants/:tenantId/service-management/conversations/:conversationId/attendances`, plugin v0.3.0 e migration de índice 003; testes sintéticos PG17 19/19, FGA dupla, isolamento por equipe e Inbox ownership atual. Ver `ADR-SERVICE-INBOX-INSPECTOR-READ-20261111.md`. A UI é tarefa separada, não concluída.

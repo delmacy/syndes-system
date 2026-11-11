@@ -10,3 +10,7 @@
 ## Transferência intra-Workspace (v0.2.0, PR de SM-04)
 
 `002_service_team_transfer.sql` exige Workforce Organizations 007 pré-release manual e SQL002 ativo. Não aplicar em databases operacionais nem alterar grants. `transferTeam` exige módulo ENABLED, FGA de atendimentos/teams e FGA dinâmica origem/destino; ator deve ter staff designation supervisor e vínculo real CRM/Workspace, destino com agente elegível. Mesma conversa, mesmo protocolo, versão CAS, limpa assignee, escreve motivo e auditoria append-only. GET/board/histórico e alterações filtram membros ativos da equipe atual; revogação remove visão. Sem cross-org, cross-workspace, motor de SLA ou frontend até Product Gate.
+
+## Contrato Inspector (v0.3.0)
+
+`byConversation` e endpoint GET correspondente usam `Kernel.executeModule(inbox)` mais `Kernel.executeModule(service-management)` e verificação de `platform_current_workspace_id` no SQL. Apenas até 50 protocolos visíveis, sem textos de conversa nem nome de contato; entidade Inbox permanece dona da conversa. `003_service_conversation_inspector.sql` apenas cria índice parcial, após Workforce 007 e Service 002, e nunca deve ser aplicado automaticamente a bancos operacionais. Nenhuma alteração no frontend sem Product Gate.

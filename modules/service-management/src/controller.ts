@@ -92,6 +92,14 @@ export class ServiceManagementController{
   @Body()body:{funnelId:string;conversationId?:string|null;idempotencyKey:string}){
   return this.run(t,a,o,w,ctx=>this.host.service.open(ctx,body));
  }
+ @Get("conversations/:conversationId/attendances")
+ byConversation(@Param("tenantId")t:string,
+  @Headers("authorization")a:string|undefined,
+  @Headers("x-syndes-organization-id")o:unknown,
+  @Headers("x-syndes-workspace-id")w:unknown,
+  @Param("conversationId")conversationId:string){
+  return this.run(t,a,o,w,ctx=>this.host.service.byConversation(ctx,conversationId));
+ }
  @Get("attendances/:id")
  get(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,

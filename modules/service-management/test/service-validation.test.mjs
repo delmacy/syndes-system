@@ -95,6 +95,14 @@ test("malformed team transfer is rejected before FGA or database",async()=>{
  assert.deepEqual(counters(),{databaseCalls:0,kernelCalls:0});
 });
 
+test("invalid Inspector conversation id rejected before authorization and SQL",async()=>{
+ const {service,counters}=noAccess();
+ for(const value of ["../../secret",null,undefined,{},42]){
+  await assert.rejects(service.byConversation(scope,value),ServiceFunnelInputError);
+ }
+ assert.deepEqual(counters(),{databaseCalls:0,kernelCalls:0});
+});
+
 test("client cannot choose an FGA resource or a database lease",async()=>{
  let requested,dbCalls=0;
  const kernel={executeModule:async request=>{requested=request;throw new AccessDeniedError()}};

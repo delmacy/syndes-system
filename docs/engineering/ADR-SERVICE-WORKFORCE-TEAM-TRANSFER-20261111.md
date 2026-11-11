@@ -27,3 +27,7 @@ O módulo `service-management` referencia **as equipes canônicas** de `Organiza
 - **Frontend:** nenhuma UI é liberada pela implementação; Inspector/Lista/Kanban somente após módulo habilitado, dados reais e autorização no Host. Não adicionar dados fictícios ou componentes duplicados.
 
 **Evidência executável:** `bash scripts/service-management/run_disposable_pg17.sh --disposable --ack-synthetic`. O teste usa dois bancos de tenant isolados, migrações reais, equipe de origem, equipe de destino, equipe vazia, funcionários CRM/Workforce sintéticos, revogação, FGA simulada, rollback por transação, audit e limpeza automática.
+
+### Adendo Inspector (2026-11-11)
+
+A leitura por conversa da Inbox foi adicionada no módulo v0.3.0, com FGA dupla e filtro pela equipe atual. O Inspector não modifica ownership nem transfere a conversa. Ver `ADR-SERVICE-INBOX-INSPECTOR-READ-20261111.md`.

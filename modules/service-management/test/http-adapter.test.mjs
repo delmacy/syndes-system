@@ -20,8 +20,11 @@ const headers={
 
 test("service-management plugin is valid but NOT in default Host installed modules",async()=>{
  assert.equal(syndesPlugin.definition.id,"service-management");
- assert.equal(syndesPlugin.definition.version,"0.2.0");
- assert.deepEqual(syndesPlugin.migrations.map(x=>x.id),["001_service_funnels","002_service_team_transfer"]);
+ assert.equal(syndesPlugin.definition.version,"0.3.0");
+ assert.deepEqual(syndesPlugin.migrations.map(x=>x.id),[
+  "001_service_funnels","002_service_team_transfer",
+  "003_service_conversation_inspector",
+ ]);
  assert.deepEqual(syndesPlugin.permissions.map(x=>x.resource),[
   "service-management:funnels","service-management:attendances","service-management:teams",
  ]);
@@ -31,7 +34,8 @@ test("service-management plugin is valid but NOT in default Host installed modul
 });
 
 test("Nest opt-in HTTP adapter: JWT, scope, FGA and Module ENABLED fail closed",async()=>{
- let enabled=false,canAccess=true,denyTeamGrant=false,hasDb=true,dbQueries=0,txCalls=0,checks=0;
+ let enabled=false,inboxEnabled=true,canAccess=true,denyInboxRead=false,
+  denyTeamGrant=false,hasDb=true,dbQueries=0,txCalls=0,checks=0;
  const kernel=new CoreKernel({
   modules:[{id:"platform",version:"0.1.0"},
    {id:"organizations",version:"0.1.0",dependencies:["platform"]},
@@ -41,11 +45,12 @@ test("Nest opt-in HTTP adapter: JWT, scope, FGA and Module ENABLED fail closed",
   tenancy:{canAccessTenant:async({actor,tenantId})=>
    actor.id==="authorized-user"&&tenantId===TENANT},
   authorization:{canAccess:async({resource})=>
-   canAccess&&!(denyTeamGrant&&resource.startsWith("service-management:team:"))},
+   canAccess&&!(denyTeamGrant&&resource.startsWith("service-management:team:"))
+   &&!(denyInboxRead&&resource==="inbox:conversations")},
   moduleAccess:{canExecuteModule:async ({moduleId})=>{
    checks++;
-   assert.equal(moduleId,"service-management");
-   return enabled;
+   assert.ok(["service-management","inbox"].includes(moduleId));
+   return moduleId==="inbox"?inboxEnabled:enabled;
   }},
  });
  await kernel.start();
@@ -68,7 +73,9 @@ test("Nest opt-in HTTP adapter: JWT, scope, FGA and Module ENABLED fail closed",
      }
      if(sql.includes("SELECT a.team_id::text AS team_id"))
       return {rows:[{team_id:null}],rowCount:1};
-     if(sql.includes("SELECT t.id::text")||sql.includes("SELECT f.id::text")||sql.includes("SELECT * FROM service_attendances"))
+     if(sql.includes("JOIN inbox_conversations c ON c.tenant_id=a.tenant_id")||
+      sql.includes("SELECT t.id::text")||sql.includes("SELECT f.id::text")||
+      sql.includes("SELECT * FROM service_attendances"))
       return {rows:[],rowCount:0};
      throw new Error("Unexpected SQL query in HTTP test");
     },
@@ -136,6 +143,21 @@ test("Nest opt-in HTTP adapter: JWT, scope, FGA and Module ENABLED fail closed",
   assert.equal((await patch(validTeamBody)).status,403);
   assert.equal(txCalls,beforeSuspend,"Module suspension denies before database");
   enabled=true;
+  const inspectorPath=route.replace("/funnels",
+   "/conversations/"+FOREIGN+"/attendances");
+  assert.equal((await send(inspectorPath.replace(FOREIGN,"bad-conversation-id"))).status,400);
+  const activeInspector=await send(inspectorPath);
+  assert.equal(activeInspector.status,200);
+  assert.deepEqual(await activeInspector.json(),[]);
+  const beforeInboxDeny=txCalls;
+  denyInboxRead=true;
+  assert.equal((await send(inspectorPath)).status,403);
+  assert.equal(txCalls,beforeInboxDeny,"No tenant SQL after Inbox FGA denial");
+  denyInboxRead=false;
+  inboxEnabled=false;
+  assert.equal((await send(inspectorPath)).status,403);
+  assert.equal(txCalls,beforeInboxDeny,"No tenant SQL if Inbox module suspended");
+  inboxEnabled=true;
   const absent=await send(route.replace("/funnels","/attendances/"+FOREIGN));
   assert.equal(absent.status,404);
   // Reading does not require a command mutation or fabricate Kanban data.

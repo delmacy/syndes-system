@@ -166,3 +166,7 @@ Gestão de Atendimentos Básica é módulo separado de CRM, Inbox e Syndes Suppo
 ## Gestão de Atendimentos / Workforce SM-04 (2026-11-11)
 
 Versão 0.2.0 do pacote `modules/service-management` adiciona schema `002_service_team_transfer.sql` dependente da **manual** Organizations 007; não instalar sem backup/restore e ledger Control homologados. Transferências usam **a equipe Workforce existente**, não duplicar membership nem criar FGA. Exigir `service-management:teams/write` e grants dinâmicos `service-management:team:<uuid>/write` na origem e destino, supervisor Workforce ativo e a mesma Organization/Workspace. Revalidação SQL, version CAS, motivo append-only e filtro de visibilidade por equipe; nada ativa `config/modules.json` ou frontend. Testes PG17 A/B são sintéticos e o planner CI depende da Issue #94. ADR: `docs/engineering/ADR-SERVICE-WORKFORCE-TEAM-TRANSFER-20261111.md`.
+
+## Inspector da Inbox — contrato de leitura SM-05A (2026-11-11)
+
+Service Management v0.3.0 adiciona consulta read-only `/v1/tenants/:tenantId/service-management/conversations/:conversationId/attendances` com FGA/ENABLED duplo da Inbox e do próprio módulo. Ownership `platform_current_workspace_id` e `service_team_can_read` são obrigatórios no SQL, sem duplicar mensagens/contatos nem inferir tenant/org/ws. Migration aditiva 003 é apenas índice, requer Workforce 007 e Service 002, sem instalação operacional. Frontend existente de outro chat permanece intocado; consultar `docs/engineering/ADR-SERVICE-INBOX-INSPECTOR-READ-20261111.md`.

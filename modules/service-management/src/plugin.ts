@@ -13,7 +13,9 @@ export const syndesPlugin=defineSyndesModule({
  migrations:[{id:"001_service_funnels",
   fileUrl:new URL("../sql/001_service_funnels.sql",import.meta.url).href},
   {id:"002_service_team_transfer",
-   fileUrl:new URL("../sql/002_service_team_transfer.sql",import.meta.url).href}],
+   fileUrl:new URL("../sql/002_service_team_transfer.sql",import.meta.url).href},
+  {id:"003_service_conversation_inspector",
+   fileUrl:new URL("../sql/003_service_conversation_inspector.sql",import.meta.url).href}],
  assets:[],
 });
 export {ServiceManagementHost,ServiceManagementController} from "./controller.js";
