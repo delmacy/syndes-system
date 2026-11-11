@@ -6,6 +6,7 @@
 - Core CRM.
 - Inbox.
 - 1 WhatsApp por Basic.
+- **Gestão de Atendimentos Básica (PRD-003A)**: funis de etapas configuráveis, protocolos, responsável, mudança manual de etapa, conclusão, transferência de equipe autorizada, histórico e lista/Kanban simples.
 - Scheduling.
 - AI First-Level Assistant.
 - Documents.
@@ -31,7 +32,8 @@ Inicialmente até 3 usuários.
 - Google Calendar.
 - Automation Platform.
 - AI Advanced / multi-agent.
-- CRM avançado e pipeline.
+- CRM avançado e pipeline comercial.
+- **Construtor avançado de funis e templates**: editor visual, revisões complexas, protocolos/automação genéricos, SLA/skills/capacidade e transferências cross-funnel/cross-Organization (WBS 80).
 - Ordens de serviço.
 - Financeiro empresarial.
 - Estoque.

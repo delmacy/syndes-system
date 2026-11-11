@@ -32,6 +32,13 @@ COPY modules/support/tsconfig.json modules/support/
 COPY modules/support/src modules/support/src
 COPY modules/support/sql modules/support/sql
 RUN cd modules/support && npm ci --no-audit --no-fund && npm run build
+# Package is baked as an opt-in module but never mounted unless added to
+# config/modules.json after Control Plane, grants and restore approval.
+COPY modules/service-management/package*.json modules/service-management/
+COPY modules/service-management/tsconfig.json modules/service-management/
+COPY modules/service-management/src modules/service-management/src
+COPY modules/service-management/sql modules/service-management/sql
+RUN cd modules/service-management && npm ci --no-audit --no-fund && npm run build
 COPY apps/core-host/package*.json apps/core-host/
 COPY apps/core-host/tsconfig.json apps/core-host/
 COPY apps/core-host/src apps/core-host/src

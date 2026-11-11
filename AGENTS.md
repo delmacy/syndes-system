@@ -22,14 +22,17 @@ Trabalhar funcionalmente em apenas um módulo de produto por vez:
 1. Core CRM
 2. Inbox
 3. WhatsApp
-4. Scheduling
-5. AI First-Level Assistant
-6. Documents
-7. Email
-8. Onboarding
-9. Subscription & Billing
-10. Commercial Website
-11. Release Candidate
+4. **Gestão de Atendimentos Básica (PRD-003A)**
+5. Scheduling
+6. AI First-Level Assistant
+7. Documents
+8. Email
+9. Onboarding
+10. Subscription & Billing
+11. Commercial Website
+12. Release Candidate
+
+**Atualização 2026-11-11:** Funil Básico PRD-003A passou ao MVP e deve acompanhar CRM/Inbox/WhatsApp antes de Scheduling; o construtor avançado F0–F8 permanece congelado. A WBS 55 registra gates e a entrega de domínio não significa API/UI/produção.
 
 **Priorização mais recente (2026-11-01):** após a evolução da Inbox, o responsável pelo produto **autorizou concluir as tarefas pendentes do frontend Core CRM**, mantendo o escopo do MVP congelado. O foco imediato é validar e finalizar `feat/crm-workspace-completion` e seus critérios, não abrir novos módulos. CRM e Inbox **não são DONE** até Product Gate formal com testes de identidade/tenant reais e operação comprovada. A sequência comercial do MVP permanece inalterada.
 
@@ -155,4 +158,23 @@ Uma entrega só é DONE quando:
 - Restore drill: `scripts/events/disposable_restore_drill.py --disposable --ack-synthetic` usa apenas PostgreSQL 17 sintético em contêiner novo sem rede, compara Control/tenant ledgers após pg_dump/pg_restore e testa replay idempotente. **Não é restore operacional homologado**, não autoriza migration de Control/tenant nem alterações de serviço. ADR: `docs/engineering/ADR-EVENTS-DISPOSABLE-RESTORE-DRILL-20261111.md`.
 - Worker admission/staging: `apps/core-host/src/platform-event-worker-admission.ts` exige acesso ENABLED do Control, org/workspace ativos e grant real da identidade service. `platform-event-worker-composition.ts` monta as assinaturas WhatsApp/Inbox/CRM **sem iniciar worker nem injetar bridge no Nest**. O adapter `platform-event-service-grant.ts` usa objeto OpenFGA `event_delivery` e principal `service:` distintos de usuário; **o modelo/tuples são candidatos, não aplicados no store operacional**. Nenhum fallback para JWT/claim/frontend. ADRs `docs/engineering/ADR-EVENTS-STAGING-WORKER-ADMISSION-20261111.md` e `ADR-EVENTS-OPENFGA-SERVICE-GRANTS-20261111.md`.
 - Runner sintético: `scripts/events/run_disposable_staging.sh --disposable --ack-synthetic` inicia PostgreSQL 17 e OpenFGA descartáveis **somente com binding loopback** e exercita a cadeia completa. `TenantEventWorkerBatch` aceita no máximo 100 tentativas e não tem scheduler. **Nunca tratar esse teste como restore real, staging aprovado ou ativação do Host.** ADR `docs/engineering/ADR-EVENTS-DISPOSABLE-STAGING-20261111.md`.
+
+## Gestão de Atendimentos no MVP (decisão 2026-11-11)
+
+Gestão de Atendimentos Básica é módulo separado de CRM, Inbox e Syndes Support. É responsável por funil/etapas/protocolo/atribuição/auditoria; não reescreve mensagens nem gera equipes fictícias. O pacote `modules/service-management` possui domínio SM-02 e plugin/API Nest **opt-in e desativados por padrão**: não consta em `apps/core-host/config/modules.json`, sem UI, grants ou migrations operacionais. Sem templates, designer visual, motor genérico, SLAs avançados, transferências cross-org ou multi-org SQL002. Requer tenancy, Organization/Workspace membership, OpenFGA e Product Gate. O planner mainline ainda não roteia a suíte do novo módulo (incluindo Nest HTTP/PG17): SM-02D permanece com a frente responsável por CI, e CI verde genérico não equivale a PG17 service-management executado. Ver `docs/product/PRD-003A-GESTAO-ATENDIMENTOS-MVP.md`, `docs/engineering/WBS-GESTAO-ATENDIMENTOS-MVP-20261111.md` e WBS 80 pós-MVP.
+
+## Gestão de Atendimentos / Workforce SM-04 (2026-11-11)
+
+O incremento SM-04 (atualmente consolidado em Service v0.3.0) adiciona a migration `002_service_team_transfer.sql` dependente da **manual** Organizations 007; não instalar sem backup/restore e ledger Control homologados. Transferências usam **a equipe Workforce existente**, não duplicar membership nem criar FGA. Exigir `service:teams/write` e grants dinâmicos `service:team:<uuid>/write` na origem e destino, supervisor Workforce ativo e a mesma Organization/Workspace. Revalidação SQL, version CAS, motivo append-only e filtro de visibilidade por equipe; nada ativa `config/modules.json` ou frontend. Testes PG17 A/B são sintéticos e o planner CI depende da Issue #94. ADR: `docs/engineering/ADR-SERVICE-WORKFORCE-TEAM-TRANSFER-20261111.md`.
+
+## Inspector da Inbox — contrato de leitura SM-05A (2026-11-11)
+
+Service Management v0.3.0 adiciona consulta read-only `/v1/tenants/:tenantId/service-management/conversations/:conversationId/attendances` com FGA/ENABLED duplo da Inbox e do próprio módulo. Ownership `platform_current_workspace_id` e `service_team_can_read` são obrigatórios no SQL, sem duplicar mensagens/contatos nem inferir tenant/org/ws. Migration aditiva 003 é apenas índice, requer Workforce 007 e Service 002, sem instalação operacional. Frontend existente de outro chat permanece intocado; consultar `docs/engineering/ADR-SERVICE-INBOX-INSPECTOR-READ-20261111.md`.
+
+
+## Gate Service Management / instalador (11/11/2026, corrigido em SM-03C)
+
+O diagnóstico antigo de ID/schema/transação inválidos foi corrigido no código pré-release: módulo canônico **`service`**, pacote **`@syndes/service`** (fontes mantidas em `modules/service-management`), schema físico **`service`** e migrations 001–003 sem transações embutidas. `apps/core-host/src/service-release.ts` monta manifest operador com checksums SHA256 e digest de imagem previamente validado pelo processo de release; PgModuleInstaller plan/apply/verify foi testado em PG17 descartável, **sem Control real**.
+
+**ATIVAÇÃO OPERACIONAL CONTINUA PROIBIDA:** nenhum Control Catalog/entitlement/ledger real, Workforce 007 nem restore real, Keycloak/FGA/grants efetivos homologados. `python3 scripts/service-management/readiness_preflight.py --strict` sempre nega instalação até essas aprovações. `apps/core-host/config/modules.json` não deve registrar o plugin até Product Gate. Ver `docs/engineering/ADR-SERVICE-CANONICAL-INSTALLER-SM03C-20261111.md`. Não alterar Actions/CI (Issue #94), bancos reais, frontend de outra worktree nem PR #92.
 - Cutover WhatsApp: migration 008 define `projection_path` imutável default legacy, e o bridge novo só publica registros events. O projetor legado usa filtro compatível antes/depois da migration. **Não ativar o novo ingress enquanto houver worker legado antigo sem o filtro**, nem migrar path de eventos históricos. ADR `docs/engineering/ADR-WHATSAPP-SINGLE-PROJECTOR-20261111.md`.

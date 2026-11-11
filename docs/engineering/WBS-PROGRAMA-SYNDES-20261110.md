@@ -1,6 +1,6 @@
 # WBS / EAP mestre — Syndes System
 
-**Baseline:** 2026-11-10 (America/Sao_Paulo). **Repositório:** `delmacy/syndes-system`. **Escopo:** pendências identificáveis do MVP vigente, do Platform Manager, do Syndes Operations/Support, do isolamento organizacional, do fluxo de release e do backlog já aprovado para planejamento. **Não é uma autorização para deploy ou retirada da trava SQL 002.**
+**Baseline:** 2026-11-10, atualizado em 2026-11-11 com a decisão PRD-003A (America/Sao_Paulo). **Repositório:** `delmacy/syndes-system`. **Escopo:** pendências identificáveis do MVP vigente, do Platform Manager, do Syndes Operations/Support, do isolamento organizacional, do fluxo de release e do backlog já aprovado para planejamento. **Não é uma autorização para deploy ou retirada da trava SQL 002.**
 
 ## Como ler e atualizar
 
@@ -33,7 +33,7 @@
             ├── 20 Manager real + operador global validado
             ├── 30 acesso da conta + workforce → telas Workspace
             └── 40 tenant Syndes → canal WA próprio → Support → gate #39
-50 CRM/Inbox/WhatsApp real → 70 módulos MVP sequenciais → 95 release comercial
+50 CRM/Inbox/WhatsApp real → 55 Gestão de Atendimentos Basic → 70 demais módulos MVP → 95 release comercial
                        ├── 60 Multi-org (gate #31, independente)
                        ├── 80 Funis (Product Gate separado)
                        └── 90 métricas sanitizadas (somente após Support + Manager)
@@ -143,6 +143,21 @@
 | **50.07** | Revalidar Workspace OIDC, troca de contexto e ações por capacidade | Sem reaproveitar token do Manager; menu não concede permissão; falhas Core Host/FGA negam acesso | 50.02–50.06 | BLOQ |
 | **50.08** | Fechar aceite do fluxo Basic CRM + Inbox + WhatsApp | Um tenant com casos reais, restarts, testes de negação, backups/rollback e runbook rastreáveis | 50.07,10.07 | BLOQ |
 
+### WBS 55 — Gestão de Atendimentos Básica (PRD-003A) — inserida no MVP em 11/11/2026
+
+**Prioridade:** P1 · **Responsáveis funcionais:** Produto + Backend + Workspace + Segurança · **Gate G5A:** atendimento com etapas e protocolo; **não** construtor genérico de funis. Detalhamento em `WBS-GESTAO-ATENDIMENTOS-MVP-20261111.md`.
+
+| ID | Entrega e aceite | Dependências | Estado |
+|---|---|---|---|
+| **55.01 / SM-01** | Aprovar recorte Basic e atualizar baseline, PRD, AGENTS e WBS; F0–F8 avançado permanece pós-MVP | Decisão 11/11 | Integrado ao main via PR #93 com CI #127 verde |
+| **55.02 / SM-02** | Funil com 2–8 etapas configuráveis, protocolo independente de conversa, vínculo Inbox opcional, atribuição a pessoa autorizada, mudança adjacente e encerramento com trilha SQL append-only; testes PG A/B | CRM, Inbox, Organizations e SQL002 | Domínio PR #93 no main, PG17 sintético 14/14; CI módulo Issue #94, Host plugin em preparação |
+| **55.03 / SM-03** | Integração do novo módulo no Host/installer, entitlements ENABLED, APIs REST OIDC+FGA+membership e erros 401/403/409; **SM-03C canonicidade e schema de migration; SM-03D preflight read-only** | 55.02, 10.02–10.05, 50.08 | API opt-in no main; SM-03C corrigiu ID/schema/transaction e testou PgModuleInstaller em PG17 sintético; Control/restore/FGA reais BLOQ |
+| **55.04 / SM-04** | Equipes canônicas Workforce 007, grants FGA origem/destino, transferência com CAS e auditoria no mesmo Workspace | 30.06–30.11, 55.03 | Código SM-04 em branch; PG17 sintético verde; staging/Control ainda BLOQ |
+| **55.05 / SM-05** | Inspector Inbox com API read-only por conversa (SM-05A-API opt-in), UI e lista/Kanban funcional com dados autorizados, frontend compartilhado apenas visual | 55.03–55.04 | API Inspector implementada/testada em branch; UI/Product Gate BLOQ |
+| **55.06 / SM-06** | Restore real/staging, smoke JWT/tenant A-B/Workspace, rollback, browser e Product Gate | SM-03C/03D, 10.07, 55.05, 95.03 | BLOQ |
+
+**Fronteiras:** suporte `modules/support` é específico da Syndes; CRM mantém pessoas, Inbox conversa, WhatsApp mensagens. O módulo Basic **não** introduz templates, designer, SLA avançado, BPMN ou motor de automação. Cada fase precisa de CI, migrations com rollback e Product Gate, sem instalar SQL em produção automaticamente.
+
 ### WBS 60 — Multi-organização, Unidades e Workspaces (gate separado)
 
 **Prioridade:** P2 · **Responsável funcional:** Produto + Segurança + Organizations · **Gate:** G6 — ativação multi-org opcional
@@ -164,30 +179,30 @@
 
 | ID | Tarefa / entregável verificável | Critério objetivo de aceite | Depende | Estado |
 |---|---|---|---|---|
-| **70.01** | Scheduling (PRD-004): PRD/PG, agenda, disponibilidade, timezone | API+UI em tenant, conflitos e permissões testados; integra CRM/Inbox sem expor outras organizações | 50.08 | PEND |
+| **70.01** | Scheduling (PRD-004): PRD/PG, agenda, disponibilidade, timezone | API+UI em tenant, conflitos e permissões testados; integra CRM/Inbox sem expor outras organizações | 55.03/55.06 | PEND |
 | **70.02** | AI First-Level Assistant (PRD-005) com base de conhecimento por tenant | Fontes aprovadas, consentimento, limites de custo, handoff humano, proteção prompt injection/PII e E2E | 70.01 | PEND |
 | **70.03** | Documents (PRD-006): armazenamento, ACL e lifecycle de anexos | Upload/download seguro, quota, retenção, tenant/record ACL, malware/links assinados e restore | 70.02 | PEND |
 | **70.04** | Email (PRD-007): uma caixa por Basic | Conectar conta, inbound/outbound, retries/dedup, sigilo e integração de histórico por tenant | 70.03 | PEND |
 | **70.05** | Onboarding (PRD-008) e provisioning repetível | Inscrição/identidade, tenant DB, módulos/entitlements, convite, test tenant e reversão auditada | 70.04,10.07 | PEND |
 | **70.06** | Subscription & Billing (PRD-009) | Plano Basic planejado, limites/quotas, eventos de cobrança, suspensão/reconciliação e cobrança real com segurança | 70.05 | PEND |
 | **70.07** | Commercial Website (PRD-010) e demonstração autoexplicativa | Oferta clara, demo sem dados reais, captação de leads, conversão e vínculo com onboarding/Support | 70.06 | PEND |
-| **70.08** | Homologar tenant demo e jornada de primeiro cliente pagante | Cadastro→login→WhatsApp/CRM/Inbox→agenda/IA/docs/email→fatura/backup com evidência real | 70.01–70.07 | BLOQ |
+| **70.08** | Homologar tenant demo e jornada de primeiro cliente pagante | Cadastro→login→WhatsApp/CRM/Inbox→protocolo/funil Basic→agenda/IA/docs/email→fatura/backup com evidência real | 70.01–70.07 | BLOQ |
 | **70.09** | Product Gate por módulo, conforme `MODULE-ORDER.md` | Cada PRD passa negócios→UX/segurança→técnica→testes→release; nenhum placeholder dado como pronto | 70.01–70.08 | PEND |
 
-### WBS 80 — Gestão de Atendimentos, Funis e Templates — produto futuro condicionado
+### WBS 80 — Construtor avançado de Funis e Templates — pós-MVP congelado
 
-**Prioridade:** P2 / gate de produto · **Responsável funcional:** Produto + Arquitetura · **Gate:** G8 — Funis versão 1 aprovados
+**Prioridade:** P3 / congelado · **Responsável funcional:** Produto + Arquitetura · **Gate:** G8 — somente após PRD-003A Basic homologado e novo Product Gate
 
 | ID | Tarefa / entregável verificável | Critério objetivo de aceite | Depende | Estado |
 |---|---|---|---|---|
-| **80.01** | F0: decidir escopo separado do MVP e aprovar PRD/ADR, FGA e transações | PG-01..PG-05 resolvidos; reutilizar equipes Workforce, não recriar colaboradores | 30.11,50.08 | BLOQ (produto) |
-| **80.02** | F1: catálogo de grupos/equipes/funis por API montável | PK/FK por tenant, validação grafo, draft revision, publicação imutável, concorrência 409 e testes PG A/B | 80.01 | BLOQ |
-| **80.03** | F2: criador visual de funis | Somente após API validada; lista/edição/publicação/arquivamento, E2E, acessibilidade e autorização | 80.02 | BLOQ |
-| **80.04** | F3: catálogo de templates oficiais/privados | Instalar como draft independente, sem copiar usuários/credenciais/dados privados | 80.03 | BLOQ |
-| **80.05** | F4: motor de protocolos e trilha de eventos | Versão pinada, transições/conclusão/reabertura autorizadas, event log atômico e histórico íntegro | 80.02 | BLOQ |
-| **80.06** | F5: transferências autorizadas por equipe/funil | Elegibilidade, motivo, origem/destino e direitos mínimos com log auditável | 80.05 | BLOQ |
-| **80.07** | F6–F7: vínculo Inbox, Minha Fila, Kanban e supervisor | Mesmo histórico WhatsApp, marcadores e projeções consistentes, escopo por funcionário/fila | 80.05–80.06 | BLOQ |
-| **80.08** | F8: políticas de SLA, presença, capacidade e Scheduling | Sem SLA fictício ou roteamento por presença inexistente; contrato e E2E próprios | 80.07,70.01 | BLOQ |
+| **80.01** | Definir construtor avançado além do Basic e aprovar novo PRD/ADR/PG | PG-01..PG-05 resolvidos; reutilizar equipes Workforce, não recriar colaboradores | 30.11,50.08 | CONGELADO (produto) |
+| **80.02** | F1: catálogo de grupos/equipes/funis por API montável | PK/FK por tenant, validação grafo, draft revision, publicação imutável, concorrência 409 e testes PG A/B | 80.01 | CONGELADO |
+| **80.03** | F2: criador visual de funis | Somente após API validada; lista/edição/publicação/arquivamento, E2E, acessibilidade e autorização | 80.02 | CONGELADO |
+| **80.04** | F3: catálogo de templates oficiais/privados | Instalar como draft independente, sem copiar usuários/credenciais/dados privados | 80.03 | CONGELADO |
+| **80.05** | F4 avançado: protocolos versionados, subprotocolos e reabertura complexa | Políticas configuráveis além do protocolo Basic; não duplicar histórico/auditoria já do SM-02 | 80.02 | CONGELADO |
+| **80.06** | F5 avançado: transferência cross-funnel/cross-Workspace e correlação de protocolos | Revalidar origem/destino, contexto, motivo e direitos sem expor dados | 80.05 | CONGELADO |
+| **80.07** | F6–F7 avançado: painéis multi-funil configuráveis, supervisão e templates | Não duplicar Inspector/Lista/Kanban simples do Basic SM-05 | 80.05–80.06 | CONGELADO |
+| **80.08** | F8: políticas avançadas de SLA, presença e capacidade (Scheduling Basic é PRD-004) | Sem SLA fictício ou roteamento por presença inexistente; contrato e E2E próprios | 80.07,70.01 | CONGELADO |
 
 ### WBS 90 — Métricas sanitizadas Support → Manager (issue #37)
 
