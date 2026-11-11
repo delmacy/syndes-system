@@ -6,6 +6,8 @@ import type {TrustedTenantDatabaseProvider} from "./contracts.js";
 export interface CrmHostRuntime {
   readonly kernel:CoreKernel;
   readonly verifier:{verify(header:string|undefined):Promise<Actor>};
+  /** Trusted Host-only rollout mode; absent means legacy until Control DB is provisioned. */
+  readonly crmModuleGateMode?: "legacy" | "enforce";
 }
 export const CORE_RUNTIME="SYNDES_CORE_API";
 export const TENANT_DATABASES="SYNDES_TENANT_DB";

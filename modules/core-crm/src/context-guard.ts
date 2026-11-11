@@ -24,11 +24,13 @@ export class CrmDefaultContextGuard{
   constructor(
     private readonly kernel:CoreKernel,
     private readonly databases:TrustedTenantDatabaseProvider,
+    /** This gate must only be enabled after Control DB tenant rollout/restore. */
+    private readonly enforceModuleGate=false,
   ){}
   async resolve(tenantId:string,actor:Actor,selection?:RequestedOperationalScope):Promise<AuthorizedCrmDefaultContext>{
     if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&!selection)throw new AccessDeniedError();
-    return this.kernel.execute({actor,tenantId,action:"read",resource:"crm:context"},
-      async()=>{
+    const admission={actor,tenantId,action:"read",resource:"crm:context"} as const;
+    const resolveContext=async()=>{
         const db=await this.databases.resolve(tenantId);
         if(db.tenantId!==tenantId)throw new TenantDatabaseMismatchError();
         if(selection){
@@ -72,6 +74,13 @@ export class CrmDefaultContextGuard{
           organizationId:String(row.organization_id),
           workspaceId:String(row.workspace_id),
         };
-      });
+      };
+    // An explicitly enabled Host rollout uses the full Kernel pipeline:
+    // membership → resource FGA → ENABLED module and dependency attestation
+    // → scoped tenant DB lease. An absent Control DB fails closed here.
+    if(this.enforceModuleGate)
+      return this.kernel.executeModule({...admission,moduleId:"crm"},resolveContext);
+    // Compatibility for the operational single-context tenant until migrated.
+    return this.kernel.execute(admission,resolveContext);
   }
 }
