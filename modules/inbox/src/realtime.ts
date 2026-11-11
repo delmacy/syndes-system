@@ -43,18 +43,63 @@ export class InboxChangeBus {
    * Fixed expiry ensures authorization/JWT are rechecked every 60 seconds.
    * Heartbeats keep reverse proxies from buffering or closing idle streams.
    */
-  connect(address:Address,res:SseSink):void {
+  connect(address:Address,res:SseSink,
+    revalidate?:()=>Promise<boolean>,recheckIntervalMs=5000,recheckTimeoutMs=3000):void {
+    if(revalidate&&(!Number.isInteger(recheckIntervalMs)||recheckIntervalMs<1||
+      !Number.isInteger(recheckTimeoutMs)||recheckTimeoutMs<1))
+      throw Error("Invalid SSE recheck interval/timeout");
     let closed=false;
     let unsubscribe=()=>{};
     let heartbeat:ReturnType<typeof setInterval>|undefined;
     let expiry:ReturnType<typeof setTimeout>|undefined;
+    let recheck:ReturnType<typeof setInterval>|undefined;
     const cleanup=()=>{
       if(closed)return;closed=true;
       unsubscribe();
       if(heartbeat)clearInterval(heartbeat);
       if(expiry)clearTimeout(expiry);
+      if(recheck)clearInterval(recheck);
     };
-    const changed=()=>{if(!closed)res.write(["event: changed","data: {}","",""].join("\n"));};
+    const revoke=()=>{
+      if(closed)return;
+      cleanup();
+      res.end();
+    };
+    // Recheck the actual authorized Context on invalidations and periodically,
+    // never emit after revoke or a failed Control Plane/JWT/FGA check.
+    let pending:Promise<boolean>|undefined;
+    const authorized=():Promise<boolean>=>{
+      if(closed)return Promise.resolve(false);
+      if(!revalidate)return Promise.resolve(true);
+      if(pending)return pending;
+      let timeout:ReturnType<typeof setTimeout>|undefined;
+      const timer=new Promise<boolean>(resolve=>{
+        timeout=setTimeout(()=>resolve(false),recheckTimeoutMs);
+        timeout.unref?.();
+      });
+      const check=Promise.race([Promise.resolve().then(revalidate),timer])
+        .then(ok=>{
+          if(ok!==true){revoke();return false;}
+          return !closed;
+        }).catch(()=>{revoke();return false;})
+        .finally(()=>{if(timeout)clearTimeout(timeout);});
+      pending=check;
+      void check.finally(()=>{if(pending===check)pending=undefined;});
+      return check;
+    };
+    const changed=()=>{
+      if(closed)return;
+      if(!revalidate){
+        try{res.write(["event: changed","data: {}","",""].join("\n"));}
+        catch{cleanup();}
+        return;
+      }
+      void authorized().then(ok=>{
+        if(!ok||closed)return;
+        try{res.write(["event: changed","data: {}","",""].join("\n"));}
+        catch{cleanup();}
+      });
+    };
     unsubscribe=this.subscribe(address,changed);
     res.setHeader("Content-Type","text/event-stream; charset=utf-8");
     res.setHeader("Cache-Control","no-store, no-transform");
@@ -72,6 +117,10 @@ export class InboxChangeBus {
       cleanup();
       res.end();
     },60000);
+    if(revalidate){
+      recheck=setInterval(()=>{void authorized();},recheckIntervalMs);
+      recheck.unref?.();
+    }
     heartbeat.unref?.();expiry.unref?.();
   }
 }

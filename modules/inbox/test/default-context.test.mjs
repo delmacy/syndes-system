@@ -10,12 +10,20 @@ const different="22222222-2222-4222-8222-222222222222";
 const org="33333333-3333-4333-8333-333333333333";
 const workspace="44444444-4444-4444-8444-444444444444";
 const actor={id:"alice",kind:"user"};
-async function prepare({member=true,allowed=true,rows=[{organization_id:org,workspace_id:workspace}],leaseTenant=tenant}={}){
+async function prepare({
+ member=true,allowed=true,rows=[{organization_id:org,workspace_id:workspace}],
+ leaseTenant=tenant,enforce=false,enabled=true,gateError=false,withPort=true
+}={}){
  const auth=[],resolutions=[],queries=[];
  const kernel=new CoreKernel({
   modules:[{id:"platform",version:"0.1.0"},{id:"crm",version:"0.1.0",dependencies:["platform"]},{id:"inbox",version:"0.1.0",dependencies:["platform","crm"]}],
   tenancy:{canAccessTenant:async q=>{auth.push(["tenant",q]);return member}},
   authorization:{canAccess:async q=>{auth.push(["fga",q]);return allowed}},
+  moduleAccess:withPort?{canExecuteModule:async q=>{
+   auth.push(["module",q]);
+   if(gateError)throw Error("Control unavailable");
+   return enabled;
+  }}:undefined,
  });
  await kernel.start();
  const guard=new InboxDefaultContextGuard(kernel,{
@@ -23,7 +31,7 @@ async function prepare({member=true,allowed=true,rows=[{organization_id:org,work
    resolutions.push(id);
    return {tenantId:leaseTenant,query:async (sql,params)=>{queries.push({sql,params});return {rows,rowCount:rows.length}}};
   },
- });
+ },enforce);
  return {guard,auth,resolutions,queries};
 }
 test("default Inbox context requires tenant membership AND Inbox FGA before DB lease",async()=>{
@@ -139,4 +147,37 @@ test("selected viewer membership blocks writes before FGA or DB",()=>{
  assert.throws(()=>service.assign({
   tenantId:tenant,actor,organizationId:org,workspaceId:workspace,scopeWriteAllowed:false
  },different,actor.id),AccessDeniedError);
+});
+
+test("enforced Inbox context checks tenant → FGA → ENABLED before any DB lease",async()=>{
+ const granted=await prepare({enforce:true});
+ const ctx=await granted.guard.resolve(tenant,actor);
+ assert.equal(ctx.workspaceId,workspace);
+ assert.deepEqual(granted.auth.map(([step])=>step),["tenant","fga","module"]);
+ assert.deepEqual(granted.auth.at(-1)[1],{tenantId:tenant,actor,moduleId:"inbox"});
+ assert.deepEqual(granted.resolutions,[tenant]);
+});
+test("missing/disabled/failed gate denies Inbox without resolving tenant DB",async()=>{
+ for(const options of [
+  {enforce:true,enabled:false},
+  {enforce:true,withPort:false},
+  {enforce:true,gateError:true},
+ ]){
+  const denied=await prepare(options);
+  await assert.rejects(denied.guard.resolve(tenant,actor),AccessDeniedError);
+  assert.deepEqual(denied.resolutions,[]);
+ }
+});
+test("tenant/FGA denial occurs before ModuleAccess lookup",async()=>{
+ for(const options of [{member:false,enforce:true},{allowed:false,enforce:true}]){
+  const denied=await prepare(options);
+  await assert.rejects(denied.guard.resolve(tenant,actor),AccessDeniedError);
+  assert.equal(denied.auth.some(([step])=>step==="module"),false);
+  assert.deepEqual(denied.resolutions,[]);
+ }
+});
+test("legacy Inbox default never enables entitlement gate implicitly",async()=>{
+ const legacy=await prepare({enabled:false});
+ assert.equal((await legacy.guard.resolve(tenant,actor)).organizationId,org);
+ assert.equal(legacy.auth.some(([step])=>step==="module"),false);
 });
