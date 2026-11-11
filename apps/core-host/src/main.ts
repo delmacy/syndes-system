@@ -8,6 +8,7 @@ import {TenantPgProvider} from "./tenant-database.js";
 import {ActorVerifier,PgMembership,FgaPermission,tenantUUID} from "./adapters.js";
 import {PgModuleCatalog} from "./module-catalog.js";
 import {PgModuleLifecycle} from "./module-lifecycle.js";
+import {PgEffectiveModuleAccess} from "./module-effective-access.js";
 import {loadCoreSecrets,openBaoSourceFromEnv,type CoreRuntimeSecrets} from "./secrets.js";
 
 function env(k:string):string{const v=process.env[k];if(!v?.trim())throw new Error("Missing "+k);return v}
@@ -27,6 +28,7 @@ class CoreService implements OnModuleDestroy{
   this.moduleStates=new PgModuleLifecycle(this.db,this.catalog);
   this.verifier=new ActorVerifier(env("CORE_KEYCLOAK_ISSUER"),env("CORE_KEYCLOAK_AUDIENCE"),env("CORE_KEYCLOAK_JWKS_URL"));
   this.kernel=new CoreKernel({modules,
+   moduleAccess:new PgEffectiveModuleAccess(this.moduleStates),
    tenancy:new PgMembership(this.db),
    authorization:new FgaPermission(env("CORE_OPENFGA_URL"),env("CORE_OPENFGA_STORE_ID"),credentials.openfgaToken)});
  }
