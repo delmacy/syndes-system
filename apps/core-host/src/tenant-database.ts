@@ -1,7 +1,7 @@
 import {readFile} from "node:fs/promises";
 import {Inject,Injectable,OnModuleDestroy} from "@nestjs/common";
 import {Pool} from "pg";
-import type {TrustedTenantDatabaseProvider,TenantDatabase} from "@syndes/core-kernel";
+import {PINNED_TENANT_TRANSACTION,type TrustedTenantTransactionProvider,type TenantTransaction,type TenantDatabase} from "@syndes/core-kernel";
 import {tenantUUID} from "./adapters.js";
 
 export type ControlQuery=Pick<Pool,"query">;
@@ -78,11 +78,11 @@ export class TenantCredentialSource {
 }
 
 @Injectable()
-export class TenantPgProvider implements TrustedTenantDatabaseProvider,OnModuleDestroy{
+export class TenantPgProvider implements TrustedTenantTransactionProvider,OnModuleDestroy{
   private readonly pools=new Map<string,{pool:Pool;last:number}>();
   private readonly source=new TenantCredentialSource();
   constructor(@Inject("SYNDES_CORE_API") private readonly core:CoreApi){}
-  async resolve(tenantId:string):Promise<TenantDatabase>{
+  private async poolFor(tenantId:string):Promise<Pool>{
     const mapping=await resolveRegistry(this.core.db,tenantId);
     let entry=this.pools.get(tenantId);
     // Refresh idle pools periodically, so rotated credentials are eventually reread.
@@ -108,13 +108,47 @@ export class TenantPgProvider implements TrustedTenantDatabaseProvider,OnModuleD
       this.pools.set(tenantId,entry);
     }
     entry.last=Date.now();
-    return Object.freeze({
-      tenantId,
-      query:async(sql:string,values:readonly unknown[])=>{
-        const r=await entry.pool.query(sql,[...values]);
-        return {rows:r.rows as Record<string,unknown>[],rowCount:r.rowCount};
-      },
-    });
+    return entry.pool;
+  }
+  async resolve(tenantId:string):Promise<TenantDatabase>{
+    const pool=await this.poolFor(tenantId);
+    return Object.freeze({tenantId,query:async(sql:string,values:readonly unknown[])=>{
+      const r=await pool.query(sql,[...values]);
+      return {rows:r.rows as Record<string,unknown>[],rowCount:r.rowCount};
+    }});
+  }
+  /** Business writes and event writes share one physical PG client and COMMIT.
+   * Never use query-only TenantDatabase handles for transaction orchestration. */
+  async withTransaction<T>(tenantId:string,work:(tx:TenantTransaction)=>Promise<T>):Promise<T>{
+    const pool=await this.poolFor(tenantId);
+    const client=await pool.connect();
+    try{
+      const identity=await client.query('SELECT current_database() AS name');
+      if(identity.rows[0]?.name!==expectedTenantDatabase(tenantId).database_name)
+        throw new Error('Pinned tenant database identity mismatch');
+      await client.query('BEGIN');
+      let active=true;
+      try{
+        const tx:TenantTransaction=Object.freeze({tenantId,[PINNED_TENANT_TRANSACTION]:true as const,
+          query:async(sql:string,values:readonly unknown[])=>{
+            if(!active)throw new Error('Transaction lease already closed');
+            // Transaction boundaries are never available to business callbacks.
+            if(/\b(?:BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/i.test(sql))
+              throw new Error('Transaction boundary forbidden inside pinned lease');
+            const r=await client.query(sql,[...values]);
+            return {rows:r.rows as Record<string,unknown>[],rowCount:r.rowCount};
+          },
+        });
+        const result=await work(tx);
+        active=false;
+        await client.query('COMMIT');
+        return result;
+      }catch(error){
+        active=false;
+        try{await client.query('ROLLBACK');}catch{/* original exception preserved */}
+        throw error;
+      }
+    }finally{client.release();}
   }
   async onModuleDestroy():Promise<void>{
     await Promise.all([...this.pools.values()].map(x=>x.pool.end()));

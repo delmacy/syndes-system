@@ -5,7 +5,7 @@ import {execFileSync,spawnSync} from "node:child_process";
 test("module migration CLI enumerates and emits only installed package migrations",()=>{
  const cli="dist/migrations.js";
  const list=JSON.parse(execFileSync(process.execPath,[cli,"--list"],{encoding:"utf8"}));
- assert.deepEqual(list.map(m=>m.id),["crm","inbox","whatsapp","organizations","support"]);
+ assert.deepEqual(list.map(m=>m.id),["crm","inbox","whatsapp","organizations","support","platform_events"]);
  assert.deepEqual(list[3].migrations,["001_account_hierarchy","002_legacy_single_context_gate","003_legacy_ownership","004_whatsapp_route_owner_guard","005_scoped_relationship_integrity","006_context_creation_audit"]);
  assert.deepEqual(list[4].migrations,["001_support_cases"]);
  const supportSql=execFileSync(process.execPath,[cli,"--emit","support","001_support_cases"],{encoding:"utf8"});
@@ -34,6 +34,8 @@ test("module migration CLI enumerates and emits only installed package migration
  assert.match(sql,/CREATE TABLE IF NOT EXISTS crm_people/);
  const inboxSql=execFileSync(process.execPath,[cli,"--emit","inbox","001_inbox_foundation"],{encoding:"utf8"});
  assert.match(inboxSql,/CREATE TABLE IF NOT EXISTS inbox_conversations/);
+ const eventsSql=execFileSync(process.execPath,[cli,"--emit","platform_events","001_platform_events"],{encoding:"utf8"});
+ assert.match(eventsSql,/CREATE TABLE IF NOT EXISTS platform_events.consumer_inbox/);
  const invalid=spawnSync(process.execPath,[cli,"--emit","crm","..\\secrets"],{encoding:"utf8"});
  assert.notEqual(invalid.status,0);
  assert.equal(invalid.stdout,"");
