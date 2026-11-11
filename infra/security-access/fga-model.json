@@ -5,6 +5,34 @@
       "type": "user"
     },
     {
+      "type": "service"
+    },
+    {
+      "type": "event_delivery",
+      "relations": {
+        "processor": {
+          "this": {}
+        },
+        "can_process": {
+          "computedUserset": {
+            "object": "",
+            "relation": "processor"
+          }
+        }
+      },
+      "metadata": {
+        "relations": {
+          "processor": {
+            "directly_related_user_types": [
+              {
+                "type": "service"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
       "type": "tenant",
       "relations": {
         "member": {

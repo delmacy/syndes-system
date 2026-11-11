@@ -35,6 +35,30 @@ check alice can_read "resource:$ra" true
 check alice can_write "resource:$ra" false
 check alice can_read "resource:$rb" false
 check bob can_read "resource:$ra" false
+
+# Dedicated service principal is not a user: permission must be exact for
+# tenant + organization + workspace + module + consumer + event type.
+# This store was created above for CI, never the operational store.
+worker_object() {
+  python3 -c 'import hashlib,sys; print("event_delivery:"+hashlib.sha256("\x1f".join(sys.argv[1:]).encode()).hexdigest())' "$@"
+}
+worker_org="12345678-1234-4234-8234-123456789abc"
+worker_workspace="87654321-1234-4234-8234-123456789abc"
+worker_obj=$(worker_object "$a" "$worker_org" "$worker_workspace" inbox inbox.message-received-v2 whatsapp.message.received.v2)
+other_worker_obj=$(worker_object "$b" "$worker_org" "$worker_workspace" inbox inbox.message-received-v2 whatsapp.message.received.v2)
+check_raw() {
+  local principal="$1" relation="$2" object="$3" expected="$4"
+  response=$(fga -X POST -d "{\"tuple_key\":{\"user\":\"$principal\",\"relation\":\"$relation\",\"object\":\"$object\"}}" "http://openfga:8080/stores/$store_id/check")
+  python3 -c 'import json,sys; assert json.load(sys.stdin)["allowed"] == (sys.argv[1]=="true")' "$expected" <<< "$response"
+}
+check_raw service:ci-event-worker can_process "$worker_obj" false
+fga -X POST -d "{\"writes\":{\"tuple_keys\":[{\"user\":\"service:ci-event-worker\",\"relation\":\"processor\",\"object\":\"$worker_obj\"}]}}" "http://openfga:8080/stores/$store_id/write" >/dev/null
+check_raw service:ci-event-worker can_process "$worker_obj" true
+check_raw service:ci-event-worker can_process "$other_worker_obj" false
+check_raw service:another-worker can_process "$worker_obj" false
+fga -X POST -d "{\"deletes\":{\"tuple_keys\":[{\"user\":\"service:ci-event-worker\",\"relation\":\"processor\",\"object\":\"$worker_obj\"}]}}" "http://openfga:8080/stores/$store_id/write" >/dev/null
+check_raw service:ci-event-worker can_process "$worker_obj" false
+
 if [[ "$GITHUB_ACTIONS" == "true" && "$CI_RUNTIME_SMOKE" == "1" ]]; then
   printf '%s\n' "$store_id" > /run/syndes/runtime/core_host_fga_store
   chmod 0600 /run/syndes/runtime/core_host_fga_store
