@@ -1,6 +1,6 @@
 # G01 — Arquitetura
 
-> **Unidade do catálogo Syndes.** Esta é a entrada humana do módulo: navegue pelas seis páginas abaixo. Código e documentação técnica podem existir sem estar implantados ou homologados.
+> **Arquitetura transversal do Syndes (G01).** Unidade de **governança técnica**, com owner documental em `docs/engineering`: registra decisões, fronteiras, integrações e critérios de conformidade. **Não é pacote de runtime, API ou banco de dados.** A revisão do escopo e do status está em auditoria parcial, sem homologação operacional.
 
 <!-- syndes:module-id=G01;source=docs/engineering;kind=module -->
 
@@ -9,11 +9,21 @@
 | Quero descobrir | Abrir |
 |---|---|
 | **O que o módulo faz?** | [Especificação, capacidades e histórias](ESCOPO.md) |
-| **Como funciona do banco à interface?** | [Referência técnica: stack, classes e contratos](REFERENCIA-TECNICA.md) |
+| **Quais são as fronteiras e o desenho?** | [Mapa lógico e matrizes](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md) · [Referência de owners](REFERENCIA-TECNICA.md) |
 | **O que será feito?** | [Evolução: workpackages e dependências](EVOLUCAO.md) |
 | **O que realmente mudou?** | [Histórico Git e evidências relacionadas](HISTORICO.md) |
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
+
+## O que a G01 documenta {#fronteiras}
+
+- **Core:** fronteiras entre A08 Kernel, A04 Host e módulos de domínio; plugin instalado não significa módulo ativo para todo tenant.
+- **Segurança:** separação Control/Tenant, Keycloak, OpenFGA, OpenBao e autorização fail-closed.
+- **Dados e eventos:** bancos por tenant, catálogo Control, ownership de schemas e Event Bus/outbox em planos distintos.
+- **Frontends:** Manager, Workspace e Support separados; `front-shared` é visual, sem compartilhar sessão.
+- **Governança:** fonte de decisão/ADR, matriz de dependências, divergências de documentação e gates pendentes.
+
+**Nesta revisão:** a [descrição arquitetural](chapters/01-missao-objetivos-e-fronteiras.md), as [matrizes e o diagrama lógico](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md) e o [STATUS auditado](STATUS.md) foram vinculados ao código examinado. As regras de cada produto pertencem aos seus próprios owners.
 
 ## Capacidades e requisitos {#capacidades}
 
@@ -21,11 +31,11 @@ Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades
 
 ## Stack, contratos e persistência {#stack}
 
-A [referência técnica](REFERENCIA-TECNICA.md) lista exports de pacote, interfaces públicas, declarações internas de classes/métodos, APIs HTTP identificadas, candidatos de frontend e objetos SQL com origem verificável.
+A G01 **não exporta classes, métodos, APIs nem schemas**. Sua referência é documental; as interfaces operacionais ficam nos owners e são consultadas por [catálogo técnico](../../blueprint/CATALOGO-MODULOS.md). O mapeamento dos contratos e da persistência está nos [capítulos de contratos](chapters/04-contratos-e-dependencias-publicas.md) e de [arquitetura e dados](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md).
 
-- **Fonte do código/artefato:** [`docs/engineering`](https://github.com/delmacy/syndes-system/tree/main/docs/engineering).
-- **Banco de tenant e Control/Manager:** [seção de persistência da referência](REFERENCIA-TECNICA.md).
-- **Contrato público vs. interno:** [referência técnica](REFERENCIA-TECNICA.md).
+- **Fonte da unidade:** [`docs/engineering`](https://github.com/delmacy/syndes-system/tree/main/docs/engineering).
+- **Banco de tenant e Control:** responsabilidade de I04, C01, A04 e dos módulos donos dos dados.
+- **Contrato público vs. interno:** Kernel e cada `package.json#exports`, não a G01.
 
 
 ## Planejamento, progresso e provas {#evolucao}
