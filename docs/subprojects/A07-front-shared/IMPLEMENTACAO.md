@@ -5,6 +5,7 @@
 **Unidade autorizada:** `A07` — Front Shared
 **Área:** `frontend`
 **Escopo:** `docs/subprojects/A07-front-shared/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/A07-front-shared/EVOLUCAO.md`
 **Status:** `docs/subprojects/A07-front-shared/STATUS.md`
 **Sprint:** `docs/subprojects/A07-front-shared/SPRINT.md`
 **Artefatos próprios:** `packages/front-shared`

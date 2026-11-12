@@ -5,6 +5,7 @@
 **Unidade autorizada:** `A01` — Workspace Frontend
 **Área:** `frontend`
 **Escopo:** `docs/subprojects/A01-workspace-frontend/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/A01-workspace-frontend/EVOLUCAO.md`
 **Status:** `docs/subprojects/A01-workspace-frontend/STATUS.md`
 **Sprint:** `docs/subprojects/A01-workspace-frontend/SPRINT.md`
 **Artefatos próprios:** `apps/workspace-web`

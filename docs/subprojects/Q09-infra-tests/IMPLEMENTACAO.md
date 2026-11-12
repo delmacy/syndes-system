@@ -5,6 +5,7 @@
 **Unidade autorizada:** `Q09` — Infra Tests
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/Q09-infra-tests/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/Q09-infra-tests/EVOLUCAO.md`
 **Status:** `docs/subprojects/Q09-infra-tests/STATUS.md`
 **Sprint:** `docs/subprojects/Q09-infra-tests/SPRINT.md`
 **Artefatos próprios:** `tests/platform`

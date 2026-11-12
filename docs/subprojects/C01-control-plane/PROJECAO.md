@@ -5,6 +5,7 @@
 **Unidade autorizada:** `C01` — Control Plane
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/C01-control-plane/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/C01-control-plane/EVOLUCAO.md`
 **Status:** `docs/subprojects/C01-control-plane/STATUS.md`
 **Sprint:** `docs/subprojects/C01-control-plane/SPRINT.md`
 **Artefatos próprios:** `infra/postgres/bootstrap`

@@ -5,6 +5,7 @@
 **Unidade autorizada:** `Q10` — Quality Gates
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/Q10-quality-gates/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/Q10-quality-gates/EVOLUCAO.md`
 **Status:** `docs/subprojects/Q10-quality-gates/STATUS.md`
 **Sprint:** `docs/subprojects/Q10-quality-gates/SPRINT.md`
 **Artefatos próprios:** `tests/integrity`

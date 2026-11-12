@@ -5,6 +5,7 @@
 **Unidade autorizada:** `I10` — Backup e Restore
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/I10-backup-e-restore/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/I10-backup-e-restore/EVOLUCAO.md`
 **Status:** `docs/subprojects/I10-backup-e-restore/STATUS.md`
 **Sprint:** `docs/subprojects/I10-backup-e-restore/SPRINT.md`
 **Artefatos próprios:** `scripts/events/disposable_restore_drill.py`

@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P09` — Documents
 **Área:** `produto`
 **Escopo:** `docs/subprojects/P09-documents/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P09-documents/EVOLUCAO.md`
 **Status:** `docs/subprojects/P09-documents/STATUS.md`
 **Sprint:** `docs/subprojects/P09-documents/SPRINT.md`
 **Artefatos próprios:** `modules/documents`

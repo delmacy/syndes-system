@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P12` — Billing
 **Área:** `operacao`
 **Escopo:** `docs/subprojects/P12-billing/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P12-billing/EVOLUCAO.md`
 **Status:** `docs/subprojects/P12-billing/STATUS.md`
 **Sprint:** `docs/subprojects/P12-billing/SPRINT.md`
 **Artefatos próprios:** `modules/billing`

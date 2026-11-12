@@ -5,6 +5,7 @@
 **Unidade autorizada:** `A08` — Core Kernel
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/A08-core-kernel/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/A08-core-kernel/EVOLUCAO.md`
 **Status:** `docs/subprojects/A08-core-kernel/STATUS.md`
 **Sprint:** `docs/subprojects/A08-core-kernel/SPRINT.md`
 **Artefatos próprios:** `packages/core-kernel`

@@ -5,6 +5,7 @@
 **Unidade autorizada:** `C04` — Authorization OpenFGA
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/C04-authorization-openfga/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/C04-authorization-openfga/EVOLUCAO.md`
 **Status:** `docs/subprojects/C04-authorization-openfga/STATUS.md`
 **Sprint:** `docs/subprojects/C04-authorization-openfga/SPRINT.md`
 **Artefatos próprios:** `infra/security-access/fga-model.json`

@@ -5,6 +5,7 @@
 **Unidade autorizada:** `I06` — Traefik HTTPS
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/I06-traefik-https/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/I06-traefik-https/EVOLUCAO.md`
 **Status:** `docs/subprojects/I06-traefik-https/STATUS.md`
 **Sprint:** `docs/subprojects/I06-traefik-https/SPRINT.md`
 **Artefatos próprios:** `docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md`

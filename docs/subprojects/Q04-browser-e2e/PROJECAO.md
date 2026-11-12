@@ -5,6 +5,7 @@
 **Unidade autorizada:** `Q04` — Browser E2E
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/Q04-browser-e2e/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/Q04-browser-e2e/EVOLUCAO.md`
 **Status:** `docs/subprojects/Q04-browser-e2e/STATUS.md`
 **Sprint:** `docs/subprojects/Q04-browser-e2e/SPRINT.md`
 **Artefatos próprios:** `tests/platform`

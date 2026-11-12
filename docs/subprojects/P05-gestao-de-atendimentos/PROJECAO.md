@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P05` — Gestão de Atendimentos
 **Área:** `produto`
 **Escopo:** `docs/subprojects/P05-gestao-de-atendimentos/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P05-gestao-de-atendimentos/EVOLUCAO.md`
 **Status:** `docs/subprojects/P05-gestao-de-atendimentos/STATUS.md`
 **Sprint:** `docs/subprojects/P05-gestao-de-atendimentos/SPRINT.md`
 **Artefatos próprios:** `modules/service-management`

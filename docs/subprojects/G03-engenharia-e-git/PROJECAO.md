@@ -5,6 +5,7 @@
 **Unidade autorizada:** `G03` — Engenharia e Git
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/G03-engenharia-e-git/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/G03-engenharia-e-git/EVOLUCAO.md`
 **Status:** `docs/subprojects/G03-engenharia-e-git/STATUS.md`
 **Sprint:** `docs/subprojects/G03-engenharia-e-git/SPRINT.md`
 **Artefatos próprios:** `AGENTS.md`

@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P06` — Syndes Support
 **Área:** `operacao`
 **Escopo:** `docs/subprojects/P06-syndes-support/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P06-syndes-support/EVOLUCAO.md`
 **Status:** `docs/subprojects/P06-syndes-support/STATUS.md`
 **Sprint:** `docs/subprojects/P06-syndes-support/SPRINT.md`
 **Artefatos próprios:** `modules/support`

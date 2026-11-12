@@ -5,6 +5,7 @@
 **Unidade autorizada:** `C05` — Secrets OpenBao
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/C05-secrets-openbao/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/C05-secrets-openbao/EVOLUCAO.md`
 **Status:** `docs/subprojects/C05-secrets-openbao/STATUS.md`
 **Sprint:** `docs/subprojects/C05-secrets-openbao/SPRINT.md`
 **Artefatos próprios:** `infra/security-access/openbao`

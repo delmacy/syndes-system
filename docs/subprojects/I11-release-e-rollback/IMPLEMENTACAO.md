@@ -5,6 +5,7 @@
 **Unidade autorizada:** `I11` — Release e Rollback
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/I11-release-e-rollback/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/I11-release-e-rollback/EVOLUCAO.md`
 **Status:** `docs/subprojects/I11-release-e-rollback/STATUS.md`
 **Sprint:** `docs/subprojects/I11-release-e-rollback/SPRINT.md`
 **Artefatos próprios:** `infra/master-admin/homolog-deploy.sh`

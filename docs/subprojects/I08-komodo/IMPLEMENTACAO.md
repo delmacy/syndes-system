@@ -5,6 +5,7 @@
 **Unidade autorizada:** `I08` — Komodo
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/I08-komodo/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/I08-komodo/EVOLUCAO.md`
 **Status:** `docs/subprojects/I08-komodo/STATUS.md`
 **Sprint:** `docs/subprojects/I08-komodo/SPRINT.md`
 **Artefatos próprios:** `infra`

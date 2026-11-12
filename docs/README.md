@@ -4,6 +4,7 @@
 ## Leitura direta
 - [Blueprint Geral (índice e referências existentes)](blueprint/README.md)
 - [57 unidades: escopo, status e sprint](subprojects/README.md)
+- **Evolução por módulo:** em cada unidade, página Evolução com workpackages, tasks e dependências vinculadas à WBS.
 - [Painel de monitoramento dos workflows](monitoramento/README.md)
 - [Catálogo JSON com paths para o portal](subprojects/index.json)
 - [Contratos públicos, bibliotecas e interfaces](standards/CONTRATOS-PUBLICOS.md)

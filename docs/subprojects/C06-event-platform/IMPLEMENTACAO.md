@@ -5,6 +5,7 @@
 **Unidade autorizada:** `C06` — Event Platform
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/C06-event-platform/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/C06-event-platform/EVOLUCAO.md`
 **Status:** `docs/subprojects/C06-event-platform/STATUS.md`
 **Sprint:** `docs/subprojects/C06-event-platform/SPRINT.md`
 **Artefatos próprios:** `apps/core-host/src/platform-event-dispatcher.ts`

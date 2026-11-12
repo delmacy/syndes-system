@@ -5,6 +5,7 @@
 **Unidade autorizada:** `C07` — APIs e adapters
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/C07-apis-e-adapters/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/C07-apis-e-adapters/EVOLUCAO.md`
 **Status:** `docs/subprojects/C07-apis-e-adapters/STATUS.md`
 **Sprint:** `docs/subprojects/C07-apis-e-adapters/SPRINT.md`
 **Artefatos próprios:** `apps/core-host/src/adapters.ts`

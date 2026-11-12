@@ -5,6 +5,7 @@
 **Unidade autorizada:** `A02` — Platform Manager Frontend
 **Área:** `frontend`
 **Escopo:** `docs/subprojects/A02-platform-manager-frontend/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/A02-platform-manager-frontend/EVOLUCAO.md`
 **Status:** `docs/subprojects/A02-platform-manager-frontend/STATUS.md`
 **Sprint:** `docs/subprojects/A02-platform-manager-frontend/SPRINT.md`
 **Artefatos próprios:** `apps/master-admin-web`

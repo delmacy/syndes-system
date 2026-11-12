@@ -1,0 +1,572 @@
+{
+  "schemaVersion": 1,
+  "source": "docs/engineering/WBS-PROGRAMA-SYNDES-20261110.md",
+  "mappingType": "association-not-assignment",
+  "warning": "Relacionamento contextual para descoberta; não implica ownership exclusivo, sprint, homologação ou status operacional.",
+  "units": {
+    "A01": {
+      "taskIds": [
+        "00.04",
+        "30.08",
+        "30.10",
+        "50.07",
+        "60.05",
+        "70.08"
+      ],
+      "relatedPlans": [
+        "docs/engineering/WBS-FRONTEND-BACKEND-COMPOSITION-20261110.md"
+      ]
+    },
+    "A02": {
+      "taskIds": [
+        "20.01",
+        "20.02",
+        "20.07",
+        "20.08",
+        "20.09",
+        "90.04"
+      ],
+      "relatedPlans": [
+        "docs/engineering/PLATFORM-MANAGER-PRD-WBS.md"
+      ]
+    },
+    "A03": {
+      "taskIds": [
+        "40.05",
+        "40.06",
+        "40.09",
+        "40.10"
+      ],
+      "relatedPlans": []
+    },
+    "A04": {
+      "taskIds": [
+        "50.01",
+        "50.07",
+        "55.03",
+        "95.03"
+      ],
+      "relatedPlans": [
+        "docs/engineering/WBS-COMPOSICAO-MODULAR-CORE-20261111.md"
+      ]
+    },
+    "A05": {
+      "taskIds": [
+        "20.04",
+        "20.05",
+        "20.06",
+        "20.07",
+        "90.03"
+      ],
+      "relatedPlans": []
+    },
+    "A06": {
+      "taskIds": [
+        "30.01",
+        "30.02",
+        "30.03",
+        "30.04"
+      ],
+      "relatedPlans": []
+    },
+    "A07": {
+      "taskIds": [
+        "00.04",
+        "20.01",
+        "55.05"
+      ],
+      "relatedPlans": []
+    },
+    "A08": {
+      "taskIds": [
+        "50.07",
+        "55.03",
+        "95.01"
+      ],
+      "relatedPlans": [
+        "docs/engineering/WBS-COMPOSICAO-MODULAR-CORE-20261111.md"
+      ]
+    },
+    "C01": {
+      "taskIds": [
+        "20.04",
+        "30.03",
+        "40.02",
+        "55.03",
+        "90.02",
+        "90.03"
+      ],
+      "relatedPlans": [
+        "docs/engineering/WBS-CONTROL-PLANE-EVENTS-20261111.md"
+      ]
+    },
+    "C02": {
+      "taskIds": [
+        "40.02",
+        "55.03",
+        "70.05",
+        "95.03"
+      ],
+      "relatedPlans": []
+    },
+    "C03": {
+      "taskIds": [
+        "10.03",
+        "10.08",
+        "20.03",
+        "40.06",
+        "95.05"
+      ],
+      "relatedPlans": []
+    },
+    "C04": {
+      "taskIds": [
+        "10.04",
+        "10.09",
+        "30.09",
+        "40.07",
+        "55.04",
+        "95.05"
+      ],
+      "relatedPlans": []
+    },
+    "C05": {
+      "taskIds": [
+        "10.05",
+        "20.04",
+        "95.05"
+      ],
+      "relatedPlans": []
+    },
+    "C06": {
+      "taskIds": [
+        "40.07",
+        "50.08",
+        "55.03",
+        "90.02"
+      ],
+      "relatedPlans": [
+        "docs/engineering/WBS-EVENT-DISPATCHER-20261111.md",
+        "docs/engineering/WBS-EVENTS-DISPOSABLE-STAGING-20261111.md",
+        "docs/engineering/WBS-EVENTS-WHATSAPP-INBOX-CRM-20261111.md",
+        "docs/engineering/WBS-CONTROL-PLANE-EVENTS-20261111.md",
+        "docs/engineering/WBS-EVENTS-OPENFGA-SERVICE-20261111.md",
+        "docs/engineering/WBS-EVENTS-RESTORE-AND-ACTIVATION-20261111.md"
+      ]
+    },
+    "C07": {
+      "taskIds": [
+        "20.06",
+        "30.06",
+        "50.07",
+        "55.03",
+        "90.03"
+      ],
+      "relatedPlans": []
+    },
+    "C08": {
+      "taskIds": [
+        "10.06",
+        "40.07",
+        "90.01",
+        "95.04"
+      ],
+      "relatedPlans": []
+    },
+    "G01": {
+      "taskIds": [
+        "00.01",
+        "30.01",
+        "55.01",
+        "60.01",
+        "80.01",
+        "90.01"
+      ],
+      "relatedPlans": []
+    },
+    "G02": {
+      "taskIds": [
+        "20.01",
+        "55.01",
+        "70.09",
+        "80.01",
+        "95.08"
+      ],
+      "relatedPlans": []
+    },
+    "G03": {
+      "taskIds": [
+        "00.01",
+        "00.02",
+        "00.03",
+        "00.04",
+        "00.05",
+        "00.06",
+        "00.09"
+      ],
+      "relatedPlans": []
+    },
+    "G04": {
+      "taskIds": [
+        "10.06",
+        "40.01",
+        "90.01",
+        "95.04"
+      ],
+      "relatedPlans": []
+    },
+    "G05": {
+      "taskIds": [
+        "40.01",
+        "40.10",
+        "95.08"
+      ],
+      "relatedPlans": []
+    },
+    "I01": {
+      "taskIds": [
+        "00.01",
+        "50.01",
+        "95.03"
+      ],
+      "relatedPlans": []
+    },
+    "I02": {
+      "taskIds": [
+        "10.01",
+        "40.09",
+        "95.03"
+      ],
+      "relatedPlans": []
+    },
+    "I03": {
+      "taskIds": [
+        "10.01",
+        "95.03"
+      ],
+      "relatedPlans": []
+    },
+    "I04": {
+      "taskIds": [
+        "10.02",
+        "10.07",
+        "40.02",
+        "40.08",
+        "55.03",
+        "60.02",
+        "60.03"
+      ],
+      "relatedPlans": []
+    },
+    "I05": {
+      "taskIds": [
+        "10.01",
+        "20.06",
+        "95.03",
+        "95.05"
+      ],
+      "relatedPlans": []
+    },
+    "I06": {
+      "taskIds": [
+        "10.01",
+        "20.08",
+        "40.09"
+      ],
+      "relatedPlans": []
+    },
+    "I07": {
+      "taskIds": [
+        "10.01",
+        "20.08"
+      ],
+      "relatedPlans": []
+    },
+    "I08": {
+      "taskIds": [
+        "10.01",
+        "95.03"
+      ],
+      "relatedPlans": []
+    },
+    "I09": {
+      "taskIds": [
+        "40.04",
+        "50.05",
+        "50.06",
+        "95.05"
+      ],
+      "relatedPlans": []
+    },
+    "I10": {
+      "taskIds": [
+        "10.07",
+        "40.08",
+        "60.08",
+        "95.05"
+      ],
+      "relatedPlans": []
+    },
+    "I11": {
+      "taskIds": [
+        "95.03",
+        "95.07"
+      ],
+      "relatedPlans": []
+    },
+    "I12": {
+      "taskIds": [
+        "10.01",
+        "10.06",
+        "10.08",
+        "95.04"
+      ],
+      "relatedPlans": []
+    },
+    "P01": {
+      "taskIds": [
+        "50.01",
+        "50.02",
+        "50.08",
+        "55.02",
+        "60.02"
+      ],
+      "relatedPlans": [
+        "docs/engineering/WBS-WA-DATA-CRM-WA-20261111.md",
+        "docs/engineering/WBS-EVENTS-WHATSAPP-INBOX-CRM-20261111.md"
+      ]
+    },
+    "P02": {
+      "taskIds": [
+        "50.01",
+        "50.03",
+        "50.04",
+        "50.08",
+        "55.05"
+      ],
+      "relatedPlans": [
+        "docs/engineering/WBS-EVENTS-WHATSAPP-INBOX-CRM-20261111.md",
+        "docs/engineering/WBS-FRONTEND-BACKEND-COMPOSITION-20261110.md"
+      ]
+    },
+    "P03": {
+      "taskIds": [
+        "40.04",
+        "50.01",
+        "50.05",
+        "50.06",
+        "50.08"
+      ],
+      "relatedPlans": [
+        "docs/engineering/WBS-WA-DATA-CRM-WA-20261111.md",
+        "docs/engineering/WBS-WHATSAPP-PROJECTION-CUTOVER-20261111.md",
+        "docs/engineering/WBS-EVENTS-WHATSAPP-INBOX-CRM-20261111.md"
+      ]
+    },
+    "P04": {
+      "taskIds": [
+        "30.05",
+        "30.06",
+        "30.07",
+        "30.08",
+        "30.09",
+        "30.11",
+        "60.01",
+        "60.02",
+        "60.03",
+        "60.04",
+        "60.06"
+      ],
+      "relatedPlans": []
+    },
+    "P05": {
+      "taskIds": [
+        "55.01",
+        "55.02",
+        "55.03",
+        "55.04",
+        "55.05",
+        "55.06",
+        "80.01",
+        "80.02",
+        "80.03",
+        "80.04",
+        "80.05",
+        "80.06",
+        "80.07",
+        "80.08"
+      ],
+      "relatedPlans": [
+        "docs/engineering/WBS-GESTAO-ATENDIMENTOS-MVP-20261111.md",
+        "docs/engineering/WBS-SERVICE-MANAGEMENT.md"
+      ]
+    },
+    "P06": {
+      "taskIds": [
+        "40.01",
+        "40.02",
+        "40.03",
+        "40.04",
+        "40.05",
+        "40.06",
+        "40.07",
+        "40.08",
+        "40.09",
+        "40.10",
+        "40.11",
+        "90.01"
+      ],
+      "relatedPlans": [
+        "docs/engineering/WBS-SYNDES-SUPPORT.md"
+      ]
+    },
+    "P07": {
+      "taskIds": [
+        "70.01",
+        "70.08"
+      ],
+      "relatedPlans": []
+    },
+    "P08": {
+      "taskIds": [
+        "70.02",
+        "70.08"
+      ],
+      "relatedPlans": []
+    },
+    "P09": {
+      "taskIds": [
+        "70.03",
+        "70.08"
+      ],
+      "relatedPlans": []
+    },
+    "P10": {
+      "taskIds": [
+        "70.04",
+        "70.08"
+      ],
+      "relatedPlans": []
+    },
+    "P11": {
+      "taskIds": [
+        "70.05",
+        "70.08",
+        "95.08"
+      ],
+      "relatedPlans": []
+    },
+    "P12": {
+      "taskIds": [
+        "70.06",
+        "70.08",
+        "95.08"
+      ],
+      "relatedPlans": []
+    },
+    "P13": {
+      "taskIds": [
+        "70.07",
+        "70.08"
+      ],
+      "relatedPlans": []
+    },
+    "P14": {
+      "taskIds": [
+        "00.01",
+        "50.01",
+        "50.08",
+        "55.03",
+        "70.09",
+        "95.01"
+      ],
+      "relatedPlans": [
+        "docs/engineering/WBS-COMPOSICAO-MODULAR-CORE-20261111.md"
+      ]
+    },
+    "Q01": {
+      "taskIds": [
+        "00.08",
+        "95.01",
+        "95.02"
+      ],
+      "relatedPlans": []
+    },
+    "Q02": {
+      "taskIds": [
+        "95.01",
+        "95.02"
+      ],
+      "relatedPlans": []
+    },
+    "Q03": {
+      "taskIds": [
+        "00.08",
+        "50.08",
+        "95.02"
+      ],
+      "relatedPlans": []
+    },
+    "Q04": {
+      "taskIds": [
+        "20.09",
+        "40.05",
+        "50.08",
+        "55.06",
+        "70.08",
+        "95.06"
+      ],
+      "relatedPlans": []
+    },
+    "Q05": {
+      "taskIds": [
+        "10.09",
+        "30.09",
+        "95.04"
+      ],
+      "relatedPlans": []
+    },
+    "Q06": {
+      "taskIds": [
+        "95.01",
+        "95.02"
+      ],
+      "relatedPlans": []
+    },
+    "Q07": {
+      "taskIds": [
+        "00.07",
+        "95.02"
+      ],
+      "relatedPlans": [
+        "docs/engineering/WBS-00-HISTORICAL-PR-TRIAGE-20261110.md"
+      ]
+    },
+    "Q08": {
+      "taskIds": [
+        "95.01",
+        "95.03",
+        "95.07"
+      ],
+      "relatedPlans": []
+    },
+    "Q09": {
+      "taskIds": [
+        "10.07",
+        "95.02",
+        "95.05"
+      ],
+      "relatedPlans": []
+    },
+    "Q10": {
+      "taskIds": [
+        "00.08",
+        "70.09",
+        "95.01",
+        "95.06",
+        "95.07"
+      ],
+      "relatedPlans": []
+    }
+  }
+}

@@ -5,6 +5,7 @@
 **Unidade autorizada:** `Q01` — Plataforma de testes
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/Q01-plataforma-de-testes/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/Q01-plataforma-de-testes/EVOLUCAO.md`
 **Status:** `docs/subprojects/Q01-plataforma-de-testes/STATUS.md`
 **Sprint:** `docs/subprojects/Q01-plataforma-de-testes/SPRINT.md`
 **Artefatos próprios:** `tests`

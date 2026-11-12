@@ -117,6 +117,7 @@ def navigation_tree(units, canonical):
             pages=[
                 {"Visão geral":str(d/"index.md")},
                 {"Escopo":str(d/"ESCOPO.md")},
+                {"Evolução":str(d/"EVOLUCAO.md")},
                 {"Status":str(d/"STATUS.md")},
                 {"Sprint":str(d/"SPRINT.md")},
                 {"Atualizações":str(d/"updates/index.md")},
@@ -228,6 +229,7 @@ def main():
         {"Modelo de implementação":"standards/PROMPT-IMPLEMENTACAO.md"},
         {"Fluxo de atualizações":"standards/FLUXO-DE-ATUALIZACOES.md"},
         {"Modelo de atualização":"standards/TEMPLATE-ATUALIZACAO.md"},
+        {"Modelo de workpackage":"standards/TEMPLATE-WORKPACKAGE.md"},
         {"Modelo de prompt por incremento":"standards/TEMPLATE-PROMPT-INCREMENTO.md"}]},
         {"Índice por caminho":"subprojects/index.md"}])
     config={

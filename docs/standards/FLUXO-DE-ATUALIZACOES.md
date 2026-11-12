@@ -44,3 +44,9 @@ A transição não acontece só porque foi enviada uma Issue ou porque o CI pass
 ## Ajuste rápido (terceiro prompt)
 
 Para uma mudança localizada e clara, selecione o tópico e use **Copiar prompt de alteração**, ou abra ALTERACAO.md do módulo. O agente lê o caminho direto e executa apenas o ajuste, com testes e STATUS. Quando surgirem ambiguidades, contrato, migração ou funcionalidade não aprovada, não implementa e encaminha para Projeção/Planejamento.
+
+## Workpackages e tarefas após a aprovação
+
+Depois que o requisito for aprovado, o agente de projeção reconcilia o incremento com EVOLUCAO.md do módulo, vincula o requisito ao workpackage pertinente ou propõe um novo ID de WP e tarefas com critérios de aceite. A sprint seleciona **somente um subconjunto autorizado** do backlog. A implementação atualiza STATUS, SPRINT e EVOLUCAO com evidências; não altera estados de outros módulos.
+
+Cada associação importada da WBS mestre é contextual; ownership, estado operacional, escopo e bloqueios precisam ser conferidos antes do comprometimento da sprint.

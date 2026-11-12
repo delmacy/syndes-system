@@ -5,6 +5,7 @@
 **Unidade autorizada:** `I04` — PostgreSQL
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/I04-postgresql/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/I04-postgresql/EVOLUCAO.md`
 **Status:** `docs/subprojects/I04-postgresql/STATUS.md`
 **Sprint:** `docs/subprojects/I04-postgresql/SPRINT.md`
 **Artefatos próprios:** `infra/postgres`

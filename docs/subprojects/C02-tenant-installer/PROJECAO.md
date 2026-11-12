@@ -5,6 +5,7 @@
 **Unidade autorizada:** `C02` — Tenant Installer
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/C02-tenant-installer/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/C02-tenant-installer/EVOLUCAO.md`
 **Status:** `docs/subprojects/C02-tenant-installer/STATUS.md`
 **Sprint:** `docs/subprojects/C02-tenant-installer/SPRINT.md`
 **Artefatos próprios:** `apps/core-host/src/module-installer.ts`

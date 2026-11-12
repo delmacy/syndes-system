@@ -14,7 +14,8 @@
       "sprint": "docs/subprojects/P01-crm/SPRINT.md",
       "promptProjection": "docs/subprojects/P01-crm/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P01-crm/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P01-crm/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P01-crm/ALTERACAO.md",
+      "evolution": "docs/subprojects/P01-crm/EVOLUCAO.md"
     },
     {
       "id": "P02",
@@ -27,7 +28,8 @@
       "sprint": "docs/subprojects/P02-inbox/SPRINT.md",
       "promptProjection": "docs/subprojects/P02-inbox/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P02-inbox/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P02-inbox/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P02-inbox/ALTERACAO.md",
+      "evolution": "docs/subprojects/P02-inbox/EVOLUCAO.md"
     },
     {
       "id": "P03",
@@ -40,7 +42,8 @@
       "sprint": "docs/subprojects/P03-whatsapp/SPRINT.md",
       "promptProjection": "docs/subprojects/P03-whatsapp/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P03-whatsapp/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P03-whatsapp/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P03-whatsapp/ALTERACAO.md",
+      "evolution": "docs/subprojects/P03-whatsapp/EVOLUCAO.md"
     },
     {
       "id": "P04",
@@ -53,7 +56,8 @@
       "sprint": "docs/subprojects/P04-organizations-workforce/SPRINT.md",
       "promptProjection": "docs/subprojects/P04-organizations-workforce/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P04-organizations-workforce/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P04-organizations-workforce/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P04-organizations-workforce/ALTERACAO.md",
+      "evolution": "docs/subprojects/P04-organizations-workforce/EVOLUCAO.md"
     },
     {
       "id": "P05",
@@ -66,7 +70,8 @@
       "sprint": "docs/subprojects/P05-gestao-de-atendimentos/SPRINT.md",
       "promptProjection": "docs/subprojects/P05-gestao-de-atendimentos/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P05-gestao-de-atendimentos/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P05-gestao-de-atendimentos/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P05-gestao-de-atendimentos/ALTERACAO.md",
+      "evolution": "docs/subprojects/P05-gestao-de-atendimentos/EVOLUCAO.md"
     },
     {
       "id": "P06",
@@ -79,7 +84,8 @@
       "sprint": "docs/subprojects/P06-syndes-support/SPRINT.md",
       "promptProjection": "docs/subprojects/P06-syndes-support/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P06-syndes-support/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P06-syndes-support/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P06-syndes-support/ALTERACAO.md",
+      "evolution": "docs/subprojects/P06-syndes-support/EVOLUCAO.md"
     },
     {
       "id": "P07",
@@ -92,7 +98,8 @@
       "sprint": "docs/subprojects/P07-scheduling/SPRINT.md",
       "promptProjection": "docs/subprojects/P07-scheduling/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P07-scheduling/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P07-scheduling/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P07-scheduling/ALTERACAO.md",
+      "evolution": "docs/subprojects/P07-scheduling/EVOLUCAO.md"
     },
     {
       "id": "P08",
@@ -105,7 +112,8 @@
       "sprint": "docs/subprojects/P08-ai-assistant/SPRINT.md",
       "promptProjection": "docs/subprojects/P08-ai-assistant/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P08-ai-assistant/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P08-ai-assistant/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P08-ai-assistant/ALTERACAO.md",
+      "evolution": "docs/subprojects/P08-ai-assistant/EVOLUCAO.md"
     },
     {
       "id": "P09",
@@ -118,7 +126,8 @@
       "sprint": "docs/subprojects/P09-documents/SPRINT.md",
       "promptProjection": "docs/subprojects/P09-documents/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P09-documents/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P09-documents/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P09-documents/ALTERACAO.md",
+      "evolution": "docs/subprojects/P09-documents/EVOLUCAO.md"
     },
     {
       "id": "P10",
@@ -131,7 +140,8 @@
       "sprint": "docs/subprojects/P10-email/SPRINT.md",
       "promptProjection": "docs/subprojects/P10-email/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P10-email/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P10-email/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P10-email/ALTERACAO.md",
+      "evolution": "docs/subprojects/P10-email/EVOLUCAO.md"
     },
     {
       "id": "P11",
@@ -144,7 +154,8 @@
       "sprint": "docs/subprojects/P11-onboarding/SPRINT.md",
       "promptProjection": "docs/subprojects/P11-onboarding/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P11-onboarding/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P11-onboarding/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P11-onboarding/ALTERACAO.md",
+      "evolution": "docs/subprojects/P11-onboarding/EVOLUCAO.md"
     },
     {
       "id": "P12",
@@ -157,7 +168,8 @@
       "sprint": "docs/subprojects/P12-billing/SPRINT.md",
       "promptProjection": "docs/subprojects/P12-billing/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P12-billing/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P12-billing/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P12-billing/ALTERACAO.md",
+      "evolution": "docs/subprojects/P12-billing/EVOLUCAO.md"
     },
     {
       "id": "P13",
@@ -170,7 +182,8 @@
       "sprint": "docs/subprojects/P13-commercial-site/SPRINT.md",
       "promptProjection": "docs/subprojects/P13-commercial-site/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P13-commercial-site/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P13-commercial-site/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P13-commercial-site/ALTERACAO.md",
+      "evolution": "docs/subprojects/P13-commercial-site/EVOLUCAO.md"
     },
     {
       "id": "P14",
@@ -183,7 +196,8 @@
       "sprint": "docs/subprojects/P14-platform-core/SPRINT.md",
       "promptProjection": "docs/subprojects/P14-platform-core/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P14-platform-core/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/P14-platform-core/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/P14-platform-core/ALTERACAO.md",
+      "evolution": "docs/subprojects/P14-platform-core/EVOLUCAO.md"
     },
     {
       "id": "A01",
@@ -196,7 +210,8 @@
       "sprint": "docs/subprojects/A01-workspace-frontend/SPRINT.md",
       "promptProjection": "docs/subprojects/A01-workspace-frontend/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A01-workspace-frontend/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/A01-workspace-frontend/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/A01-workspace-frontend/ALTERACAO.md",
+      "evolution": "docs/subprojects/A01-workspace-frontend/EVOLUCAO.md"
     },
     {
       "id": "A02",
@@ -209,7 +224,8 @@
       "sprint": "docs/subprojects/A02-platform-manager-frontend/SPRINT.md",
       "promptProjection": "docs/subprojects/A02-platform-manager-frontend/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A02-platform-manager-frontend/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/A02-platform-manager-frontend/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/A02-platform-manager-frontend/ALTERACAO.md",
+      "evolution": "docs/subprojects/A02-platform-manager-frontend/EVOLUCAO.md"
     },
     {
       "id": "A03",
@@ -222,7 +238,8 @@
       "sprint": "docs/subprojects/A03-support-frontend/SPRINT.md",
       "promptProjection": "docs/subprojects/A03-support-frontend/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A03-support-frontend/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/A03-support-frontend/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/A03-support-frontend/ALTERACAO.md",
+      "evolution": "docs/subprojects/A03-support-frontend/EVOLUCAO.md"
     },
     {
       "id": "A04",
@@ -235,7 +252,8 @@
       "sprint": "docs/subprojects/A04-core-host/SPRINT.md",
       "promptProjection": "docs/subprojects/A04-core-host/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A04-core-host/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/A04-core-host/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/A04-core-host/ALTERACAO.md",
+      "evolution": "docs/subprojects/A04-core-host/EVOLUCAO.md"
     },
     {
       "id": "A05",
@@ -248,7 +266,8 @@
       "sprint": "docs/subprojects/A05-manager-api/SPRINT.md",
       "promptProjection": "docs/subprojects/A05-manager-api/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A05-manager-api/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/A05-manager-api/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/A05-manager-api/ALTERACAO.md",
+      "evolution": "docs/subprojects/A05-manager-api/EVOLUCAO.md"
     },
     {
       "id": "A06",
@@ -261,7 +280,8 @@
       "sprint": "docs/subprojects/A06-account-access-api/SPRINT.md",
       "promptProjection": "docs/subprojects/A06-account-access-api/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A06-account-access-api/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/A06-account-access-api/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/A06-account-access-api/ALTERACAO.md",
+      "evolution": "docs/subprojects/A06-account-access-api/EVOLUCAO.md"
     },
     {
       "id": "A07",
@@ -274,7 +294,8 @@
       "sprint": "docs/subprojects/A07-front-shared/SPRINT.md",
       "promptProjection": "docs/subprojects/A07-front-shared/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A07-front-shared/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/A07-front-shared/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/A07-front-shared/ALTERACAO.md",
+      "evolution": "docs/subprojects/A07-front-shared/EVOLUCAO.md"
     },
     {
       "id": "A08",
@@ -287,7 +308,8 @@
       "sprint": "docs/subprojects/A08-core-kernel/SPRINT.md",
       "promptProjection": "docs/subprojects/A08-core-kernel/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A08-core-kernel/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/A08-core-kernel/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/A08-core-kernel/ALTERACAO.md",
+      "evolution": "docs/subprojects/A08-core-kernel/EVOLUCAO.md"
     },
     {
       "id": "C01",
@@ -300,7 +322,8 @@
       "sprint": "docs/subprojects/C01-control-plane/SPRINT.md",
       "promptProjection": "docs/subprojects/C01-control-plane/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C01-control-plane/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/C01-control-plane/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/C01-control-plane/ALTERACAO.md",
+      "evolution": "docs/subprojects/C01-control-plane/EVOLUCAO.md"
     },
     {
       "id": "C02",
@@ -313,7 +336,8 @@
       "sprint": "docs/subprojects/C02-tenant-installer/SPRINT.md",
       "promptProjection": "docs/subprojects/C02-tenant-installer/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C02-tenant-installer/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/C02-tenant-installer/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/C02-tenant-installer/ALTERACAO.md",
+      "evolution": "docs/subprojects/C02-tenant-installer/EVOLUCAO.md"
     },
     {
       "id": "C03",
@@ -326,7 +350,8 @@
       "sprint": "docs/subprojects/C03-identity-keycloak/SPRINT.md",
       "promptProjection": "docs/subprojects/C03-identity-keycloak/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C03-identity-keycloak/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/C03-identity-keycloak/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/C03-identity-keycloak/ALTERACAO.md",
+      "evolution": "docs/subprojects/C03-identity-keycloak/EVOLUCAO.md"
     },
     {
       "id": "C04",
@@ -339,7 +364,8 @@
       "sprint": "docs/subprojects/C04-authorization-openfga/SPRINT.md",
       "promptProjection": "docs/subprojects/C04-authorization-openfga/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C04-authorization-openfga/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/C04-authorization-openfga/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/C04-authorization-openfga/ALTERACAO.md",
+      "evolution": "docs/subprojects/C04-authorization-openfga/EVOLUCAO.md"
     },
     {
       "id": "C05",
@@ -352,7 +378,8 @@
       "sprint": "docs/subprojects/C05-secrets-openbao/SPRINT.md",
       "promptProjection": "docs/subprojects/C05-secrets-openbao/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C05-secrets-openbao/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/C05-secrets-openbao/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/C05-secrets-openbao/ALTERACAO.md",
+      "evolution": "docs/subprojects/C05-secrets-openbao/EVOLUCAO.md"
     },
     {
       "id": "C06",
@@ -365,7 +392,8 @@
       "sprint": "docs/subprojects/C06-event-platform/SPRINT.md",
       "promptProjection": "docs/subprojects/C06-event-platform/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C06-event-platform/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/C06-event-platform/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/C06-event-platform/ALTERACAO.md",
+      "evolution": "docs/subprojects/C06-event-platform/EVOLUCAO.md"
     },
     {
       "id": "C07",
@@ -378,7 +406,8 @@
       "sprint": "docs/subprojects/C07-apis-e-adapters/SPRINT.md",
       "promptProjection": "docs/subprojects/C07-apis-e-adapters/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C07-apis-e-adapters/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/C07-apis-e-adapters/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/C07-apis-e-adapters/ALTERACAO.md",
+      "evolution": "docs/subprojects/C07-apis-e-adapters/EVOLUCAO.md"
     },
     {
       "id": "C08",
@@ -391,7 +420,8 @@
       "sprint": "docs/subprojects/C08-audit-e-observabilidade/SPRINT.md",
       "promptProjection": "docs/subprojects/C08-audit-e-observabilidade/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C08-audit-e-observabilidade/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/C08-audit-e-observabilidade/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/C08-audit-e-observabilidade/ALTERACAO.md",
+      "evolution": "docs/subprojects/C08-audit-e-observabilidade/EVOLUCAO.md"
     },
     {
       "id": "I01",
@@ -404,7 +434,8 @@
       "sprint": "docs/subprojects/I01-devserver01/SPRINT.md",
       "promptProjection": "docs/subprojects/I01-devserver01/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I01-devserver01/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/I01-devserver01/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/I01-devserver01/ALTERACAO.md",
+      "evolution": "docs/subprojects/I01-devserver01/EVOLUCAO.md"
     },
     {
       "id": "I02",
@@ -417,7 +448,8 @@
       "sprint": "docs/subprojects/I02-server02/SPRINT.md",
       "promptProjection": "docs/subprojects/I02-server02/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I02-server02/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/I02-server02/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/I02-server02/ALTERACAO.md",
+      "evolution": "docs/subprojects/I02-server02/EVOLUCAO.md"
     },
     {
       "id": "I03",
@@ -430,7 +462,8 @@
       "sprint": "docs/subprojects/I03-win1-server/SPRINT.md",
       "promptProjection": "docs/subprojects/I03-win1-server/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I03-win1-server/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/I03-win1-server/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/I03-win1-server/ALTERACAO.md",
+      "evolution": "docs/subprojects/I03-win1-server/EVOLUCAO.md"
     },
     {
       "id": "I04",
@@ -443,7 +476,8 @@
       "sprint": "docs/subprojects/I04-postgresql/SPRINT.md",
       "promptProjection": "docs/subprojects/I04-postgresql/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I04-postgresql/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/I04-postgresql/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/I04-postgresql/ALTERACAO.md",
+      "evolution": "docs/subprojects/I04-postgresql/EVOLUCAO.md"
     },
     {
       "id": "I05",
@@ -456,7 +490,8 @@
       "sprint": "docs/subprojects/I05-docker-e-redes/SPRINT.md",
       "promptProjection": "docs/subprojects/I05-docker-e-redes/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I05-docker-e-redes/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/I05-docker-e-redes/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/I05-docker-e-redes/ALTERACAO.md",
+      "evolution": "docs/subprojects/I05-docker-e-redes/EVOLUCAO.md"
     },
     {
       "id": "I06",
@@ -469,7 +504,8 @@
       "sprint": "docs/subprojects/I06-traefik-https/SPRINT.md",
       "promptProjection": "docs/subprojects/I06-traefik-https/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I06-traefik-https/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/I06-traefik-https/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/I06-traefik-https/ALTERACAO.md",
+      "evolution": "docs/subprojects/I06-traefik-https/EVOLUCAO.md"
     },
     {
       "id": "I07",
@@ -482,7 +518,8 @@
       "sprint": "docs/subprojects/I07-tailnet/SPRINT.md",
       "promptProjection": "docs/subprojects/I07-tailnet/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I07-tailnet/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/I07-tailnet/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/I07-tailnet/ALTERACAO.md",
+      "evolution": "docs/subprojects/I07-tailnet/EVOLUCAO.md"
     },
     {
       "id": "I08",
@@ -495,7 +532,8 @@
       "sprint": "docs/subprojects/I08-komodo/SPRINT.md",
       "promptProjection": "docs/subprojects/I08-komodo/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I08-komodo/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/I08-komodo/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/I08-komodo/ALTERACAO.md",
+      "evolution": "docs/subprojects/I08-komodo/EVOLUCAO.md"
     },
     {
       "id": "I09",
@@ -508,7 +546,8 @@
       "sprint": "docs/subprojects/I09-whatsmeow-runtime/SPRINT.md",
       "promptProjection": "docs/subprojects/I09-whatsmeow-runtime/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I09-whatsmeow-runtime/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/I09-whatsmeow-runtime/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/I09-whatsmeow-runtime/ALTERACAO.md",
+      "evolution": "docs/subprojects/I09-whatsmeow-runtime/EVOLUCAO.md"
     },
     {
       "id": "I10",
@@ -521,7 +560,8 @@
       "sprint": "docs/subprojects/I10-backup-e-restore/SPRINT.md",
       "promptProjection": "docs/subprojects/I10-backup-e-restore/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I10-backup-e-restore/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/I10-backup-e-restore/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/I10-backup-e-restore/ALTERACAO.md",
+      "evolution": "docs/subprojects/I10-backup-e-restore/EVOLUCAO.md"
     },
     {
       "id": "I11",
@@ -534,7 +574,8 @@
       "sprint": "docs/subprojects/I11-release-e-rollback/SPRINT.md",
       "promptProjection": "docs/subprojects/I11-release-e-rollback/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I11-release-e-rollback/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/I11-release-e-rollback/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/I11-release-e-rollback/ALTERACAO.md",
+      "evolution": "docs/subprojects/I11-release-e-rollback/EVOLUCAO.md"
     },
     {
       "id": "I12",
@@ -547,7 +588,8 @@
       "sprint": "docs/subprojects/I12-seguranca-de-host/SPRINT.md",
       "promptProjection": "docs/subprojects/I12-seguranca-de-host/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I12-seguranca-de-host/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/I12-seguranca-de-host/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/I12-seguranca-de-host/ALTERACAO.md",
+      "evolution": "docs/subprojects/I12-seguranca-de-host/EVOLUCAO.md"
     },
     {
       "id": "Q01",
@@ -560,7 +602,8 @@
       "sprint": "docs/subprojects/Q01-plataforma-de-testes/SPRINT.md",
       "promptProjection": "docs/subprojects/Q01-plataforma-de-testes/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q01-plataforma-de-testes/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/Q01-plataforma-de-testes/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/Q01-plataforma-de-testes/ALTERACAO.md",
+      "evolution": "docs/subprojects/Q01-plataforma-de-testes/EVOLUCAO.md"
     },
     {
       "id": "Q02",
@@ -573,7 +616,8 @@
       "sprint": "docs/subprojects/Q02-testes-unitarios/SPRINT.md",
       "promptProjection": "docs/subprojects/Q02-testes-unitarios/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q02-testes-unitarios/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/Q02-testes-unitarios/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/Q02-testes-unitarios/ALTERACAO.md",
+      "evolution": "docs/subprojects/Q02-testes-unitarios/EVOLUCAO.md"
     },
     {
       "id": "Q03",
@@ -586,7 +630,8 @@
       "sprint": "docs/subprojects/Q03-integracao/SPRINT.md",
       "promptProjection": "docs/subprojects/Q03-integracao/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q03-integracao/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/Q03-integracao/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/Q03-integracao/ALTERACAO.md",
+      "evolution": "docs/subprojects/Q03-integracao/EVOLUCAO.md"
     },
     {
       "id": "Q04",
@@ -599,7 +644,8 @@
       "sprint": "docs/subprojects/Q04-browser-e2e/SPRINT.md",
       "promptProjection": "docs/subprojects/Q04-browser-e2e/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q04-browser-e2e/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/Q04-browser-e2e/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/Q04-browser-e2e/ALTERACAO.md",
+      "evolution": "docs/subprojects/Q04-browser-e2e/EVOLUCAO.md"
     },
     {
       "id": "Q05",
@@ -612,7 +658,8 @@
       "sprint": "docs/subprojects/Q05-seguranca/SPRINT.md",
       "promptProjection": "docs/subprojects/Q05-seguranca/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q05-seguranca/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/Q05-seguranca/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/Q05-seguranca/ALTERACAO.md",
+      "evolution": "docs/subprojects/Q05-seguranca/EVOLUCAO.md"
     },
     {
       "id": "Q06",
@@ -625,7 +672,8 @@
       "sprint": "docs/subprojects/Q06-performance/SPRINT.md",
       "promptProjection": "docs/subprojects/Q06-performance/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q06-performance/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/Q06-performance/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/Q06-performance/ALTERACAO.md",
+      "evolution": "docs/subprojects/Q06-performance/EVOLUCAO.md"
     },
     {
       "id": "Q07",
@@ -638,7 +686,8 @@
       "sprint": "docs/subprojects/Q07-ci-cd/SPRINT.md",
       "promptProjection": "docs/subprojects/Q07-ci-cd/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q07-ci-cd/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/Q07-ci-cd/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/Q07-ci-cd/ALTERACAO.md",
+      "evolution": "docs/subprojects/Q07-ci-cd/EVOLUCAO.md"
     },
     {
       "id": "Q08",
@@ -651,7 +700,8 @@
       "sprint": "docs/subprojects/Q08-release-engineering/SPRINT.md",
       "promptProjection": "docs/subprojects/Q08-release-engineering/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q08-release-engineering/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/Q08-release-engineering/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/Q08-release-engineering/ALTERACAO.md",
+      "evolution": "docs/subprojects/Q08-release-engineering/EVOLUCAO.md"
     },
     {
       "id": "Q09",
@@ -664,7 +714,8 @@
       "sprint": "docs/subprojects/Q09-infra-tests/SPRINT.md",
       "promptProjection": "docs/subprojects/Q09-infra-tests/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q09-infra-tests/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/Q09-infra-tests/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/Q09-infra-tests/ALTERACAO.md",
+      "evolution": "docs/subprojects/Q09-infra-tests/EVOLUCAO.md"
     },
     {
       "id": "Q10",
@@ -677,7 +728,8 @@
       "sprint": "docs/subprojects/Q10-quality-gates/SPRINT.md",
       "promptProjection": "docs/subprojects/Q10-quality-gates/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q10-quality-gates/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/Q10-quality-gates/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/Q10-quality-gates/ALTERACAO.md",
+      "evolution": "docs/subprojects/Q10-quality-gates/EVOLUCAO.md"
     },
     {
       "id": "G01",
@@ -690,7 +742,8 @@
       "sprint": "docs/subprojects/G01-arquitetura/SPRINT.md",
       "promptProjection": "docs/subprojects/G01-arquitetura/PROJECAO.md",
       "promptImplementation": "docs/subprojects/G01-arquitetura/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/G01-arquitetura/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/G01-arquitetura/ALTERACAO.md",
+      "evolution": "docs/subprojects/G01-arquitetura/EVOLUCAO.md"
     },
     {
       "id": "G02",
@@ -703,7 +756,8 @@
       "sprint": "docs/subprojects/G02-produto-e-ux/SPRINT.md",
       "promptProjection": "docs/subprojects/G02-produto-e-ux/PROJECAO.md",
       "promptImplementation": "docs/subprojects/G02-produto-e-ux/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/G02-produto-e-ux/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/G02-produto-e-ux/ALTERACAO.md",
+      "evolution": "docs/subprojects/G02-produto-e-ux/EVOLUCAO.md"
     },
     {
       "id": "G03",
@@ -716,7 +770,8 @@
       "sprint": "docs/subprojects/G03-engenharia-e-git/SPRINT.md",
       "promptProjection": "docs/subprojects/G03-engenharia-e-git/PROJECAO.md",
       "promptImplementation": "docs/subprojects/G03-engenharia-e-git/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/G03-engenharia-e-git/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/G03-engenharia-e-git/ALTERACAO.md",
+      "evolution": "docs/subprojects/G03-engenharia-e-git/EVOLUCAO.md"
     },
     {
       "id": "G04",
@@ -729,7 +784,8 @@
       "sprint": "docs/subprojects/G04-privacidade/SPRINT.md",
       "promptProjection": "docs/subprojects/G04-privacidade/PROJECAO.md",
       "promptImplementation": "docs/subprojects/G04-privacidade/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/G04-privacidade/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/G04-privacidade/ALTERACAO.md",
+      "evolution": "docs/subprojects/G04-privacidade/EVOLUCAO.md"
     },
     {
       "id": "G05",
@@ -742,7 +798,8 @@
       "sprint": "docs/subprojects/G05-operacao-e-suporte/SPRINT.md",
       "promptProjection": "docs/subprojects/G05-operacao-e-suporte/PROJECAO.md",
       "promptImplementation": "docs/subprojects/G05-operacao-e-suporte/IMPLEMENTACAO.md",
-      "promptAlteration": "docs/subprojects/G05-operacao-e-suporte/ALTERACAO.md"
+      "promptAlteration": "docs/subprojects/G05-operacao-e-suporte/ALTERACAO.md",
+      "evolution": "docs/subprojects/G05-operacao-e-suporte/EVOLUCAO.md"
     }
   ]
 }

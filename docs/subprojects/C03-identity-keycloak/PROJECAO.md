@@ -5,6 +5,7 @@
 **Unidade autorizada:** `C03` — Identity Keycloak
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/C03-identity-keycloak/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/C03-identity-keycloak/EVOLUCAO.md`
 **Status:** `docs/subprojects/C03-identity-keycloak/STATUS.md`
 **Sprint:** `docs/subprojects/C03-identity-keycloak/SPRINT.md`
 **Artefatos próprios:** `infra/security-access`

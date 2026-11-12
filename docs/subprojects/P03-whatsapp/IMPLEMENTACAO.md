@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P03` — WhatsApp
 **Área:** `produto`
 **Escopo:** `docs/subprojects/P03-whatsapp/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P03-whatsapp/EVOLUCAO.md`
 **Status:** `docs/subprojects/P03-whatsapp/STATUS.md`
 **Sprint:** `docs/subprojects/P03-whatsapp/SPRINT.md`
 **Artefatos próprios:** `modules/whatsapp`

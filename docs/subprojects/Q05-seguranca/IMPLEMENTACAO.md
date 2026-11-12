@@ -5,6 +5,7 @@
 **Unidade autorizada:** `Q05` — Segurança
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/Q05-seguranca/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/Q05-seguranca/EVOLUCAO.md`
 **Status:** `docs/subprojects/Q05-seguranca/STATUS.md`
 **Sprint:** `docs/subprojects/Q05-seguranca/SPRINT.md`
 **Artefatos próprios:** `tests/security`

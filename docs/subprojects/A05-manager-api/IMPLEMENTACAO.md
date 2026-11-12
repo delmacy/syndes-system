@@ -5,6 +5,7 @@
 **Unidade autorizada:** `A05` — Manager API
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/A05-manager-api/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/A05-manager-api/EVOLUCAO.md`
 **Status:** `docs/subprojects/A05-manager-api/STATUS.md`
 **Sprint:** `docs/subprojects/A05-manager-api/SPRINT.md`
 **Artefatos próprios:** `apps/master-admin-api`

@@ -5,6 +5,7 @@
 **Unidade autorizada:** `G04` — Privacidade
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/G04-privacidade/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/G04-privacidade/EVOLUCAO.md`
 **Status:** `docs/subprojects/G04-privacidade/STATUS.md`
 **Sprint:** `docs/subprojects/G04-privacidade/SPRINT.md`
 **Artefatos próprios:** `tests/security`

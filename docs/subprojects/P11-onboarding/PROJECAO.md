@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P11` — Onboarding
 **Área:** `operacao`
 **Escopo:** `docs/subprojects/P11-onboarding/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P11-onboarding/EVOLUCAO.md`
 **Status:** `docs/subprojects/P11-onboarding/STATUS.md`
 **Sprint:** `docs/subprojects/P11-onboarding/SPRINT.md`
 **Artefatos próprios:** `modules/onboarding`

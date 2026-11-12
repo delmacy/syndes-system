@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P08` — AI Assistant
 **Área:** `produto`
 **Escopo:** `docs/subprojects/P08-ai-assistant/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P08-ai-assistant/EVOLUCAO.md`
 **Status:** `docs/subprojects/P08-ai-assistant/STATUS.md`
 **Sprint:** `docs/subprojects/P08-ai-assistant/SPRINT.md`
 **Artefatos próprios:** `modules/ai-assistant`

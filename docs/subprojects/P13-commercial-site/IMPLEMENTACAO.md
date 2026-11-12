@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P13` — Commercial Site
 **Área:** `operacao`
 **Escopo:** `docs/subprojects/P13-commercial-site/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P13-commercial-site/EVOLUCAO.md`
 **Status:** `docs/subprojects/P13-commercial-site/STATUS.md`
 **Sprint:** `docs/subprojects/P13-commercial-site/SPRINT.md`
 **Artefatos próprios:** `modules/commercial-site`

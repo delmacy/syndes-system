@@ -5,6 +5,7 @@
 **Unidade autorizada:** `A04` — Core Host
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/A04-core-host/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/A04-core-host/EVOLUCAO.md`
 **Status:** `docs/subprojects/A04-core-host/STATUS.md`
 **Sprint:** `docs/subprojects/A04-core-host/SPRINT.md`
 **Artefatos próprios:** `apps/core-host`

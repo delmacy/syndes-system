@@ -5,6 +5,7 @@
 **Unidade autorizada:** `I02` — server02
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/I02-server02/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/I02-server02/EVOLUCAO.md`
 **Status:** `docs/subprojects/I02-server02/STATUS.md`
 **Sprint:** `docs/subprojects/I02-server02/SPRINT.md`
 **Artefatos próprios:** `infra`

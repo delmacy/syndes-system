@@ -5,6 +5,7 @@
 **Unidade autorizada:** `C08` — Audit e observabilidade
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/C08-audit-e-observabilidade/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/C08-audit-e-observabilidade/EVOLUCAO.md`
 **Status:** `docs/subprojects/C08-audit-e-observabilidade/STATUS.md`
 **Sprint:** `docs/subprojects/C08-audit-e-observabilidade/SPRINT.md`
 **Artefatos próprios:** `apps/core-host`

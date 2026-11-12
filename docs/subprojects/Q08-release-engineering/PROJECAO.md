@@ -5,6 +5,7 @@
 **Unidade autorizada:** `Q08` — Release Engineering
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/Q08-release-engineering/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/Q08-release-engineering/EVOLUCAO.md`
 **Status:** `docs/subprojects/Q08-release-engineering/STATUS.md`
 **Sprint:** `docs/subprojects/Q08-release-engineering/SPRINT.md`
 **Artefatos próprios:** `infra/master-admin`

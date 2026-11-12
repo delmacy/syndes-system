@@ -5,6 +5,7 @@
 **Unidade autorizada:** `I03` — win1-server
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/I03-win1-server/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/I03-win1-server/EVOLUCAO.md`
 **Status:** `docs/subprojects/I03-win1-server/STATUS.md`
 **Sprint:** `docs/subprojects/I03-win1-server/SPRINT.md`
 **Artefatos próprios:** `infra`

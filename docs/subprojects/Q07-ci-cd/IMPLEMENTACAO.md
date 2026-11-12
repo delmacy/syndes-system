@@ -5,6 +5,7 @@
 **Unidade autorizada:** `Q07` — CI/CD
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/Q07-ci-cd/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/Q07-ci-cd/EVOLUCAO.md`
 **Status:** `docs/subprojects/Q07-ci-cd/STATUS.md`
 **Sprint:** `docs/subprojects/Q07-ci-cd/SPRINT.md`
 **Artefatos próprios:** `scripts/ci/plan.mjs`

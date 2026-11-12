@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P10` — Email
 **Área:** `produto`
 **Escopo:** `docs/subprojects/P10-email/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P10-email/EVOLUCAO.md`
 **Status:** `docs/subprojects/P10-email/STATUS.md`
 **Sprint:** `docs/subprojects/P10-email/SPRINT.md`
 **Artefatos próprios:** `modules/email`

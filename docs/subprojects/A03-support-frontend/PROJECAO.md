@@ -5,6 +5,7 @@
 **Unidade autorizada:** `A03` — Support Frontend
 **Área:** `frontend`
 **Escopo:** `docs/subprojects/A03-support-frontend/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/A03-support-frontend/EVOLUCAO.md`
 **Status:** `docs/subprojects/A03-support-frontend/STATUS.md`
 **Sprint:** `docs/subprojects/A03-support-frontend/SPRINT.md`
 **Artefatos próprios:** `apps/support-web`

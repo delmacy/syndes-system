@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P04` — Organizations & Workforce
 **Área:** `produto`
 **Escopo:** `docs/subprojects/P04-organizations-workforce/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P04-organizations-workforce/EVOLUCAO.md`
 **Status:** `docs/subprojects/P04-organizations-workforce/STATUS.md`
 **Sprint:** `docs/subprojects/P04-organizations-workforce/SPRINT.md`
 **Artefatos próprios:** `modules/organizations`

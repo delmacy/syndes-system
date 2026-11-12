@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P01` — CRM
 **Área:** `produto`
 **Escopo:** `docs/subprojects/P01-crm/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P01-crm/EVOLUCAO.md`
 **Status:** `docs/subprojects/P01-crm/STATUS.md`
 **Sprint:** `docs/subprojects/P01-crm/SPRINT.md`
 **Artefatos próprios:** `modules/core-crm`

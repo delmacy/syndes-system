@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P07` — Scheduling
 **Área:** `produto`
 **Escopo:** `docs/subprojects/P07-scheduling/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P07-scheduling/EVOLUCAO.md`
 **Status:** `docs/subprojects/P07-scheduling/STATUS.md`
 **Sprint:** `docs/subprojects/P07-scheduling/SPRINT.md`
 **Artefatos próprios:** `modules/scheduling`

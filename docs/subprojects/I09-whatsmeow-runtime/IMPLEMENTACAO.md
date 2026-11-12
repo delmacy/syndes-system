@@ -5,6 +5,7 @@
 **Unidade autorizada:** `I09` — Whatsmeow runtime
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/I09-whatsmeow-runtime/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/I09-whatsmeow-runtime/EVOLUCAO.md`
 **Status:** `docs/subprojects/I09-whatsmeow-runtime/STATUS.md`
 **Sprint:** `docs/subprojects/I09-whatsmeow-runtime/SPRINT.md`
 **Artefatos próprios:** `modules/whatsapp/gateway`

@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P14` — Platform Core
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/P14-platform-core/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P14-platform-core/EVOLUCAO.md`
 **Status:** `docs/subprojects/P14-platform-core/STATUS.md`
 **Sprint:** `docs/subprojects/P14-platform-core/SPRINT.md`
 **Artefatos próprios:** `modules/platform-core`

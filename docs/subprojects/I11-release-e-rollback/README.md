@@ -15,3 +15,4 @@ Leia somente o escopo desta unidade, o status, a sprint, as instruções operaci
 7. **Assuntos editáveis:** [Capítulos da especificação](ESCOPO.md) · [Atualizações e propostas](updates/README.md).
 
 8. **Alteração rápida:** [Prompt curto por módulo](ALTERACAO.md).
+9. **Evolução planejada:** [Workpackages e tasks](EVOLUCAO.md).

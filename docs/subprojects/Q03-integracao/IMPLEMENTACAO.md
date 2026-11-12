@@ -5,6 +5,7 @@
 **Unidade autorizada:** `Q03` — Integração
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/Q03-integracao/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/Q03-integracao/EVOLUCAO.md`
 **Status:** `docs/subprojects/Q03-integracao/STATUS.md`
 **Sprint:** `docs/subprojects/Q03-integracao/SPRINT.md`
 **Artefatos próprios:** `scripts/events`

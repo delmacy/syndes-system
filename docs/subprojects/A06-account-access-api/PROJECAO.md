@@ -5,6 +5,7 @@
 **Unidade autorizada:** `A06` — Account Access API
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/A06-account-access-api/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/A06-account-access-api/EVOLUCAO.md`
 **Status:** `docs/subprojects/A06-account-access-api/STATUS.md`
 **Sprint:** `docs/subprojects/A06-account-access-api/SPRINT.md`
 **Artefatos próprios:** `apps/account-access-api`

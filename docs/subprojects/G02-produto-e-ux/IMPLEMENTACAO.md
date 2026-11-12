@@ -5,6 +5,7 @@
 **Unidade autorizada:** `G02` — Produto e UX
 **Área:** `produto`
 **Escopo:** `docs/subprojects/G02-produto-e-ux/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/G02-produto-e-ux/EVOLUCAO.md`
 **Status:** `docs/subprojects/G02-produto-e-ux/STATUS.md`
 **Sprint:** `docs/subprojects/G02-produto-e-ux/SPRINT.md`
 **Artefatos próprios:** `docs/product`

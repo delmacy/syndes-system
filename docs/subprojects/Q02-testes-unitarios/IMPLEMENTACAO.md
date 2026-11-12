@@ -5,6 +5,7 @@
 **Unidade autorizada:** `Q02` — Testes unitários
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/Q02-testes-unitarios/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/Q02-testes-unitarios/EVOLUCAO.md`
 **Status:** `docs/subprojects/Q02-testes-unitarios/STATUS.md`
 **Sprint:** `docs/subprojects/Q02-testes-unitarios/SPRINT.md`
 **Artefatos próprios:** `modules`

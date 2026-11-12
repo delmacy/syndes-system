@@ -5,6 +5,7 @@
 **Unidade autorizada:** `G01` — Arquitetura
 **Área:** `plataforma`
 **Escopo:** `docs/subprojects/G01-arquitetura/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/G01-arquitetura/EVOLUCAO.md`
 **Status:** `docs/subprojects/G01-arquitetura/STATUS.md`
 **Sprint:** `docs/subprojects/G01-arquitetura/SPRINT.md`
 **Artefatos próprios:** `docs/engineering`

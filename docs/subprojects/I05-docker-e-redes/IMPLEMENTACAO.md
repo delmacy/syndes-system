@@ -5,6 +5,7 @@
 **Unidade autorizada:** `I05` — Docker e redes
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/I05-docker-e-redes/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/I05-docker-e-redes/EVOLUCAO.md`
 **Status:** `docs/subprojects/I05-docker-e-redes/STATUS.md`
 **Sprint:** `docs/subprojects/I05-docker-e-redes/SPRINT.md`
 **Artefatos próprios:** `infra`

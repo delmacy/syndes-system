@@ -5,6 +5,7 @@
 **Unidade autorizada:** `I07` — Tailnet
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/I07-tailnet/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/I07-tailnet/EVOLUCAO.md`
 **Status:** `docs/subprojects/I07-tailnet/STATUS.md`
 **Sprint:** `docs/subprojects/I07-tailnet/SPRINT.md`
 **Artefatos próprios:** `infra/master-admin/check-tailnet-route.py`

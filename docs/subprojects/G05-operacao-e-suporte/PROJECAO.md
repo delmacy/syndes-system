@@ -5,6 +5,7 @@
 **Unidade autorizada:** `G05` — Operação e suporte
 **Área:** `operacao`
 **Escopo:** `docs/subprojects/G05-operacao-e-suporte/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/G05-operacao-e-suporte/EVOLUCAO.md`
 **Status:** `docs/subprojects/G05-operacao-e-suporte/STATUS.md`
 **Sprint:** `docs/subprojects/G05-operacao-e-suporte/SPRINT.md`
 **Artefatos próprios:** `docs/engineering/SYNDES-SUPPORT-RUNBOOK.md`

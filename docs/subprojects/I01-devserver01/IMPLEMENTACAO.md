@@ -5,6 +5,7 @@
 **Unidade autorizada:** `I01` — DevServer01
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/I01-devserver01/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/I01-devserver01/EVOLUCAO.md`
 **Status:** `docs/subprojects/I01-devserver01/STATUS.md`
 **Sprint:** `docs/subprojects/I01-devserver01/SPRINT.md`
 **Artefatos próprios:** `docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md`

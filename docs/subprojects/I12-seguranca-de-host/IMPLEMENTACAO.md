@@ -5,6 +5,7 @@
 **Unidade autorizada:** `I12` — Segurança de host
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/I12-seguranca-de-host/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/I12-seguranca-de-host/EVOLUCAO.md`
 **Status:** `docs/subprojects/I12-seguranca-de-host/STATUS.md`
 **Sprint:** `docs/subprojects/I12-seguranca-de-host/SPRINT.md`
 **Artefatos próprios:** `infra`

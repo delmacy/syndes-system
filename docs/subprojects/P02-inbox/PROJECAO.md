@@ -5,6 +5,7 @@
 **Unidade autorizada:** `P02` — Inbox
 **Área:** `produto`
 **Escopo:** `docs/subprojects/P02-inbox/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/P02-inbox/EVOLUCAO.md`
 **Status:** `docs/subprojects/P02-inbox/STATUS.md`
 **Sprint:** `docs/subprojects/P02-inbox/SPRINT.md`
 **Artefatos próprios:** `modules/inbox`

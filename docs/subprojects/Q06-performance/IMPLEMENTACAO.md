@@ -5,6 +5,7 @@
 **Unidade autorizada:** `Q06` — Performance
 **Área:** `qualidade`
 **Escopo:** `docs/subprojects/Q06-performance/ESCOPO.md`
+**Planejamento por workpackages:** `docs/subprojects/Q06-performance/EVOLUCAO.md`
 **Status:** `docs/subprojects/Q06-performance/STATUS.md`
 **Sprint:** `docs/subprojects/Q06-performance/SPRINT.md`
 **Artefatos próprios:** `tests/performance`
