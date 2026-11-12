@@ -38,7 +38,7 @@ class TechReferenceTests(unittest.TestCase):
         src=(ROOT/"scripts/docs/build_site.py").read_text()
         css=(ROOT/"docs/assets/syndes.css").read_text()
         self.assertNotIn('"toc.integrate"',src)
-        self.assertIn('"Mapa técnico por camadas"',src)
+        self.assertIn('"Mapa técnico"',src)
         self.assertNotIn('"navigation.indexes"',src)
         self.assertIn('max-width: 1340px',css)
         self.assertIn('.md-grid',css)

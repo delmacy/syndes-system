@@ -423,6 +423,49 @@ def git_sha():
     except (OSError,subprocess.CalledProcessError):
         return "unverified"
 
+def site_navigation(units,canonical):
+    """Seven user-facing sections; canonical module ownership remains unchanged."""
+    navigation_tree(units,canonical) # validate ownership and documentationParent
+    nav=[
+        {"Início":"index.md"},
+        {"Projetos":[
+            {"Visão geral":"blueprint/PROJETOS.md"},
+            {"WBS e workpackages":"blueprint/PROJETO-E-WORKPACKAGES.md"},
+            {"Roadmap":"blueprint/ROADMAP.md"}]},
+        {"Documentação":[
+            {"Mapa técnico":"blueprint/MAPA-TECNICO-POR-CAMADAS.md"},
+            {"Catálogo e busca":"blueprint/CATALOGO-MODULOS.md"},
+            {"Arquitetura e contratos":"blueprint/index.md"}]},
+        {"Módulos por área":grouped_navigation(units,display_name)},
+        {"APIs e dados":[
+            {"Catálogo de APIs":"blueprint/APIS.md"},
+            {"Schemas e entidades":"blueprint/DADOS.md"},
+            {"Contratos públicos":"standards/CONTRATOS-PUBLICOS.md"}]},
+        {"Operações":[
+            {"Monitoramento":"monitoramento/index.md"},
+            {"Deploy e ambientes":"blueprint/AMBIENTES.md"}]},
+        {"Guias e colaboração":[
+            {"Padrões e organização":"standards/ORGANIZACAO-DE-PAGINAS.md"},
+            {"Prompts para agentes":"standards/EDICAO-CONTEXTUAL.md"},
+            {"GitHub Projects":"standards/GITHUB-PROJECTS.md"}]}
+    ]
+    seen=set()
+    def verify(items):
+        for item in items:
+            for label,target in item.items():
+                if isinstance(target,list):
+                    verify(target)
+                else:
+                    if target in seen: raise ValueError("Duplicate portal route: "+target)
+                    seen.add(target)
+                    candidate=DOCS/target
+                    if candidate.name=="index.md":
+                        candidate=candidate.with_name("README.md")
+                    if not candidate.is_file():
+                        raise ValueError(f"Missing portal route {label}: {candidate}")
+    verify(nav)
+    return nav
+
 def main():
     units=json.loads((DOCS/"subprojects/index.json").read_text())["units"]
     canonical=json.loads((ROOT/"catalog/work-units.json").read_text())["units"]
@@ -460,26 +503,7 @@ def main():
     embed_global_history(revision)
     embed_code_inventory(units,revision)
     embed_portal_views(units,revision)
-    nav=[{"Início":"index.md"},
-         {"Mapa técnico por camadas":"blueprint/MAPA-TECNICO-POR-CAMADAS.md"},
-         {"Catálogo e busca":"blueprint/CATALOGO-MODULOS.md"},
-         {"Projetos":"blueprint/PROJETOS.md"},
-         {"Monitoramento":"monitoramento/index.md"},
-         {"Arquitetura e contratos":[
-             {"Blueprint geral":"blueprint/index.md"},
-             {"Contratos públicos":"standards/CONTRATOS-PUBLICOS.md"},
-             {"Fontes de verdade":"standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md"},
-             {"Linha do tempo":"blueprint/LINHA-DO-TEMPO.md"},
-             {"Proposta ERP Lite (não aprovada)":"blueprint/PROPOSTA-ERP-LITE-E-REFERENCIA-TECNICA.md"}]}]
-    navigation_tree(units,canonical) # validate canonical owners and internal component parentage
-    nav.append({"Módulos por área":grouped_navigation(units,display_name)})
-    nav.extend([{"Padrões e colaboração":[
-        {"Busca para agentes":"standards/BUSCA-PARA-AGENTES.md"},
-        {"GitHub Projects":"standards/GITHUB-PROJECTS.md"},
-        {"Solicitar atualização":"standards/EDICAO-CONTEXTUAL.md"},
-        {"Modelos e organização":"standards/ORGANIZACAO-DE-PAGINAS.md"},
-        {"Modelo de referência":"standards/TEMPLATE-REFERENCIA-TECNICA.md"}]},
-        {"Índice por caminho":"subprojects/index.md"}])
+    nav=site_navigation(units,canonical)
     config={
         "site_name":"Syndes Docs",
         "site_description":"Documentação técnica do Syndes System",
@@ -489,8 +513,8 @@ def main():
         "docs_dir":str(CONTENT),"site_dir":str(OUT/"site"),
         "theme":{"name":"material","language":"pt-BR",
                  "logo":"assets/syndes-mark.svg","favicon":"assets/syndes-mark.svg",
-                 "features":["navigation.sections",
-                             "navigation.top","toc.follow","search.suggest","search.highlight",
+                 "features":["navigation.top","toc.follow",
+                             "search.suggest","search.highlight",
                              "content.code.copy"],
                  "palette":[
                      {"scheme":"default","primary":"indigo","accent":"deep purple",

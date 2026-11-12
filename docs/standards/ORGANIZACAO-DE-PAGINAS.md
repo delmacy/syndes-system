@@ -2,6 +2,8 @@
 
 O Syndes Docs utiliza **dois eixos de consulta**: **camada técnica** (domínio, dados, interfaces, contratos, APIs, dependências, operação e qualidade) e **módulo proprietário** (área → ficha do módulo). As seis páginas detalhadas de cada unidade continuam acessíveis pela ficha, sem repetição no menu lateral. A árvore é derivada de `catalog/work-units.json` por `scripts/docs/build_site.py` e **não** altera ownership, pacotes ou dependências.
 
+A navegação principal contém **sete grupos**: Início, Projetos, Documentação, Módulos por área, APIs e dados, Operações, Guias e colaboração. As seções são expansíveis para reduzir o ruído visual. O catálogo continua com **49 módulos principais** agrupados por domínio funcional; entradas internas vinculadas a `documentationParent` permanecem pesquisáveis sem duplicar menus. A Home oferece quatro cards de acesso, seguidos por um índice de assuntos. Os índices de APIs, dados, roadmap e ambientes são páginas de encaminhamento para fontes existentes, não novos serviços ou status de execução.
+
 ## Separação física dos capítulos
 
 - A documentação existente continua em `docs/subprojects/[ID]-[slug]/ESCOPO.md`, `STATUS.md`, `SPRINT.md`, `PROJECAO.md` e `IMPLEMENTACAO.md`. Os arquivos ESCOPO.md foram preservados como índice para manter a entrada e os links dos agentes; os conteúdos de seus tópicos foram transferidos para chapters/.
