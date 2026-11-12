@@ -16,7 +16,7 @@ class KnowledgePortalTests(unittest.TestCase):
         cls.units=json.loads((ROOT/"docs/subprojects/index.json").read_text())["units"]
         cls.catalog=json.loads((ROOT/"catalog/work-units.json").read_text())["units"]
 
-    def test_57_modules_6_page_navigation(self):
+    def test_57_tracked_units_56_visible_modules_6_pages(self):
         nav=build_site.navigation_tree(self.units,self.catalog)
         self.assertEqual(len(nav),5)
         names=["Visão geral","Especificação","Referência técnica","Evolução","Histórico","Operação"]
@@ -35,7 +35,9 @@ class KnowledgePortalTests(unittest.TestCase):
                     if path.name=="index.md":
                         path=path.with_name("README.md")
                     self.assertTrue(path.is_file(),path)
-        self.assertEqual(seen,{u["id"] for u in self.units})
+        self.assertEqual(seen,{u["id"] for u in self.units if not u.get("documentationParent")})
+        self.assertEqual(len(seen),56)
+        self.assertEqual({u["id"] for u in self.units if u.get("documentationParent")},{"I09"})
 
     def test_all_sources_and_legacy_paths_preserved(self):
         self.assertEqual(len(self.units),57)

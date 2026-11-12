@@ -28,13 +28,36 @@ class NavigationTests(unittest.TestCase):
                 self.assertTrue(all(isinstance(next(iter(page.values())),str) for page in pages))
         flat=str(nav)
         for unit in units:
-            self.assertEqual(flat.count(unit["id"]+" · "+unit["name"]),1)
+            expected=0 if unit.get("documentationParent") else 1
+            self.assertEqual(flat.count(unit["id"]+" · "+unit["name"]),expected)
+        self.assertEqual(sum(len(next(iter(a.values()))) for a in nav),56)
+        self.assertIn("P03 · WhatsApp",flat)
+        self.assertNotIn("I09 · Whatsmeow runtime",flat)
 
     def test_invalid_unit_or_group_fails(self):
         units=json.loads((site.DOCS/"subprojects/index.json").read_text())["units"]
         canonical=json.loads((site.ROOT/"catalog/work-units.json").read_text())["units"]
         with self.assertRaises(ValueError):
             site.navigation_tree(units[:-1],canonical)
+
+    def test_component_parent_must_match_catalog_and_source(self):
+        from copy import deepcopy
+        units=json.loads((site.DOCS/"subprojects/index.json").read_text())["units"]
+        catalog=json.loads((site.ROOT/"catalog/work-units.json").read_text())["units"]
+        for variant in ("wrong_parent", "wrong_path", "catalog_mismatch"):
+            with self.subTest(variant=variant):
+                uc=deepcopy(units); cc=deepcopy(catalog)
+                child=next(u for u in uc if u["id"]=="I09")
+                canonical=next(u for u in cc if u["id"]=="I09")
+                if variant=="wrong_parent":
+                    child["documentationParent"]="P99"
+                    canonical["documentationParent"]="P99"
+                elif variant=="wrong_path":
+                    child["source"]="infra"
+                else:
+                    canonical.pop("documentationParent")
+                with self.assertRaises(ValueError):
+                    site.navigation_tree(uc,cc)
 
     def test_topics_have_distinct_git_timestamps(self):
         text="# Overview\n\n## Scope\nold\n\n### Detail\nrecent\n\n## Status\nunchanged\n"

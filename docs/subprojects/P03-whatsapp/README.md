@@ -29,3 +29,9 @@ Leia somente o escopo desta unidade, o status, a sprint, as instruções operaci
 | [Operação](OPERACAO.md) | Status, sprint, gates, runbooks e os três prompts de agentes |
 
 **Fonte de verdade:** o catálogo define o proprietário; o Git registra as alterações; Issues/Projects cuidam da execução; Actions e evidências de ambiente comprovam testes/deploy. Não promover status por inferência.
+
+## Composição funcional
+
+**WhatsApp é um único módulo.** O plugin TypeScript/NestJS e o sidecar Go/Whatsmeow são componentes técnicos de P03. Consulte [Referência técnica](REFERENCIA-TECNICA.md#composicao-do-modulo-plugin-nestjs-e-gateway-go), [Operação](OPERACAO.md#operacao-do-gateway-whatsmeow-componente-i09) e [Evolução](EVOLUCAO.md#gateway-whatsmeow-rastreabilidade-i09-dentro-de-p03).
+
+O identificador **I09** permanece no catálogo apenas para preservar rastreabilidade de trabalho e documentação legada, sem entrada separada no menu principal.

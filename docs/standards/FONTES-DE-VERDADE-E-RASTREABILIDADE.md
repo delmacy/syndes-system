@@ -69,3 +69,9 @@ A linha do tempo renderizada pode ficar **defasada em relação à main** até o
 5. Atualizar o documento normativo e o índice de vínculos; o Histórico de commits é regenerado pelo pipeline.
 
 **Segurança:** o repositório e o Pages são públicos. Não publicar DSNs, tokens, PII, configuração privada, URLs internas ou segredos; índices públicos não devem expor dados de clientes.
+
+## Relação de componentes e módulos na documentação
+
+`catalog/work-units.json` pode declarar `documentationParent` em unidades técnicas subordinadas. A identidade histórica dessa unidade permanece válida para WBS e revisão de código; ela apenas deixa de ser uma entrada paralela no menu.
+
+A relação deve apontar para **um módulo pai existente**, com fonte de código efetivamente contida na fonte do pai; o gerador de documentação rejeita vínculos inválidos. O exemplo implementado é `I09 → P03`: o Go/Whatsmeow permanece em `modules/whatsapp/gateway`, dentro de `modules/whatsapp`. Não criar duplicidade de produto, nem modificar os gates individuais de execução dos processos.

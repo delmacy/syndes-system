@@ -1,5 +1,8 @@
 # I09 — Whatsmeow runtime | ESCOPO
 
+> **COMPONENTE TÉCNICO DO P03 — WHATSAPP.** Este documento histórico I09 permanece acessível para WBS, commits e links antigos. O gateway Go/Whatsmeow faz parte de [P03 — WhatsApp](../P03-whatsapp/README.md), com [Referência técnica](../P03-whatsapp/REFERENCIA-TECNICA.md) e [Operação](../P03-whatsapp/OPERACAO.md) centrais. Não representa outro módulo de produto.
+
+
 > RASCUNHO NÃO APROVADO (2026-11-12). Nenhuma capacidade operacional foi verificada pela criação deste documento.
 
 ---

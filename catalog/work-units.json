@@ -295,7 +295,8 @@
       "name": "Whatsmeow runtime",
       "front": "qualidade",
       "path": "modules/whatsapp/gateway",
-      "maturity": "verified"
+      "maturity": "verified",
+      "documentationParent": "P03"
     },
     {
       "id": "I10",

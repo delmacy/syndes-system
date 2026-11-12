@@ -50,3 +50,9 @@ flowchart TD
 ```
 
 **Regra crítica:** nunca permitir dois projetores proprietários do mesmo evento nem mudar `projection_path` histórico para simular rollback. O caminho `events` não está habilitado no runtime por esta documentação. Fontes: `docs/engineering/WBS-WHATSAPP-PROJECTION-CUTOVER-20261111.md` e `apps/core-host/src/platform-event-worker-composition.ts`.
+
+### Ownership do gateway Go/Whatsmeow (antigo I09)
+
+O gateway Whatsmeow está **dentro do módulo P03 WhatsApp**. O plugin NestJS em `modules/whatsapp/src/plugin.ts` representa a integração do módulo com o Core Host; o processo Go em `modules/whatsapp/gateway/whatsmeow/` é um sidecar de protocolo, sessão e callbacks. A divisão de processos não implica dois módulos de negócio.
+
+A [Referência técnica de P03](../REFERENCIA-TECNICA.md) e a [Operação de P03](../OPERACAO.md) centralizam a leitura. A antiga unidade I09 continua disponível apenas para consultar histórico, WBS e trabalho operacional anterior.

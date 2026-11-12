@@ -9,6 +9,7 @@ Origem: catalog/work-units.json. Documentação inicial não equivale a funciona
 | P01 CRM | [ESCOPO](P01-crm/ESCOPO.md) | [STATUS](P01-crm/STATUS.md) | [SPRINT](P01-crm/SPRINT.md) | [modules/core-crm](../../modules/core-crm) |
 | P02 Inbox | [ESCOPO](P02-inbox/ESCOPO.md) | [STATUS](P02-inbox/STATUS.md) | [SPRINT](P02-inbox/SPRINT.md) | [modules/inbox](../../modules/inbox) |
 | P03 WhatsApp | [ESCOPO](P03-whatsapp/ESCOPO.md) | [STATUS](P03-whatsapp/STATUS.md) | [SPRINT](P03-whatsapp/SPRINT.md) | [modules/whatsapp](../../modules/whatsapp) |
+| ↳ I09 Whatsmeow (componente do P03) | [Detalhes técnicos](I09-whatsmeow-runtime/REFERENCIA-TECNICA.md) | [Histórico](I09-whatsmeow-runtime/HISTORICO.md) | [WBS legada](I09-whatsmeow-runtime/EVOLUCAO.md) | [gateway Go](../../modules/whatsapp/gateway) |
 | P04 Organizations & Workforce | [ESCOPO](P04-organizations-workforce/ESCOPO.md) | [STATUS](P04-organizations-workforce/STATUS.md) | [SPRINT](P04-organizations-workforce/SPRINT.md) | [modules/organizations](../../modules/organizations) |
 | P05 Gestão de Atendimentos | [ESCOPO](P05-gestao-de-atendimentos/ESCOPO.md) | [STATUS](P05-gestao-de-atendimentos/STATUS.md) | [SPRINT](P05-gestao-de-atendimentos/SPRINT.md) | [modules/service-management](../../modules/service-management) |
 | P07 Scheduling | [ESCOPO](P07-scheduling/ESCOPO.md) | [STATUS](P07-scheduling/STATUS.md) | [SPRINT](P07-scheduling/SPRINT.md) | [modules/scheduling](../../modules/scheduling) |
@@ -57,7 +58,6 @@ Origem: catalog/work-units.json. Documentação inicial não equivale a funciona
 | I06 Traefik HTTPS | [ESCOPO](I06-traefik-https/ESCOPO.md) | [STATUS](I06-traefik-https/STATUS.md) | [SPRINT](I06-traefik-https/SPRINT.md) | [docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md](../../docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md) |
 | I07 Tailnet | [ESCOPO](I07-tailnet/ESCOPO.md) | [STATUS](I07-tailnet/STATUS.md) | [SPRINT](I07-tailnet/SPRINT.md) | [infra/master-admin/check-tailnet-route.py](../../infra/master-admin/check-tailnet-route.py) |
 | I08 Komodo | [ESCOPO](I08-komodo/ESCOPO.md) | [STATUS](I08-komodo/STATUS.md) | [SPRINT](I08-komodo/SPRINT.md) | [infra](../../infra) |
-| I09 Whatsmeow runtime | [ESCOPO](I09-whatsmeow-runtime/ESCOPO.md) | [STATUS](I09-whatsmeow-runtime/STATUS.md) | [SPRINT](I09-whatsmeow-runtime/SPRINT.md) | [modules/whatsapp/gateway](../../modules/whatsapp/gateway) |
 | I10 Backup e Restore | [ESCOPO](I10-backup-e-restore/ESCOPO.md) | [STATUS](I10-backup-e-restore/STATUS.md) | [SPRINT](I10-backup-e-restore/SPRINT.md) | [scripts/events/disposable_restore_drill.py](../../scripts/events/disposable_restore_drill.py) |
 | I11 Release e Rollback | [ESCOPO](I11-release-e-rollback/ESCOPO.md) | [STATUS](I11-release-e-rollback/STATUS.md) | [SPRINT](I11-release-e-rollback/SPRINT.md) | [infra/master-admin/homolog-deploy.sh](../../infra/master-admin/homolog-deploy.sh) |
 | I12 Segurança de host | [ESCOPO](I12-seguranca-de-host/ESCOPO.md) | [STATUS](I12-seguranca-de-host/STATUS.md) | [SPRINT](I12-seguranca-de-host/SPRINT.md) | [infra](../../infra) |

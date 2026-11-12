@@ -51,3 +51,11 @@ Cada unidade tem seis entradas na navegação Área → Módulo → Página:
 - **Operação:** STATUS.md, SPRINT.md, runbooks, monitoramento e prompts, preservando os caminhos canônicos antigos.
 
 **Não** exibir os prompts nem STATUS/SPRINT como novos níveis. O índice de tópicos continua integrado na árvore esquerda, dentro da página em uso.
+
+## Componentes de um módulo não viram novos módulos no menu
+
+Unidades do catálogo que representam um **componente interno** de outra unidade podem declarar `documentationParent`. Permanecem no catálogo e com seus caminhos de fonte, testes, WBS, histórico e prompts, mas não geram entrada própria na navegação principal.
+
+Exemplo real: **I09 Whatsmeow Runtime → P03 WhatsApp**. O runtime é um sidecar Go de protocolo; o plugin NestJS e o domínio de WhatsApp são componentes do P03. Suas documentações históricas seguem com URL estável; novos assuntos ficam nas páginas Referência técnica, Evolução e Operação do P03.
+
+A hierarquia pública continua **Área → Módulo → Página**, sem quarto nível. Essa relação não reatribui automaticamente tarefas, muda ownership do código nem autoriza deploy. **Não** agrupar módulos de negócio numa área artificial chamada "Plugins": plugin é um mecanismo técnico de composição.

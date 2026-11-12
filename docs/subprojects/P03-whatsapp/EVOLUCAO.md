@@ -123,3 +123,13 @@ flowchart LR
 - [Regras para vincular evidências](../../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
 
 **Datas do roadmap:** não declaradas neste inventário. Workpackages sem data aprovada não recebem barras Gantt fictícias. Quando houver projeto e marcos confirmados, cadastrar o link explícito à fonte.
+
+## Gateway Whatsmeow — rastreabilidade I09 dentro de P03
+
+O **I09 Whatsmeow Runtime** é uma unidade técnica histórica associada ao módulo **P03 WhatsApp**, e não uma capacidade de produto independente. Seu registro permanece no catálogo para preservar IDs, dependências e links existentes.
+
+- [Trabalho/WBS anterior do gateway](../I09-whatsmeow-runtime/EVOLUCAO.md).
+- [Arquitetura do plugin e do sidecar](REFERENCIA-TECNICA.md#composicao-do-modulo-plugin-nestjs-e-gateway-go).
+- [Procedimentos de operação](OPERACAO.md#operacao-do-gateway-whatsmeow-componente-i09).
+
+Novas capacidades do WhatsApp devem ser planejadas no P03. Isso **não** fecha nem altera automaticamente tarefas históricas I09, e não transfere gates de implantação sem evidência.

@@ -66,3 +66,18 @@ Nenhuma tabela pode ser atribuída ao Control por inferência; confirmar owner e
 
 - [Escopo](ESCOPO.md) · [Evolução](EVOLUCAO.md) · [Status](STATUS.md) · [Histórico](HISTORICO.md).
 - **Próximo passo:** auditar classes/exports, contratos, telas, tabelas, testes e evidências sem inventar funcionalidades.
+
+## Composição do módulo: plugin NestJS e gateway Go
+
+O **P03 WhatsApp** é um único módulo de produto composto por dois processos com responsabilidades distintas:
+
+| Componente de P03 | Fonte no repositório | Papel |
+|---|---|---|
+| Plugin NestJS e domínio TypeScript | `modules/whatsapp/src/plugin.ts` e `modules/whatsapp/src/` | APIs, contas, contratos, regras, outbox e migrations de negócio |
+| Sidecar Go / Whatsmeow | `modules/whatsapp/gateway/whatsmeow/` | Protocolo WhatsApp, sessões e callbacks autenticados para a API |
+
+**Banco:** as sessões do Whatsmeow utilizam armazenamento PostgreSQL dedicado ao adaptador, conforme seu README. É distinto do **Tenant DB** (contas/mensagens de negócio) e do **Control/Manager DB**. Não pressupor migrations já aplicadas.
+
+**Histórico técnico preservado:** [I09 — referência anterior](../I09-whatsmeow-runtime/REFERENCIA-TECNICA.md), [escopo do gateway](../I09-whatsmeow-runtime/ESCOPO.md). O identificador I09 permanece válido para rastrear WBS e commits, mas não corresponde a um segundo módulo de produto ou a outro plugin instalado.
+
+**Gates independentes:** plugin registrado não prova sidecar ativo; sidecar em execução não prova tenant autorizado, conta conectada ou projetor homologado.

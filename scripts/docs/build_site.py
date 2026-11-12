@@ -114,6 +114,21 @@ def navigation_tree(units, canonical):
             if uid in ids or uid not in canonical_by_id or canonical_by_id[uid]["front"]!=front_id:
                 raise ValueError("Invalid owner or duplicate unit "+uid)
             ids.add(uid)
+            parent_id=unit.get("documentationParent")
+            if parent_id is not None:
+                parent=canonical_by_id.get(parent_id)
+                catalog_unit=canonical_by_id[uid]
+                child_source=Path(unit["source"])
+                if (not parent or uid==parent_id
+                        or catalog_unit.get("documentationParent")!=parent_id
+                        or parent.get("documentationParent")
+                        or not child_source.is_relative_to(Path(parent["path"]))
+                        or child_source==Path(parent["path"])):
+                    raise ValueError("Invalid documentation component/parent for "+uid)
+                # Work-unit remains addressable by ID, but is not a top-level product module.
+                continue
+            if canonical_by_id[uid].get("documentationParent"):
+                raise ValueError("Documentation hierarchy mismatch for "+uid)
             d=Path(unit["entry"]).parent.relative_to("docs")
             pages=[
                 {"Visão geral":str(d/"index.md")},
