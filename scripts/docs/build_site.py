@@ -361,13 +361,13 @@ def embed_code_inventory(units,revision):
                         "source":u["source"],
                         "home":web,
                         "anchors":{"capabilities":web+"#capacidades",
-                                   "stack":web+"REFERENCIA-TECNICA/#inventario-codigo",
-                                   "publicContracts":web+"REFERENCIA-TECNICA/#pacote-publico",
-                                   "privateMethods":web+"REFERENCIA-TECNICA/#metodos",
-                                   "http":web+"REFERENCIA-TECNICA/#endpoints-http",
-                                   "frontend":web+"REFERENCIA-TECNICA/#frontend-identificado",
-                                   "database":web+"REFERENCIA-TECNICA/#schemas-sql",
-                                   "dependencies":web+"REFERENCIA-TECNICA/#dependencias-declaradas",
+                                   "stack":web+"CODIGO/",
+                                   "publicContracts":web+"CONTRATOS/",
+                                   "privateMethods":web+"CODIGO/",
+                                   "http":web+"APIS/",
+                                   "frontend":web+"CODIGO/",
+                                   "database":web+"DADOS/",
+                                   "dependencies":web+"DEPENDENCIAS/",
                                    "operation":web+"OPERACAO/",
                                    "quality":web+"STATUS/",
                                    "workpackages":web+"EVOLUCAO/",
@@ -399,15 +399,38 @@ def embed_portal_views(units, revision):
                               "https://delmacy.github.io/syndes-system/")
     (CONTENT/"assets/catalog/projects.json").write_text(
         json.dumps(registry,ensure_ascii=False),encoding="utf-8")
+    from topic_views import TAB_SPECS, topic_views
+    from code_inventory import render as render_inventory
     pages=("index.md","ESCOPO.md","REFERENCIA-TECNICA.md",
            "EVOLUCAO.md","HISTORICO.md","OPERACAO.md","STATUS.md",
            "SPRINT.md","PROJECAO.md","IMPLEMENTACAO.md","ALTERACAO.md","PROMPTS.md")
+    generated_pages=tuple(spec[0] for spec in TAB_SPECS)
     for unit in units:
         if unit.get("documentationParent"): continue
         folder=Path(unit["entry"]).parent.relative_to("docs")
         prompt=CONTENT/folder/"PROMPTS.md"
         prompt.write_text(scoped_prompts_page(unit,display_name(unit)),encoding="utf-8")
-        for page in pages:
+
+        # Independent page per technical category. Extracted evidence comes from the
+        # versioned source/manifest; legacy reference keeps its original URL/anchors.
+        source_reference=unit["technicalReference"]
+        source_sections=json.loads((CONTENT/folder/"REFERENCIA-TECNICA.sections.json").read_text(encoding="utf-8"))["sections"]
+        data=json.loads((CONTENT/"assets/catalog"/(unit["id"]+".json")).read_text(encoding="utf-8"))
+        inventory_sections=markdown_sections(render_inventory(data))
+        views=topic_views(unit["id"],display_name(unit),source_reference,
+                          source_sections,inventory_sections,revision,unit["source"])
+        if set(views)!=set(generated_pages): raise ValueError("Incomplete topic views for "+unit["id"])
+        for filename,(body,metadata) in views.items():
+            rendered=CONTENT/folder/filename
+            marker=(f'<div class="syndes-source-marker" data-doc-source="{html.escape(source_reference,quote=True)}" '
+                    f'data-doc-revision="{html.escape(revision,quote=True)}" '
+                    f'data-doc-sections="../{html.escape(filename.removesuffix(".md"),quote=True)}.sections.json"></div>\n\n')
+            edit_href=REPO+"/edit/main/"+source_reference
+            rendered.write_text(marker+f"[✏️ Propor edição na referência original]({edit_href})\n\n"+body,encoding="utf-8")
+            rendered.with_suffix(".sections.json").write_text(
+                json.dumps(metadata,ensure_ascii=False),encoding="utf-8")
+
+        for page in pages+generated_pages:
             rendered=CONTENT/folder/page
             if not rendered.is_file(): raise ValueError("Missing module document: "+str(rendered))
             raw=rendered.read_text(encoding="utf-8")

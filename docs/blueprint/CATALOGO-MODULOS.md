@@ -1,6 +1,6 @@
 # Catálogo técnico por módulos
 
-> **Um módulo, várias camadas.** Pesquise pelo ID, nome, caminho, classe, método, tabela, rota declarada ou biblioteca. Selecione uma camada para ver **um único acesso técnico prioritário por módulo**, em vez de dezenas de links repetidos. Todas as referências derivam do código e da documentação versionada; nenhuma contagem representa homologação.
+> **Um módulo, várias páginas técnicas independentes.** Pesquise pelo ID, nome, caminho, classe, método, tabela, rota declarada ou biblioteca. Ao escolher a camada, o catálogo abre **apenas a página correspondente** do módulo — APIs, dados, contratos, código ou dependências — sem deslocar o leitor para uma âncora de um documento misturado. Todas as referências derivam do código e da documentação versionada; nenhuma contagem representa homologação.
 
 <div class="syndes-catalog" id="syndes-catalog">
   <div class="syndes-catalog-controls">

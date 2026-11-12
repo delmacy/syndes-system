@@ -7,8 +7,8 @@ import test from 'node:test';
 
 const root=join(dirname(fileURLToPath(import.meta.url)), '../..');
 const source=readFileSync(join(root,'docs/assets/topic-editor.js'),'utf8');
-const context={document:{readyState:'loading',addEventListener(){}},window:{},navigator:{}};
-const instrumented=source.replace(/\}\)\(\);\s*$/, 'globalThis.__test = { makeProjectionPrompt, makeQuickChangePrompt, createIssueBody };})();');
+const context={document:{readyState:'loading',addEventListener(){}},window:{},navigator:{},URL};
+const instrumented=source.replace(/\}\)\(\);\s*$/, 'globalThis.__test = { makeProjectionPrompt, makeQuickChangePrompt, createIssueBody, pageMetadata };})();');
 assert.notEqual(instrumented,source,'Test access point must be installed');
 runInNewContext(instrumented,context);
 const editor=context.__test;
@@ -47,4 +47,19 @@ test('generated technical topics become source-change proposals, not edits to de
  assert.ok(body.includes('Seção gerada'),body);
  assert.ok(body.includes('modules/whatsapp'));
  assert.ok(body.includes('não editar o Markdown gerado'));
+});
+
+test('generated subject view resolves its own metadata while preserving canonical edit source',()=>{
+ const marker={dataset:{
+   docSource:'docs/subprojects/P01-crm/REFERENCIA-TECNICA.md',
+   docRevision:'a'.repeat(40),
+   docSections:'../APIS.sections.json'
+ }};
+ context.document.querySelector=()=>marker;
+ context.window.location={href:'https://delmacy.github.io/syndes-system/subprojects/P01-crm/APIS/'};
+ const m=editor.pageMetadata();
+ assert.equal(m.source,marker.dataset.docSource);
+ assert.equal(m.sectionsUrl,'https://delmacy.github.io/syndes-system/subprojects/P01-crm/APIS.sections.json');
+ marker.dataset.docSections='../../../../bad.json';
+ assert.equal(editor.pageMetadata(),null,'External/traversal sections path must be rejected');
 });

@@ -214,7 +214,9 @@ Funções e tipos Go iniciados com letra maiúscula, localizados dentro do sidec
 O índice JSON de inventário do módulo fica em `assets/catalog/<ID>.json` (substituir `<ID>` pelo identificador do módulo). Para uma pergunta de capability, iniciar em [Especificação](ESCOPO.md). Para chamada entre módulos, verificar `package.json#exports` e contratos versionados antes de importar uma classe. Valores de segredos, hosts e dados de clientes não integram esta extração.
 
 """
-    return text.replace("<ID>",d["moduleId"])
+    # Plain (non-f-string) templates used double braces by mistake; make anchors
+    # valid Material/MkDocs identifiers in the legacy view and isolated pages.
+    return re.sub(r"\{\{#([-\w]+)\}\}",r"{#\1}",text.replace("<ID>",d["moduleId"]))
 if __name__=="__main__":
     catalog=json.loads((ROOT/"docs/subprojects/index.json").read_text())["units"]
     for uid in sys.argv[1:] or ["P01","P02","P03","P04","A04","A08"]:

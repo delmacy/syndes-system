@@ -42,32 +42,31 @@ def grouped_navigation(units, display_name):
     return result
 
 def module_tabs(unit, page):
-    """Static tab navigation on all major pages, without duplicating source documents."""
-    base=Path(unit["entry"]).parent.relative_to("docs")
+    """Each tab has its own canonical or build-materialized URL — never hash-only shortcuts."""
     uid=html.escape(unit["id"])
     prefix="" if page=="index.md" else "../"
     tabs=[
-        ("Visão geral","index.md",None),
-        ("Documentação","ESCOPO.md",None),
-        ("APIs","REFERENCIA-TECNICA.md","#endpoints-http"),
-        ("Dados","REFERENCIA-TECNICA.md","#schemas-sql"),
-        ("Contratos","REFERENCIA-TECNICA.md","#pacote-publico"),
-        ("Código","REFERENCIA-TECNICA.md","#classes-e-interfaces"),
-        ("Testes","OPERACAO.md",None),
-        ("Projetos (WBS)","EVOLUCAO.md",None),
-        ("Versões","HISTORICO.md",None),
-        ("Prompts","PROMPTS.md",None),
+        ("Visão geral","index.md"),
+        ("Documentação","ESCOPO.md"),
+        ("APIs","APIS.md"),
+        ("Dados","DADOS.md"),
+        ("Contratos","CONTRATOS.md"),
+        ("Código","CODIGO.md"),
+        ("Dependências","DEPENDENCIAS.md"),
+        ("Testes","TESTES.md"),
+        ("Projetos (WBS)","EVOLUCAO.md"),
+        ("Operação","OPERACAO.md"),
+        ("Versões","HISTORICO.md"),
+        ("Prompts","PROMPTS.md"),
     ]
-    # Relative links work from all pages in the same subproject directory.
     items=[]
-    for title,path,anchor in tabs:
-        href=(prefix + ("" if path=="index.md" else path.removesuffix(".md")+"/")) + (anchor or "")
-        active=(page==path or page=="STATUS.md" and path=="OPERACAO.md" or
-                page in ("PROJECAO.md","IMPLEMENTACAO.md","ALTERACAO.md") and path=="PROMPTS.md")
-        # Technical reference has multiple focused anchors; leave them as tabs, not a redundant "Technical" page.
-        current=active and (page!="REFERENCIA-TECNICA.md" or anchor=="#endpoints-http")
+    for title,path in tabs:
+        href=prefix+("" if path=="index.md" else path.removesuffix(".md")+"/")
+        active=(page==path
+                or page in ("STATUS.md","SPRINT.md") and path=="OPERACAO.md"
+                or page in ("PROJECAO.md","IMPLEMENTACAO.md","ALTERACAO.md") and path=="PROMPTS.md")
         items.append(f'<a href="{html.escape(href,quote=True)}"'+
-                     (' aria-current="page"' if current else '')+
+                     (' aria-current="page"' if active else '')+
                      f'>{html.escape(title)}</a>')
     label=html.escape(AREA_BY_ID[unit["id"]])
     source=html.escape(unit["source"])

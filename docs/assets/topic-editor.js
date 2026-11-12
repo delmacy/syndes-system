@@ -19,7 +19,12 @@
     const filename = source.split("/").pop();
     const sectionFile = filename === "README.md" ? "index.sections.json" : filename.replace(/\.md$/, ".sections.json");
     const base = filename === "README.md" ? "./" : "../";
-    return {source, revision: marker.dataset.docRevision || "unverified", sectionsUrl: new URL(base + sectionFile, window.location.href).href};
+    // Generated category views still target a real canonical Markdown/code source,
+    // but their own topic index lives next to the materialized standalone page.
+    const override = marker.dataset.docSections;
+    if (override && !/^\.\.\/[A-Z]+\.sections\.json$/.test(override)) return null;
+    return {source, revision: marker.dataset.docRevision || "unverified",
+      sectionsUrl: new URL(override || base + sectionFile, window.location.href).href};
   }
 
   function createIssueBody(section, metadata, kind, proposed) {

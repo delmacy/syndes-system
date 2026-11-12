@@ -48,6 +48,6 @@
 
 ## Leitura e evolução versionadas {#leitura-versionada}
 
-Cada módulo preserva sua documentação em fluxo vertical, com abas para **especificação, APIs, dados, contratos, código, testes, WBS, histórico e prompts**. Os botões de editar/acrescentar geram propostas delimitadas ao tópico e ao arquivo original; não publicam nem executam alterações automaticamente.
+Cada módulo preserva sua documentação em fluxo vertical, com **páginas independentes** (e não âncoras no mesmo arquivo) para especificação, APIs, dados, contratos, código, dependências, testes, WBS, operação, histórico e prompts. O catálogo encaminha cada consulta para a página correspondente. Os botões de editar/acrescentar geram propostas delimitadas ao tópico e à fonte versionada original; não publicam nem executam alterações automaticamente.
 
 **Referências e limites:** [Fontes de verdade](standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md) · [Organização dos documentos](standards/ORGANIZACAO-DE-PAGINAS.md) · [Busca para agentes](standards/BUSCA-PARA-AGENTES.md). Uma capacidade prevista não equivale a implementação; um commit não equivale a deploy ou aceite.

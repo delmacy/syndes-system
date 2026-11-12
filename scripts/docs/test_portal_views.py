@@ -25,8 +25,9 @@ class PortalViewsTests(unittest.TestCase):
     def test_tabs_preserve_canonical_pages_and_prompt_scope(self):
         unit=next(u for u in INDEX if u["id"]=="P03")
         html=portal.module_tabs(unit,"ESCOPO.md")
-        for item in ("../REFERENCIA-TECNICA/#endpoints-http","../REFERENCIA-TECNICA/#schemas-sql",
-                     "../EVOLUCAO/","../PROMPTS/","../HISTORICO/"):
+        for item in ("../APIS/","../DADOS/","../CONTRATOS/","../CODIGO/",
+                     "../DEPENDENCIAS/","../TESTES/","../EVOLUCAO/","../OPERACAO/",
+                     "../PROMPTS/","../HISTORICO/"):
             self.assertIn(item,html)
         self.assertIn('aria-current="page"',html)
         prompt=portal.scoped_prompts_page(unit,"WhatsApp")
