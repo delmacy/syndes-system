@@ -7,24 +7,20 @@
       "name": "Produto e integrações"
     },
     {
-      "id": "aplicacoes",
-      "name": "Frontends e aplicações"
-    },
-    {
       "id": "plataforma",
-      "name": "Core e plataforma"
+      "name": "Plataforma e Core"
     },
     {
-      "id": "infra",
-      "name": "Infraestrutura e operações"
+      "id": "frontend",
+      "name": "Frontends e experiência"
     },
     {
       "id": "qualidade",
-      "name": "Qualidade e CI/CD"
+      "name": "Qualidade e infraestrutura"
     },
     {
-      "id": "gestao",
-      "name": "Gestão transversal"
+      "id": "operacao",
+      "name": "Operação e negócio"
     }
   ],
   "units": [
@@ -66,7 +62,7 @@
     {
       "id": "P06",
       "name": "Syndes Support",
-      "front": "produto",
+      "front": "operacao",
       "path": "modules/support",
       "maturity": "code"
     },
@@ -101,84 +97,84 @@
     {
       "id": "P11",
       "name": "Onboarding",
-      "front": "produto",
+      "front": "operacao",
       "path": "modules/onboarding",
       "maturity": "contract"
     },
     {
       "id": "P12",
       "name": "Billing",
-      "front": "produto",
+      "front": "operacao",
       "path": "modules/billing",
       "maturity": "contract"
     },
     {
       "id": "P13",
       "name": "Commercial Site",
-      "front": "produto",
+      "front": "operacao",
       "path": "modules/commercial-site",
       "maturity": "contract"
     },
     {
       "id": "P14",
       "name": "Platform Core",
-      "front": "produto",
+      "front": "plataforma",
       "path": "modules/platform-core",
       "maturity": "contract"
     },
     {
       "id": "A01",
       "name": "Workspace Frontend",
-      "front": "aplicacoes",
+      "front": "frontend",
       "path": "apps/workspace-web",
       "maturity": "code"
     },
     {
       "id": "A02",
       "name": "Platform Manager Frontend",
-      "front": "aplicacoes",
+      "front": "frontend",
       "path": "apps/master-admin-web",
       "maturity": "code"
     },
     {
       "id": "A03",
       "name": "Support Frontend",
-      "front": "aplicacoes",
+      "front": "frontend",
       "path": "apps/support-web",
       "maturity": "code"
     },
     {
       "id": "A04",
       "name": "Core Host",
-      "front": "aplicacoes",
+      "front": "plataforma",
       "path": "apps/core-host",
       "maturity": "code"
     },
     {
       "id": "A05",
       "name": "Manager API",
-      "front": "aplicacoes",
+      "front": "plataforma",
       "path": "apps/master-admin-api",
       "maturity": "code"
     },
     {
       "id": "A06",
       "name": "Account Access API",
-      "front": "aplicacoes",
+      "front": "plataforma",
       "path": "apps/account-access-api",
       "maturity": "code"
     },
     {
       "id": "A07",
       "name": "Front Shared",
-      "front": "aplicacoes",
+      "front": "frontend",
       "path": "packages/front-shared",
       "maturity": "code"
     },
     {
       "id": "A08",
       "name": "Core Kernel",
-      "front": "aplicacoes",
+      "front": "plataforma",
       "path": "packages/core-kernel",
       "maturity": "code"
     },
@@ -241,84 +237,84 @@
     {
       "id": "I01",
       "name": "DevServer01",
-      "front": "infra",
+      "front": "qualidade",
       "path": "docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md",
       "maturity": "verified"
     },
     {
       "id": "I02",
       "name": "server02",
-      "front": "infra",
+      "front": "qualidade",
       "path": "infra",
       "maturity": "unverified"
     },
     {
       "id": "I03",
       "name": "win1-server",
-      "front": "infra",
+      "front": "qualidade",
       "path": "infra",
       "maturity": "unverified"
     },
     {
       "id": "I04",
       "name": "PostgreSQL",
-      "front": "infra",
+      "front": "qualidade",
       "path": "infra/postgres",
       "maturity": "verified"
     },
     {
       "id": "I05",
       "name": "Docker e redes",
-      "front": "infra",
+      "front": "qualidade",
       "path": "infra",
       "maturity": "verified"
     },
     {
       "id": "I06",
       "name": "Traefik HTTPS",
-      "front": "infra",
+      "front": "qualidade",
       "path": "docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md",
       "maturity": "verified"
     },
     {
       "id": "I07",
       "name": "Tailnet",
-      "front": "infra",
+      "front": "qualidade",
       "path": "infra/master-admin/check-tailnet-route.py",
       "maturity": "partial"
     },
     {
       "id": "I08",
       "name": "Komodo",
-      "front": "infra",
+      "front": "qualidade",
       "path": "infra",
       "maturity": "verified"
     },
     {
       "id": "I09",
       "name": "Whatsmeow runtime",
-      "front": "infra",
+      "front": "qualidade",
       "path": "modules/whatsapp/gateway",
       "maturity": "verified"
     },
     {
       "id": "I10",
       "name": "Backup e Restore",
-      "front": "infra",
+      "front": "qualidade",
       "path": "scripts/events/disposable_restore_drill.py",
       "maturity": "partial"
     },
     {
       "id": "I11",
       "name": "Release e Rollback",
-      "front": "infra",
+      "front": "qualidade",
       "path": "infra/master-admin/homolog-deploy.sh",
       "maturity": "partial"
     },
     {
       "id": "I12",
       "name": "Segurança de host",
-      "front": "infra",
+      "front": "qualidade",
       "path": "infra",
       "maturity": "partial"
     },
@@ -395,35 +391,35 @@
     {
       "id": "G01",
       "name": "Arquitetura",
-      "front": "gestao",
+      "front": "plataforma",
       "path": "docs/engineering",
       "maturity": "distributed"
     },
     {
       "id": "G02",
       "name": "Produto e UX",
-      "front": "gestao",
+      "front": "produto",
       "path": "docs/product",
       "maturity": "distributed"
     },
     {
       "id": "G03",
       "name": "Engenharia e Git",
-      "front": "gestao",
+      "front": "qualidade",
       "path": "AGENTS.md",
       "maturity": "distributed"
     },
     {
       "id": "G04",
       "name": "Privacidade",
-      "front": "gestao",
+      "front": "qualidade",
       "path": "tests/security",
       "maturity": "distributed"
     },
     {
       "id": "G05",
       "name": "Operação e suporte",
-      "front": "gestao",
+      "front": "operacao",
       "path": "docs/engineering/SYNDES-SUPPORT-RUNBOOK.md",
       "maturity": "distributed"
     }

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const data = JSON.parse(readFileSync(resolve(root,'catalog/work-units.json'),'utf8'));
 const counts = {P:14,A:8,C:8,I:12,Q:10,G:5};
-const fronts = ['produto','aplicacoes','plataforma','infra','qualidade','gestao'];
+const fronts = ['produto','plataforma','frontend','qualidade','operacao'];
 assert.equal(data.schema_version,1);
 assert.deepEqual(data.fronts.map(x=>x.id),fronts);
 assert.equal(data.units.length,57);
