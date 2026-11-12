@@ -1,6 +1,6 @@
 # G02 — Produto e UX
 
-> **Unidade do catálogo Syndes.** Esta é a entrada humana do módulo: navegue pelas seis páginas abaixo. Código e documentação técnica podem existir sem estar implantados ou homologados.
+> **Produto e experiência de uso — unidade G02.** Governança documental de escopo, PRDs, jornadas, requisitos, casos de uso e Product Gates. **G02 não é aplicação executável nem backend**; as interfaces pertencem a A01/A02/A03 e os comportamentos aos módulos de produto. Revisão parcial de fontes em 12/11/2026, sem homologação.
 
 <!-- syndes:module-id=G02;source=docs/product;kind=module -->
 
@@ -9,23 +9,32 @@
 | Quero descobrir | Abrir |
 |---|---|
 | **O que o módulo faz?** | [Especificação, capacidades e histórias](ESCOPO.md) |
-| **Como funciona do banco à interface?** | [Referência técnica: stack, classes e contratos](REFERENCIA-TECNICA.md) |
+| **Quais interfaces e contratos viabilizam a jornada?** | [Mapa de UX e owners](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md) · [Referência técnica de fontes](REFERENCIA-TECNICA.md) |
 | **O que será feito?** | [Evolução: workpackages e dependências](EVOLUCAO.md) |
 | **O que realmente mudou?** | [Histórico Git e evidências relacionadas](HISTORICO.md) |
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
 
+## Matriz do produto e escopo {#matriz-produto}
+
+- **Produto:** [MVP comercial e Basic](chapters/03-capabilities.md), [requisitos e casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md) e [exclusões](chapters/07-controle-do-escopo.md).
+- **Fase inicial:** CRM → Inbox → WhatsApp → Gestão de Atendimentos Básica, sem antecipar Product Gate.
+- **UX por público:** Workspace para o cliente, Platform Manager para metadados globais e Syndes Support para atendimento da fornecedora.
+- **Fontes:** PRD-003A aprovado em 11/11; criador avançado F0–F8 permanece pós-MVP. Os STATUS dos módulos executáveis não foram alterados nesta revisão.
+
+[STATUS de auditoria da G02](STATUS.md) · [Plano de atualização de todas as unidades](../../blueprint/PLANO-ATUALIZACAO-MODULOS.md).
+
 ## Capacidades e requisitos {#capacidades}
 
-Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O conteúdo da especificação define o que é aprovado; presença de um item na documentação não comprova implementação.**
+Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **A aprovação pertence ao PRD ou à decisão de produto original, não à simples presença na G02; implementação, integração e homologação são estados independentes.**
 
 ## Stack, contratos e persistência {#stack}
 
-A [referência técnica](REFERENCIA-TECNICA.md) lista exports de pacote, interfaces públicas, declarações internas de classes/métodos, APIs HTTP identificadas, candidatos de frontend e objetos SQL com origem verificável.
+A G02 **não registra exports, classes, controllers ou schemas próprios**. Ela define comportamentos e aceites; contratos de API, dependências, persistência e componentes React pertencem a seus respectivos owners.
 
-- **Fonte do código/artefato:** [`docs/product`](https://github.com/delmacy/syndes-system/tree/main/docs/product).
-- **Banco de tenant e Control/Manager:** [seção de persistência da referência](REFERENCIA-TECNICA.md).
-- **Contrato público vs. interno:** [referência técnica](REFERENCIA-TECNICA.md).
+- **Fonte normativa da unidade:** [`docs/product`](https://github.com/delmacy/syndes-system/tree/main/docs/product).
+- **Jornadas e dados:** [mapa de UX, domínios e entidades](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md).
+- **Contratos por owner:** [matriz de dependências](chapters/04-contratos-e-dependencias-publicas.md) e [referência técnica](REFERENCIA-TECNICA.md).
 
 
 ## Planejamento, progresso e provas {#evolucao}
