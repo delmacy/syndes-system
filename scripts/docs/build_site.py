@@ -3,6 +3,7 @@
 from pathlib import Path
 import json, re, shutil, yaml
 import subprocess
+from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs"
@@ -56,8 +57,86 @@ def markdown_sections(raw):
             continue
         end=next((pos for pos,next_level,_ in positions[index+1:] if next_level<=level),len(lines))
         value="".join(lines[line_number:end]).rstrip()+"\n"
-        result.append({"position":line_number+1,"level":level,"heading":title,"markdown":value})
+        result.append({"position":line_number+1,"endLine":end,"level":level,"heading":title,"markdown":value})
     return result
+
+def blame_revisions(path):
+    """Blame each line once. Complete history is required for accurate per-topic dates."""
+    try:
+        raw=subprocess.check_output(
+            ["git","blame","--line-porcelain","--",path.relative_to(ROOT).as_posix()],
+            cwd=ROOT,text=True,stderr=subprocess.DEVNULL,timeout=30)
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError):
+        return []
+    lines=[]; commit=None; time_value=None
+    for row in raw.splitlines():
+        match=re.match(r"^([0-9a-f]{40}) \d+ \d+(?: \d+)?$",row)
+        if match:
+            commit=match.group(1)
+            time_value=None
+        elif row.startswith("committer-time "):
+            try: time_value=int(row.partition(" ")[2])
+            except ValueError: time_value=None
+        elif row.startswith("\t"):
+            lines.append((time_value,commit))
+    return lines
+
+def annotate_revisions(sections, raw, revisions):
+    """A parent heading includes its nested content; a child tracks its own range."""
+    for section in sections:
+        start=section["position"]-1
+        end=section["endLine"]
+        blocks=[(epoch,sha) for epoch,sha in revisions[start:end]
+                if epoch and sha and sha!="0"*40]
+        if blocks:
+            epoch,sha=max(blocks,key=lambda pair:pair[0])
+            section["lastModified"]=datetime.fromtimestamp(epoch,timezone.utc).isoformat()
+            section["lastCommit"]=sha
+        else:
+            section["lastModified"]=None
+            section["lastCommit"]=None
+        section.pop("endLine",None)
+    return sections
+
+def navigation_tree(units, canonical):
+    """Display grouping only; every work unit must occur exactly once and keep canonical ownership."""
+    data=json.loads((ROOT/"scripts/docs/navigation.json").read_text(encoding="utf-8"))
+    units_by_id={u["id"]:u for u in units}
+    canon_by_id={u["id"]:u for u in canonical}
+    seen=[]
+    def unit_node(uid,front):
+        if uid not in units_by_id or canon_by_id[uid]["front"]!=front:
+            raise ValueError("Unknown or misclassified navigation unit: "+uid+" in "+front)
+        seen.append(uid)
+        u=units_by_id[uid]
+        d=Path(u["entry"]).parent.relative_to("docs")
+        specification=[{"Escopo":str(d/"ESCOPO.md")}]
+        chapter_root=DOCS/d/"chapters"
+        if chapter_root.exists():
+            for path in sorted(chapter_root.rglob("*.md")):
+                rel=path.relative_to(DOCS)
+                specification.append({path.stem.replace("-"," ").title():str(site_rel(path))})
+        pages=[
+            {"Visão geral":str(d/"index.md")},
+            {"Especificação":specification},
+            {"Acompanhamento":[{"Status":str(d/"STATUS.md")},{"Sprint":str(d/"SPRINT.md")}]},
+            {"Prompts":[{"Projeção":str(d/"PROJECAO.md")},{"Implementação":str(d/"IMPLEMENTACAO.md")}]}
+        ]
+        return {uid+" · "+u["name"]:pages}
+    def group_node(group,front):
+        if "units" in group:
+            return {group["label"]:[unit_node(uid,front) for uid in group["units"]]}
+        return {group["label"]:[group_node(g,front) for g in group["groups"]]}
+    nav=[]
+    for f in data["fronts"]:
+        front=f["id"]
+        assert front in dict(FRONTS),front
+        nav.append({dict(FRONTS)[front]:[group_node(group,front) for group in f["groups"]]})
+    if len(seen)!=len(units) or len(set(seen))!=len(units):
+        raise ValueError("Navigation requires exactly one entry per work unit")
+    if set(seen)!=set(units_by_id):
+        raise ValueError("Unmapped work unit IDs: "+str(set(units_by_id)-set(seen)))
+    return nav
 
 def git_sha():
     try:
@@ -70,11 +149,12 @@ def main():
     canonical=json.loads((ROOT/"catalog/work-units.json").read_text())["units"]
     assert len(units)==len(canonical)==57
     assert [u["id"] for u in units] == [u["id"] for u in canonical]
-    include={DOCS/"README.md",DOCS/"blueprint/README.md",DOCS/"subprojects/README.md",DOCS/"subprojects/index.json"}
+    include={DOCS/"README.md",DOCS/"blueprint/README.md",DOCS/"subprojects/README.md",DOCS/"subprojects/index.json",DOCS/"monitoramento/README.md"}
     include.update((DOCS/"standards").glob("*.md"))
     include.update((DOCS/"assets").glob("*"))
     for u in units:
         include.update((DOCS/Path(u["entry"]).parent.relative_to("docs")).glob("*.md"))
+        include.update((DOCS/Path(u["entry"]).parent.relative_to("docs")/"chapters").rglob("*.md"))
     included={p.resolve() for p in include}
     if CONTENT.exists(): shutil.rmtree(CONTENT)
     CONTENT.mkdir(parents=True)
@@ -88,26 +168,16 @@ def main():
             raw=source.read_text(encoding="utf-8")
             marker=f'<div class="syndes-source-marker" data-doc-source="{path}" data-doc-revision="{revision}"></div>\n\n'
             target.write_text(marker+"[✏️ Editar arquivo original no GitHub](https://github.com/delmacy/syndes-system/edit/main/"+path+")\n\n"+rewrite_links(raw,source,included),encoding="utf-8")
-            sections=markdown_sections(raw)
+            sections=annotate_revisions(markdown_sections(raw),raw,blame_revisions(source))
             target.with_suffix(".sections.json").write_text(json.dumps({"source":path,"revision":revision,"sections":sections},ensure_ascii=False),encoding="utf-8")
         else: shutil.copy2(source,target)
-    nav=[{"Início":"index.md"},{"Blueprint":"blueprint/index.md"}]
-    for id,label in FRONTS:
-        group=[]
-        for u in units:
-            if u["front"]!=id: continue
-            d=Path(u["entry"]).parent.relative_to("docs")
-            pages=[{"Visão geral":str(d/"index.md")},
-                   {"Escopo":str(d/"ESCOPO.md")},
-                   {"Status":str(d/"STATUS.md")},
-                   {"Sprint":str(d/"SPRINT.md")}]
-            for prompt,name in [("PROJECAO.md","Prompt de projeção"),("IMPLEMENTACAO.md","Prompt de implementação")]:
-                if (DOCS/d/prompt).is_file(): pages.append({name:str(d/prompt)})
-            group.append({u["id"]+" · "+u["name"]:pages})
-        nav.append({label:group})
+    nav=[{"Início":"index.md"},{"Monitoramento":"monitoramento/index.md"},
+         {"Blueprint":"blueprint/index.md"}]
+    nav.extend(navigation_tree(units,canonical))
     nav.extend([{"Contratos e padrões":[
         {"Contratos públicos":"standards/CONTRATOS-PUBLICOS.md"},
         {"Editar tópicos e enviar propostas":"standards/EDICAO-CONTEXTUAL.md"},
+        {"Organização por subpáginas":"standards/ORGANIZACAO-DE-PAGINAS.md"},
         {"Modelo de contrato":"standards/TEMPLATE-CONTRATO-PUBLICO.md"},
         {"Modelo de projeção":"standards/PROMPT-PROJECAO.md"},
         {"Modelo de implementação":"standards/PROMPT-IMPLEMENTACAO.md"}]},
@@ -136,7 +206,7 @@ def main():
                   "format":"!!python/name:pymdownx.superfences.fence_code_format"}]}},
              "pymdownx.details","pymdownx.tasklist","pymdownx.highlight",
              "pymdownx.inlinehilite"],
-        "plugins":["search"],"extra_css":["assets/syndes.css"],"extra_javascript":["assets/topic-editor.js"],"nav":nav
+        "plugins":["search"],"extra_css":["assets/syndes.css"],"extra_javascript":["assets/topic-editor.js","assets/workflows.js"],"nav":nav
     }
     OUT.mkdir(exist_ok=True)
     mkdocs_yaml = yaml.safe_dump(config,allow_unicode=True,sort_keys=False,width=106)

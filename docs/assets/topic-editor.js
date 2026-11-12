@@ -59,6 +59,20 @@
     panel.hidden = true;
 
     const descriptor = el("div", "syndes-topic-context", metadata.source + "  ·  H" + section.level + "  ·  linha " + section.position);
+    const revisionInfo = el("div", "syndes-topic-revision");
+    if (section.lastModified && section.lastCommit) {
+      const last = new Date(section.lastModified);
+      const when = Number.isNaN(last.getTime()) ? section.lastModified :
+        new Intl.DateTimeFormat("pt-BR", {dateStyle:"short",timeStyle:"short"}).format(last);
+      revisionInfo.appendChild(el("span", "", "Última alteração: " + when + " · "));
+      const commitLink = el("a", "", "commit " + section.lastCommit.slice(0,8) + " ↗");
+      commitLink.href = "https://github.com/delmacy/syndes-system/commit/" + section.lastCommit;
+      commitLink.target = "_blank";
+      commitLink.rel = "noopener noreferrer";
+      revisionInfo.appendChild(commitLink);
+    } else {
+      revisionInfo.textContent = "Última alteração: não verificada no Git.";
+    }
     const disclaimer = el("p", "syndes-topic-help", "Edite uma cópia do Markdown deste tópico. A documentação oficial não muda até a alteração ser revisada e aplicada no GitHub. Atenção: issues deste repositório público são visíveis publicamente; não inclua segredos.");
     const label = el("label", "syndes-topic-label", "Alteração proposta");
     const input = el("textarea", "syndes-topic-textarea");
@@ -84,8 +98,8 @@
 
     label.appendChild(input);
     controls.append(selectLabel, copy, open);
-    panel.append(descriptor, disclaimer, label, controls, feedback);
-    wrapper.append(toggle, panel);
+    panel.append(descriptor, revisionInfo, disclaimer, label, controls, feedback);
+    wrapper.append(toggle, revisionInfo.cloneNode(true), panel);
     heading.insertAdjacentElement("afterend", wrapper);
 
     toggle.addEventListener("click", () => {

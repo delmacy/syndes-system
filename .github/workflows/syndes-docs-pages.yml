@@ -30,6 +30,9 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+        with:
+          fetch-depth: 0 # Required for accurate Git blame timestamps per topic
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:

@@ -35,3 +35,21 @@
 .syndes-topic-button { background: var(--md-default-bg-color); color: var(--md-default-fg-color); border: 1px solid var(--md-default-fg-color--lightest); border-radius: .4rem; padding: .46rem .7rem; cursor: pointer; font-size: .73rem; }
 .syndes-topic-primary { background: var(--md-primary-fg-color); color: white; border-color: transparent; }
 .syndes-topic-feedback { font-size: .7rem; color: var(--md-default-fg-color--light); }
+
+/* Metadata attached to each Markdown section, computed from Git blame at site build. */
+.syndes-topic-revision { display: inline-block; margin-left: .4rem; color: var(--md-default-fg-color--light); font-size: .67rem; }
+.syndes-topic-revision a { color: var(--md-accent-fg-color); }
+@media (max-width: 38rem) { .syndes-topic-revision { display: block; margin: .3rem 0; } }
+
+/* Read-only public Actions dashboard. */
+.syndes-workflows-toolbar { display:flex; justify-content:space-between; align-items:center; gap:.8rem; margin-bottom:1rem; flex-wrap:wrap; }
+.syndes-workflow-meta { font-size:.76rem; color:var(--md-default-fg-color--light); }
+.syndes-workflows-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap: .9rem; }
+.syndes-workflow-card { padding:1rem; border:1px solid var(--md-default-fg-color--lightest); border-radius:.7rem; background:var(--md-code-bg-color); }
+.md-typeset .syndes-workflow-card h3 { font-size:.92rem; margin:0 0 .5rem; font-weight:650; }
+.md-typeset .syndes-workflow-card p { margin:.4rem 0; font-size:.72rem; }
+.syndes-workflow-state { display:inline-block; font-size:.68rem; font-weight:700; border-radius:2rem; padding:.14rem .55rem; background:var(--md-default-fg-color--lightest); }
+.syndes-workflow-state[data-state="success"] { color:#117c4d; background:rgba(42,169,117,.13); }
+.syndes-workflow-state[data-state="failure"], .syndes-workflow-state[data-state="timed_out"] { color:#b74141; background:rgba(201,59,59,.12); }
+.syndes-workflow-state[data-state="in_progress"], .syndes-workflow-state[data-state="queued"] { color:#9a680e; background:rgba(212,151,42,.12); }
+.syndes-workflow-link { display:inline-block; margin-top:.4rem; font-size:.72rem; }
