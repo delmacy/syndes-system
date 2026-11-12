@@ -5,6 +5,7 @@ import json, re, shutil, yaml
 import subprocess
 import html
 from datetime import datetime, timezone
+from portal_views import grouped_navigation, module_tabs, scoped_prompts_page, project_registry
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs"
@@ -54,7 +55,7 @@ def markdown_sections(raw):
                 fence=None
             continue
         if fence: continue
-        m=re.match(r"^(#{1,4})\s+(.+?)\s*#*\s*$",line)
+        m=re.match(r"^(#{1,6})\s+(.+?)\s*#*\s*$",line)
         if m:
             heading=m.group(2).strip()
             positions.append((i,len(m.group(1)),heading))
@@ -337,7 +338,21 @@ def embed_code_inventory(units,revision):
         data=open_source_symbols(u)
         data["revision"]=revision
         ref_page=CONTENT/site_rel(ROOT/u["technicalReference"])
-        ref_page.write_text(ref_page.read_text(encoding="utf-8")+render(data),encoding="utf-8")
+        inventory=render(data)
+        ref_page.write_text(ref_page.read_text(encoding="utf-8")+inventory,encoding="utf-8")
+        metadata_path=ref_page.with_suffix(".sections.json")
+        sections_data=json.loads(metadata_path.read_text(encoding="utf-8"))
+        # Generated summaries are proposal targets only, never editable source lines.
+        for section in markdown_sections(inventory):
+            section["markdown"]="## "+section["heading"]+"\n\nInventário sintático, gerado a partir de "+u["source"]+". Não editar a saída diretamente.\n"
+            section["position"]=0
+            section["generated"]=True
+            section["codeSource"]=u["source"]
+            section["lastModified"]=None
+            section["lastCommit"]=None
+            section.pop("endLine",None)
+            sections_data["sections"].append(section)
+        metadata_path.write_text(json.dumps(sections_data,ensure_ascii=False),encoding="utf-8")
         (directory/(u["id"]+".json")).write_text(json.dumps(data,ensure_ascii=False),encoding="utf-8")
         base=Path(u["entry"]).parent.relative_to("docs")
         web="https://delmacy.github.io/syndes-system/"+base.as_posix()+"/"
@@ -372,6 +387,35 @@ def embed_code_inventory(units,revision):
                            +[name for group in data["dependencies"].values() for name in group])),
                         "inventory":"assets/catalog/"+u["id"]+".json"})
     (directory/"modules.json").write_text(json.dumps({"revision":revision,"modules":payload},ensure_ascii=False),encoding="utf-8")
+
+def embed_portal_views(units, revision):
+    """Compose module tabs and project data strictly from canonical source snapshots."""
+    from portal_views import AREA_BY_ID
+    association=json.loads((ROOT/"catalog/evolution-associations.json").read_text(encoding="utf-8"))
+    source=association.get("source","")
+    if not source.startswith("docs/engineering/") or not (ROOT/source).is_file():
+        raise ValueError("Missing canonical program WBS source")
+    registry=project_registry(units,association,display_name,revision,
+                              "https://delmacy.github.io/syndes-system/")
+    (CONTENT/"assets/catalog/projects.json").write_text(
+        json.dumps(registry,ensure_ascii=False),encoding="utf-8")
+    pages=("index.md","ESCOPO.md","REFERENCIA-TECNICA.md",
+           "EVOLUCAO.md","HISTORICO.md","OPERACAO.md","STATUS.md",
+           "SPRINT.md","PROJECAO.md","IMPLEMENTACAO.md","ALTERACAO.md","PROMPTS.md")
+    for unit in units:
+        if unit.get("documentationParent"): continue
+        folder=Path(unit["entry"]).parent.relative_to("docs")
+        prompt=CONTENT/folder/"PROMPTS.md"
+        prompt.write_text(scoped_prompts_page(unit,display_name(unit)),encoding="utf-8")
+        for page in pages:
+            rendered=CONTENT/folder/page
+            if not rendered.is_file(): raise ValueError("Missing module document: "+str(rendered))
+            raw=rendered.read_text(encoding="utf-8")
+            tabs=module_tabs(unit,page)
+            updated,count=re.subn(r"(?m)^(# .+)$",lambda m:m.group(1)+"\n\n"+tabs,raw,count=1)
+            if count!=1: raise ValueError("Missing page heading: "+str(rendered))
+            rendered.write_text(updated,encoding="utf-8")
+
 
 def git_sha():
     try:
@@ -415,10 +459,11 @@ def main():
     embed_provenance(units,revision)
     embed_global_history(revision)
     embed_code_inventory(units,revision)
+    embed_portal_views(units,revision)
     nav=[{"Início":"index.md"},
          {"Mapa técnico por camadas":"blueprint/MAPA-TECNICO-POR-CAMADAS.md"},
          {"Catálogo e busca":"blueprint/CATALOGO-MODULOS.md"},
-         {"Projetos e WBS":"blueprint/PROJETO-E-WORKPACKAGES.md"},
+         {"Projetos":"blueprint/PROJETOS.md"},
          {"Monitoramento":"monitoramento/index.md"},
          {"Arquitetura e contratos":[
              {"Blueprint geral":"blueprint/index.md"},
@@ -426,7 +471,8 @@ def main():
              {"Fontes de verdade":"standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md"},
              {"Linha do tempo":"blueprint/LINHA-DO-TEMPO.md"},
              {"Proposta ERP Lite (não aprovada)":"blueprint/PROPOSTA-ERP-LITE-E-REFERENCIA-TECNICA.md"}]}]
-    nav.extend(navigation_tree(units,canonical))
+    navigation_tree(units,canonical) # validate canonical owners and internal component parentage
+    nav.append({"Módulos por área":grouped_navigation(units,display_name)})
     nav.extend([{"Padrões e colaboração":[
         {"Busca para agentes":"standards/BUSCA-PARA-AGENTES.md"},
         {"GitHub Projects":"standards/GITHUB-PROJECTS.md"},
@@ -458,7 +504,7 @@ def main():
                   "format":"!!python/name:pymdownx.superfences.fence_code_format"}]}},
              "pymdownx.details","pymdownx.tasklist","pymdownx.highlight",
              "pymdownx.inlinehilite"],
-        "plugins":["search"],"extra_css":["assets/syndes.css"],"extra_javascript":["assets/topic-editor.js","assets/workflows.js","assets/module-directory.js"],"nav":nav
+        "plugins":["search"],"extra_css":["assets/syndes.css"],"extra_javascript":["assets/topic-editor.js","assets/workflows.js","assets/module-directory.js","assets/projects-dashboard.js","assets/module-nav.js"],"nav":nav
     }
     OUT.mkdir(exist_ok=True)
     mkdocs_yaml = yaml.safe_dump(config,allow_unicode=True,sort_keys=False,width=106)

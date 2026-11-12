@@ -40,3 +40,11 @@ test('short alteration prompt includes only the module, exact topic and change',
  assert.ok(s.includes('não implemente'));
  assert.ok(s.length<1500,'Alteration prompt must remain concise');
 });
+
+test('generated technical topics become source-change proposals, not edits to derived Markdown',()=>{
+ const section={heading:'APIs registradas',level:3,position:0,markdown:'Inventário gerado do código',generated:true,codeSource:'modules/whatsapp'};
+ const body=editor.createIssueBody(section,metadata,'melhoria','Revisar contrato HTTP');
+ assert.ok(body.includes('Seção gerada'),body);
+ assert.ok(body.includes('modules/whatsapp'));
+ assert.ok(body.includes('não editar o Markdown gerado'));
+});

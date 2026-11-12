@@ -58,3 +58,18 @@ Unidades do catálogo que representam um **componente interno** de outra unidade
 Exemplo real: **I09 Whatsmeow Runtime → P03 WhatsApp**. O runtime é um sidecar Go de protocolo; o plugin NestJS e o domínio de WhatsApp são componentes do P03. Suas documentações históricas seguem com URL estável; novos assuntos ficam nas páginas Referência técnica, Evolução e Operação do P03.
 
 A hierarquia lateral permanece **Área → ficha do módulo**; suas páginas internas preservam os caminhos canônicos. Essa relação não reatribui tarefas, não muda ownership do código nem autoriza deploy. **Não** agrupar módulos de negócio numa área artificial chamada "Plugins": plugin é um mecanismo técnico de composição.
+
+
+## Leitura por áreas funcionais e abas do módulo — 2026-11-12
+
+A barra lateral é organizada por **áreas funcionais de apresentação**, sem alterar a propriedade canônica em `catalog/work-units.json`: Plataforma Core, Segurança e Acesso, Canais e Comunicações, Atendimento, CRM, Organizações e Usuários, Automação e IA, Documentos e Integrações, Manager e Interfaces, Faturamento e Comercial, Suporte e Operação, Infraestrutura, Qualidade, Arquitetura e Governança. Cada uma das **49 entradas principais** aparece exatamente uma vez. Os oito componentes históricos vinculados a um owner não viram módulos duplicados.
+
+A ficha de cada unidade passa a ter **abas de assunto** para Visão geral, Documentação, APIs, Dados, Contratos, Código, Testes, Projetos (WBS), Versões e Prompts. Essas abas apontam para os documentos canônicos e suas âncoras, não criam cópias divergentes. A leitura do corpo de cada documento permanece vertical, com sumário local na direita. O build gera o hub Prompts a partir de `PROJECAO.md`, `IMPLEMENTACAO.md` e `ALTERACAO.md`, sem novos requisitos.
+
+Cada tópico e subtópico em Markdown autorado (H1–H6) oferece **Editar** e **Acrescentar**, que preparam proposta contextual por Issue ou prompt — nunca fazem escrita direta no site. Seções extraídas automaticamente do código apresentam **Sugerir revisão**: a fonte a modificar é o código proprietário, e não o Markdown derivado.
+
+O painel [Projetos](../blueprint/PROJETOS.md) usa `catalog/evolution-associations.json` para vincular áreas/módulos às tarefas da WBS e às páginas de Status e Sprint. É uma visão de **planejamento versionado**, não um dashboard de execução em tempo real. O GitHub Project somente será fonte de status depois de sincronização e autorização confirmadas.
+
+### Escopo de alteração de agentes
+
+O hub Prompts mostra os caminhos permitidos por owner e recomenda `python3 scripts/docs/verify_module_scope.py --module P03 --base origin/main` no diff antes de qualquer entrega. O verificador falha com arquivos de outros owners e caminhos com propriedade compartilhada ou sobreposta; nesses casos, é necessária decisão de integração. **Prompt e verificação local não substituem controle de permissões**: bloquear de fato alterações exige workspace isolada ou gate de CI independente.

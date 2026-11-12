@@ -61,7 +61,7 @@ jobs:
           node-version: "22"
 
       - name: Verify contextual prompt generation
-        run: node --test scripts/docs/test_editor.mjs scripts/docs/test_layered_portal.mjs
+        run: node --test scripts/docs/test_editor.mjs scripts/docs/test_layered_portal.mjs scripts/docs/test_projects_dashboard.mjs
 
       - name: Prepare selected documentation
         run: python scripts/docs/build_site.py

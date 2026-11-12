@@ -32,6 +32,7 @@
       "- Tópico: " + section.heading,
       "- Cabeçalho: nível H" + section.level + ", linha inicial " + section.position,
       "- Revisão de origem: `" + metadata.revision + "`",
+      ...(section.generated ? ["- **Seção gerada**: inventário extraído de `" + section.codeSource + "`, não editar o Markdown gerado."] : []),
       "- Operação solicitada: " + kind,
       "",
       "## Proposta",
@@ -108,13 +109,18 @@
 
   function wireEditor(heading, section, metadata) {
     const wrapper = el("div", "syndes-topic-widget");
-    const toggle = el("button", "syndes-topic-toggle", "✎ Propor alteração neste tópico");
+    const toggle = el("button", "syndes-topic-toggle", section.generated ? "✎ Sugerir revisão" : "✎ Editar");
+    const add = el("button", "syndes-topic-toggle syndes-topic-add", "＋ Acrescentar");
     toggle.type = "button";
+    add.type = "button";
     toggle.setAttribute("aria-expanded", "false");
+    add.setAttribute("aria-expanded", "false");
     const panel = el("div", "syndes-topic-panel");
     panel.hidden = true;
 
-    const descriptor = el("div", "syndes-topic-context", metadata.source + "  ·  H" + section.level + "  ·  linha " + section.position);
+    const descriptor = el("div", "syndes-topic-context", section.generated ?
+      "Inventário gerado de " + section.codeSource + " · Não editável diretamente" :
+      metadata.source + "  ·  H" + section.level + "  ·  linha " + section.position);
     const revisionInfo = el("div", "syndes-topic-revision");
     if (section.lastModified && section.lastCommit) {
       const last = new Date(section.lastModified);
@@ -129,11 +135,15 @@
     } else {
       revisionInfo.textContent = "Última alteração: não verificada no Git.";
     }
-    const disclaimer = el("p", "syndes-topic-help", "Edite uma cópia do Markdown deste tópico. A documentação oficial não muda até a alteração ser revisada e aplicada no GitHub. Atenção: issues deste repositório público são visíveis publicamente; não inclua segredos.");
+    const disclaimer = el("p", "syndes-topic-help",
+      (section.generated ?
+      "Esta seção foi extraída do código. Descreva a divergência ou melhoria para o agente corrigir a origem; não edite manualmente o inventário. " :
+      "Edite uma cópia do Markdown deste tópico. A documentação oficial não muda até revisão no GitHub. ") +
+      "Issues são públicas: não inclua segredos.");
     const label = el("label", "syndes-topic-label", "Alteração proposta");
     const input = el("textarea", "syndes-topic-textarea");
-    input.value = section.markdown;
-    input.rows = Math.min(20, Math.max(7, section.markdown.split("\n").length + 1));
+    input.value = section.generated ? "" : section.markdown;
+    input.rows = section.generated ? 7 : Math.min(20, Math.max(7, section.markdown.split("\n").length + 1));
     input.spellcheck = false;
 
     const controls = el("div", "syndes-topic-controls");
@@ -166,13 +176,29 @@
     label.appendChild(input);
     controls.append(selectLabel, copy, quickPrompt, prompt, open);
     panel.append(descriptor, revisionInfo, disclaimer, label, controls, feedback);
-    wrapper.append(toggle, revisionInfo.cloneNode(true), panel);
+    wrapper.append(toggle, add, revisionInfo.cloneNode(true), panel);
     heading.insertAdjacentElement("afterend", wrapper);
 
-    toggle.addEventListener("click", () => {
-      panel.hidden = !panel.hidden;
-      toggle.setAttribute("aria-expanded", String(!panel.hidden));
-      if (!panel.hidden) input.focus();
+    function setPanel(isOpen) {
+      panel.hidden=!isOpen;
+      toggle.setAttribute("aria-expanded",String(isOpen));
+      add.setAttribute("aria-expanded",String(isOpen));
+      if(isOpen)input.focus();
+    }
+    toggle.addEventListener("click",()=>{
+      if(panel.hidden){
+        select.value="alterar";
+        input.value=section.generated ? "" : section.markdown;
+        setPanel(true);
+      } else setPanel(false);
+    });
+    add.addEventListener("click",()=>{
+      if(panel.hidden || select.value!=="adicionar"){
+        select.value="adicionar";
+        input.value="";
+        input.placeholder="Inclua um subtópico, item, regra, critério de aceite ou melhoria para análise do agente.";
+        setPanel(true);
+      } else setPanel(false);
     });
     function draft() { return createIssueBody(section, metadata, select.value, input.value); }
     async function copyDraft() {
@@ -264,12 +290,12 @@
       });
       content.insertBefore(copyFull, content.firstChild);
     }
-    const headings = [...content.querySelectorAll("h1,h2,h3,h4")]
+    const headings = [...content.querySelectorAll("h1,h2,h3,h4,h5,h6")]
       .filter(h => !h.closest(".syndes-topic-widget"));
     const claimed = new Set();
     for (const section of body.sections) {
       // Align by heading text AND level; avoid silently attaching an editor to the wrong topic.
-      const clean = (s) => s.replace(/¶/g, "").replace(/\s+/g," ").trim().toLowerCase();
+      const clean = (s) => s.replace(/\{#[^}]+\}/g, "").replace(/[\u00b6\u200b]/g, "").replace(/[`*_~]/g,"").replace(/\s+/g," ").trim().toLowerCase();
       const match = headings.find(h => !claimed.has(h) && h.tagName.toLowerCase() === "h" + section.level && clean(h.textContent) === clean(section.heading));
       if (match) {
         claimed.add(match);

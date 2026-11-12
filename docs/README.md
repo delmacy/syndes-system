@@ -4,6 +4,23 @@
 
 **Navegação recomendada:** [Mapa das camadas do sistema](blueprint/MAPA-TECNICO-POR-CAMADAS.md) → [Catálogo técnico com filtros](blueprint/CATALOGO-MODULOS.md) → ficha do módulo e referências de origem. As seis páginas de cada unidade permanecem disponíveis a partir da ficha, sem ocupar o menu lateral.
 
+<div class="syndes-home-hero" markdown="1">
+  <span class="syndes-home-kicker">Syndes System · Engenharia de software</span>
+  <p class="syndes-home-title">Documentação técnica, arquitetura e projetos em um só lugar.</p>
+  <p>Explore por área funcional, leia a especificação de cada módulo em fluxo vertical, consulte contratos e acompanhe suas WBS — sempre com evidência versionada.</p>
+  <div class="syndes-home-actions">
+    <a href="blueprint/CATALOGO-MODULOS.md">Explorar módulos</a>
+    <a href="blueprint/PROJETOS.md">Acompanhar projetos</a>
+  </div>
+</div>
+
+<div class="syndes-home-links" markdown="1">
+  <a href="blueprint/MAPA-TECNICO-POR-CAMADAS.md"><strong>Arquitetura e camadas</strong><span>Domínio, contratos, dados e integrações</span></a>
+  <a href="blueprint/PROJETOS.md"><strong>Projetos e WBS</strong><span>Pacotes associados, sprint e evidências</span></a>
+  <a href="blueprint/CATALOGO-MODULOS.md"><strong>Módulos por área</strong><span>Plataforma, segurança, canais, CRM e atendimento</span></a>
+  <a href="standards/EDICAO-CONTEXTUAL.md"><strong>Propostas ao agente</strong><span>Editar ou acrescentar por tópico, com escopo</span></a>
+</div>
+
 ## Acesso rápido {#acesso-rapido}
 
 | Quero encontrar | Abrir |
@@ -92,7 +109,7 @@ Use o ID do módulo como ponto de partida. O comando `python3 scripts/docs/query
 
     ## Portal integrado: documentação, projeto e linha do tempo
 
-    Cada módulo possui **seis páginas** no menu: Visão geral, Especificação, Referência técnica, Evolução, Histórico e Operação. STATUS, SPRINT, prompts e caixa de entrada continuam disponíveis por links internos e nos caminhos de Git já utilizados pelos agentes.
+    Cada módulo conserva **seis páginas principais** acessíveis pela ficha e pelas abas do leitor: Visão geral, Especificação, Referência técnica, Evolução, Histórico e Operação. STATUS, SPRINT, prompts e caixa de entrada continuam disponíveis por links internos e nos caminhos de Git já utilizados pelos agentes.
 
     - [Linha do tempo geral — planejado × realizado](blueprint/LINHA-DO-TEMPO.md).
     - [Fontes de verdade e rastreabilidade](standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
@@ -103,4 +120,4 @@ Use o ID do módulo como ponto de partida. O comando `python3 scripts/docs/query
 
     [GitHub Projects: configuração e sincronização](standards/GITHUB-PROJECTS.md) · [Comandos de busca para agentes](standards/BUSCA-PARA-AGENTES.md).
 
-    [Workpackages reais e situação do GitHub Project](blueprint/PROJETO-E-WORKPACKAGES.md).
+    [Painel de projetos por módulo](blueprint/PROJETOS.md) · [Workpackages e situação de integração ao GitHub Project](blueprint/PROJETO-E-WORKPACKAGES.md).
