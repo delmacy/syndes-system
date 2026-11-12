@@ -2,45 +2,28 @@
 
 > RASCUNHO NÃO APROVADO (2026-11-12). Nenhuma capacidade operacional foi verificada pela criação deste documento.
 
-## 0. Endereços exatos de leitura
-- Catálogo: catalog/work-units.json
-- Código/artefato: modules/commercial-site
-- AGENTS global: AGENTS.md
-- AGENTS local: modules/commercial-site/AGENTS.md
-- Package/exports: N/A; localizar configuração declarativa
-- Contratos públicos: docs/standards/CONTRATOS-PUBLICOS.md
-- Escopo: docs/subprojects/P13-commercial-site/ESCOPO.md
-- Status: docs/subprojects/P13-commercial-site/STATUS.md
-- Sprint: docs/subprojects/P13-commercial-site/SPRINT.md
+---
 
-## 1. Missão, objetivos e fronteiras
-- Missão: A RECONCILIAR com fonte e requisitos existentes.
-- Valor e consumidores: A DEFINIR.
-- Dentro do escopo: A VALIDAR.
-- Fora do escopo: A APROVAR.
+<!-- SYNDES-DOCS-CHAPTER-INDEX:1 -->
+## Índice de capítulos (fonte canônica por assunto)
 
-## 2. Requisitos, histórias e casos de uso
-- RF/US/UC/AC/RN: A INVENTARIAR, sem criar requisitos fictícios.
+Cada capítulo abaixo é um arquivo Markdown independente. **Este índice não replica requisitos nem aprova funcionalidades.**
 
-## 3. Capabilities
-- Capacidades existentes, planejadas e opcionais: A VERIFICAR.
-- Evolução preferencialmente aditiva, sempre compatível e testada.
-- Declarado não significa implementado ou disponível.
+- [0. Endereços exatos de leitura](chapters/00-enderecos-exatos-de-leitura.md)
+- [1. Missão, objetivos e fronteiras](chapters/01-missao-objetivos-e-fronteiras.md)
+- [2. Requisitos, histórias e casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md)
+- [3. Capabilities](chapters/03-capabilities.md)
+- [4. Contratos e dependências públicas](chapters/04-contratos-e-dependencias-publicas.md)
+- [5. Arquitetura, banco, interface, configuração e diagramas](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md)
+- [6. WBS, marcos e aceite](chapters/06-wbs-marcos-e-aceite.md)
+- [7. Controle do escopo](chapters/07-controle-do-escopo.md)
 
-## 4. Contratos e dependências públicas
-- Entradas, saídas, APIs, eventos e ports: A INVENTARIAR pela fonte executável.
-- Dependências obrigatórias e opcionais: A VERIFICAR.
-- Bibliotecas permitidas: consultar exports públicos e dependências existentes, sem copiar implementação privada.
+## Solicitações e atualizações
 
-## 5. Arquitetura, banco, interface, configuração e diagramas
-- Componentes, ownership de dados, migrations e autorização: A VERIFICAR.
-- Nomes reais de variáveis de ambiente: A DOCUMENTAR, nunca incluir valores de segredos.
-- Diagramas versionados: A ELABORAR se aplicáveis.
+- [Atualizações, novas capacidades e histórias de usuário](updates/README.md)
+- [Status e evidências](STATUS.md)
+- [Sprint atual e checkpoints](SPRINT.md)
+- [Prompt de projeção](PROJECAO.md)
+- [Prompt de implementação](IMPLEMENTACAO.md)
 
-## 6. WBS, marcos e aceite
-- P13.DOC.01: reconciliar escopo com artefatos e decisão do responsável.
-- Testes, CI e gates: exigir evidência, não presumir DONE.
-
-## 7. Controle do escopo
-- Baseline: NÃO APROVADO.
-- Alterações futuras: registrar impacto, dependências e aprovação antes de alterar o escopo.
+**Estado:** preservar o baseline e a aprovação indicados acima. Dividir arquivos não representa autorização para implementar, remover ou homologar funcionalidades. Ao citar um assunto, indicar o **caminho exato** em `chapters/`, não apenas este índice.

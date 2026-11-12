@@ -16,6 +16,16 @@ class NavigationTests(unittest.TestCase):
         canonical=json.loads((site.ROOT/"catalog/work-units.json").read_text())["units"]
         nav=site.navigation_tree(units,canonical)
         self.assertEqual(len(nav),5)
+        # Exactly 3 levels: area > module > page, with headings in document body.
+        for area in nav:
+            modules=next(iter(area.values()))
+            self.assertIsInstance(modules,list)
+            for module in modules:
+                pages=next(iter(module.values()))
+                self.assertEqual(len(pages),7)
+                self.assertEqual([next(iter(page)) for page in pages],
+                                 ["Visão geral","Escopo","Status","Sprint","Atualizações","Projeção","Implementação"])
+                self.assertTrue(all(isinstance(next(iter(page.values())),str) for page in pages))
         flat=str(nav)
         for unit in units:
             self.assertEqual(flat.count(unit["id"]+" · "+unit["name"]),1)

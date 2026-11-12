@@ -11,3 +11,5 @@
 - Sprint: docs/subprojects/C08-audit-e-observabilidade/SPRINT.md
 
 Leia somente o escopo desta unidade, o status, a sprint, as instruções operacionais obrigatórias e os contratos públicos diretamente necessários. Não assuma responsabilidade interna por outros módulos.
+
+7. **Assuntos editáveis:** [Capítulos da especificação](ESCOPO.md) · [Atualizações e propostas](updates/README.md).

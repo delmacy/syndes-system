@@ -10,6 +10,8 @@
 - [Como editar um tópico e enviar à caixa de entrada](standards/EDICAO-CONTEXTUAL.md)
 - [Prompt de projeção](standards/PROMPT-PROJECAO.md)
 - [Prompt de implementação](standards/PROMPT-IMPLEMENTACAO.md)
+- [Fluxo de propostas, atualização e implementação](standards/FLUXO-DE-ATUALIZACOES.md)
+- [Modelo de atualização aprovada](standards/TEMPLATE-ATUALIZACAO.md)
 - [Template do contrato público](standards/TEMPLATE-CONTRATO-PUBLICO.md)
 
 ## Rotina do agente
@@ -20,3 +22,7 @@
 5. Alterar ESCOPO aprovado apenas mediante decisão explícita; ideias adicionais ficam como propostas.
 
 **Importante:** os textos de scaffold são rascunhos e não substituem PRDs, ADRs, definições de runtime, GitHub Actions e testes já existentes.
+
+## Três níveis de navegação
+
+**Área → Módulo → Página.** A página Escopo apresenta capítulos, tópicos, histórias, capacidades, contratos e diagramas no próprio corpo da documentação. Cada capítulo continua em arquivo Markdown individual para edição e consultas precisas de agentes.

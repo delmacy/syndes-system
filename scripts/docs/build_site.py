@@ -99,44 +99,83 @@ def annotate_revisions(sections, raw, revisions):
     return sections
 
 def navigation_tree(units, canonical):
-    """Display grouping only; every work unit must occur exactly once and keep canonical ownership."""
-    data=json.loads((ROOT/"scripts/docs/navigation.json").read_text(encoding="utf-8"))
-    units_by_id={u["id"]:u for u in units}
-    canon_by_id={u["id"]:u for u in canonical}
-    seen=[]
-    def unit_node(uid,front):
-        if uid not in units_by_id or canon_by_id[uid]["front"]!=front:
-            raise ValueError("Unknown or misclassified navigation unit: "+uid+" in "+front)
-        seen.append(uid)
-        u=units_by_id[uid]
-        d=Path(u["entry"]).parent.relative_to("docs")
-        specification=[{"Escopo":str(d/"ESCOPO.md")}]
-        chapter_root=DOCS/d/"chapters"
-        if chapter_root.exists():
-            for path in sorted(chapter_root.rglob("*.md")):
-                rel=path.relative_to(DOCS)
-                specification.append({path.stem.replace("-"," ").title():str(site_rel(path))})
-        pages=[
-            {"Visão geral":str(d/"index.md")},
-            {"Especificação":specification},
-            {"Acompanhamento":[{"Status":str(d/"STATUS.md")},{"Sprint":str(d/"SPRINT.md")}]},
-            {"Prompts":[{"Projeção":str(d/"PROJECAO.md")},{"Implementação":str(d/"IMPLEMENTACAO.md")}]}
-        ]
-        return {uid+" · "+u["name"]:pages}
-    def group_node(group,front):
-        if "units" in group:
-            return {group["label"]:[unit_node(uid,front) for uid in group["units"]]}
-        return {group["label"]:[group_node(g,front) for g in group["groups"]]}
+    """Exactly three levels: area > module > page. Topic headings belong in page body."""
+    if len(units) != len(canonical):
+        raise ValueError("Catalog size mismatch")
+    canonical_by_id={u["id"]:u for u in canonical}
+    ids=set()
     nav=[]
-    for f in data["fronts"]:
-        front=f["id"]
-        assert front in dict(FRONTS),front
-        nav.append({dict(FRONTS)[front]:[group_node(group,front) for group in f["groups"]]})
-    if len(seen)!=len(units) or len(set(seen))!=len(units):
-        raise ValueError("Navigation requires exactly one entry per work unit")
-    if set(seen)!=set(units_by_id):
-        raise ValueError("Unmapped work unit IDs: "+str(set(units_by_id)-set(seen)))
+    for front_id, front_label in FRONTS:
+        modules=[]
+        for unit in units:
+            if unit["front"]!=front_id: continue
+            uid=unit["id"]
+            if uid in ids or uid not in canonical_by_id or canonical_by_id[uid]["front"]!=front_id:
+                raise ValueError("Invalid owner or duplicate unit "+uid)
+            ids.add(uid)
+            d=Path(unit["entry"]).parent.relative_to("docs")
+            pages=[
+                {"Visão geral":str(d/"index.md")},
+                {"Escopo":str(d/"ESCOPO.md")},
+                {"Status":str(d/"STATUS.md")},
+                {"Sprint":str(d/"SPRINT.md")},
+                {"Atualizações":str(d/"updates/index.md")},
+                {"Projeção":str(d/"PROJECAO.md")},
+                {"Implementação":str(d/"IMPLEMENTACAO.md")},
+            ]
+            modules.append({uid+" · "+unit["name"]:pages})
+        nav.append({front_label:modules})
+    if ids!=set(canonical_by_id):
+        raise ValueError("Missing or duplicate units in three-level navigation")
     return nav
+
+
+def chapter_markdown_at_scope(source, scope, included):
+    """Resolve chapter links relative to the rendered scope page, not its source folder."""
+    import os
+    raw=source.read_text(encoding="utf-8")
+    def replace(match):
+        label,url=match.groups()
+        if url.startswith(("http:","https:","mailto:","tel:","#","/")):
+            return match.group(0)
+        path,separator,anchor=url.partition("#")
+        target=(source.parent/path).resolve()
+        if not target.exists():
+            return match.group(0)
+        if target in included:
+            relative=os.path.relpath(target,scope.parent).replace(os.sep,"/")
+            return f"[{label}]({relative}{separator}{anchor})"
+        if target.is_relative_to(ROOT):
+            return f"[{label}]({REPO}/blob/main/{target.relative_to(ROOT).as_posix()}{separator}{anchor})"
+        return match.group(0)
+    return re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)",replace,raw)
+
+
+def embed_chapters_in_scopes(units, revision, included):
+    """Compose a reader-friendly scope view while preserving exact Markdown source per section."""
+    for unit in units:
+        scope=(ROOT/unit["scope"]).resolve()
+        chapters=sorted((scope.parent/"chapters").rglob("*.md"))
+        if not chapters:
+            continue
+        target=CONTENT/site_rel(scope)
+        page=target.read_text(encoding="utf-8")
+        metadata_path=target.with_suffix(".sections.json")
+        metadata=json.loads(metadata_path.read_text(encoding="utf-8"))
+        appendix=["\n\n---\n\n## Conteúdo da especificação\n",
+                  "Os assuntos abaixo são exibidos juntos para leitura. Cada capítulo continua em seu Markdown próprio para edição e agentes.\n"]
+        for chapter in chapters:
+            source_ref=chapter.relative_to(ROOT).as_posix()
+            edit_url=f"{REPO}/edit/main/{source_ref}"
+            appendix.append(f'\n<div class="syndes-chapter-source"><a href="{edit_url}">Editar capítulo no GitHub</a> · <code>{source_ref}</code></div>\n')
+            appendix.append(chapter_markdown_at_scope(chapter,scope,included))
+            appendix.append("\n\n")
+            chapter_data=json.loads((CONTENT/site_rel(chapter)).with_suffix(".sections.json").read_text(encoding="utf-8"))
+            for section in chapter_data["sections"]:
+                section["source"]=source_ref
+                metadata["sections"].append(section)
+        target.write_text(page+"\n".join(appendix),encoding="utf-8")
+        metadata_path.write_text(json.dumps(metadata,ensure_ascii=False),encoding="utf-8")
 
 def git_sha():
     try:
@@ -155,6 +194,7 @@ def main():
     for u in units:
         include.update((DOCS/Path(u["entry"]).parent.relative_to("docs")).glob("*.md"))
         include.update((DOCS/Path(u["entry"]).parent.relative_to("docs")/"chapters").rglob("*.md"))
+        include.update((DOCS/Path(u["entry"]).parent.relative_to("docs")/"updates").rglob("*.md"))
     included={p.resolve() for p in include}
     if CONTENT.exists(): shutil.rmtree(CONTENT)
     CONTENT.mkdir(parents=True)
@@ -169,8 +209,12 @@ def main():
             marker=f'<div class="syndes-source-marker" data-doc-source="{path}" data-doc-revision="{revision}"></div>\n\n'
             target.write_text(marker+"[✏️ Editar arquivo original no GitHub](https://github.com/delmacy/syndes-system/edit/main/"+path+")\n\n"+rewrite_links(raw,source,included),encoding="utf-8")
             sections=annotate_revisions(markdown_sections(raw),raw,blame_revisions(source))
-            target.with_suffix(".sections.json").write_text(json.dumps({"source":path,"revision":revision,"sections":sections},ensure_ascii=False),encoding="utf-8")
+            payload={"source":path,"revision":revision,"sections":sections}
+            if source.name in ("PROJECAO.md","IMPLEMENTACAO.md"):
+                payload["fullMarkdown"]=raw
+            target.with_suffix(".sections.json").write_text(json.dumps(payload,ensure_ascii=False),encoding="utf-8")
         else: shutil.copy2(source,target)
+    embed_chapters_in_scopes(units,revision,included)
     nav=[{"Início":"index.md"},{"Monitoramento":"monitoramento/index.md"},
          {"Blueprint":"blueprint/index.md"}]
     nav.extend(navigation_tree(units,canonical))
@@ -180,7 +224,10 @@ def main():
         {"Organização por subpáginas":"standards/ORGANIZACAO-DE-PAGINAS.md"},
         {"Modelo de contrato":"standards/TEMPLATE-CONTRATO-PUBLICO.md"},
         {"Modelo de projeção":"standards/PROMPT-PROJECAO.md"},
-        {"Modelo de implementação":"standards/PROMPT-IMPLEMENTACAO.md"}]},
+        {"Modelo de implementação":"standards/PROMPT-IMPLEMENTACAO.md"},
+        {"Fluxo de atualizações":"standards/FLUXO-DE-ATUALIZACOES.md"},
+        {"Modelo de atualização":"standards/TEMPLATE-ATUALIZACAO.md"},
+        {"Modelo de prompt por incremento":"standards/TEMPLATE-PROMPT-INCREMENTO.md"}]},
         {"Índice por caminho":"subprojects/index.md"}])
     config={
         "site_name":"Syndes Docs",

@@ -22,3 +22,9 @@ Atue como engenheiro desta unidade. Antes de editar, confira worktree/branch, SH
 Implemente exclusivamente o incremento aprovado nesta unidade. Execute testes unitários, contratos, integração e segurança afetados; confira evidências de GitHub Actions sem assumir CI verde. Não altere CI/CD de outra equipe, banco operacional, migrações reais, papéis ou deploy sem gates pertinentes. Ao encerrar a meta, atualize STATUS e SPRINT com evidências, bloqueios e próxima tarefa, e **pare** antes de iniciar outra sprint.
 
 Variáveis: documente nomes reais, origem e modo de injeção, jamais valores secretos. Se um requisito depender de mudança interna externa, informe o impedimento e não implemente fora de sua unidade.
+
+## Controle de incrementos aprovados
+
+Para novas capacidades e atualizações, **não execute diretamente uma Issue bruta**. Exija o documento `docs/subprojects/G04-privacidade/updates/G04-UPD-[NNNN]/REQUISITO.md` aprovado e seu `IMPLEMENTACAO.md` específico. Confira os IDs, versão, decisão e gates contra o capítulo normativo e o STATUS. Se ausentes ou ambíguos, encaminhe para a projeção e pare.
+
+Conclua somente a meta aprovada da unidade, teste contratos públicos impactados, obtenha evidências do Actions e atualize STATUS/SPRINT. Não mova trabalho para outro módulo nem trate melhoria apenas desejada como autorização de implementação.
