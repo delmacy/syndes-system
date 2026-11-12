@@ -119,3 +119,22 @@ Para criar um pacote local novo, utilize [Modelo de Workpackage](../../standards
 - 19 testes ignorados no Host NÃO são prova de integração PG17, staging, Keycloak ou FGA reais.
 
 **Rotina:** escolher **uma meta** na Sprint após resolver os gates; implementar apenas na unidade, executar testes afetados e registrar commit, CI, ambiente, evidências e pendências em STATUS. Não converter esta tabela em tarefas concluídas automaticamente.
+
+
+### Diagrama — backlog de composição e ativação controlada
+
+```mermaid
+flowchart TB
+  C01["P14-CMP-01: matriz de contratos"]
+  C02["P14-CMP-02: manifesto/validador offline"]
+  Future["CMP-03 a CMP-09: perfis e rollout futuros"]
+  EV["P14-EV-01: checklist do Event Worker"]
+  Identity["Control, restore, ENABLED, FGA e service"]
+  Host["Ativação operacional (não autorizada)"]
+
+  C01 --> C02 -.-> Future
+  EV --> Identity -.-> Host
+  Future -.-> Host
+```
+
+**Estado:** nenhuma tarefa acima está concluída por ter sido diagramada. O primeiro bloco é análise de contrato e validação offline; o segundo permanece bloqueado por gates independentes.

@@ -18,3 +18,28 @@
 **Limites do MVP documentados:** importação CSV até 500 linhas / 1 MiB; exportação até 1.000 registros, neutralizando fórmulas; resultados paginados e limitações conforme controllers/testes. Confirmar limites exatos antes de modificar contratos.
 
 ---
+
+
+### Diagrama conceitual — entidades pertencentes ao CRM
+
+```mermaid
+flowchart TB
+  Person["Person"]
+  Org["Organization CRM"]
+  Rel["Vínculo pessoa-organização"]
+  Tag["Tag"]
+  PT["Atribuição de tags"]
+  Note["Nota / Timeline"]
+  Employee["EmployeeProfile"]
+  Channel["ChannelIdentity"]
+  Platform["Platform Organization (outro domínio)"]
+
+  Person --> Rel --> Org
+  Person --> PT --> Tag
+  Person --> Note
+  Person --> Employee
+  Person --> Channel
+  Platform -.->|"contexto de ownership: não é Organization CRM"| Org
+```
+
+Representação **conceitual**, não ERD de colunas/FKs. Para schema e migrations efetivos, consultar `modules/core-crm/sql/001_crm_foundation.sql` a `003_crm_employees_channels.sql`. A diferença entre Organização CRM e Platform Organization é obrigatória.

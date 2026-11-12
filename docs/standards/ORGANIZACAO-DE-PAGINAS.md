@@ -24,3 +24,12 @@ Uma subseção compõe o conteúdo de sua seção pai; por isso, uma alteração
 A página **Escopo** agrega automaticamente o conteúdo dos capítulos Markdown do módulo no **corpo da documentação**, com sumário de títulos e diagramas Mermaid. Os capítulos permanecem arquivos independentes em chapters/, para edição por tópico, histórico e acesso dos agentes ao caminho exato. Esses caminhos não aparecem como novos níveis na navegação lateral.
 
 O editor contextual identifica a origem correta de cada trecho do escopo agregado. A proposta fica vinculada ao Markdown de capítulo, não ao arquivo índice ESCOPO.md.
+
+## Diagramas como parte da especificação
+
+- Usar blocos Mermaid versionados (`flowchart`, `sequenceDiagram` ou `stateDiagram-v2`) **no corpo do capítulo Markdown do módulo**, sem adicionar níveis no sidebar.
+- Manter o diagrama próximo do contrato ou fluxo a que se refere, sempre citando o caminho do código, ADR ou WBS.
+- Indicar explicitamente fluxos **em operação**, **implementados apenas em código**, **opt-in** ou **planejados**. Linha tracejada pode sinalizar dependência condicionada, mas a legenda textual é obrigatória.
+- Evitar informações confidenciais, instâncias reais, tokens, topologias sensíveis e URLs internas em repositório público.
+- Quando a especificação mudar, atualizar o diagrama no mesmo PR e revalidar com `python -m unittest discover -s scripts/docs -p 'test_*.py'` e o build MkDocs.
+- Nos módulos ainda não auditados, não criar diagramas inventados: primeiro verificar fonte e contratos públicos, depois completar o capítulo de arquitetura.

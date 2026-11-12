@@ -92,3 +92,21 @@ Para criar um pacote local novo, utilize [Modelo de Workpackage](../../standards
 - SQL 002 continua ativo; transferências e paths tenant-only legados exigem novo gate.
 
 **Rotina:** escolher **uma meta** na Sprint após resolver os gates; implementar apenas na unidade, executar testes afetados e registrar commit, CI, ambiente, evidências e pendências em STATUS. Não converter esta tabela em tarefas concluídas automaticamente.
+
+
+### Diagrama — dependências candidatas de validação da Inbox
+
+```mermaid
+flowchart LR
+  Auth["Tenant, Keycloak e FGA"]
+  Worker["Worker gated, outbox, replay e rollback"]
+  T01["P02-VAL-01: jornada autenticada"]
+  T02["P02-VAL-02: layout e identificação"]
+  T03["P02-VAL-03: consumidor Events + CRM"]
+  Gate["Product Gate Inbox integrado"]
+
+  Auth --> T01 --> T02 --> Gate
+  Worker -.-> T03 --> Gate
+```
+
+**Estado:** workpackage ainda **não aprovado/atribuído**. A Inbox pode ser avaliada visualmente antes do cutover, mas o gate integrado requer identidade real e consumo seguro.

@@ -93,3 +93,23 @@ Para criar um pacote local novo, utilize [Modelo de Workpackage](../../standards
 - Escopo de entrega atual textual; mídia completa permanece fora desta fatia.
 
 **Rotina:** escolher **uma meta** na Sprint após resolver os gates; implementar apenas na unidade, executar testes afetados e registrar commit, CI, ambiente, evidências e pendências em STATUS. Não converter esta tabela em tarefas concluídas automaticamente.
+
+
+### Diagrama — gates e tarefas candidatas WhatsApp
+
+```mermaid
+flowchart LR
+  Go["Toolchain Go + fixtures"]
+  T01["P03-VAL-01: gateway e conta"]
+  T02["P03-VAL-02: texto, quota, retries"]
+  Restore["Restore real e migration 008"]
+  Legacy["Todos os workers legados compatíveis"]
+  T03["P03-VAL-03: canário de projetor único"]
+  Gate["Aceite de canal integrado"]
+
+  Go --> T01 --> T02 --> Gate
+  Restore --> T03 --> Gate
+  Legacy --> T03
+```
+
+**Estado:** etapas são **candidatas**, não sprints em execução. Não ativar projetor `events` em paralelo com o legado; nenhum gate de deploy foi concedido por este diagrama.

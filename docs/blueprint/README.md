@@ -85,3 +85,73 @@
 Após CRM/Inbox/WhatsApp/Platform Core, priorizar **P04 Organizations & Workforce**, **A04 Core Host**, **C06 Event Platform**, **P05 Gestão de Atendimentos** e **A01 Workspace Frontend**. São dependências do fluxo Basic; a ordem pode ser ajustada por gates e WBS atuais.
 
 **Regras para todos:** não declarar DONE sem comprovação de implementação, testes, integração, CI no SHA, ambiente, autorização e aceite quando exigido. Associação com WBS não concede responsabilidade exclusiva nem aprovação automática.
+
+
+## Diagramas gerais da plataforma
+
+Os desenhos representam **fronteiras e fluxos de referência baseados no código e no planejamento existentes**, não um inventário de serviços efetivamente ativados em produção. Linhas contínuas mostram responsabilidades/interfaces identificadas no repositório; linhas tracejadas representam integração condicionada a gates.
+
+### Arquitetura lógica do MVP
+
+```mermaid
+flowchart LR
+  Browser["Workspace Web"]
+  ManagerUI["Platform Manager Web"]
+  ManagerAPI["Manager API / Control"]
+  Host["Core Host NestJS"]
+  Kernel["Core Kernel: tenancy e autorização"]
+  CRM["CRM"]
+  Inbox["Inbox"]
+  WA["WhatsApp TypeScript"]
+  Go["Gateway Go / whatsmeow"]
+  TenantDB[("PostgreSQL: DB por tenant")]
+  Control[("Control Plane")]
+  FGA["OpenFGA"]
+  Events["Platform Events: outbox e dispatcher"]
+
+  Browser -->|"API com identidade"| Host
+  ManagerUI --> ManagerAPI
+  ManagerAPI --> Control
+  Host --> Kernel
+  Kernel --> FGA
+  Host --> CRM
+  Host --> Inbox
+  Host --> WA
+  CRM --> TenantDB
+  Inbox --> TenantDB
+  WA --> TenantDB
+  Go <-->|"protocolo / callbacks"| WA
+  Host -->|"lookup de tenancy / módulos"| Control
+  WA -.->|"ponte opt-in"| Events
+  Events -.->|"consumidores gated"| Inbox
+  Events -.->|"eventos de identidade"| CRM
+```
+
+**Importante:** este mapa é lógico. A montagem de módulos no Host não substitui instalação por tenant, grants, migrações, workers, restore real ou teste com usuário autenticado. O Platform Core não é um pacote runtime isolado; seus componentes estão no Kernel, Host e unidades de plataforma.
+
+**Fontes:** `apps/core-host/config/modules.json`, `apps/core-host/src/module-host.ts`, `apps/core-host/src/platform-event-worker-composition.ts`, `packages/core-kernel/src/platform-events.ts`.
+
+### Ciclo de mudança orientado por agentes
+
+```mermaid
+flowchart TD
+  Idea["Pedido de melhoria em tópico"]
+  Inbox["Issue ou prompt contextual"]
+  Projection["Agente do módulo: Projeção"]
+  Decision{"Escopo e critérios aprovados?"}
+  Ask["Esclarecer dúvidas e revisar"]
+  Spec["Atualizar capítulo e incremento aprovado"]
+  Impl["Prompt específico de implementação"]
+  Verify["Código, testes e evidências"]
+  Gate{"Gates de integração e aceite cumpridos?"}
+  Block["Registrar pendência e bloqueio"]
+  Close["Consolidar Evolução, STATUS e Sprint"]
+
+  Idea --> Inbox --> Projection --> Decision
+  Decision -->|"não"| Ask --> Projection
+  Decision -->|"sim"| Spec --> Impl --> Verify --> Gate
+  Gate -->|"não"| Block --> Verify
+  Gate -->|"sim"| Close
+```
+
+O diagrama descreve o **processo desejado**, não uma automação atualmente disparada pelo GitHub Pages. A aprovação e as execuções continuam exigindo ação explícita e evidências do agente.

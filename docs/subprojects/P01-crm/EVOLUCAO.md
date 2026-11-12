@@ -100,3 +100,22 @@ Para criar um pacote local novo, utilize [Modelo de Workpackage](../../standards
 - SQL 002 continua travando multi-org; não remover ou migrar sem Product Gate, restore e autorização.
 
 **Rotina:** escolher **uma meta** na Sprint após resolver os gates; implementar apenas na unidade, executar testes afetados e registrar commit, CI, ambiente, evidências e pendências em STATUS. Não converter esta tabela em tarefas concluídas automaticamente.
+
+
+### Diagrama — dependências candidatas do próximo marco CRM
+
+```mermaid
+flowchart LR
+  IAM["Keycloak, grants e tenant A/B"]
+  EventGate["Contratos Events + revisão autorizada"]
+  T01["P01-VAL-01: HTTP e permissões"]
+  T02["P01-VAL-02: vínculo WA e ambiguidades"]
+  T03["P01-VAL-03: browser + Product Gate"]
+  Accept["Aceite documentado"]
+
+  IAM --> T01 --> T03
+  EventGate -.-> T02 --> T03
+  T03 -->|"somente com evidências"| Accept
+```
+
+**Estado:** todos os nós P01-VAL estão **propostos e não atribuídos**. As setas indicam precedência de planejamento; não são um cronograma iniciado nem comprovam backend operacional.
