@@ -23,6 +23,18 @@ A ordem originalmente planejada abrange CRM, Inbox, WhatsApp, Agendamento, Assis
 
 A política detalhada está em [MAINLINE-CI-POLICY.md](docs/engineering/MAINLINE-CI-POLICY.md). A [Issue #38](https://github.com/delmacy/syndes-system/issues/38) acompanha consolidação histórica e pendências. PRs históricos já absorvidos foram encerrados sem excluir branches; alterações ainda não integradas continuam separadas.
 
+## Mapa de engenharia e gestão
+
+A organização tem **cinco frentes executivas** e no máximo **três entregas ativas**; as 57 unidades do [catálogo de ownership](catalog/README.md) / [inventário verificável](catalog/work-units.json) são responsabilidades, não 57 serviços ou projetos para acompanhar.
+
+- Produto: [índice dos módulos](modules/README.md), com código presente separado de contratos planejados.
+- Frontends: Workspace, Manager e Support em `apps/`, com builds/autenticação segregados e UI reutilizável em `packages/front-shared/`.
+- Plataforma: Core Host, Kernel, Control, authorization, installer e eventos com ownership transversal.
+- Infraestrutura: `infra/`, runbooks e servidores; não assumir hosts offline como homologados.
+- Qualidade: `tests/`, `scripts/ci/` e `.github/workflows/`, governados pela frente CI.
+
+GitHub Issues/Project acompanha entregas e bloqueios; [issue #102](https://github.com/delmacy/syndes-system/issues/102) indexa as unidades. A CI existente verifica a integridade do catálogo por `tests/integrity/repository-structure.sh`.
+
 ## Estrutura
 
 - `packages/core-kernel/`: contratos e inicialização modular

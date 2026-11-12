@@ -19,6 +19,8 @@ required_files=(
   "modules/billing/AGENTS.md"
   "modules/commercial-site/AGENTS.md"
   "tests/AGENTS.md"
+  "catalog/README.md"
+  "catalog/work-units.json"
 )
 
 for path in "${required_files[@]}"; do
@@ -34,5 +36,7 @@ for module_dir in modules/*/; do
     exit 1
   fi
 done
+
+node scripts/architecture/check-work-units.mjs
 
 echo "Repository governance structure: PASS"
