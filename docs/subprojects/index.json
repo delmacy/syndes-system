@@ -1,0 +1,577 @@
+{
+  "schemaVersion": 1,
+  "source": "catalog/work-units.json",
+  "purpose": "navigation only; not runtime status",
+  "units": [
+    {
+      "id": "P01",
+      "name": "CRM",
+      "front": "produto",
+      "source": "modules/core-crm",
+      "entry": "docs/subprojects/P01-crm/README.md",
+      "scope": "docs/subprojects/P01-crm/ESCOPO.md",
+      "status": "docs/subprojects/P01-crm/STATUS.md",
+      "sprint": "docs/subprojects/P01-crm/SPRINT.md"
+    },
+    {
+      "id": "P02",
+      "name": "Inbox",
+      "front": "produto",
+      "source": "modules/inbox",
+      "entry": "docs/subprojects/P02-inbox/README.md",
+      "scope": "docs/subprojects/P02-inbox/ESCOPO.md",
+      "status": "docs/subprojects/P02-inbox/STATUS.md",
+      "sprint": "docs/subprojects/P02-inbox/SPRINT.md"
+    },
+    {
+      "id": "P03",
+      "name": "WhatsApp",
+      "front": "produto",
+      "source": "modules/whatsapp",
+      "entry": "docs/subprojects/P03-whatsapp/README.md",
+      "scope": "docs/subprojects/P03-whatsapp/ESCOPO.md",
+      "status": "docs/subprojects/P03-whatsapp/STATUS.md",
+      "sprint": "docs/subprojects/P03-whatsapp/SPRINT.md"
+    },
+    {
+      "id": "P04",
+      "name": "Organizations & Workforce",
+      "front": "produto",
+      "source": "modules/organizations",
+      "entry": "docs/subprojects/P04-organizations-workforce/README.md",
+      "scope": "docs/subprojects/P04-organizations-workforce/ESCOPO.md",
+      "status": "docs/subprojects/P04-organizations-workforce/STATUS.md",
+      "sprint": "docs/subprojects/P04-organizations-workforce/SPRINT.md"
+    },
+    {
+      "id": "P05",
+      "name": "Gestão de Atendimentos",
+      "front": "produto",
+      "source": "modules/service-management",
+      "entry": "docs/subprojects/P05-gestao-de-atendimentos/README.md",
+      "scope": "docs/subprojects/P05-gestao-de-atendimentos/ESCOPO.md",
+      "status": "docs/subprojects/P05-gestao-de-atendimentos/STATUS.md",
+      "sprint": "docs/subprojects/P05-gestao-de-atendimentos/SPRINT.md"
+    },
+    {
+      "id": "P06",
+      "name": "Syndes Support",
+      "front": "operacao",
+      "source": "modules/support",
+      "entry": "docs/subprojects/P06-syndes-support/README.md",
+      "scope": "docs/subprojects/P06-syndes-support/ESCOPO.md",
+      "status": "docs/subprojects/P06-syndes-support/STATUS.md",
+      "sprint": "docs/subprojects/P06-syndes-support/SPRINT.md"
+    },
+    {
+      "id": "P07",
+      "name": "Scheduling",
+      "front": "produto",
+      "source": "modules/scheduling",
+      "entry": "docs/subprojects/P07-scheduling/README.md",
+      "scope": "docs/subprojects/P07-scheduling/ESCOPO.md",
+      "status": "docs/subprojects/P07-scheduling/STATUS.md",
+      "sprint": "docs/subprojects/P07-scheduling/SPRINT.md"
+    },
+    {
+      "id": "P08",
+      "name": "AI Assistant",
+      "front": "produto",
+      "source": "modules/ai-assistant",
+      "entry": "docs/subprojects/P08-ai-assistant/README.md",
+      "scope": "docs/subprojects/P08-ai-assistant/ESCOPO.md",
+      "status": "docs/subprojects/P08-ai-assistant/STATUS.md",
+      "sprint": "docs/subprojects/P08-ai-assistant/SPRINT.md"
+    },
+    {
+      "id": "P09",
+      "name": "Documents",
+      "front": "produto",
+      "source": "modules/documents",
+      "entry": "docs/subprojects/P09-documents/README.md",
+      "scope": "docs/subprojects/P09-documents/ESCOPO.md",
+      "status": "docs/subprojects/P09-documents/STATUS.md",
+      "sprint": "docs/subprojects/P09-documents/SPRINT.md"
+    },
+    {
+      "id": "P10",
+      "name": "Email",
+      "front": "produto",
+      "source": "modules/email",
+      "entry": "docs/subprojects/P10-email/README.md",
+      "scope": "docs/subprojects/P10-email/ESCOPO.md",
+      "status": "docs/subprojects/P10-email/STATUS.md",
+      "sprint": "docs/subprojects/P10-email/SPRINT.md"
+    },
+    {
+      "id": "P11",
+      "name": "Onboarding",
+      "front": "operacao",
+      "source": "modules/onboarding",
+      "entry": "docs/subprojects/P11-onboarding/README.md",
+      "scope": "docs/subprojects/P11-onboarding/ESCOPO.md",
+      "status": "docs/subprojects/P11-onboarding/STATUS.md",
+      "sprint": "docs/subprojects/P11-onboarding/SPRINT.md"
+    },
+    {
+      "id": "P12",
+      "name": "Billing",
+      "front": "operacao",
+      "source": "modules/billing",
+      "entry": "docs/subprojects/P12-billing/README.md",
+      "scope": "docs/subprojects/P12-billing/ESCOPO.md",
+      "status": "docs/subprojects/P12-billing/STATUS.md",
+      "sprint": "docs/subprojects/P12-billing/SPRINT.md"
+    },
+    {
+      "id": "P13",
+      "name": "Commercial Site",
+      "front": "operacao",
+      "source": "modules/commercial-site",
+      "entry": "docs/subprojects/P13-commercial-site/README.md",
+      "scope": "docs/subprojects/P13-commercial-site/ESCOPO.md",
+      "status": "docs/subprojects/P13-commercial-site/STATUS.md",
+      "sprint": "docs/subprojects/P13-commercial-site/SPRINT.md"
+    },
+    {
+      "id": "P14",
+      "name": "Platform Core",
+      "front": "plataforma",
+      "source": "modules/platform-core",
+      "entry": "docs/subprojects/P14-platform-core/README.md",
+      "scope": "docs/subprojects/P14-platform-core/ESCOPO.md",
+      "status": "docs/subprojects/P14-platform-core/STATUS.md",
+      "sprint": "docs/subprojects/P14-platform-core/SPRINT.md"
+    },
+    {
+      "id": "A01",
+      "name": "Workspace Frontend",
+      "front": "frontend",
+      "source": "apps/workspace-web",
+      "entry": "docs/subprojects/A01-workspace-frontend/README.md",
+      "scope": "docs/subprojects/A01-workspace-frontend/ESCOPO.md",
+      "status": "docs/subprojects/A01-workspace-frontend/STATUS.md",
+      "sprint": "docs/subprojects/A01-workspace-frontend/SPRINT.md"
+    },
+    {
+      "id": "A02",
+      "name": "Platform Manager Frontend",
+      "front": "frontend",
+      "source": "apps/master-admin-web",
+      "entry": "docs/subprojects/A02-platform-manager-frontend/README.md",
+      "scope": "docs/subprojects/A02-platform-manager-frontend/ESCOPO.md",
+      "status": "docs/subprojects/A02-platform-manager-frontend/STATUS.md",
+      "sprint": "docs/subprojects/A02-platform-manager-frontend/SPRINT.md"
+    },
+    {
+      "id": "A03",
+      "name": "Support Frontend",
+      "front": "frontend",
+      "source": "apps/support-web",
+      "entry": "docs/subprojects/A03-support-frontend/README.md",
+      "scope": "docs/subprojects/A03-support-frontend/ESCOPO.md",
+      "status": "docs/subprojects/A03-support-frontend/STATUS.md",
+      "sprint": "docs/subprojects/A03-support-frontend/SPRINT.md"
+    },
+    {
+      "id": "A04",
+      "name": "Core Host",
+      "front": "plataforma",
+      "source": "apps/core-host",
+      "entry": "docs/subprojects/A04-core-host/README.md",
+      "scope": "docs/subprojects/A04-core-host/ESCOPO.md",
+      "status": "docs/subprojects/A04-core-host/STATUS.md",
+      "sprint": "docs/subprojects/A04-core-host/SPRINT.md"
+    },
+    {
+      "id": "A05",
+      "name": "Manager API",
+      "front": "plataforma",
+      "source": "apps/master-admin-api",
+      "entry": "docs/subprojects/A05-manager-api/README.md",
+      "scope": "docs/subprojects/A05-manager-api/ESCOPO.md",
+      "status": "docs/subprojects/A05-manager-api/STATUS.md",
+      "sprint": "docs/subprojects/A05-manager-api/SPRINT.md"
+    },
+    {
+      "id": "A06",
+      "name": "Account Access API",
+      "front": "plataforma",
+      "source": "apps/account-access-api",
+      "entry": "docs/subprojects/A06-account-access-api/README.md",
+      "scope": "docs/subprojects/A06-account-access-api/ESCOPO.md",
+      "status": "docs/subprojects/A06-account-access-api/STATUS.md",
+      "sprint": "docs/subprojects/A06-account-access-api/SPRINT.md"
+    },
+    {
+      "id": "A07",
+      "name": "Front Shared",
+      "front": "frontend",
+      "source": "packages/front-shared",
+      "entry": "docs/subprojects/A07-front-shared/README.md",
+      "scope": "docs/subprojects/A07-front-shared/ESCOPO.md",
+      "status": "docs/subprojects/A07-front-shared/STATUS.md",
+      "sprint": "docs/subprojects/A07-front-shared/SPRINT.md"
+    },
+    {
+      "id": "A08",
+      "name": "Core Kernel",
+      "front": "plataforma",
+      "source": "packages/core-kernel",
+      "entry": "docs/subprojects/A08-core-kernel/README.md",
+      "scope": "docs/subprojects/A08-core-kernel/ESCOPO.md",
+      "status": "docs/subprojects/A08-core-kernel/STATUS.md",
+      "sprint": "docs/subprojects/A08-core-kernel/SPRINT.md"
+    },
+    {
+      "id": "C01",
+      "name": "Control Plane",
+      "front": "plataforma",
+      "source": "infra/postgres/bootstrap",
+      "entry": "docs/subprojects/C01-control-plane/README.md",
+      "scope": "docs/subprojects/C01-control-plane/ESCOPO.md",
+      "status": "docs/subprojects/C01-control-plane/STATUS.md",
+      "sprint": "docs/subprojects/C01-control-plane/SPRINT.md"
+    },
+    {
+      "id": "C02",
+      "name": "Tenant Installer",
+      "front": "plataforma",
+      "source": "apps/core-host/src/module-installer.ts",
+      "entry": "docs/subprojects/C02-tenant-installer/README.md",
+      "scope": "docs/subprojects/C02-tenant-installer/ESCOPO.md",
+      "status": "docs/subprojects/C02-tenant-installer/STATUS.md",
+      "sprint": "docs/subprojects/C02-tenant-installer/SPRINT.md"
+    },
+    {
+      "id": "C03",
+      "name": "Identity Keycloak",
+      "front": "plataforma",
+      "source": "infra/security-access",
+      "entry": "docs/subprojects/C03-identity-keycloak/README.md",
+      "scope": "docs/subprojects/C03-identity-keycloak/ESCOPO.md",
+      "status": "docs/subprojects/C03-identity-keycloak/STATUS.md",
+      "sprint": "docs/subprojects/C03-identity-keycloak/SPRINT.md"
+    },
+    {
+      "id": "C04",
+      "name": "Authorization OpenFGA",
+      "front": "plataforma",
+      "source": "infra/security-access/fga-model.json",
+      "entry": "docs/subprojects/C04-authorization-openfga/README.md",
+      "scope": "docs/subprojects/C04-authorization-openfga/ESCOPO.md",
+      "status": "docs/subprojects/C04-authorization-openfga/STATUS.md",
+      "sprint": "docs/subprojects/C04-authorization-openfga/SPRINT.md"
+    },
+    {
+      "id": "C05",
+      "name": "Secrets OpenBao",
+      "front": "plataforma",
+      "source": "infra/security-access/openbao",
+      "entry": "docs/subprojects/C05-secrets-openbao/README.md",
+      "scope": "docs/subprojects/C05-secrets-openbao/ESCOPO.md",
+      "status": "docs/subprojects/C05-secrets-openbao/STATUS.md",
+      "sprint": "docs/subprojects/C05-secrets-openbao/SPRINT.md"
+    },
+    {
+      "id": "C06",
+      "name": "Event Platform",
+      "front": "plataforma",
+      "source": "apps/core-host/src/platform-event-dispatcher.ts",
+      "entry": "docs/subprojects/C06-event-platform/README.md",
+      "scope": "docs/subprojects/C06-event-platform/ESCOPO.md",
+      "status": "docs/subprojects/C06-event-platform/STATUS.md",
+      "sprint": "docs/subprojects/C06-event-platform/SPRINT.md"
+    },
+    {
+      "id": "C07",
+      "name": "APIs e adapters",
+      "front": "plataforma",
+      "source": "apps/core-host/src/adapters.ts",
+      "entry": "docs/subprojects/C07-apis-e-adapters/README.md",
+      "scope": "docs/subprojects/C07-apis-e-adapters/ESCOPO.md",
+      "status": "docs/subprojects/C07-apis-e-adapters/STATUS.md",
+      "sprint": "docs/subprojects/C07-apis-e-adapters/SPRINT.md"
+    },
+    {
+      "id": "C08",
+      "name": "Audit e observabilidade",
+      "front": "plataforma",
+      "source": "apps/core-host",
+      "entry": "docs/subprojects/C08-audit-e-observabilidade/README.md",
+      "scope": "docs/subprojects/C08-audit-e-observabilidade/ESCOPO.md",
+      "status": "docs/subprojects/C08-audit-e-observabilidade/STATUS.md",
+      "sprint": "docs/subprojects/C08-audit-e-observabilidade/SPRINT.md"
+    },
+    {
+      "id": "I01",
+      "name": "DevServer01",
+      "front": "qualidade",
+      "source": "docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md",
+      "entry": "docs/subprojects/I01-devserver01/README.md",
+      "scope": "docs/subprojects/I01-devserver01/ESCOPO.md",
+      "status": "docs/subprojects/I01-devserver01/STATUS.md",
+      "sprint": "docs/subprojects/I01-devserver01/SPRINT.md"
+    },
+    {
+      "id": "I02",
+      "name": "server02",
+      "front": "qualidade",
+      "source": "infra",
+      "entry": "docs/subprojects/I02-server02/README.md",
+      "scope": "docs/subprojects/I02-server02/ESCOPO.md",
+      "status": "docs/subprojects/I02-server02/STATUS.md",
+      "sprint": "docs/subprojects/I02-server02/SPRINT.md"
+    },
+    {
+      "id": "I03",
+      "name": "win1-server",
+      "front": "qualidade",
+      "source": "infra",
+      "entry": "docs/subprojects/I03-win1-server/README.md",
+      "scope": "docs/subprojects/I03-win1-server/ESCOPO.md",
+      "status": "docs/subprojects/I03-win1-server/STATUS.md",
+      "sprint": "docs/subprojects/I03-win1-server/SPRINT.md"
+    },
+    {
+      "id": "I04",
+      "name": "PostgreSQL",
+      "front": "qualidade",
+      "source": "infra/postgres",
+      "entry": "docs/subprojects/I04-postgresql/README.md",
+      "scope": "docs/subprojects/I04-postgresql/ESCOPO.md",
+      "status": "docs/subprojects/I04-postgresql/STATUS.md",
+      "sprint": "docs/subprojects/I04-postgresql/SPRINT.md"
+    },
+    {
+      "id": "I05",
+      "name": "Docker e redes",
+      "front": "qualidade",
+      "source": "infra",
+      "entry": "docs/subprojects/I05-docker-e-redes/README.md",
+      "scope": "docs/subprojects/I05-docker-e-redes/ESCOPO.md",
+      "status": "docs/subprojects/I05-docker-e-redes/STATUS.md",
+      "sprint": "docs/subprojects/I05-docker-e-redes/SPRINT.md"
+    },
+    {
+      "id": "I06",
+      "name": "Traefik HTTPS",
+      "front": "qualidade",
+      "source": "docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md",
+      "entry": "docs/subprojects/I06-traefik-https/README.md",
+      "scope": "docs/subprojects/I06-traefik-https/ESCOPO.md",
+      "status": "docs/subprojects/I06-traefik-https/STATUS.md",
+      "sprint": "docs/subprojects/I06-traefik-https/SPRINT.md"
+    },
+    {
+      "id": "I07",
+      "name": "Tailnet",
+      "front": "qualidade",
+      "source": "infra/master-admin/check-tailnet-route.py",
+      "entry": "docs/subprojects/I07-tailnet/README.md",
+      "scope": "docs/subprojects/I07-tailnet/ESCOPO.md",
+      "status": "docs/subprojects/I07-tailnet/STATUS.md",
+      "sprint": "docs/subprojects/I07-tailnet/SPRINT.md"
+    },
+    {
+      "id": "I08",
+      "name": "Komodo",
+      "front": "qualidade",
+      "source": "infra",
+      "entry": "docs/subprojects/I08-komodo/README.md",
+      "scope": "docs/subprojects/I08-komodo/ESCOPO.md",
+      "status": "docs/subprojects/I08-komodo/STATUS.md",
+      "sprint": "docs/subprojects/I08-komodo/SPRINT.md"
+    },
+    {
+      "id": "I09",
+      "name": "Whatsmeow runtime",
+      "front": "qualidade",
+      "source": "modules/whatsapp/gateway",
+      "entry": "docs/subprojects/I09-whatsmeow-runtime/README.md",
+      "scope": "docs/subprojects/I09-whatsmeow-runtime/ESCOPO.md",
+      "status": "docs/subprojects/I09-whatsmeow-runtime/STATUS.md",
+      "sprint": "docs/subprojects/I09-whatsmeow-runtime/SPRINT.md"
+    },
+    {
+      "id": "I10",
+      "name": "Backup e Restore",
+      "front": "qualidade",
+      "source": "scripts/events/disposable_restore_drill.py",
+      "entry": "docs/subprojects/I10-backup-e-restore/README.md",
+      "scope": "docs/subprojects/I10-backup-e-restore/ESCOPO.md",
+      "status": "docs/subprojects/I10-backup-e-restore/STATUS.md",
+      "sprint": "docs/subprojects/I10-backup-e-restore/SPRINT.md"
+    },
+    {
+      "id": "I11",
+      "name": "Release e Rollback",
+      "front": "qualidade",
+      "source": "infra/master-admin/homolog-deploy.sh",
+      "entry": "docs/subprojects/I11-release-e-rollback/README.md",
+      "scope": "docs/subprojects/I11-release-e-rollback/ESCOPO.md",
+      "status": "docs/subprojects/I11-release-e-rollback/STATUS.md",
+      "sprint": "docs/subprojects/I11-release-e-rollback/SPRINT.md"
+    },
+    {
+      "id": "I12",
+      "name": "Segurança de host",
+      "front": "qualidade",
+      "source": "infra",
+      "entry": "docs/subprojects/I12-seguranca-de-host/README.md",
+      "scope": "docs/subprojects/I12-seguranca-de-host/ESCOPO.md",
+      "status": "docs/subprojects/I12-seguranca-de-host/STATUS.md",
+      "sprint": "docs/subprojects/I12-seguranca-de-host/SPRINT.md"
+    },
+    {
+      "id": "Q01",
+      "name": "Plataforma de testes",
+      "front": "qualidade",
+      "source": "tests",
+      "entry": "docs/subprojects/Q01-plataforma-de-testes/README.md",
+      "scope": "docs/subprojects/Q01-plataforma-de-testes/ESCOPO.md",
+      "status": "docs/subprojects/Q01-plataforma-de-testes/STATUS.md",
+      "sprint": "docs/subprojects/Q01-plataforma-de-testes/SPRINT.md"
+    },
+    {
+      "id": "Q02",
+      "name": "Testes unitários",
+      "front": "qualidade",
+      "source": "modules",
+      "entry": "docs/subprojects/Q02-testes-unitarios/README.md",
+      "scope": "docs/subprojects/Q02-testes-unitarios/ESCOPO.md",
+      "status": "docs/subprojects/Q02-testes-unitarios/STATUS.md",
+      "sprint": "docs/subprojects/Q02-testes-unitarios/SPRINT.md"
+    },
+    {
+      "id": "Q03",
+      "name": "Integração",
+      "front": "qualidade",
+      "source": "scripts/events",
+      "entry": "docs/subprojects/Q03-integracao/README.md",
+      "scope": "docs/subprojects/Q03-integracao/ESCOPO.md",
+      "status": "docs/subprojects/Q03-integracao/STATUS.md",
+      "sprint": "docs/subprojects/Q03-integracao/SPRINT.md"
+    },
+    {
+      "id": "Q04",
+      "name": "Browser E2E",
+      "front": "qualidade",
+      "source": "tests/platform",
+      "entry": "docs/subprojects/Q04-browser-e2e/README.md",
+      "scope": "docs/subprojects/Q04-browser-e2e/ESCOPO.md",
+      "status": "docs/subprojects/Q04-browser-e2e/STATUS.md",
+      "sprint": "docs/subprojects/Q04-browser-e2e/SPRINT.md"
+    },
+    {
+      "id": "Q05",
+      "name": "Segurança",
+      "front": "qualidade",
+      "source": "tests/security",
+      "entry": "docs/subprojects/Q05-seguranca/README.md",
+      "scope": "docs/subprojects/Q05-seguranca/ESCOPO.md",
+      "status": "docs/subprojects/Q05-seguranca/STATUS.md",
+      "sprint": "docs/subprojects/Q05-seguranca/SPRINT.md"
+    },
+    {
+      "id": "Q06",
+      "name": "Performance",
+      "front": "qualidade",
+      "source": "tests/performance",
+      "entry": "docs/subprojects/Q06-performance/README.md",
+      "scope": "docs/subprojects/Q06-performance/ESCOPO.md",
+      "status": "docs/subprojects/Q06-performance/STATUS.md",
+      "sprint": "docs/subprojects/Q06-performance/SPRINT.md"
+    },
+    {
+      "id": "Q07",
+      "name": "CI/CD",
+      "front": "qualidade",
+      "source": "scripts/ci/plan.mjs",
+      "entry": "docs/subprojects/Q07-ci-cd/README.md",
+      "scope": "docs/subprojects/Q07-ci-cd/ESCOPO.md",
+      "status": "docs/subprojects/Q07-ci-cd/STATUS.md",
+      "sprint": "docs/subprojects/Q07-ci-cd/SPRINT.md"
+    },
+    {
+      "id": "Q08",
+      "name": "Release Engineering",
+      "front": "qualidade",
+      "source": "infra/master-admin",
+      "entry": "docs/subprojects/Q08-release-engineering/README.md",
+      "scope": "docs/subprojects/Q08-release-engineering/ESCOPO.md",
+      "status": "docs/subprojects/Q08-release-engineering/STATUS.md",
+      "sprint": "docs/subprojects/Q08-release-engineering/SPRINT.md"
+    },
+    {
+      "id": "Q09",
+      "name": "Infra Tests",
+      "front": "qualidade",
+      "source": "tests/platform",
+      "entry": "docs/subprojects/Q09-infra-tests/README.md",
+      "scope": "docs/subprojects/Q09-infra-tests/ESCOPO.md",
+      "status": "docs/subprojects/Q09-infra-tests/STATUS.md",
+      "sprint": "docs/subprojects/Q09-infra-tests/SPRINT.md"
+    },
+    {
+      "id": "Q10",
+      "name": "Quality Gates",
+      "front": "qualidade",
+      "source": "tests/integrity",
+      "entry": "docs/subprojects/Q10-quality-gates/README.md",
+      "scope": "docs/subprojects/Q10-quality-gates/ESCOPO.md",
+      "status": "docs/subprojects/Q10-quality-gates/STATUS.md",
+      "sprint": "docs/subprojects/Q10-quality-gates/SPRINT.md"
+    },
+    {
+      "id": "G01",
+      "name": "Arquitetura",
+      "front": "plataforma",
+      "source": "docs/engineering",
+      "entry": "docs/subprojects/G01-arquitetura/README.md",
+      "scope": "docs/subprojects/G01-arquitetura/ESCOPO.md",
+      "status": "docs/subprojects/G01-arquitetura/STATUS.md",
+      "sprint": "docs/subprojects/G01-arquitetura/SPRINT.md"
+    },
+    {
+      "id": "G02",
+      "name": "Produto e UX",
+      "front": "produto",
+      "source": "docs/product",
+      "entry": "docs/subprojects/G02-produto-e-ux/README.md",
+      "scope": "docs/subprojects/G02-produto-e-ux/ESCOPO.md",
+      "status": "docs/subprojects/G02-produto-e-ux/STATUS.md",
+      "sprint": "docs/subprojects/G02-produto-e-ux/SPRINT.md"
+    },
+    {
+      "id": "G03",
+      "name": "Engenharia e Git",
+      "front": "qualidade",
+      "source": "AGENTS.md",
+      "entry": "docs/subprojects/G03-engenharia-e-git/README.md",
+      "scope": "docs/subprojects/G03-engenharia-e-git/ESCOPO.md",
+      "status": "docs/subprojects/G03-engenharia-e-git/STATUS.md",
+      "sprint": "docs/subprojects/G03-engenharia-e-git/SPRINT.md"
+    },
+    {
+      "id": "G04",
+      "name": "Privacidade",
+      "front": "qualidade",
+      "source": "tests/security",
+      "entry": "docs/subprojects/G04-privacidade/README.md",
+      "scope": "docs/subprojects/G04-privacidade/ESCOPO.md",
+      "status": "docs/subprojects/G04-privacidade/STATUS.md",
+      "sprint": "docs/subprojects/G04-privacidade/SPRINT.md"
+    },
+    {
+      "id": "G05",
+      "name": "Operação e suporte",
+      "front": "operacao",
+      "source": "docs/engineering/SYNDES-SUPPORT-RUNBOOK.md",
+      "entry": "docs/subprojects/G05-operacao-e-suporte/README.md",
+      "scope": "docs/subprojects/G05-operacao-e-suporte/ESCOPO.md",
+      "status": "docs/subprojects/G05-operacao-e-suporte/STATUS.md",
+      "sprint": "docs/subprojects/G05-operacao-e-suporte/SPRINT.md"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# P10 — Email | Entrada
+
+- Catálogo: catalog/work-units.json
+- Código/artefato: modules/email
+- AGENTS global: AGENTS.md
+- AGENTS local: modules/email/AGENTS.md
+- Package/exports: N/A; localizar configuração declarativa
+- Contratos públicos: docs/standards/CONTRATOS-PUBLICOS.md
+- Escopo: docs/subprojects/P10-email/ESCOPO.md
+- Status: docs/subprojects/P10-email/STATUS.md
+- Sprint: docs/subprojects/P10-email/SPRINT.md
+
+Leia somente o escopo desta unidade, o status, a sprint, as instruções operacionais obrigatórias e os contratos públicos diretamente necessários. Não assuma responsabilidade interna por outros módulos.
