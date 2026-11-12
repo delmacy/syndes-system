@@ -44,7 +44,7 @@ class MermaidDocsTests(unittest.TestCase):
                     if chapter.startswith(folder.parent.as_posix()+"/chapters/"):
                         self.assertTrue((ROOT/chapter).exists())
         self.assertIn("embed_chapters_in_scopes", (ROOT/"scripts/docs/build_site.py").read_text())
-        self.assertIn('{"Escopo":str(d/"ESCOPO.md")}',(ROOT/"scripts/docs/build_site.py").read_text())
+        self.assertIn('{"Especificação":str(d/"ESCOPO.md")}',(ROOT/"scripts/docs/build_site.py").read_text())
 
     def test_reference_and_gates_stay_explicit(self):
         requirements={

@@ -3,6 +3,7 @@
 from pathlib import Path
 import json, re, shutil, yaml
 import subprocess
+import html
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -116,15 +117,11 @@ def navigation_tree(units, canonical):
             d=Path(unit["entry"]).parent.relative_to("docs")
             pages=[
                 {"Visão geral":str(d/"index.md")},
-                {"Escopo":str(d/"ESCOPO.md")},
-                *([{"Referência técnica":str(d/"REFERENCIA-TECNICA.md")}] if (DOCS/d/"REFERENCIA-TECNICA.md").is_file() else []),
+                {"Especificação":str(d/"ESCOPO.md")},
+                {"Referência técnica":str(d/"REFERENCIA-TECNICA.md")},
                 {"Evolução":str(d/"EVOLUCAO.md")},
-                {"Status":str(d/"STATUS.md")},
-                {"Sprint":str(d/"SPRINT.md")},
-                {"Atualizações":str(d/"updates/index.md")},
-                {"Projeção / Planejamento":str(d/"PROJECAO.md")},
-                {"Implementação":str(d/"IMPLEMENTACAO.md")},
-                {"Alteração rápida":str(d/"ALTERACAO.md")},
+                {"Histórico":str(d/"HISTORICO.md")},
+                {"Operação":str(d/"OPERACAO.md")}
             ]
             modules.append({uid+" · "+unit["name"]:pages})
         nav.append({front_label:modules})
@@ -180,6 +177,131 @@ def embed_chapters_in_scopes(units, revision, included):
         target.write_text(page+"\n".join(appendix),encoding="utf-8")
         metadata_path.write_text(json.dumps(metadata,ensure_ascii=False),encoding="utf-8")
 
+def tracked_commits(path, limit=6):
+    """Git is authoritative for changed files; its log is not product acceptance."""
+    try:
+        relative=path.relative_to(ROOT).as_posix()
+        if not path.exists():
+            return []
+        raw=subprocess.check_output(
+            ["git","log","--no-merges",f"--max-count={limit}",
+             "--format=%H%x1f%cI%x1f%s%x1e","--",relative],
+            cwd=ROOT,text=True,stderr=subprocess.DEVNULL,timeout=15)
+    except (ValueError,OSError,subprocess.CalledProcessError,subprocess.TimeoutExpired):
+        return []
+    result=[]
+    for item in raw.split("\x1e"):
+        fields=item.strip().split("\x1f",2)
+        if len(fields)==3 and re.fullmatch(r"[0-9a-f]{40}",fields[0]):
+            sha,stamp,subject=fields
+            result.append({"sha":sha,"date":stamp[:10],"subject":subject.strip()[:135]})
+    return result
+
+def safe_markdown_cell(value):
+    return html.escape(str(value),quote=False).replace("|",r"\|").replace("[",r"\[").replace("]",r"\]")
+
+def read_traceability(units):
+    """Validate links; never infer a task's status or manufacture commit IDs."""
+    path=ROOT/"catalog/traceability-links.json"
+    data=json.loads(path.read_text(encoding="utf-8"))
+    if data.get("schemaVersion")!=1:
+        raise ValueError("Unknown traceability format")
+    known={u["id"]:u for u in units}
+    seen=set()
+    grouped={uid:[] for uid in known}
+    for record in data.get("records",[]):
+        rid=record["id"]
+        uid=record["moduleId"]
+        if uid not in known or rid in seen:
+            raise ValueError("Invalid or duplicate trace record "+str(rid))
+        seen.add(rid)
+        for key in ("workpackage","workItem"):
+            obj=record[key]
+            doc=ROOT/obj["document"]
+            if not doc.is_file() or not doc.is_relative_to(DOCS):
+                raise ValueError("Invalid trace document "+str(doc))
+            text=doc.read_text(encoding="utf-8")
+            if obj["id"] not in text:
+                raise ValueError("Trace ID not in linked document: "+obj["id"])
+        if record.get("requirement"):
+            doc=ROOT/record["requirement"]["document"]
+            if not doc.is_file(): raise ValueError("Missing requirement: "+str(doc))
+        if record.get("commit") and not re.fullmatch(r"[0-9a-f]{40}",record["commit"]):
+            raise ValueError("Invalid trace commit "+rid)
+        for key in ("issue","pullRequest","testEvidence","deployment","acceptance"):
+            value=record.get(key)
+            if value is not None and not (isinstance(value,str) and value.startswith("https://")):
+                raise ValueError("Trace evidence must be an HTTPS URL or null: "+rid+"/"+key)
+        grouped[uid].append(record)
+    return grouped
+
+def history_table(path,label):
+    entries=tracked_commits(path,6)
+    lines=["### "+label+"\n"]
+    if not entries:
+        lines.append("Nenhuma revisão verificável deste caminho na revisão Git consultada.\n")
+        return "\n".join(lines)
+    lines.extend(["| Data do commit | Revisão | Alteração registrada no Git |",
+                  "|---|---|---|"])
+    for entry in entries:
+        sha=entry["sha"]
+        lines.append(f"| {entry['date']} | [`{sha[:8]}`]({REPO}/commit/{sha}) | {safe_markdown_cell(entry['subject'])} |")
+    lines.append("")
+    return "\n".join(lines)
+
+def render_traceability(records):
+    if not records:
+        return "Nenhuma ligação entre workpackage, Issue, commit, testes e aceite foi cadastrada para esta unidade. Não significa ausência de trabalho.\n"
+    lines=["| ID da task | Workpackage | Issue / PR | Código / testes / deploy / aceite |",
+           "|---|---|---|---|"]
+    for rec in records:
+        wp=rec["workpackage"]
+        doc=wp["document"]
+        links=f"[`{wp['id']}`]({REPO}/blob/main/{doc})"
+        def ext(key):
+            url=rec.get(key)
+            return "[evidência]("+url+")" if url else "não vinculada"
+        commit=rec.get("commit")
+        commit_link=f"[`{commit[:8]}`]({REPO}/commit/{commit})" if commit else "não vinculado"
+        proof="; ".join(["commit: "+commit_link,"testes: "+ext("testEvidence"),
+                         "deploy: "+ext("deployment"),"aceite: "+ext("acceptance")])
+        task=rec["workItem"]
+        tasklink=f"[`{task['id']}`]({REPO}/blob/main/{task['document']})"
+        lines.append(f"| {tasklink} | {links} | {ext('issue')} / {ext('pullRequest')} | {proof} |")
+    lines+=["","**Importante:** tarefa identificada não implica requisito aprovado; vínculos ausentes não são completados por inferência."]
+    return "\n".join(lines)+"\n"
+
+def embed_provenance(units,revision):
+    trace=read_traceability(units)
+    for u in units:
+        dest=CONTENT/site_rel(ROOT/Path(u["entry"]).parent/"HISTORICO.md")
+        source=(ROOT/u["source"]).resolve()
+        docs=(ROOT/Path(u["entry"]).parent).resolve()
+        body=dest.read_text(encoding="utf-8")
+        generated="\n".join([
+            f"> Snapshot Git utilizado no build: `{revision[:12]}`. Fonte do módulo: `{u['source']}`.",
+            "O caminho do catálogo pode ser compartilhado com outras unidades; os commits abaixo não representam ownership exclusivo.",
+            history_table(source,"Alterações de código / artefatos do caminho do catálogo"),
+            history_table(docs,"Alterações dos documentos deste módulo")])
+        if "<!-- SYNDES-HISTORY-GENERATED -->" not in body or "<!-- SYNDES-TRACE-GENERATED -->" not in body:
+            raise ValueError("Missing timeline insertion anchors for "+u["id"])
+        body=body.replace("<!-- SYNDES-HISTORY-GENERATED -->",generated)
+        body=body.replace("<!-- SYNDES-TRACE-GENERATED -->",render_traceability(trace[u["id"]]))
+        dest.write_text(body,encoding="utf-8")
+
+def embed_global_history(revision):
+    path=CONTENT/"blueprint/LINHA-DO-TEMPO.md"
+    body=path.read_text(encoding="utf-8")
+    if "<!-- SYNDES-GLOBAL-HISTORY -->" not in body:
+        raise ValueError("Missing global timeline anchor")
+    compiled="\n".join([
+        f"> Snapshot gerado do Git no commit `{revision[:12]}`; pode ficar defasado até a próxima publicação.",
+        history_table(ROOT/"apps","Alterações recentes em aplicações"),
+        history_table(ROOT/"modules","Alterações recentes em módulos"),
+        history_table(ROOT/"docs","Alterações recentes na documentação"),
+    ])
+    path.write_text(body.replace("<!-- SYNDES-GLOBAL-HISTORY -->",compiled),encoding="utf-8")
+
 def git_sha():
     try:
         return subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True,stderr=subprocess.DEVNULL).strip()
@@ -219,12 +341,16 @@ def main():
             target.with_suffix(".sections.json").write_text(json.dumps(payload,ensure_ascii=False),encoding="utf-8")
         else: shutil.copy2(source,target)
     embed_chapters_in_scopes(units,revision,included)
+    embed_provenance(units,revision)
+    embed_global_history(revision)
     nav=[{"Início":"index.md"},{"Monitoramento":"monitoramento/index.md"},
          {"Blueprint":[{"Visão geral":"blueprint/index.md"},
-                       {"Proposta ERP Lite e referência técnica":"blueprint/PROPOSTA-ERP-LITE-E-REFERENCIA-TECNICA.md"}]}]
+                       {"Proposta ERP Lite e referência técnica":"blueprint/PROPOSTA-ERP-LITE-E-REFERENCIA-TECNICA.md"},
+                       {"Linha do tempo geral":"blueprint/LINHA-DO-TEMPO.md"}]}]
     nav.extend(navigation_tree(units,canonical))
     nav.extend([{"Contratos e padrões":[
         {"Contratos públicos":"standards/CONTRATOS-PUBLICOS.md"},
+        {"Fontes e rastreabilidade":"standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md"},
         {"Editar tópicos e enviar propostas":"standards/EDICAO-CONTEXTUAL.md"},
         {"Organização por subpáginas":"standards/ORGANIZACAO-DE-PAGINAS.md"},
         {"Modelo de contrato":"standards/TEMPLATE-CONTRATO-PUBLICO.md"},

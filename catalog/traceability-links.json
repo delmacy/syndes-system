@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Links only; never infer completion from a reference",
+  "records": [
+    {
+      "id": "P01-VAL-01",
+      "moduleId": "P01",
+      "kind": "candidate-work-item",
+      "requirement": null,
+      "workpackage": {
+        "id": "P01-WP-VAL",
+        "document": "docs/subprojects/P01-crm/EVOLUCAO.md"
+      },
+      "workItem": {
+        "id": "P01-VAL-01",
+        "document": "docs/subprojects/P01-crm/EVOLUCAO.md"
+      },
+      "wbsReference": "50.02",
+      "issue": null,
+      "pullRequest": null,
+      "commit": null,
+      "testEvidence": null,
+      "deployment": null,
+      "acceptance": null
+    },
+    {
+      "id": "P02-VAL-01",
+      "moduleId": "P02",
+      "kind": "candidate-work-item",
+      "requirement": null,
+      "workpackage": {
+        "id": "P02-WP-VAL",
+        "document": "docs/subprojects/P02-inbox/EVOLUCAO.md"
+      },
+      "workItem": {
+        "id": "P02-VAL-01",
+        "document": "docs/subprojects/P02-inbox/EVOLUCAO.md"
+      },
+      "wbsReference": "50.03",
+      "issue": null,
+      "pullRequest": null,
+      "commit": null,
+      "testEvidence": null,
+      "deployment": null,
+      "acceptance": null
+    },
+    {
+      "id": "P03-VAL-01",
+      "moduleId": "P03",
+      "kind": "candidate-work-item",
+      "requirement": null,
+      "workpackage": {
+        "id": "P03-WP-VAL",
+        "document": "docs/subprojects/P03-whatsapp/EVOLUCAO.md"
+      },
+      "workItem": {
+        "id": "P03-VAL-01",
+        "document": "docs/subprojects/P03-whatsapp/EVOLUCAO.md"
+      },
+      "wbsReference": "50.05",
+      "issue": null,
+      "pullRequest": null,
+      "commit": null,
+      "testEvidence": null,
+      "deployment": null,
+      "acceptance": null
+    },
+    {
+      "id": "P14-CMP-01",
+      "moduleId": "P14",
+      "kind": "candidate-work-item",
+      "requirement": null,
+      "workpackage": {
+        "id": "P14-WP-VAL",
+        "document": "docs/subprojects/P14-platform-core/EVOLUCAO.md"
+      },
+      "workItem": {
+        "id": "P14-CMP-01",
+        "document": "docs/subprojects/P14-platform-core/EVOLUCAO.md"
+      },
+      "wbsReference": "CMP-01",
+      "issue": null,
+      "pullRequest": null,
+      "commit": null,
+      "testEvidence": null,
+      "deployment": null,
+      "acceptance": null
+    }
+  ]
+}

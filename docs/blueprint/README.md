@@ -161,3 +161,8 @@ flowchart TD
 ```
 
 O diagrama descreve o **processo desejado**, não uma automação atualmente disparada pelo GitHub Pages. A aprovação e as execuções continuam exigindo ação explícita e evidências do agente.
+
+
+## Linha do tempo do Syndes
+
+[Ver alterações verificadas do programa](LINHA-DO-TEMPO.md). Planejamento e datas continuam nas WBS e nas Issues/Projects; commits são histórico de código, não aceite de produto.

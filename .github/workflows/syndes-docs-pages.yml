@@ -6,6 +6,8 @@ on:
     paths:
       - "docs/**"
       - "catalog/work-units.json"
+      - "catalog/evolution-associations.json"
+      - "catalog/traceability-links.json"
       - "scripts/docs/**"
       - ".github/workflows/syndes-docs-pages.yml"
   workflow_dispatch:

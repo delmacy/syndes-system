@@ -83,3 +83,8 @@ Origem: catalog/work-units.json. Documentação inicial não equivale a funciona
 | P12 Billing | [ESCOPO](P12-billing/ESCOPO.md) | [STATUS](P12-billing/STATUS.md) | [SPRINT](P12-billing/SPRINT.md) | [modules/billing](../../modules/billing) |
 | P13 Commercial Site | [ESCOPO](P13-commercial-site/ESCOPO.md) | [STATUS](P13-commercial-site/STATUS.md) | [SPRINT](P13-commercial-site/SPRINT.md) | [modules/commercial-site](../../modules/commercial-site) |
 | G05 Operação e suporte | [ESCOPO](G05-operacao-e-suporte/ESCOPO.md) | [STATUS](G05-operacao-e-suporte/STATUS.md) | [SPRINT](G05-operacao-e-suporte/SPRINT.md) | [docs/engineering/SYNDES-SUPPORT-RUNBOOK.md](../../docs/engineering/SYNDES-SUPPORT-RUNBOOK.md) |
+
+
+## Modelo de seis páginas
+
+Área → Módulo → Página. Cada módulo expõe Visão geral, Especificação, Referência técnica, Evolução, Histórico e Operação. O corpo da documentação organiza tópicos e diagramas; **não** cria subpastas visíveis na navegação. Arquivos canônicos anteriores (STATUS, SPRINT, prompts e updates) continuam acessíveis a agentes e usuários.

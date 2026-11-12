@@ -15,7 +15,10 @@
       "promptProjection": "docs/subprojects/P01-crm/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P01-crm/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P01-crm/ALTERACAO.md",
-      "evolution": "docs/subprojects/P01-crm/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P01-crm/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P01-crm/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P01-crm/HISTORICO.md",
+      "operation": "docs/subprojects/P01-crm/OPERACAO.md"
     },
     {
       "id": "P02",
@@ -29,7 +32,10 @@
       "promptProjection": "docs/subprojects/P02-inbox/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P02-inbox/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P02-inbox/ALTERACAO.md",
-      "evolution": "docs/subprojects/P02-inbox/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P02-inbox/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P02-inbox/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P02-inbox/HISTORICO.md",
+      "operation": "docs/subprojects/P02-inbox/OPERACAO.md"
     },
     {
       "id": "P03",
@@ -43,7 +49,10 @@
       "promptProjection": "docs/subprojects/P03-whatsapp/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P03-whatsapp/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P03-whatsapp/ALTERACAO.md",
-      "evolution": "docs/subprojects/P03-whatsapp/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P03-whatsapp/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P03-whatsapp/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P03-whatsapp/HISTORICO.md",
+      "operation": "docs/subprojects/P03-whatsapp/OPERACAO.md"
     },
     {
       "id": "P04",
@@ -57,7 +66,10 @@
       "promptProjection": "docs/subprojects/P04-organizations-workforce/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P04-organizations-workforce/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P04-organizations-workforce/ALTERACAO.md",
-      "evolution": "docs/subprojects/P04-organizations-workforce/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P04-organizations-workforce/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P04-organizations-workforce/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P04-organizations-workforce/HISTORICO.md",
+      "operation": "docs/subprojects/P04-organizations-workforce/OPERACAO.md"
     },
     {
       "id": "P05",
@@ -71,7 +83,10 @@
       "promptProjection": "docs/subprojects/P05-gestao-de-atendimentos/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P05-gestao-de-atendimentos/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P05-gestao-de-atendimentos/ALTERACAO.md",
-      "evolution": "docs/subprojects/P05-gestao-de-atendimentos/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P05-gestao-de-atendimentos/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P05-gestao-de-atendimentos/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P05-gestao-de-atendimentos/HISTORICO.md",
+      "operation": "docs/subprojects/P05-gestao-de-atendimentos/OPERACAO.md"
     },
     {
       "id": "P06",
@@ -85,7 +100,10 @@
       "promptProjection": "docs/subprojects/P06-syndes-support/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P06-syndes-support/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P06-syndes-support/ALTERACAO.md",
-      "evolution": "docs/subprojects/P06-syndes-support/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P06-syndes-support/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P06-syndes-support/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P06-syndes-support/HISTORICO.md",
+      "operation": "docs/subprojects/P06-syndes-support/OPERACAO.md"
     },
     {
       "id": "P07",
@@ -99,7 +117,10 @@
       "promptProjection": "docs/subprojects/P07-scheduling/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P07-scheduling/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P07-scheduling/ALTERACAO.md",
-      "evolution": "docs/subprojects/P07-scheduling/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P07-scheduling/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P07-scheduling/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P07-scheduling/HISTORICO.md",
+      "operation": "docs/subprojects/P07-scheduling/OPERACAO.md"
     },
     {
       "id": "P08",
@@ -113,7 +134,10 @@
       "promptProjection": "docs/subprojects/P08-ai-assistant/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P08-ai-assistant/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P08-ai-assistant/ALTERACAO.md",
-      "evolution": "docs/subprojects/P08-ai-assistant/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P08-ai-assistant/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P08-ai-assistant/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P08-ai-assistant/HISTORICO.md",
+      "operation": "docs/subprojects/P08-ai-assistant/OPERACAO.md"
     },
     {
       "id": "P09",
@@ -127,7 +151,10 @@
       "promptProjection": "docs/subprojects/P09-documents/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P09-documents/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P09-documents/ALTERACAO.md",
-      "evolution": "docs/subprojects/P09-documents/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P09-documents/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P09-documents/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P09-documents/HISTORICO.md",
+      "operation": "docs/subprojects/P09-documents/OPERACAO.md"
     },
     {
       "id": "P10",
@@ -141,7 +168,10 @@
       "promptProjection": "docs/subprojects/P10-email/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P10-email/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P10-email/ALTERACAO.md",
-      "evolution": "docs/subprojects/P10-email/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P10-email/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P10-email/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P10-email/HISTORICO.md",
+      "operation": "docs/subprojects/P10-email/OPERACAO.md"
     },
     {
       "id": "P11",
@@ -155,7 +185,10 @@
       "promptProjection": "docs/subprojects/P11-onboarding/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P11-onboarding/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P11-onboarding/ALTERACAO.md",
-      "evolution": "docs/subprojects/P11-onboarding/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P11-onboarding/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P11-onboarding/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P11-onboarding/HISTORICO.md",
+      "operation": "docs/subprojects/P11-onboarding/OPERACAO.md"
     },
     {
       "id": "P12",
@@ -169,7 +202,10 @@
       "promptProjection": "docs/subprojects/P12-billing/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P12-billing/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P12-billing/ALTERACAO.md",
-      "evolution": "docs/subprojects/P12-billing/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P12-billing/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P12-billing/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P12-billing/HISTORICO.md",
+      "operation": "docs/subprojects/P12-billing/OPERACAO.md"
     },
     {
       "id": "P13",
@@ -183,7 +219,10 @@
       "promptProjection": "docs/subprojects/P13-commercial-site/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P13-commercial-site/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P13-commercial-site/ALTERACAO.md",
-      "evolution": "docs/subprojects/P13-commercial-site/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P13-commercial-site/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P13-commercial-site/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P13-commercial-site/HISTORICO.md",
+      "operation": "docs/subprojects/P13-commercial-site/OPERACAO.md"
     },
     {
       "id": "P14",
@@ -197,7 +236,10 @@
       "promptProjection": "docs/subprojects/P14-platform-core/PROJECAO.md",
       "promptImplementation": "docs/subprojects/P14-platform-core/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/P14-platform-core/ALTERACAO.md",
-      "evolution": "docs/subprojects/P14-platform-core/EVOLUCAO.md"
+      "evolution": "docs/subprojects/P14-platform-core/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/P14-platform-core/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/P14-platform-core/HISTORICO.md",
+      "operation": "docs/subprojects/P14-platform-core/OPERACAO.md"
     },
     {
       "id": "A01",
@@ -211,7 +253,10 @@
       "promptProjection": "docs/subprojects/A01-workspace-frontend/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A01-workspace-frontend/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/A01-workspace-frontend/ALTERACAO.md",
-      "evolution": "docs/subprojects/A01-workspace-frontend/EVOLUCAO.md"
+      "evolution": "docs/subprojects/A01-workspace-frontend/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/A01-workspace-frontend/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/A01-workspace-frontend/HISTORICO.md",
+      "operation": "docs/subprojects/A01-workspace-frontend/OPERACAO.md"
     },
     {
       "id": "A02",
@@ -225,7 +270,10 @@
       "promptProjection": "docs/subprojects/A02-platform-manager-frontend/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A02-platform-manager-frontend/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/A02-platform-manager-frontend/ALTERACAO.md",
-      "evolution": "docs/subprojects/A02-platform-manager-frontend/EVOLUCAO.md"
+      "evolution": "docs/subprojects/A02-platform-manager-frontend/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/A02-platform-manager-frontend/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/A02-platform-manager-frontend/HISTORICO.md",
+      "operation": "docs/subprojects/A02-platform-manager-frontend/OPERACAO.md"
     },
     {
       "id": "A03",
@@ -239,7 +287,10 @@
       "promptProjection": "docs/subprojects/A03-support-frontend/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A03-support-frontend/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/A03-support-frontend/ALTERACAO.md",
-      "evolution": "docs/subprojects/A03-support-frontend/EVOLUCAO.md"
+      "evolution": "docs/subprojects/A03-support-frontend/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/A03-support-frontend/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/A03-support-frontend/HISTORICO.md",
+      "operation": "docs/subprojects/A03-support-frontend/OPERACAO.md"
     },
     {
       "id": "A04",
@@ -253,7 +304,10 @@
       "promptProjection": "docs/subprojects/A04-core-host/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A04-core-host/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/A04-core-host/ALTERACAO.md",
-      "evolution": "docs/subprojects/A04-core-host/EVOLUCAO.md"
+      "evolution": "docs/subprojects/A04-core-host/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/A04-core-host/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/A04-core-host/HISTORICO.md",
+      "operation": "docs/subprojects/A04-core-host/OPERACAO.md"
     },
     {
       "id": "A05",
@@ -267,7 +321,10 @@
       "promptProjection": "docs/subprojects/A05-manager-api/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A05-manager-api/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/A05-manager-api/ALTERACAO.md",
-      "evolution": "docs/subprojects/A05-manager-api/EVOLUCAO.md"
+      "evolution": "docs/subprojects/A05-manager-api/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/A05-manager-api/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/A05-manager-api/HISTORICO.md",
+      "operation": "docs/subprojects/A05-manager-api/OPERACAO.md"
     },
     {
       "id": "A06",
@@ -281,7 +338,10 @@
       "promptProjection": "docs/subprojects/A06-account-access-api/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A06-account-access-api/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/A06-account-access-api/ALTERACAO.md",
-      "evolution": "docs/subprojects/A06-account-access-api/EVOLUCAO.md"
+      "evolution": "docs/subprojects/A06-account-access-api/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/A06-account-access-api/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/A06-account-access-api/HISTORICO.md",
+      "operation": "docs/subprojects/A06-account-access-api/OPERACAO.md"
     },
     {
       "id": "A07",
@@ -295,7 +355,10 @@
       "promptProjection": "docs/subprojects/A07-front-shared/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A07-front-shared/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/A07-front-shared/ALTERACAO.md",
-      "evolution": "docs/subprojects/A07-front-shared/EVOLUCAO.md"
+      "evolution": "docs/subprojects/A07-front-shared/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/A07-front-shared/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/A07-front-shared/HISTORICO.md",
+      "operation": "docs/subprojects/A07-front-shared/OPERACAO.md"
     },
     {
       "id": "A08",
@@ -309,7 +372,10 @@
       "promptProjection": "docs/subprojects/A08-core-kernel/PROJECAO.md",
       "promptImplementation": "docs/subprojects/A08-core-kernel/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/A08-core-kernel/ALTERACAO.md",
-      "evolution": "docs/subprojects/A08-core-kernel/EVOLUCAO.md"
+      "evolution": "docs/subprojects/A08-core-kernel/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/A08-core-kernel/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/A08-core-kernel/HISTORICO.md",
+      "operation": "docs/subprojects/A08-core-kernel/OPERACAO.md"
     },
     {
       "id": "C01",
@@ -323,7 +389,10 @@
       "promptProjection": "docs/subprojects/C01-control-plane/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C01-control-plane/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/C01-control-plane/ALTERACAO.md",
-      "evolution": "docs/subprojects/C01-control-plane/EVOLUCAO.md"
+      "evolution": "docs/subprojects/C01-control-plane/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/C01-control-plane/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/C01-control-plane/HISTORICO.md",
+      "operation": "docs/subprojects/C01-control-plane/OPERACAO.md"
     },
     {
       "id": "C02",
@@ -337,7 +406,10 @@
       "promptProjection": "docs/subprojects/C02-tenant-installer/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C02-tenant-installer/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/C02-tenant-installer/ALTERACAO.md",
-      "evolution": "docs/subprojects/C02-tenant-installer/EVOLUCAO.md"
+      "evolution": "docs/subprojects/C02-tenant-installer/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/C02-tenant-installer/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/C02-tenant-installer/HISTORICO.md",
+      "operation": "docs/subprojects/C02-tenant-installer/OPERACAO.md"
     },
     {
       "id": "C03",
@@ -351,7 +423,10 @@
       "promptProjection": "docs/subprojects/C03-identity-keycloak/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C03-identity-keycloak/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/C03-identity-keycloak/ALTERACAO.md",
-      "evolution": "docs/subprojects/C03-identity-keycloak/EVOLUCAO.md"
+      "evolution": "docs/subprojects/C03-identity-keycloak/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/C03-identity-keycloak/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/C03-identity-keycloak/HISTORICO.md",
+      "operation": "docs/subprojects/C03-identity-keycloak/OPERACAO.md"
     },
     {
       "id": "C04",
@@ -365,7 +440,10 @@
       "promptProjection": "docs/subprojects/C04-authorization-openfga/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C04-authorization-openfga/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/C04-authorization-openfga/ALTERACAO.md",
-      "evolution": "docs/subprojects/C04-authorization-openfga/EVOLUCAO.md"
+      "evolution": "docs/subprojects/C04-authorization-openfga/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/C04-authorization-openfga/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/C04-authorization-openfga/HISTORICO.md",
+      "operation": "docs/subprojects/C04-authorization-openfga/OPERACAO.md"
     },
     {
       "id": "C05",
@@ -379,7 +457,10 @@
       "promptProjection": "docs/subprojects/C05-secrets-openbao/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C05-secrets-openbao/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/C05-secrets-openbao/ALTERACAO.md",
-      "evolution": "docs/subprojects/C05-secrets-openbao/EVOLUCAO.md"
+      "evolution": "docs/subprojects/C05-secrets-openbao/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/C05-secrets-openbao/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/C05-secrets-openbao/HISTORICO.md",
+      "operation": "docs/subprojects/C05-secrets-openbao/OPERACAO.md"
     },
     {
       "id": "C06",
@@ -393,7 +474,10 @@
       "promptProjection": "docs/subprojects/C06-event-platform/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C06-event-platform/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/C06-event-platform/ALTERACAO.md",
-      "evolution": "docs/subprojects/C06-event-platform/EVOLUCAO.md"
+      "evolution": "docs/subprojects/C06-event-platform/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/C06-event-platform/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/C06-event-platform/HISTORICO.md",
+      "operation": "docs/subprojects/C06-event-platform/OPERACAO.md"
     },
     {
       "id": "C07",
@@ -407,7 +491,10 @@
       "promptProjection": "docs/subprojects/C07-apis-e-adapters/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C07-apis-e-adapters/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/C07-apis-e-adapters/ALTERACAO.md",
-      "evolution": "docs/subprojects/C07-apis-e-adapters/EVOLUCAO.md"
+      "evolution": "docs/subprojects/C07-apis-e-adapters/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/C07-apis-e-adapters/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/C07-apis-e-adapters/HISTORICO.md",
+      "operation": "docs/subprojects/C07-apis-e-adapters/OPERACAO.md"
     },
     {
       "id": "C08",
@@ -421,7 +508,10 @@
       "promptProjection": "docs/subprojects/C08-audit-e-observabilidade/PROJECAO.md",
       "promptImplementation": "docs/subprojects/C08-audit-e-observabilidade/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/C08-audit-e-observabilidade/ALTERACAO.md",
-      "evolution": "docs/subprojects/C08-audit-e-observabilidade/EVOLUCAO.md"
+      "evolution": "docs/subprojects/C08-audit-e-observabilidade/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/C08-audit-e-observabilidade/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/C08-audit-e-observabilidade/HISTORICO.md",
+      "operation": "docs/subprojects/C08-audit-e-observabilidade/OPERACAO.md"
     },
     {
       "id": "I01",
@@ -435,7 +525,10 @@
       "promptProjection": "docs/subprojects/I01-devserver01/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I01-devserver01/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/I01-devserver01/ALTERACAO.md",
-      "evolution": "docs/subprojects/I01-devserver01/EVOLUCAO.md"
+      "evolution": "docs/subprojects/I01-devserver01/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/I01-devserver01/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/I01-devserver01/HISTORICO.md",
+      "operation": "docs/subprojects/I01-devserver01/OPERACAO.md"
     },
     {
       "id": "I02",
@@ -449,7 +542,10 @@
       "promptProjection": "docs/subprojects/I02-server02/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I02-server02/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/I02-server02/ALTERACAO.md",
-      "evolution": "docs/subprojects/I02-server02/EVOLUCAO.md"
+      "evolution": "docs/subprojects/I02-server02/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/I02-server02/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/I02-server02/HISTORICO.md",
+      "operation": "docs/subprojects/I02-server02/OPERACAO.md"
     },
     {
       "id": "I03",
@@ -463,7 +559,10 @@
       "promptProjection": "docs/subprojects/I03-win1-server/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I03-win1-server/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/I03-win1-server/ALTERACAO.md",
-      "evolution": "docs/subprojects/I03-win1-server/EVOLUCAO.md"
+      "evolution": "docs/subprojects/I03-win1-server/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/I03-win1-server/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/I03-win1-server/HISTORICO.md",
+      "operation": "docs/subprojects/I03-win1-server/OPERACAO.md"
     },
     {
       "id": "I04",
@@ -477,7 +576,10 @@
       "promptProjection": "docs/subprojects/I04-postgresql/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I04-postgresql/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/I04-postgresql/ALTERACAO.md",
-      "evolution": "docs/subprojects/I04-postgresql/EVOLUCAO.md"
+      "evolution": "docs/subprojects/I04-postgresql/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/I04-postgresql/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/I04-postgresql/HISTORICO.md",
+      "operation": "docs/subprojects/I04-postgresql/OPERACAO.md"
     },
     {
       "id": "I05",
@@ -491,7 +593,10 @@
       "promptProjection": "docs/subprojects/I05-docker-e-redes/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I05-docker-e-redes/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/I05-docker-e-redes/ALTERACAO.md",
-      "evolution": "docs/subprojects/I05-docker-e-redes/EVOLUCAO.md"
+      "evolution": "docs/subprojects/I05-docker-e-redes/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/I05-docker-e-redes/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/I05-docker-e-redes/HISTORICO.md",
+      "operation": "docs/subprojects/I05-docker-e-redes/OPERACAO.md"
     },
     {
       "id": "I06",
@@ -505,7 +610,10 @@
       "promptProjection": "docs/subprojects/I06-traefik-https/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I06-traefik-https/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/I06-traefik-https/ALTERACAO.md",
-      "evolution": "docs/subprojects/I06-traefik-https/EVOLUCAO.md"
+      "evolution": "docs/subprojects/I06-traefik-https/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/I06-traefik-https/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/I06-traefik-https/HISTORICO.md",
+      "operation": "docs/subprojects/I06-traefik-https/OPERACAO.md"
     },
     {
       "id": "I07",
@@ -519,7 +627,10 @@
       "promptProjection": "docs/subprojects/I07-tailnet/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I07-tailnet/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/I07-tailnet/ALTERACAO.md",
-      "evolution": "docs/subprojects/I07-tailnet/EVOLUCAO.md"
+      "evolution": "docs/subprojects/I07-tailnet/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/I07-tailnet/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/I07-tailnet/HISTORICO.md",
+      "operation": "docs/subprojects/I07-tailnet/OPERACAO.md"
     },
     {
       "id": "I08",
@@ -533,7 +644,10 @@
       "promptProjection": "docs/subprojects/I08-komodo/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I08-komodo/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/I08-komodo/ALTERACAO.md",
-      "evolution": "docs/subprojects/I08-komodo/EVOLUCAO.md"
+      "evolution": "docs/subprojects/I08-komodo/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/I08-komodo/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/I08-komodo/HISTORICO.md",
+      "operation": "docs/subprojects/I08-komodo/OPERACAO.md"
     },
     {
       "id": "I09",
@@ -547,7 +661,10 @@
       "promptProjection": "docs/subprojects/I09-whatsmeow-runtime/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I09-whatsmeow-runtime/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/I09-whatsmeow-runtime/ALTERACAO.md",
-      "evolution": "docs/subprojects/I09-whatsmeow-runtime/EVOLUCAO.md"
+      "evolution": "docs/subprojects/I09-whatsmeow-runtime/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/I09-whatsmeow-runtime/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/I09-whatsmeow-runtime/HISTORICO.md",
+      "operation": "docs/subprojects/I09-whatsmeow-runtime/OPERACAO.md"
     },
     {
       "id": "I10",
@@ -561,7 +678,10 @@
       "promptProjection": "docs/subprojects/I10-backup-e-restore/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I10-backup-e-restore/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/I10-backup-e-restore/ALTERACAO.md",
-      "evolution": "docs/subprojects/I10-backup-e-restore/EVOLUCAO.md"
+      "evolution": "docs/subprojects/I10-backup-e-restore/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/I10-backup-e-restore/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/I10-backup-e-restore/HISTORICO.md",
+      "operation": "docs/subprojects/I10-backup-e-restore/OPERACAO.md"
     },
     {
       "id": "I11",
@@ -575,7 +695,10 @@
       "promptProjection": "docs/subprojects/I11-release-e-rollback/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I11-release-e-rollback/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/I11-release-e-rollback/ALTERACAO.md",
-      "evolution": "docs/subprojects/I11-release-e-rollback/EVOLUCAO.md"
+      "evolution": "docs/subprojects/I11-release-e-rollback/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/I11-release-e-rollback/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/I11-release-e-rollback/HISTORICO.md",
+      "operation": "docs/subprojects/I11-release-e-rollback/OPERACAO.md"
     },
     {
       "id": "I12",
@@ -589,7 +712,10 @@
       "promptProjection": "docs/subprojects/I12-seguranca-de-host/PROJECAO.md",
       "promptImplementation": "docs/subprojects/I12-seguranca-de-host/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/I12-seguranca-de-host/ALTERACAO.md",
-      "evolution": "docs/subprojects/I12-seguranca-de-host/EVOLUCAO.md"
+      "evolution": "docs/subprojects/I12-seguranca-de-host/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/I12-seguranca-de-host/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/I12-seguranca-de-host/HISTORICO.md",
+      "operation": "docs/subprojects/I12-seguranca-de-host/OPERACAO.md"
     },
     {
       "id": "Q01",
@@ -603,7 +729,10 @@
       "promptProjection": "docs/subprojects/Q01-plataforma-de-testes/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q01-plataforma-de-testes/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/Q01-plataforma-de-testes/ALTERACAO.md",
-      "evolution": "docs/subprojects/Q01-plataforma-de-testes/EVOLUCAO.md"
+      "evolution": "docs/subprojects/Q01-plataforma-de-testes/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/Q01-plataforma-de-testes/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/Q01-plataforma-de-testes/HISTORICO.md",
+      "operation": "docs/subprojects/Q01-plataforma-de-testes/OPERACAO.md"
     },
     {
       "id": "Q02",
@@ -617,7 +746,10 @@
       "promptProjection": "docs/subprojects/Q02-testes-unitarios/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q02-testes-unitarios/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/Q02-testes-unitarios/ALTERACAO.md",
-      "evolution": "docs/subprojects/Q02-testes-unitarios/EVOLUCAO.md"
+      "evolution": "docs/subprojects/Q02-testes-unitarios/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/Q02-testes-unitarios/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/Q02-testes-unitarios/HISTORICO.md",
+      "operation": "docs/subprojects/Q02-testes-unitarios/OPERACAO.md"
     },
     {
       "id": "Q03",
@@ -631,7 +763,10 @@
       "promptProjection": "docs/subprojects/Q03-integracao/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q03-integracao/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/Q03-integracao/ALTERACAO.md",
-      "evolution": "docs/subprojects/Q03-integracao/EVOLUCAO.md"
+      "evolution": "docs/subprojects/Q03-integracao/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/Q03-integracao/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/Q03-integracao/HISTORICO.md",
+      "operation": "docs/subprojects/Q03-integracao/OPERACAO.md"
     },
     {
       "id": "Q04",
@@ -645,7 +780,10 @@
       "promptProjection": "docs/subprojects/Q04-browser-e2e/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q04-browser-e2e/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/Q04-browser-e2e/ALTERACAO.md",
-      "evolution": "docs/subprojects/Q04-browser-e2e/EVOLUCAO.md"
+      "evolution": "docs/subprojects/Q04-browser-e2e/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/Q04-browser-e2e/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/Q04-browser-e2e/HISTORICO.md",
+      "operation": "docs/subprojects/Q04-browser-e2e/OPERACAO.md"
     },
     {
       "id": "Q05",
@@ -659,7 +797,10 @@
       "promptProjection": "docs/subprojects/Q05-seguranca/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q05-seguranca/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/Q05-seguranca/ALTERACAO.md",
-      "evolution": "docs/subprojects/Q05-seguranca/EVOLUCAO.md"
+      "evolution": "docs/subprojects/Q05-seguranca/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/Q05-seguranca/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/Q05-seguranca/HISTORICO.md",
+      "operation": "docs/subprojects/Q05-seguranca/OPERACAO.md"
     },
     {
       "id": "Q06",
@@ -673,7 +814,10 @@
       "promptProjection": "docs/subprojects/Q06-performance/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q06-performance/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/Q06-performance/ALTERACAO.md",
-      "evolution": "docs/subprojects/Q06-performance/EVOLUCAO.md"
+      "evolution": "docs/subprojects/Q06-performance/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/Q06-performance/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/Q06-performance/HISTORICO.md",
+      "operation": "docs/subprojects/Q06-performance/OPERACAO.md"
     },
     {
       "id": "Q07",
@@ -687,7 +831,10 @@
       "promptProjection": "docs/subprojects/Q07-ci-cd/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q07-ci-cd/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/Q07-ci-cd/ALTERACAO.md",
-      "evolution": "docs/subprojects/Q07-ci-cd/EVOLUCAO.md"
+      "evolution": "docs/subprojects/Q07-ci-cd/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/Q07-ci-cd/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/Q07-ci-cd/HISTORICO.md",
+      "operation": "docs/subprojects/Q07-ci-cd/OPERACAO.md"
     },
     {
       "id": "Q08",
@@ -701,7 +848,10 @@
       "promptProjection": "docs/subprojects/Q08-release-engineering/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q08-release-engineering/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/Q08-release-engineering/ALTERACAO.md",
-      "evolution": "docs/subprojects/Q08-release-engineering/EVOLUCAO.md"
+      "evolution": "docs/subprojects/Q08-release-engineering/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/Q08-release-engineering/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/Q08-release-engineering/HISTORICO.md",
+      "operation": "docs/subprojects/Q08-release-engineering/OPERACAO.md"
     },
     {
       "id": "Q09",
@@ -715,7 +865,10 @@
       "promptProjection": "docs/subprojects/Q09-infra-tests/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q09-infra-tests/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/Q09-infra-tests/ALTERACAO.md",
-      "evolution": "docs/subprojects/Q09-infra-tests/EVOLUCAO.md"
+      "evolution": "docs/subprojects/Q09-infra-tests/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/Q09-infra-tests/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/Q09-infra-tests/HISTORICO.md",
+      "operation": "docs/subprojects/Q09-infra-tests/OPERACAO.md"
     },
     {
       "id": "Q10",
@@ -729,7 +882,10 @@
       "promptProjection": "docs/subprojects/Q10-quality-gates/PROJECAO.md",
       "promptImplementation": "docs/subprojects/Q10-quality-gates/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/Q10-quality-gates/ALTERACAO.md",
-      "evolution": "docs/subprojects/Q10-quality-gates/EVOLUCAO.md"
+      "evolution": "docs/subprojects/Q10-quality-gates/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/Q10-quality-gates/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/Q10-quality-gates/HISTORICO.md",
+      "operation": "docs/subprojects/Q10-quality-gates/OPERACAO.md"
     },
     {
       "id": "G01",
@@ -743,7 +899,10 @@
       "promptProjection": "docs/subprojects/G01-arquitetura/PROJECAO.md",
       "promptImplementation": "docs/subprojects/G01-arquitetura/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/G01-arquitetura/ALTERACAO.md",
-      "evolution": "docs/subprojects/G01-arquitetura/EVOLUCAO.md"
+      "evolution": "docs/subprojects/G01-arquitetura/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/G01-arquitetura/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/G01-arquitetura/HISTORICO.md",
+      "operation": "docs/subprojects/G01-arquitetura/OPERACAO.md"
     },
     {
       "id": "G02",
@@ -757,7 +916,10 @@
       "promptProjection": "docs/subprojects/G02-produto-e-ux/PROJECAO.md",
       "promptImplementation": "docs/subprojects/G02-produto-e-ux/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/G02-produto-e-ux/ALTERACAO.md",
-      "evolution": "docs/subprojects/G02-produto-e-ux/EVOLUCAO.md"
+      "evolution": "docs/subprojects/G02-produto-e-ux/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/G02-produto-e-ux/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/G02-produto-e-ux/HISTORICO.md",
+      "operation": "docs/subprojects/G02-produto-e-ux/OPERACAO.md"
     },
     {
       "id": "G03",
@@ -771,7 +933,10 @@
       "promptProjection": "docs/subprojects/G03-engenharia-e-git/PROJECAO.md",
       "promptImplementation": "docs/subprojects/G03-engenharia-e-git/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/G03-engenharia-e-git/ALTERACAO.md",
-      "evolution": "docs/subprojects/G03-engenharia-e-git/EVOLUCAO.md"
+      "evolution": "docs/subprojects/G03-engenharia-e-git/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/G03-engenharia-e-git/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/G03-engenharia-e-git/HISTORICO.md",
+      "operation": "docs/subprojects/G03-engenharia-e-git/OPERACAO.md"
     },
     {
       "id": "G04",
@@ -785,7 +950,10 @@
       "promptProjection": "docs/subprojects/G04-privacidade/PROJECAO.md",
       "promptImplementation": "docs/subprojects/G04-privacidade/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/G04-privacidade/ALTERACAO.md",
-      "evolution": "docs/subprojects/G04-privacidade/EVOLUCAO.md"
+      "evolution": "docs/subprojects/G04-privacidade/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/G04-privacidade/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/G04-privacidade/HISTORICO.md",
+      "operation": "docs/subprojects/G04-privacidade/OPERACAO.md"
     },
     {
       "id": "G05",
@@ -799,7 +967,10 @@
       "promptProjection": "docs/subprojects/G05-operacao-e-suporte/PROJECAO.md",
       "promptImplementation": "docs/subprojects/G05-operacao-e-suporte/IMPLEMENTACAO.md",
       "promptAlteration": "docs/subprojects/G05-operacao-e-suporte/ALTERACAO.md",
-      "evolution": "docs/subprojects/G05-operacao-e-suporte/EVOLUCAO.md"
+      "evolution": "docs/subprojects/G05-operacao-e-suporte/EVOLUCAO.md",
+      "technicalReference": "docs/subprojects/G05-operacao-e-suporte/REFERENCIA-TECNICA.md",
+      "history": "docs/subprojects/G05-operacao-e-suporte/HISTORICO.md",
+      "operation": "docs/subprojects/G05-operacao-e-suporte/OPERACAO.md"
     }
   ]
 }

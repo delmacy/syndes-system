@@ -50,3 +50,8 @@ Para uma mudança localizada e clara, selecione o tópico e use **Copiar prompt 
 Depois que o requisito for aprovado, o agente de projeção reconcilia o incremento com EVOLUCAO.md do módulo, vincula o requisito ao workpackage pertinente ou propõe um novo ID de WP e tarefas com critérios de aceite. A sprint seleciona **somente um subconjunto autorizado** do backlog. A implementação atualiza STATUS, SPRINT e EVOLUCAO com evidências; não altera estados de outros módulos.
 
 Cada associação importada da WBS mestre é contextual; ownership, estado operacional, escopo e bloqueios precisam ser conferidos antes do comprometimento da sprint.
+
+
+## Rastreabilidade entre plano e histórico
+
+Após aprovação, associar requisito, workpackage, task e Issue sem inventar IDs ou estados. Após implementação e testes, registrar PR/commit, CI, deploy e aceite **somente quando houver URLs/SHAs verificáveis**. Para vínculos públicos consultáveis, atualizar `catalog/traceability-links.json`, que serve apenas como índice e permite campos nulos. O Histórico é regenerado a partir do Git. A página Operação mantém links para os documentos de STATUS, SPRINT e prompts, sem copiar seus estados.

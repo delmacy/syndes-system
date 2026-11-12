@@ -33,3 +33,14 @@
 ## Projeto de documentação técnica
 
 A [proposta de ERP Lite e referência técnica por módulo](blueprint/PROPOSTA-ERP-LITE-E-REFERENCIA-TECNICA.md) define o padrão de classes, métodos, contratos públicos, telas e schemas de Tenant/Control. É uma **proposta**, não código ERP aprovado. A [referência de template](standards/TEMPLATE-REFERENCIA-TECNICA.md) orienta o preenchimento.
+
+
+## Portal integrado: documentação, projeto e linha do tempo
+
+Cada módulo possui **seis páginas** no menu: Visão geral, Especificação, Referência técnica, Evolução, Histórico e Operação. STATUS, SPRINT, prompts e caixa de entrada continuam disponíveis por links internos e nos caminhos de Git já utilizados pelos agentes.
+
+- [Linha do tempo geral — planejado × realizado](blueprint/LINHA-DO-TEMPO.md).
+- [Fontes de verdade e rastreabilidade](standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
+- [Blueprint do produto](blueprint/README.md).
+
+O histórico é calculado a partir do Git no build, **não** digitado manualmente; Issues/Projects são fontes de status das tarefas, e commit/CI/deploy/aceite não são equivalentes.
