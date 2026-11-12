@@ -1,6 +1,12 @@
 # Blueprint Geral — índice para revisão
 > RASCUNHO, NÃO APROVADO. Fontes preexistentes mantidas em `docs/product/`, `docs/engineering/` e `AGENTS.md`. Não duplicar nem reescrever objetivos aprovados neste índice.
 
+## Revisão proposta de domínio e referência técnica
+
+- [Proposta de ERP Lite, organização dos domínios e documentação de stack por módulo](PROPOSTA-ERP-LITE-E-REFERENCIA-TECNICA.md) — **PROPOSTA NÃO APROVADA**.
+- [Modelo de referência técnica por módulo](../standards/TEMPLATE-REFERENCIA-TECNICA.md).
+- Pilotos em [Core Kernel](../subprojects/A08-core-kernel/REFERENCIA-TECNICA.md), [Core Host](../subprojects/A04-core-host/REFERENCIA-TECNICA.md), [CRM](../subprojects/P01-crm/REFERENCIA-TECNICA.md) e [Organizations & Workforce](../subprojects/P04-organizations-workforce/REFERENCIA-TECNICA.md).
+
 ## Objetivos e priorização
 - MVP e escopo vigente: consultar `AGENTS.md`, PRDs e WBS em `docs/product/` e `docs/engineering/`.
 - Arquitetura de composição: `docs/engineering/ADR-COMPOSICAO-MODULAR-CORE-20261111.md`.

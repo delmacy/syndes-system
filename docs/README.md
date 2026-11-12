@@ -29,3 +29,7 @@
 ## Três níveis de navegação
 
 **Área → Módulo → Página.** A página Escopo apresenta capítulos, tópicos, histórias, capacidades, contratos e diagramas no próprio corpo da documentação. Cada capítulo continua em arquivo Markdown individual para edição e consultas precisas de agentes.
+
+## Projeto de documentação técnica
+
+A [proposta de ERP Lite e referência técnica por módulo](blueprint/PROPOSTA-ERP-LITE-E-REFERENCIA-TECNICA.md) define o padrão de classes, métodos, contratos públicos, telas e schemas de Tenant/Control. É uma **proposta**, não código ERP aprovado. A [referência de template](standards/TEMPLATE-REFERENCIA-TECNICA.md) orienta o preenchimento.

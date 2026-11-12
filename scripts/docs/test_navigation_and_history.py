@@ -22,9 +22,11 @@ class NavigationTests(unittest.TestCase):
             self.assertIsInstance(modules,list)
             for module in modules:
                 pages=next(iter(module.values()))
-                self.assertEqual(len(pages),9)
-                self.assertEqual([next(iter(page)) for page in pages],
+                labels=[next(iter(page)) for page in pages]
+                self.assertEqual(len(pages),10 if "Referência técnica" in labels else 9)
+                self.assertEqual([x for x in labels if x != "Referência técnica"],
                                  ["Visão geral","Escopo","Evolução","Status","Sprint","Atualizações","Projeção / Planejamento","Implementação","Alteração rápida"])
+                self.assertTrue("Referência técnica" not in labels or labels[2]=="Referência técnica")
                 self.assertTrue(all(isinstance(next(iter(page.values())),str) for page in pages))
         flat=str(nav)
         for unit in units:

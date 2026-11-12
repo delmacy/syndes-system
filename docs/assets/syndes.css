@@ -53,3 +53,37 @@
 .syndes-workflow-state[data-state="failure"], .syndes-workflow-state[data-state="timed_out"] { color:#b74141; background:rgba(201,59,59,.12); }
 .syndes-workflow-state[data-state="in_progress"], .syndes-workflow-state[data-state="queued"] { color:#9a680e; background:rgba(212,151,42,.12); }
 .syndes-workflow-link { display:inline-block; margin-top:.4rem; font-size:.72rem; }
+
+/* Reading workspace: edge-aligned navigation, topic tree on the left,
+   and readable wide content across desktop displays. */
+.md-grid {
+  max-width: none;
+}
+@media screen and (min-width: 76.25em) {
+  .md-main__inner.md-grid {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: clamp(.4rem, 1.3vw, 1.4rem);
+    padding-right: clamp(.8rem, 2vw, 2.2rem);
+  }
+  .md-content {
+    min-width: 0;
+  }
+  .md-content__inner {
+    max-width: 1340px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .md-sidebar--secondary {
+    display: none;
+  }
+}
+.md-typeset table:not([class]) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.md-typeset .mermaid {
+  max-width: 100%;
+  overflow-x: auto;
+}

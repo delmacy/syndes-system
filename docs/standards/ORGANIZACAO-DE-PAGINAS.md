@@ -33,3 +33,7 @@ O editor contextual identifica a origem correta de cada trecho do escopo agregad
 - Evitar informações confidenciais, instâncias reais, tokens, topologias sensíveis e URLs internas em repositório público.
 - Quando a especificação mudar, atualizar o diagrama no mesmo PR e revalidar com `python -m unittest discover -s scripts/docs -p 'test_*.py'` e o build MkDocs.
 - Nos módulos ainda não auditados, não criar diagramas inventados: primeiro verificar fonte e contratos públicos, depois completar o capítulo de arquitetura.
+
+## Leitura ampla e índice integrado
+
+A navegação permanece **Área → Módulo → Página**. A página opcional **Referência técnica** reúne stack, métodos, contratos, frontend e schemas. Com `toc.integrate`, os subtítulos de cada página aparecem na navegação lateral esquerda; não há coluna permanente de índice à direita. O conteúdo utiliza largura fluida em telas grandes, com limite de legibilidade e adaptação responsiva. `navigation.indexes` deve permanecer desativado enquanto `toc.integrate` estiver ativo (incompatibilidade documentada do Material).

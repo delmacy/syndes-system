@@ -117,6 +117,7 @@ def navigation_tree(units, canonical):
             pages=[
                 {"Visão geral":str(d/"index.md")},
                 {"Escopo":str(d/"ESCOPO.md")},
+                *([{"Referência técnica":str(d/"REFERENCIA-TECNICA.md")}] if (DOCS/d/"REFERENCIA-TECNICA.md").is_file() else []),
                 {"Evolução":str(d/"EVOLUCAO.md")},
                 {"Status":str(d/"STATUS.md")},
                 {"Sprint":str(d/"SPRINT.md")},
@@ -190,7 +191,8 @@ def main():
     canonical=json.loads((ROOT/"catalog/work-units.json").read_text())["units"]
     assert len(units)==len(canonical)==57
     assert [u["id"] for u in units] == [u["id"] for u in canonical]
-    include={DOCS/"README.md",DOCS/"blueprint/README.md",DOCS/"subprojects/README.md",DOCS/"subprojects/index.json",DOCS/"monitoramento/README.md"}
+    include={DOCS/"README.md",DOCS/"subprojects/README.md",DOCS/"subprojects/index.json",DOCS/"monitoramento/README.md"}
+    include.update((DOCS/"blueprint").glob("*.md"))
     include.update((DOCS/"standards").glob("*.md"))
     include.update((DOCS/"assets").glob("*"))
     for u in units:
@@ -218,7 +220,8 @@ def main():
         else: shutil.copy2(source,target)
     embed_chapters_in_scopes(units,revision,included)
     nav=[{"Início":"index.md"},{"Monitoramento":"monitoramento/index.md"},
-         {"Blueprint":"blueprint/index.md"}]
+         {"Blueprint":[{"Visão geral":"blueprint/index.md"},
+                       {"Proposta ERP Lite e referência técnica":"blueprint/PROPOSTA-ERP-LITE-E-REFERENCIA-TECNICA.md"}]}]
     nav.extend(navigation_tree(units,canonical))
     nav.extend([{"Contratos e padrões":[
         {"Contratos públicos":"standards/CONTRATOS-PUBLICOS.md"},
@@ -230,6 +233,7 @@ def main():
         {"Fluxo de atualizações":"standards/FLUXO-DE-ATUALIZACOES.md"},
         {"Modelo de atualização":"standards/TEMPLATE-ATUALIZACAO.md"},
         {"Modelo de workpackage":"standards/TEMPLATE-WORKPACKAGE.md"},
+        {"Modelo de referência técnica":"standards/TEMPLATE-REFERENCIA-TECNICA.md"},
         {"Modelo de prompt por incremento":"standards/TEMPLATE-PROMPT-INCREMENTO.md"}]},
         {"Índice por caminho":"subprojects/index.md"}])
     config={
@@ -241,7 +245,7 @@ def main():
         "docs_dir":str(CONTENT),"site_dir":str(OUT/"site"),
         "theme":{"name":"material","language":"pt-BR",
                  "logo":"assets/syndes-mark.svg","favicon":"assets/syndes-mark.svg",
-                 "features":["navigation.sections","navigation.indexes",
+                 "features":["navigation.sections","toc.integrate",
                              "navigation.top","toc.follow","search.suggest","search.highlight",
                              "content.code.copy"],
                  "palette":[
