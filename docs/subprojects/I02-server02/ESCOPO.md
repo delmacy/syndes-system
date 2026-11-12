@@ -1,4 +1,4 @@
-# I02 — server02 | ESCOPO
+# I02 — Hospedagem e ambientes | ESCOPO
 
 > RASCUNHO NÃO APROVADO (2026-11-12). Nenhuma capacidade operacional foi verificada pela criação deste documento.
 

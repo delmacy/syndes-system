@@ -1,4 +1,4 @@
-# I02 — server02 | Referência técnica
+# I02 — Hospedagem e ambientes | Referência técnica
 
 > **INVENTÁRIO DOCUMENTAL NÃO AUDITADO.** Só descreve arquivos/declarações presentes no repositório; não representa funcionalidade implantada.
 

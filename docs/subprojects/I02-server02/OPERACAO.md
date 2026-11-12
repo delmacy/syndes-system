@@ -1,4 +1,4 @@
-# I02 — server02 | Operação
+# I02 — Hospedagem e ambientes | Operação
 
 > **ÍNDICE DE FONTES, NÃO RUNBOOK HOMOLOGADO.** Não executar migrations, alterar permissões ou ativar workers apenas com esta página.
 
