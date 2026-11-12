@@ -186,3 +186,7 @@ O diagnóstico antigo de ID/schema/transação inválidos foi corrigido no códi
 - Antes de criar pacote ou mover código, verificar se já existe owner em `modules/`, `apps/`, `packages/`, `infra/`, `tests/` ou `scripts/`. Não produzir serviços/diretórios vazios para imitar o organograma.
 - Ao criar módulo: atualizar o catálogo e `modules/README.md`, validar `bash tests/integrity/repository-structure.sh`, atualizar contratos/AGENTS e mapear os testes afetados. A alteração do planner/workflows GitHub Actions pertence à frente CI delegada.
 - Não confundir maturity (`code`, `contract`, `distributed`) com `DONE`, instalação, autenticação real ou Product Gate.
+
+## Core modular por perfis (decisão 11/11/2026)
+
+Ler `docs/engineering/ADR-COMPOSICAO-MODULAR-CORE-20261111.md` e `docs/engineering/WBS-COMPOSICAO-MODULAR-CORE-20261111.md` antes de alterar contrato/port do Kernel, `apps/core-host/src/module-host.ts`, perfis ou Dockerfile. O Kernel é independente de Nest/infra; o Core Host é composition root de adapters e plugins trusted. Dependências locais devem ser explícitas e verificadas no startup. Perfil instalado na instância, ENABLED no tenant e autorização FGA são gates **distintos**. Não assumir que seleção por tenant define o conteúdo da imagem; não introduzir comunicação remota genérica, novos microserviços ou workers duplicados sem CMP-07/08. A evolução está na issue #104, não é nova frente concorrente que bloqueia a jornada MVP.

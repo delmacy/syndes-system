@@ -317,3 +317,11 @@ A arquitetura definitiva está em [ADR-FRONTEND-BACKEND-COMPOSITION-20261110.md]
 **Ordem de trabalho:** inventário e contratos → shell/context selector/registry estático mantendo UI → gate backend em controllers/jobs e endpoint tenant-safe de módulos → Account e Organization com API real → homologação Manager/backup/restore/E2E. Account/Organization/Workspace são contextos; CRM/Inbox/WhatsApp são módulos. Organization da plataforma e Organization do CRM não são a mesma entidade.
 
 **Estado:** documento consolidado e plano; não autorizam SQL operacional, liberação multi-org, remoção da trava SQL 002, novo produto ou deploy. Código de catálogo, activation e migration está integrado à main em PRs #72–#75, mas não foi executado no Control DB real, e o Manager segue com demo visual na :9446.
+
+## Frente CMP — Composição de Core por perfis de módulos (11/11/2026)
+
+A capacidade de gerar **Core Host + subconjunto de módulos confiáveis por instância** passa ao roadmap arquitetural (issue [#104](https://github.com/delmacy/syndes-system/issues/104)). O Kernel fornece contratos e ports; Host conecta adapters, seleciona plugins e materializa a composição. O loader atual usa um único `config/modules.json`; imagens e perfis dedicados ainda não estão implementados.
+
+A ordem é: **CMP-01** contratos e dependências; **CMP-02** manifesto/validação; **CMP-03** composição local de dois perfis; **CMP-04** builds por perfil; **CMP-05** profile+tenant ENABLED+FGA; **CMP-06** deployment/rollback; **CMP-07** integração cross-process somente quando justificada; **CMP-08** worker ownership; **CMP-09** homologação com 2 perfis/2 tenants; **CMP-10** UI opcional pós-gate.
+
+**Priorização:** CMP-01/02 são preparação transversal; não bloquear o fluxo WhatsApp→Inbox→CRM→Service e frontends para criar uma plataforma distribuída prematura. Detalhes e evidências em [WBS-COMPOSICAO-MODULAR-CORE-20261111.md](WBS-COMPOSICAO-MODULAR-CORE-20261111.md) e [ADR-COMPOSICAO-MODULAR-CORE-20261111.md](ADR-COMPOSICAO-MODULAR-CORE-20261111.md). O gate completo de backup/restore permanece no fechamento do MVP.
