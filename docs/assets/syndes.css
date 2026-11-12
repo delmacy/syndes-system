@@ -75,7 +75,7 @@
     margin-right: auto;
   }
   .md-sidebar--secondary {
-    display: none;
+    display: block;
   }
 }
 .md-typeset table:not([class]) {
@@ -89,15 +89,39 @@
 }
 
 
-/* Compact, accessible source-backed module directory. */
-.syndes-catalog-controls { display:grid; grid-template-columns:2fr 1fr; gap:.5rem 1rem; align-items:center; }
-.syndes-catalog-controls label { color:var(--md-default-fg-color--light); font-size:.72rem; }
-.syndes-catalog-controls input, .syndes-catalog-controls select { width:100%; min-width:0; padding:.52rem .65rem; font-size:.82rem; border:1px solid var(--md-default-fg-color--lightest); border-radius:.4rem; color:var(--md-default-fg-color); background:var(--md-default-bg-color); }
-.syndes-catalog-state, .syndes-catalog-meta { font-size:.72rem; color:var(--md-default-fg-color--light); }
-.syndes-catalog-results { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr)); gap:.7rem; }
-.syndes-catalog-entry { border:1px solid var(--md-default-fg-color--lightest); padding:.85rem; border-radius:.55rem; min-width:0; }
-.md-typeset .syndes-catalog-entry h3 { font-size:.92rem; margin:.1rem 0 .3rem; }
-.md-typeset .syndes-catalog-entry p { margin:.2rem 0 .65rem; word-break:break-word; }
-.syndes-catalog-links { display:flex; gap:.4rem .75rem; flex-wrap:wrap; }
-.md-typeset .syndes-catalog-links a { font-size:.68rem; }
-@media(max-width:41rem){.syndes-catalog-controls { grid-template-columns:1fr; }}
+/* Architectural layer landing: browsable taxonomy without replicated navigation. */
+.syndes-layer-intro { padding:.85rem 1rem; border-left:3px solid var(--md-primary-fg-color); background:var(--md-code-bg-color); border-radius:.25rem; }
+.syndes-layer-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr)); gap:.85rem; margin:1.15rem 0 1.6rem; }
+.syndes-layer-tile { padding:1rem 1.1rem; border:1px solid var(--md-default-fg-color--lightest); border-radius:.65rem; background:var(--md-default-bg-color); min-width:0; }
+.md-typeset .syndes-layer-tile h3 { font-size:.9rem; line-height:1.35; margin:0 0 .5rem; }
+.md-typeset .syndes-layer-tile p { font-size:.76rem; line-height:1.55; margin:.45rem 0; }
+.md-typeset .syndes-layer-tile a { font-size:.76rem; font-weight:650; }
+
+/* Catalog focus: search, owner and a single selected technical layer. */
+.syndes-catalog { max-width:100%; }
+.syndes-catalog-controls { display:grid; grid-template-columns:minmax(220px,2fr) repeat(2,minmax(170px,1fr)); gap:.8rem; align-items:end; }
+.syndes-field { min-width:0; }
+.syndes-catalog-controls label { display:block; color:var(--md-default-fg-color--light); font-size:.75rem; font-weight:600; margin:0 0 .25rem; }
+.syndes-catalog-controls input, .syndes-catalog-controls select { width:100%; min-width:0; height:2.45rem; padding:.45rem .7rem; font-size:.78rem; border:1px solid var(--md-default-fg-color--lightest); border-radius:.4rem; color:var(--md-default-fg-color); background:var(--md-default-bg-color); }
+.syndes-catalog-controls input:focus-visible, .syndes-catalog-controls select:focus-visible, .syndes-catalog a:focus-visible { outline:2px solid var(--md-accent-fg-color); outline-offset:2px; }
+.syndes-catalog-layer-summary { margin:1.2rem 0 .65rem; border-bottom:1px solid var(--md-default-fg-color--lightest); padding-bottom:.55rem; }
+.md-typeset .syndes-catalog-layer-summary h2 { font-size:1.06rem; margin:0 0 .3rem; }
+.md-typeset .syndes-catalog-layer-summary p { font-size:.78rem; color:var(--md-default-fg-color--light); margin:0; }
+.syndes-evidence-filter { display:flex; align-items:center; gap:.45rem; font-size:.75rem; margin:.65rem 0; cursor:pointer; }
+.syndes-evidence-filter[hidden] { display:none; }
+.syndes-catalog-state, .syndes-catalog-meta { font-size:.7rem; color:var(--md-default-fg-color--light); }
+.syndes-catalog-state { margin:.6rem 0 1rem; }
+.syndes-catalog-results { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr)); gap:.75rem; }
+.syndes-catalog-entry { border:1px solid var(--md-default-fg-color--lightest); background:var(--md-default-bg-color); padding:.9rem 1rem; border-radius:.55rem; min-width:0; display:flex; flex-direction:column; }
+.md-typeset .syndes-catalog-entry h3 { font-size:.92rem; font-weight:650; margin:0 0 .45rem; line-height:1.4; }
+.md-typeset .syndes-catalog-entry p { margin:.25rem 0; overflow-wrap:anywhere; }
+.md-typeset .syndes-catalog-entry code { font-size:.66rem; }
+.md-typeset .syndes-catalog-evidence { color:var(--md-default-fg-color); font-size:.73rem; padding:.45rem 0 .6rem; }
+.syndes-catalog-links { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .85rem; margin-top:auto; padding-top:.45rem; }
+.md-typeset .syndes-catalog-links a { font-size:.72rem; font-weight:600; }
+.md-typeset .syndes-catalog-links a.syndes-catalog-primary { display:inline-flex; border:1px solid var(--md-primary-fg-color); border-radius:.35rem; padding:.35rem .55rem; color:var(--md-primary-fg-color); }
+.md-typeset .syndes-catalog-links a.syndes-catalog-primary:hover { background:var(--md-code-bg-color); }
+.md-typeset .syndes-catalog-links a.syndes-catalog-secondary { color:var(--md-default-fg-color--light); }
+.syndes-catalog-empty { font-size:.8rem; padding:1rem; }
+@media (max-width:64rem) { .syndes-catalog-controls { grid-template-columns:repeat(2,minmax(0,1fr)); } .syndes-field-search { grid-column:1/-1; } }
+@media (max-width:37rem) { .syndes-catalog-controls { grid-template-columns:1fr; } .syndes-field-search { grid-column:auto; } }

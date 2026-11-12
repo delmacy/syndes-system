@@ -13,6 +13,12 @@ CONTENT = OUT / "content"
 REPO = "https://github.com/delmacy/syndes-system"
 FRONTS = [(x["id"],x["name"]) for x in json.loads((ROOT/"catalog/work-units.json").read_text())["fronts"]]
 
+def display_name(unit):
+    """Presentation title from the tracked unit homepage; canonical catalog name stays untouched."""
+    first=(ROOT/unit["entry"]).read_text(encoding="utf-8").splitlines()[0]
+    match=re.fullmatch(r"#\s+"+re.escape(unit["id"])+r"\s+[—–-]\s+(.+)",first.strip())
+    return match.group(1).strip() if match else unit["name"]
+
 def site_rel(path):
     rel = path.relative_to(DOCS)
     return rel.with_name("index.md") if rel.name == "README.md" else rel
@@ -100,7 +106,7 @@ def annotate_revisions(sections, raw, revisions):
     return sections
 
 def navigation_tree(units, canonical):
-    """Exactly three levels: area > module > page. Topic headings belong in page body."""
+    """Compact two-level discovery: area > module home. Six detailed pages stay linked from each home."""
     if len(units) != len(canonical):
         raise ValueError("Catalog size mismatch")
     canonical_by_id={u["id"]:u for u in canonical}
@@ -142,18 +148,10 @@ def navigation_tree(units, canonical):
             if canonical_by_id[uid].get("documentationParent"):
                 raise ValueError("Documentation hierarchy mismatch for "+uid)
             d=Path(unit["entry"]).parent.relative_to("docs")
-            pages=[
-                {"Visão geral":str(d/"index.md")},
-                {"Especificação":str(d/"ESCOPO.md")},
-                {"Referência técnica":str(d/"REFERENCIA-TECNICA.md")},
-                {"Evolução":str(d/"EVOLUCAO.md")},
-                {"Histórico":str(d/"HISTORICO.md")},
-                {"Operação":str(d/"OPERACAO.md")}
-            ]
-            modules.append({uid+" · "+unit["name"]:pages})
+            modules.append({uid+" · "+display_name(unit):str(d/"index.md")})
         nav.append({front_label:modules})
     if ids!=set(canonical_by_id):
-        raise ValueError("Missing or duplicate units in three-level navigation")
+        raise ValueError("Missing or duplicate units in compact navigation")
     return nav
 
 
@@ -343,7 +341,7 @@ def embed_code_inventory(units,revision):
         (directory/(u["id"]+".json")).write_text(json.dumps(data,ensure_ascii=False),encoding="utf-8")
         base=Path(u["entry"]).parent.relative_to("docs")
         web="https://delmacy.github.io/syndes-system/"+base.as_posix()+"/"
-        payload.append({"id":u["id"],"name":u["name"],"area":u["front"],
+        payload.append({"id":u["id"],"name":display_name(u),"canonicalName":u["name"],"area":u["front"],
                         "documentationParent":u.get("documentationParent"),
                         "source":u["source"],
                         "home":web,
@@ -354,6 +352,9 @@ def embed_code_inventory(units,revision):
                                    "http":web+"REFERENCIA-TECNICA/#endpoints-http",
                                    "frontend":web+"REFERENCIA-TECNICA/#frontend-identificado",
                                    "database":web+"REFERENCIA-TECNICA/#schemas-sql",
+                                   "dependencies":web+"REFERENCIA-TECNICA/#dependencias-declaradas",
+                                   "operation":web+"OPERACAO/",
+                                   "quality":web+"STATUS/",
                                    "workpackages":web+"EVOLUCAO/",
                                    "history":web+"HISTORICO/",
                                    "agents":web+"#agentes"},
@@ -361,6 +362,14 @@ def embed_code_inventory(units,revision):
                         "methodCount":len(data["methods"]),
                         "httpDecoratorCount":len(data["routes"]),
                         "frontendCandidateCount":len(data["frontendCandidates"]),
+                        "sqlTableCount":sum(len(f["tables"]) for f in data["sql"]),
+                        "publicExportCount":len(data["exports"]),
+                        "dependencyCount":sum(len(v) for v in data["dependencies"].values()),
+                        "searchTerms":sorted(set([x["name"] for x in data["declared"]]
+                           +[x["name"] for x in data["methods"]]
+                           +[t["name"] for f in data["sql"] for t in f["tables"]]
+                           +[x["argument"] for x in data["routes"]]
+                           +[name for group in data["dependencies"].values() for name in group])),
                         "inventory":"assets/catalog/"+u["id"]+".json"})
     (directory/"modules.json").write_text(json.dumps({"revision":revision,"modules":payload},ensure_ascii=False),encoding="utf-8")
 
@@ -406,28 +415,24 @@ def main():
     embed_provenance(units,revision)
     embed_global_history(revision)
     embed_code_inventory(units,revision)
-    nav=[{"Início":"index.md"},{"Monitoramento":"monitoramento/index.md"},
-         {"Blueprint":[{"Visão geral":"blueprint/index.md"},
-                       {"Proposta ERP Lite e referência técnica":"blueprint/PROPOSTA-ERP-LITE-E-REFERENCIA-TECNICA.md"},
-                       {"Linha do tempo geral":"blueprint/LINHA-DO-TEMPO.md"},
-                       {"Catálogo e busca técnica":"blueprint/CATALOGO-MODULOS.md"},
-                       {"Projeto e workpackages":"blueprint/PROJETO-E-WORKPACKAGES.md"}]}]
+    nav=[{"Início":"index.md"},
+         {"Mapa técnico por camadas":"blueprint/MAPA-TECNICO-POR-CAMADAS.md"},
+         {"Catálogo e busca":"blueprint/CATALOGO-MODULOS.md"},
+         {"Projetos e WBS":"blueprint/PROJETO-E-WORKPACKAGES.md"},
+         {"Monitoramento":"monitoramento/index.md"},
+         {"Arquitetura e contratos":[
+             {"Blueprint geral":"blueprint/index.md"},
+             {"Contratos públicos":"standards/CONTRATOS-PUBLICOS.md"},
+             {"Fontes de verdade":"standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md"},
+             {"Linha do tempo":"blueprint/LINHA-DO-TEMPO.md"},
+             {"Proposta ERP Lite (não aprovada)":"blueprint/PROPOSTA-ERP-LITE-E-REFERENCIA-TECNICA.md"}]}]
     nav.extend(navigation_tree(units,canonical))
-    nav.extend([{"Contratos e padrões":[
-        {"Contratos públicos":"standards/CONTRATOS-PUBLICOS.md"},
-        {"Fontes e rastreabilidade":"standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md"},
+    nav.extend([{"Padrões e colaboração":[
         {"Busca para agentes":"standards/BUSCA-PARA-AGENTES.md"},
-        {"Integração GitHub Projects":"standards/GITHUB-PROJECTS.md"},
-        {"Editar tópicos e enviar propostas":"standards/EDICAO-CONTEXTUAL.md"},
-        {"Organização por subpáginas":"standards/ORGANIZACAO-DE-PAGINAS.md"},
-        {"Modelo de contrato":"standards/TEMPLATE-CONTRATO-PUBLICO.md"},
-        {"Modelo de projeção":"standards/PROMPT-PROJECAO.md"},
-        {"Modelo de implementação":"standards/PROMPT-IMPLEMENTACAO.md"},
-        {"Fluxo de atualizações":"standards/FLUXO-DE-ATUALIZACOES.md"},
-        {"Modelo de atualização":"standards/TEMPLATE-ATUALIZACAO.md"},
-        {"Modelo de workpackage":"standards/TEMPLATE-WORKPACKAGE.md"},
-        {"Modelo de referência técnica":"standards/TEMPLATE-REFERENCIA-TECNICA.md"},
-        {"Modelo de prompt por incremento":"standards/TEMPLATE-PROMPT-INCREMENTO.md"}]},
+        {"GitHub Projects":"standards/GITHUB-PROJECTS.md"},
+        {"Solicitar atualização":"standards/EDICAO-CONTEXTUAL.md"},
+        {"Modelos e organização":"standards/ORGANIZACAO-DE-PAGINAS.md"},
+        {"Modelo de referência":"standards/TEMPLATE-REFERENCIA-TECNICA.md"}]},
         {"Índice por caminho":"subprojects/index.md"}])
     config={
         "site_name":"Syndes Docs",
@@ -438,7 +443,7 @@ def main():
         "docs_dir":str(CONTENT),"site_dir":str(OUT/"site"),
         "theme":{"name":"material","language":"pt-BR",
                  "logo":"assets/syndes-mark.svg","favicon":"assets/syndes-mark.svg",
-                 "features":["navigation.sections","toc.integrate",
+                 "features":["navigation.sections",
                              "navigation.top","toc.follow","search.suggest","search.highlight",
                              "content.code.copy"],
                  "palette":[

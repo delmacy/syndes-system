@@ -20,6 +20,9 @@ class CatalogAndProjectTests(unittest.TestCase):
         cls.infra=code_inventory.open_source_symbols(UNITS["I02"])
     def test_source_inventory_distinguishes_public_and_internal(self):
         self.assertIn(".",self.crm["exports"])
+        self.assertIn("dependencies",self.crm)
+        self.assertTrue(self.crm["dependencies"]["dependencies"])
+        self.assertIn("Dependências declaradas no manifesto",code_inventory.render(self.crm))
         self.assertTrue(any(x["name"]=="CrmService" for x in self.crm["declared"]))
         self.assertTrue(any(x["exposure"]=="internal-declaration" for x in self.crm["declared"]))
         self.assertTrue(any(x["exposure"]=="entrypoint-candidate" for x in self.crm["declared"]))

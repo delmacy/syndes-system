@@ -1,6 +1,6 @@
 # Organização de páginas e subpastas
 
-O Syndes Docs utiliza uma árvore de **área → módulo → página (Visão geral, Especificação, Referência técnica, Evolução, Histórico ou Operação)**. A árvore do portal é derivada diretamente de `catalog/work-units.json` pelo gerador `scripts/docs/build_site.py`. **Não** altera ownership, pacotes ou dependências.
+O Syndes Docs utiliza **dois eixos de consulta**: **camada técnica** (domínio, dados, interfaces, contratos, APIs, dependências, operação e qualidade) e **módulo proprietário** (área → ficha do módulo). As seis páginas detalhadas de cada unidade continuam acessíveis pela ficha, sem repetição no menu lateral. A árvore é derivada de `catalog/work-units.json` por `scripts/docs/build_site.py` e **não** altera ownership, pacotes ou dependências.
 
 ## Separação física dos capítulos
 
@@ -15,15 +15,15 @@ O build calcula a data e o commit mais recentes das linhas pertencentes ao tópi
 
 Uma subseção compõe o conteúdo de sua seção pai; por isso, uma alteração na subseção também atualiza a data da seção pai. Essa data é **data do commit que alterou o conteúdo**, não o momento da última leitura nem necessariamente o instante do deploy.
 
-## Navegação com três níveis
+## Navegação por duas dimensões
 
-1. **Área** — Produto, Plataforma, Frontend, Qualidade/Infraestrutura ou Operação.
-2. **Módulo** — ID e nome da unidade no catálogo.
-3. **Página** — Visão geral, Especificação, Referência técnica, Evolução, Histórico e Operação.
+1. **Camada técnica** — o [mapa de camadas](../blueprint/MAPA-TECNICO-POR-CAMADAS.md) mostra o tipo de evidência e suas limitações.
+2. **Módulo responsável** — o [catálogo filtrável](../blueprint/CATALOGO-MODULOS.md) encontra o ID, os símbolos e o caminho de origem; a navegação lateral mantém apenas **área → ficha do módulo**, sem uma árvore de seis subitens.
+3. **Detalhe da unidade** — a ficha tem links para Especificação, Referência técnica, Evolução, Histórico, Operação e prompts. Os caminhos e IDs persistem para agentes e links antigos.
 
-A página **Escopo** agrega automaticamente o conteúdo dos capítulos Markdown do módulo no **corpo da documentação**, com sumário de títulos e diagramas Mermaid. Os capítulos permanecem arquivos independentes em chapters/, para edição por tópico, histórico e acesso dos agentes ao caminho exato. Esses caminhos não aparecem como novos níveis na navegação lateral.
+A página **Escopo** agrega automaticamente capítulos Markdown no corpo da documentação, com sumário de títulos e diagramas Mermaid. Os capítulos permanecem independentes em `chapters/`, para edição por tópico, histórico e leitura dos agentes; não aparecem como novos níveis da barra lateral.
 
-O editor contextual identifica a origem correta de cada trecho do escopo agregado. A proposta fica vinculada ao Markdown de capítulo, não ao arquivo índice ESCOPO.md.
+O editor contextual identifica a origem de cada trecho do escopo agregado e mantém a proposta vinculada ao Markdown de capítulo, não ao índice `ESCOPO.md`.
 
 ## Diagramas como parte da especificação
 
@@ -34,23 +34,22 @@ O editor contextual identifica a origem correta de cada trecho do escopo agregad
 - Quando a especificação mudar, atualizar o diagrama no mesmo PR e revalidar com `python -m unittest discover -s scripts/docs -p 'test_*.py'` e o build MkDocs.
 - Nos módulos ainda não auditados, não criar diagramas inventados: primeiro verificar fonte e contratos públicos, depois completar o capítulo de arquitetura.
 
-## Leitura ampla e índice integrado
+## Leitura ampla e índice local
 
-A navegação permanece **Área → Módulo → Página**. A página opcional **Referência técnica** reúne stack, métodos, contratos, frontend e schemas. Com `toc.integrate`, os subtítulos de cada página aparecem na navegação lateral esquerda; não há coluna permanente de índice à direita. O conteúdo utiliza largura fluida em telas grandes, com limite de legibilidade e adaptação responsiva. `navigation.indexes` deve permanecer desativado enquanto `toc.integrate` estiver ativo (incompatibilidade documentada do Material).
+A barra lateral esquerda contém apenas entradas principais e áreas com fichas dos módulos. O sumário da **página atual** ocupa a coluna direita em telas amplas (`toc.follow`), sem misturar suas seções ao catálogo global. A referência técnica reúne fontes reais e anchors fixos para contratos públicos, métodos internos, decorators HTTP, frontend, SQL e dependências do manifesto.
 
+## Modelo documental de seis páginas (sem seis subitens no menu)
 
-## Modelo documental de seis páginas
+As seis páginas continuam preservadas e ligadas pela ficha de cada unidade:
 
-Cada unidade tem seis entradas na navegação Área → Módulo → Página:
+- **Visão geral:** ID, owner, fontes e acesso às outras páginas.
+- **Especificação:** `ESCOPO.md` e capítulos, requisitos e diagramas.
+- **Referência técnica:** stack, exports públicos, declarações privadas, interfaces, HTTP, SQL e dependências com fontes verificáveis.
+- **Evolução:** workpackages e tasks com links para Issues/Projects, sem copiar estados concorrentes.
+- **Histórico:** alterações Git e vínculos explícitos do registro de rastreabilidade.
+- **Operação:** status, sprint, runbooks, monitoramento e validação.
 
-- **Visão geral:** ID, proprietário, fontes e catálogo de navegação.
-- **Especificação:** ESCOPO.md e seus capítulos; documentação normativa e diagramas.
-- **Referência técnica:** stack, classes, interfaces públicas, frontend e SQL (fontes verificáveis).
-- **Evolução:** workpackages e tasks da WBS com links para Issues/Projects, sem copiar status concorrentes.
-- **Histórico:** linha do tempo gerada de commits do código e docs + links explícitos do índice de rastreabilidade.
-- **Operação:** STATUS.md, SPRINT.md, runbooks, monitoramento e prompts, preservando os caminhos canônicos antigos.
-
-**Não** exibir os prompts nem STATUS/SPRINT como novos níveis. O índice de tópicos continua integrado na árvore esquerda, dentro da página em uso.
+O catálogo técnico usa uma camada por vez e não atribui contratos/rotas a um módulo sem indícios no inventário. Prompts, `STATUS` e `SPRINT` não viram níveis novos do menu. Ausência de declaração no extrator **não** comprova inexistência; presença **não** comprova instalação, habilitação ou homologação.
 
 ## Componentes de um módulo não viram novos módulos no menu
 
@@ -58,4 +57,4 @@ Unidades do catálogo que representam um **componente interno** de outra unidade
 
 Exemplo real: **I09 Whatsmeow Runtime → P03 WhatsApp**. O runtime é um sidecar Go de protocolo; o plugin NestJS e o domínio de WhatsApp são componentes do P03. Suas documentações históricas seguem com URL estável; novos assuntos ficam nas páginas Referência técnica, Evolução e Operação do P03.
 
-A hierarquia pública continua **Área → Módulo → Página**, sem quarto nível. Essa relação não reatribui automaticamente tarefas, muda ownership do código nem autoriza deploy. **Não** agrupar módulos de negócio numa área artificial chamada "Plugins": plugin é um mecanismo técnico de composição.
+A hierarquia lateral permanece **Área → ficha do módulo**; suas páginas internas preservam os caminhos canônicos. Essa relação não reatribui tarefas, não muda ownership do código nem autoriza deploy. **Não** agrupar módulos de negócio numa área artificial chamada "Plugins": plugin é um mecanismo técnico de composição.

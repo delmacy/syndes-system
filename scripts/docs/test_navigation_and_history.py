@@ -16,22 +16,26 @@ class NavigationTests(unittest.TestCase):
         canonical=json.loads((site.ROOT/"catalog/work-units.json").read_text())["units"]
         nav=site.navigation_tree(units,canonical)
         self.assertEqual(len(nav),6)
-        # Exactly 3 levels: area > module > page, with headings in document body.
+        # Compact sidebar: area > module entry. Detailed pages remain reachable from the unit.
         for area in nav:
             modules=next(iter(area.values()))
             self.assertIsInstance(modules,list)
             for module in modules:
-                pages=next(iter(module.values()))
-                labels=[next(iter(page)) for page in pages]
-                self.assertEqual(len(pages),6)
-                self.assertEqual(labels,["Visão geral","Especificação","Referência técnica","Evolução","Histórico","Operação"])
-                self.assertTrue(all(isinstance(next(iter(page.values())),str) for page in pages))
+                entry=next(iter(module.values()))
+                self.assertIsInstance(entry,str)
+                self.assertTrue(entry.endswith("/index.md"),entry)
+                home=site.DOCS/Path(entry).with_name("README.md")
+                self.assertTrue(home.is_file(),entry)
+                text=home.read_text()
+                for detail in ("ESCOPO.md","REFERENCIA-TECNICA.md","EVOLUCAO.md","HISTORICO.md","OPERACAO.md"):
+                    self.assertIn(detail,text)
         flat=str(nav)
         for unit in units:
             expected=0 if unit.get("documentationParent") else 1
-            self.assertEqual(flat.count(unit["id"]+" · "+unit["name"]),expected)
+            self.assertEqual(flat.count(unit["id"]+" · "+site.display_name(unit)),expected)
         self.assertEqual(sum(len(next(iter(a.values()))) for a in nav),49)
         self.assertIn("P03 · WhatsApp",flat)
+        self.assertIn("I02 · Hospedagem e ambientes",flat)
         self.assertNotIn("I09 · Whatsmeow runtime",flat)
 
     def test_invalid_unit_or_group_fails(self):

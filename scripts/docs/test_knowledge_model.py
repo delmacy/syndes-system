@@ -19,22 +19,23 @@ class KnowledgePortalTests(unittest.TestCase):
     def test_57_tracked_units_49_visible_modules_6_pages(self):
         nav=build_site.navigation_tree(self.units,self.catalog)
         self.assertEqual(len(nav),6)
-        names=["Visão geral","Especificação","Referência técnica","Evolução","Histórico","Operação"]
+        detail_pages=["ESCOPO.md","REFERENCIA-TECNICA.md","EVOLUCAO.md","HISTORICO.md","OPERACAO.md"]
         seen=set()
         for area in nav:
             modules=next(iter(area.values()))
             for module in modules:
-                name,pages=next(iter(module.items()))
+                name,entry=next(iter(module.items()))
                 uid=name.split(" ",1)[0]
                 self.assertNotIn(uid,seen)
                 seen.add(uid)
-                self.assertEqual([next(iter(p)) for p in pages],names)
-                for page in pages:
-                    rel=Path(next(iter(page.values())))
-                    path=build_site.DOCS/rel
-                    if path.name=="index.md":
-                        path=path.with_name("README.md")
+                self.assertTrue(entry.endswith("/index.md"))
+                home=build_site.DOCS/Path(entry).with_name("README.md")
+                self.assertTrue(home.is_file(),home)
+                body=home.read_text()
+                for detail in detail_pages:
+                    path=home.parent/detail
                     self.assertTrue(path.is_file(),path)
+                    self.assertIn(detail,body)
         self.assertEqual(seen,{u["id"] for u in self.units if not u.get("documentationParent")})
         self.assertEqual(len(seen),49)
         self.assertEqual({u["id"] for u in self.units if u.get("documentationParent")},{"I09","I01","I03","I05","I06","I07","I08","I12"})

@@ -1,12 +1,15 @@
 # Syndes Docs — Engenharia, Produto e Evolução
 
-> **Portal de consulta do Syndes System.** Comece pelo módulo ou pela dúvida: capacidades, contratos, stack, workpackages, testes e histórico. A documentação e as alterações do código são fontes distintas, ligadas por IDs e evidências.
+> **Portal de consulta do Syndes System.** Comece pela camada técnica ou pelo módulo: domínio, schemas, interfaces, contratos, APIs, dependências, operação e qualidade. Documentação e código são fontes distintas, ligadas por IDs e evidências.
+
+**Navegação recomendada:** [Mapa das camadas do sistema](blueprint/MAPA-TECNICO-POR-CAMADAS.md) → [Catálogo técnico com filtros](blueprint/CATALOGO-MODULOS.md) → ficha do módulo e referências de origem. As seis páginas de cada unidade permanecem disponíveis a partir da ficha, sem ocupar o menu lateral.
 
 ## Acesso rápido {#acesso-rapido}
 
 | Quero encontrar | Abrir |
 |---|---|
-| **Um módulo e sua stack completa** | [Catálogo de módulos e busca técnica](blueprint/CATALOGO-MODULOS.md) |
+| **Uma camada de arquitetura** | [Mapa técnico: domínio, dados, interfaces, APIs e contratos](blueprint/MAPA-TECNICO-POR-CAMADAS.md) |
+| **Um módulo e sua stack completa** | [Catálogo por módulo e por camada](blueprint/CATALOGO-MODULOS.md) |
 | **APIs, classes, métodos ou contratos públicos/privados** | [Catálogo de símbolos](blueprint/CATALOGO-MODULOS.md) · [padrão de contratos](standards/CONTRATOS-PUBLICOS.md) |
 | **Workpackages, projetos e Issues** | [Projeto e workpackages com Issues reais](blueprint/PROJETO-E-WORKPACKAGES.md) |
 | **O que foi alterado de fato** | [Linha do tempo por commits](blueprint/LINHA-DO-TEMPO.md) |

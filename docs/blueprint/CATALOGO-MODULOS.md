@@ -1,43 +1,64 @@
-# Catálogo de módulos e busca técnica
+# Catálogo técnico por módulos
 
-> **Consulta humana e por agentes.** Este índice combina identificador, área, caminho de código e ancoragens estáveis para descobrir stacks, classes/métodos, contratos públicos, frontend, tabelas e workpackages. As declarações são extraídas do código; **não são prova de runtime habilitado**.
-
-## Encontre o módulo ou contrato
+> **Um módulo, várias camadas.** Pesquise pelo ID, nome, caminho, classe, método, tabela, rota declarada ou biblioteca. Selecione uma camada para ver **um único acesso técnico prioritário por módulo**, em vez de dezenas de links repetidos. Todas as referências derivam do código e da documentação versionada; nenhuma contagem representa homologação.
 
 <div class="syndes-catalog" id="syndes-catalog">
   <div class="syndes-catalog-controls">
-    <label for="syndes-catalog-search">Buscar módulo, ID, caminho ou tecnologia</label>
-    <input id="syndes-catalog-search" type="search" placeholder="Ex.: P03, whatsapp, crm, infra/postgres" autocomplete="off" />
-    <label for="syndes-catalog-area">Área</label>
-    <select id="syndes-catalog-area">
-      <option value="">Todas as áreas</option>
-      <option value="produto">Produto e integrações</option>
-      <option value="operacao">Operação e negócio</option>
-      <option value="plataforma">Plataforma e Core</option>
-      <option value="frontend">Frontends e experiência</option>
-      <option value="infraestrutura">Infraestrutura e hospedagem</option>
-      <option value="qualidade">Qualidade e testes</option>
-    </select>
+    <div class="syndes-field syndes-field-search">
+      <label for="syndes-catalog-search">Buscar no inventário</label>
+      <input id="syndes-catalog-search" type="search" placeholder="Ex.: P03, CrmService, crm_people, NestJS" autocomplete="off" />
+    </div>
+    <div class="syndes-field">
+      <label for="syndes-catalog-area">Área responsável</label>
+      <select id="syndes-catalog-area">
+        <option value="">Todas as áreas</option>
+        <option value="produto">Produto e integrações</option>
+        <option value="operacao">Operação e negócio</option>
+        <option value="plataforma">Plataforma e Core</option>
+        <option value="frontend">Frontends e experiência</option>
+        <option value="infraestrutura">Infraestrutura e hospedagem</option>
+        <option value="qualidade">Qualidade e testes</option>
+      </select>
+    </div>
+    <div class="syndes-field">
+      <label for="syndes-catalog-layer">Camada de consulta</label>
+      <select id="syndes-catalog-layer">
+        <option value="dominio">Domínio e capacidades</option>
+        <option value="dados">Banco, schemas e SQL</option>
+        <option value="interfaces">Interfaces e aplicações</option>
+        <option value="contratos">Contratos públicos</option>
+        <option value="internos">Classes e métodos internos</option>
+        <option value="apis">APIs HTTP registradas</option>
+        <option value="dependencias">Dependências e stack</option>
+        <option value="operacao">Operação e hospedagem</option>
+        <option value="qualidade">Testes, status e evidências</option>
+      </select>
+    </div>
   </div>
-  <p class="syndes-catalog-state" role="status">Preparando índice técnico…</p>
-  <div class="syndes-catalog-results" aria-live="polite"></div>
+  <div class="syndes-catalog-layer-summary" aria-live="polite">
+    <h2 class="syndes-catalog-layer-title">Domínio e capacidades</h2>
+    <p class="syndes-catalog-layer-note">Navegue pela especificação e pelos limites de responsabilidade de cada unidade.</p>
+  </div>
+  <label class="syndes-evidence-filter" for="syndes-catalog-evidence" hidden>
+    <input id="syndes-catalog-evidence" type="checkbox" />
+    Mostrar somente módulos com declarações encontradas nesta camada
+  </label>
+  <p class="syndes-catalog-state" role="status">Carregando registro técnico do snapshot publicado…</p>
+  <div class="syndes-catalog-results"></div>
 </div>
 
-## Acesso rápido por intenção {#busca-por-intencao}
+## Como interpretar a evidência
 
-- **Capabilities e histórias:** abra *Especificação* na ficha do módulo. Não trate requisito escrito como implementado.
-- **Classes e métodos:** abra *Referência técnica → Inventário extraído do código*; cada declaração tem link para a linha da fonte.
-- **Contrato público:** abra *Contratos declarados pelo pacote* e verifique `package.json#exports`, versão e owner.
-- **Contrato privado:** abra *Classes e métodos*; um `export` de arquivo ou método TS `public` não autoriza import entre módulos.
-- **Backend → frontend → banco:** use os atalhos HTTP, frontend e SQL; confira autorização e migrations aplicadas antes de homologação.
-- **Planejamento e estado:** Evolução reúne WBS; Issues/Projects representam execução; Histórico reúne commits; STATUS e evidências representam integração e aceite.
+- **Domínio** corresponde a especificações e capabilities, não funcionalidades automaticamente concluídas.
+- **Contratos públicos** são os entrypoints do manifesto `package.json#exports`; classes e métodos fora desses entrypoints continuam internos.
+- **Banco** e **APIs** mostram somente SQL e decorators detectados no escopo varrido; migration aplicada, endpoint habilitado, autenticação e política tenant-safe exigem validação adicional.
+- **Dependências** são bibliotecas declaradas no manifesto. Importações reais e dependências operacionais entre módulos requerem análise arquitetural.
+- **Projetos e homologação** são acompanhados em [workpackages](PROJETO-E-WORKPACKAGES.md), [monitoramento](../monitoramento/README.md) e [histórico Git](LINHA-DO-TEMPO.md), não na contagem de símbolos.
 
-## Índice para agentes {#indice-para-agentes}
+## Índice estruturado para agentes {#indice-para-agentes}
 
-O registro estruturado deste catálogo está em [`assets/catalog/modules.json`](https://delmacy.github.io/syndes-system/assets/catalog/modules.json). Ele contém ID, source, parent documental, links de cada seção e contagens da extração. O índice completo de cada módulo usa `assets/catalog/<ID>.json` com declarações e referências de linhas.
+A fonte de busca do portal é [`assets/catalog/modules.json`](https://delmacy.github.io/syndes-system/assets/catalog/modules.json). A evidência detalhada por unidade está em `assets/catalog/<ID>.json`, incluindo caminho de origem, linha do símbolo e revisão Git usada no build. Componentes documentais internos continuam consultáveis por ID, mas não aparecem duplicados como módulos principais.
 
-**Consulta determinística recomendada:** localizar o módulo por ID ou source no JSON; navegar à âncora adequada; validar o symbol no código pelo link, revisar exports e contratos; depois abrir o prompt de alteração ou implementação autorizado. Não executar uma mudança apenas por aparecer no índice.
+Para contratos/eventos versionados do barramento, consulte [C06 — Event Platform](../subprojects/C06-event-platform/README.md). **Ainda não existe um inventário automatizado de eventos equivalente ao inventário HTTP**: não inferir produtores/consumidores.
 
-## Fonte da documentação
-
-[Modelo de fontes de verdade](../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md) · [Padrão técnico](../standards/TEMPLATE-REFERENCIA-TECNICA.md) · [Linha do tempo](LINHA-DO-TEMPO.md)
+[Mapa técnico das camadas](MAPA-TECNICO-POR-CAMADAS.md) · [Fontes de verdade e rastreabilidade](../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md) · [Padrão de referência técnica](../standards/TEMPLATE-REFERENCIA-TECNICA.md)

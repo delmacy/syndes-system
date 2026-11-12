@@ -109,8 +109,10 @@ def open_source_symbols(u):
                 for f in sorted(features.rglob("*.tsx")):
                     if any(part in f.name.lower() for part in names):
                         front.append(dict(app=app,file=f.relative_to(ROOT).as_posix()))
+    deps={group:dict(sorted(((pkg or {}).get(group) or {}).items()))
+          for group in ("dependencies","peerDependencies","optionalDependencies")}
     return dict(moduleId=u["id"],source=u["source"],scanMode="source-declarations-only",
-                exports=manifest_exports,filesScanned=len(files),declared=declared,
+                exports=manifest_exports,dependencies=deps,filesScanned=len(files),declared=declared,
                 methods=methods,routes=routes,sql=sql,frontendCandidates=front,go=go)
 def esc(v):
     return html.escape(str(v),quote=False).replace("|",r"\|")
@@ -137,6 +139,16 @@ def render(d):
         value=target if isinstance(target,str) else json.dumps(target,ensure_ascii=False)
         rows.append([f"`{esc(route)}`",f"`{esc(value)}`","Manifesto de package; ativação/compatibilidade não verificadas"])
     text+=table(["Entry point","Target","Estado"],rows,"Nenhum package.json#exports identificado neste escopo.")
+    text+="""
+
+### Dependências declaradas no manifesto {#dependencias-declaradas}
+
+Bibliotecas informadas por `package.json`. Isso não comprova uso em runtime, necessidade arquitetural nem dependência operacional entre módulos.
+"""
+    rows=[[f"`{esc(group)}`",f"`{esc(name)}`",f"`{esc(version)}`"]
+          for group,packages in d["dependencies"].items() for name,version in packages.items()]
+    text+=table(["Tipo","Pacote","Versão declarada"],rows,
+                "Nenhuma dependência de package.json identificada neste escopo.")
     text+="""
 
 ### Classes, interfaces e tipos encontrados {{#classes-e-interfaces}}

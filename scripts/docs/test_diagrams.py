@@ -27,7 +27,7 @@ class MermaidDocsTests(unittest.TestCase):
                 self.assertEqual(text.count("`" * 3),count*2)
                 self.assertNotIn("Diagramas versionados: A ELABORAR",text)
 
-    def test_diagrams_appear_inside_three_level_pages(self):
+    def test_diagrams_remain_in_linked_detail_pages(self):
         from importlib.util import spec_from_file_location,module_from_spec
         spec=spec_from_file_location("site",ROOT/"scripts/docs/build_site.py")
         site=module_from_spec(spec)
@@ -44,7 +44,9 @@ class MermaidDocsTests(unittest.TestCase):
                     if chapter.startswith(folder.parent.as_posix()+"/chapters/"):
                         self.assertTrue((ROOT/chapter).exists())
         self.assertIn("embed_chapters_in_scopes", (ROOT/"scripts/docs/build_site.py").read_text())
-        self.assertIn('{"Especificação":str(d/"ESCOPO.md")}',(ROOT/"scripts/docs/build_site.py").read_text())
+        nav=site.navigation_tree(units,json.loads((ROOT/"catalog/work-units.json").read_text())["units"])
+        self.assertTrue(any("P01 · CRM" in item for area in nav for item in next(iter(area.values()))))
+        self.assertIn("ESCOPO.md",(ROOT/by_id["P01"]["entry"]).read_text())
 
     def test_reference_and_gates_stay_explicit(self):
         requirements={
