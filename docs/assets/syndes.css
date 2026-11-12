@@ -1,0 +1,8 @@
+:root { --md-primary-fg-color: #243c65; --md-accent-fg-color: #7757b6; }
+.md-header { box-shadow: 0 2px 12px rgba(15,23,42,.10); }
+.md-typeset h1 { font-weight: 750; letter-spacing: -.035em; }
+.md-typeset h2 { margin-top: 2rem; font-weight: 690; }
+.md-typeset table:not([class]) th { background: rgba(64,85,128,.10); }
+.md-nav__link--active { font-weight: 700; }
+.md-typeset code { border-radius: 4px; }
+.md-typeset .admonition { border-radius: 8px; }
