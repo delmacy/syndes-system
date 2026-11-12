@@ -3,6 +3,7 @@
 
 ## Leitura direta
 - [Blueprint Geral (índice e referências existentes)](blueprint/README.md)
+- [57 módulos: cobertura de reconciliação (4 auditados, 53 por auditar)](blueprint/README.md#cobertura-real-do-preenchimento-2026-11-12)
 - [57 unidades: escopo, status e sprint](subprojects/README.md)
 - **Evolução por módulo:** em cada unidade, página Evolução com workpackages, tasks e dependências vinculadas à WBS.
 - [Painel de monitoramento dos workflows](monitoramento/README.md)

@@ -67,3 +67,28 @@ Para criar um pacote local novo, utilize [Modelo de Workpackage](../../standards
 3. **Consolidar:** atualizar [STATUS.md](STATUS.md) com SHA, CI, ambiente, testes, bloqueios e evidência de aceite; fechar o pacote antes de outro incremento independente.
 
 **Não confundir:** planejado ≠ aprovado ≠ atribuído ≠ implementado ≠ testado ≠ integrado ≠ operacional ≠ aceito.
+
+## Reconciliação técnica — 2026-11-12
+
+> **Workpackage candidato; NÃO aprovado, atribuído ou iniciado.** Referências locais e resultados de testes devem ser checados contra a SHA do agente antes de editar código.
+
+**Resumo do estado:** Plugin NestJS, fila, responsável, handoff, notas, mensagens, SSE e consumidores opt-in de evento WhatsApp/CRM. A operação autenticada e o layout real ainda exigem homologação.
+
+**Próximo marco recomendado:** Reproduzir a jornada Inbox autenticada com contato identificado, fila e atribuição; depois validar a ponte WhatsApp e CRM.
+
+### P02-WP-VAL — Validação do incremento MVP (proposto)
+
+| Task ID | WBS / plano relacionado | Entregável | Depende | Critério de aceite | Estado |
+|---|---|---|---|---|---|
+| **P02-VAL-01** | 50.03 | Verificar fila, handoff, notas e respostas com atores reais | Tenant, grants FGA e API reais | E2E com dois agentes, negativas 401/403 e auditoria | CANDIDATA / NÃO ATRIBUÍDA |
+| **P02-VAL-02** | 50.04 | Reproduzir layout compacto, busca e identidade de contatos | Dados autorizados e P02-VAL-01 | Comparação visual antes/depois + teste responsivo | CANDIDATA / NÃO ATRIBUÍDA |
+| **P02-VAL-03** | IN-E01/02 | Testar consumo de inbound e vínculo CRM sem duplicidade | WhatsApp worker gated, autorização e rollback | PG17 idempotente; staging e browser só após gates | CANDIDATA / NÃO ATRIBUÍDA |
+
+### Dependências bloqueantes
+
+- WBS 50.03: testar fila/handoff/resposta em browser com JWT Keycloak, FGA e tenant/workspace reais.
+- WBS 50.04: reproduzir identificação de contato e layout compacto em navegador antes de marcar correção concluída.
+- SSE em memória não é barramento replicado; consumers de eventos opt-in não garantem que o worker esteja rodando.
+- SQL 002 continua ativo; transferências e paths tenant-only legados exigem novo gate.
+
+**Rotina:** escolher **uma meta** na Sprint após resolver os gates; implementar apenas na unidade, executar testes afetados e registrar commit, CI, ambiente, evidências e pendências em STATUS. Não converter esta tabela em tarefas concluídas automaticamente.

@@ -68,3 +68,28 @@ Para criar um pacote local novo, utilize [Modelo de Workpackage](../../standards
 3. **Consolidar:** atualizar [STATUS.md](STATUS.md) com SHA, CI, ambiente, testes, bloqueios e evidência de aceite; fechar o pacote antes de outro incremento independente.
 
 **Não confundir:** planejado ≠ aprovado ≠ atribuído ≠ implementado ≠ testado ≠ integrado ≠ operacional ≠ aceito.
+
+## Reconciliação técnica — 2026-11-12
+
+> **Workpackage candidato; NÃO aprovado, atribuído ou iniciado.** Referências locais e resultados de testes devem ser checados contra a SHA do agente antes de editar código.
+
+**Resumo do estado:** Pacote TypeScript com contas, outbox, inbound, dispatch, contratos e migrations 001–008; gateway Go/Whatsmeow existe. O plugin consta em apps/core-host/config/modules.json, mas a inscrição não prova módulo habilitado por tenant nem projetor novo operacional.
+
+**Próximo marco recomendado:** Homologar a rota textual segura por conta/tenant e preparar canário de projetor único apenas após restore real.
+
+### P03-WP-VAL — Validação do incremento MVP (proposto)
+
+| Task ID | WBS / plano relacionado | Entregável | Depende | Critério de aceite | Estado |
+|---|---|---|---|---|---|
+| **P03-VAL-01** | 50.05; WA-DATA-01 | Executar Go tests e fixtures de conta/callback | Toolchain Go, PG descartável e nenhuma credencial operacional | Go tests + negativas cross-tenant | CANDIDATA / NÃO ATRIBUÍDA |
+| **P03-VAL-02** | 50.05/06 | Validar fluxo textual, idempotência, taxa e recovery | Conta ENABLED + autorização scoped | E2E textual e testes de retry/restart/duplicidade | CANDIDATA / NÃO ATRIBUÍDA |
+| **P03-VAL-03** | WA-CUT07–10 | Planejar cutover de único projetor com rollback | Migration 008/restore e versões legadas compatíveis | Canário sem dois donos para o mesmo inbound | CANDIDATA / NÃO ATRIBUÍDA |
+
+### Dependências bloqueantes
+
+- Go/Whatsmeow: testes de gateway e persistência/quotas/contas não validados nesta auditoria.
+- WA-CUT07–10: migration 008 em staging, todas instâncias legadas compatíveis com filtro, canário e rollback — não ativar projetores concorrentes.
+- Grants FGA, identity service, tenant/org/workspace, restore e Control ENABLED reais permanecem gates.
+- Escopo de entrega atual textual; mídia completa permanece fora desta fatia.
+
+**Rotina:** escolher **uma meta** na Sprint após resolver os gates; implementar apenas na unidade, executar testes afetados e registrar commit, CI, ambiente, evidências e pendências em STATUS. Não converter esta tabela em tarefas concluídas automaticamente.

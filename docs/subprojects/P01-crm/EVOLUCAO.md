@@ -76,3 +76,27 @@ Para criar um pacote local novo, utilize [Modelo de Workpackage](../../standards
 3. **Consolidar:** atualizar [STATUS.md](STATUS.md) com SHA, CI, ambiente, testes, bloqueios e evidência de aceite; fechar o pacote antes de outro incremento independente.
 
 **Não confundir:** planejado ≠ aprovado ≠ atribuído ≠ implementado ≠ testado ≠ integrado ≠ operacional ≠ aceito.
+
+## Reconciliação técnica — 2026-11-12
+
+> **Workpackage candidato; NÃO aprovado, atribuído ou iniciado.** Referências locais e resultados de testes devem ser checados contra a SHA do agente antes de editar código.
+
+**Resumo do estado:** Código de CRM com plugin NestJS, pessoa/organização, notas, tags, canais, CSV, SQL 001–003 e UI Workspace. Não comprovada nesta auditoria uma jornada autenticada real de CRM ou ativação multi-org.
+
+**Próximo marco recomendado:** Homologar CRM HTTP e Workspace com identidade real e tenant A/B, sem ativar multi-org.
+
+### P01-WP-VAL — Validação do incremento MVP (proposto)
+
+| Task ID | WBS / plano relacionado | Entregável | Depende | Critério de aceite | Estado |
+|---|---|---|---|---|---|
+| **P01-VAL-01** | 50.02 | Testar CRUD, consulta, CSV e notas com JWT/FGA reais | Control/tenant, Keycloak e FGA provisionados | E2E positivo e negativo A/B; SHA, ambiente e CI | CANDIDATA / NÃO ATRIBUÍDA |
+| **P01-VAL-02** | CRM-WA-01.03/04 | Especificar revisão de ambiguidades e vínculo idempotente | Event Worker gated e revisão autorizada | Replay, concorrência, grant e rollback em PG descartável | CANDIDATA / NÃO ATRIBUÍDA |
+| **P01-VAL-03** | 50.08 | Homologar navegação CRM no Workspace e fechar Product Gate | P01-VAL-01/02 e restore real | Teste browser/teclado, isolamentos e aceite registrado | CANDIDATA / NÃO ATRIBUÍDA |
+
+### Dependências bloqueantes
+
+- Keycloak/OpenFGA com memberships tenant/organização/workspace e negações 401/403 em HTTP e browser reais (WBS 50.02).
+- CRM-WA-01.03/04: vínculo transacional idempotente e revisão humana de ambiguidades; 14 propostas de contato não significam 14 vínculos criados.
+- SQL 002 continua travando multi-org; não remover ou migrar sem Product Gate, restore e autorização.
+
+**Rotina:** escolher **uma meta** na Sprint após resolver os gates; implementar apenas na unidade, executar testes afetados e registrar commit, CI, ambiente, evidências e pendências em STATUS. Não converter esta tabela em tarefas concluídas automaticamente.

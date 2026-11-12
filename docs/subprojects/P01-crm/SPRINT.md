@@ -24,3 +24,16 @@
 - [ ] Entrega encerrada antes de mudar o foco para outra unidade?
 
 WIP global: máximo três entregas ativas, salvo decisão explícita.
+
+## Próxima sprint candidata — reconciliação de 2026-11-12
+
+> **Ainda não iniciada.** Sem responsável, período, autorização ou Product Gate atribuídos.
+
+**Meta proposta:** Homologar CRM HTTP e Workspace com identidade real e tenant A/B, sem ativar multi-org.
+
+| Candidate task | Pré-requisito de início | Status |
+|---|---|---|
+| **P01-VAL-01** | Control/tenant, Keycloak e FGA provisionados | A PRIORIZAR / NÃO INICIADA |
+| **P01-VAL-02** | Event Worker gated e revisão autorizada | DEPENDENTE / NÃO INICIADA |
+
+Critério de encerramento: meta aceita com testes, SHA/CI, ambiente, rollback e segurança aplicáveis; atualizar [Evolução](EVOLUCAO.md) e [STATUS](STATUS.md), sem iniciar outro pacote automaticamente.

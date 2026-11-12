@@ -94,3 +94,28 @@ Para criar um pacote local novo, utilize [Modelo de Workpackage](../../standards
 3. **Consolidar:** atualizar [STATUS.md](STATUS.md) com SHA, CI, ambiente, testes, bloqueios e evidência de aceite; fechar o pacote antes de outro incremento independente.
 
 **Não confundir:** planejado ≠ aprovado ≠ atribuído ≠ implementado ≠ testado ≠ integrado ≠ operacional ≠ aceito.
+
+## Reconciliação técnica — 2026-11-12
+
+> **Workpackage candidato; NÃO aprovado, atribuído ou iniciado.** Referências locais e resultados de testes devem ser checados contra a SHA do agente antes de editar código.
+
+**Resumo do estado:** modules/platform-core contém AGENTS.md e NÃO é pacote runtime próprio. O Core executável está distribuído em packages/core-kernel, apps/core-host e unidades Control/Identity/Authorization. Perfil de composição por instância ainda não foi implementado.
+
+**Próximo marco recomendado:** Especificar CMP-01 e CMP-02 preservando Kernel (ports), Host (composição) e módulos (domínio), sem habilitar worker ou perfis reais.
+
+### P14-WP-VAL — Validação do incremento MVP (proposto)
+
+| Task ID | WBS / plano relacionado | Entregável | Depende | Critério de aceite | Estado |
+|---|---|---|---|---|---|
+| **P14-CMP-01** | CMP-01 | Inventariar contratos públicos, adapters e exports existentes | Kernel, Host e registros instalados | Matriz coerente com package exports + teste de fronteira | CANDIDATA / NÃO ATRIBUÍDA |
+| **P14-CMP-02** | CMP-02 | Definir schema e validador OFFLINE de composição | P14-CMP-01 | Perfis inválidos recusados, sem startup produtivo | CANDIDATA / NÃO ATRIBUÍDA |
+| **P14-EV-01** | EV-W08–10 | Detalhar gates de Event Worker e projetor único | Control/tenant, FGA/ENABLED, restore | Checklist aprovado; nenhum deploy ou SQL operacional | CANDIDATA / NÃO ATRIBUÍDA |
+
+### Dependências bloqueantes
+
+- CMP-01/02: matriz de ports/contracts e schema offline de composição ainda pendentes na WBS.
+- CMP-03–09: perfis de instância, imagens/rollout/entitlements e gates não homologados.
+- Event Worker/scheduler, Control/tenant migrations, FGA service grants e restore real não ativados.
+- 19 testes ignorados no Host NÃO são prova de integração PG17, staging, Keycloak ou FGA reais.
+
+**Rotina:** escolher **uma meta** na Sprint após resolver os gates; implementar apenas na unidade, executar testes afetados e registrar commit, CI, ambiente, evidências e pendências em STATUS. Não converter esta tabela em tarefas concluídas automaticamente.
