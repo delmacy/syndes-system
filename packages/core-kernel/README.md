@@ -36,3 +36,7 @@ npm pack --dry-run
 ```
 
 The package is currently **private**. Before external publication, explicitly choose a license, contributor governance, package ownership, threat model and versioning/release policy. No dynamic loading of untrusted plugins, marketplace, workflow engine or API exposure is included.
+
+## Perfis de composição por instância — evolução aprovada
+
+Contrato de arquitetura: o Kernel mantém `TenancyPort`, `AuthorizationPort`, providers de tenant e transação, `ModuleRegistry` e `SyndesPlugin` sem dependência de NestJS/driver. O `apps/core-host` é o composition root que escolhe plugins confiáveis, provê adapters e monta o HTTP. Perfis de contêiner versionados, builds seletivos e possíveis adapters cross-process **ainda não estão implementados**. Ver `docs/engineering/ADR-COMPOSICAO-MODULAR-CORE-20261111.md` e issue #104; preserve a ordem de dependências e regras fail-closed ao evoluir os ports.

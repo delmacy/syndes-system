@@ -42,3 +42,7 @@ Business API controllers and UI files are **not part of Core Host**. The generic
 ## Tenant module installer (AK-30 candidate)
 
 An operator-only, inactive candidate is implemented in src/module-installer.ts with PLAN/APPLY/VERIFY and a protected tenant ledger. It is NOT mounted in Nest or callable over HTTP; Core Host runtime's tenant role must not have migration DDL privilege. See docs/engineering/AK-30-01-02-TENANT-INSTALLER-20261110.md. Both PostgreSQL bootstrap SQL candidates are not registered in operational setup. The separate Platform Manager frontend will eventually show **administrative states** through authenticated Control Plane APIs; it must not open tenant DB connections or execute SQL.
+
+## Host configurável por perfil (feature CMP-01 a CMP-09)
+
+O Host já carrega descritores confiáveis via arquivo fixo `config/modules.json`, compõe NestJS no startup e rejeita dependências inválidas. **Ainda não** seleciona perfis por instância nem produz imagem mínima: o Dockerfile inclui os pacotes implementados. A evolução aprovada separa responsabilidades: Kernel = ports/contratos; Host = composition root/adapters; módulos = domínio; infra = release, segredo e isolamento. Nunca permitir plugin arbitrário vindo do cliente, nem confundir seleção no perfil com entitlement do tenant. Para seguir o roteiro, consultar `docs/engineering/ADR-COMPOSICAO-MODULAR-CORE-20261111.md`, o WBS CMP e a issue #104.
