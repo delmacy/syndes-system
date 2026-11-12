@@ -23,3 +23,11 @@
 - Para editar diretamente o documento oficial, use **Editar arquivo original no GitHub** e faça a alteração dentro das permissões do repositório.
 
 O agente trata a Issue como proposta em avaliação, **não** como requisito automaticamente aprovado.
+
+## Três prompts do módulo
+
+- **Projeção/Planejamento:** discute proposta, esclarece ambiguidades e prepara requisitos para aprovação, sem executar código.
+- **Implementação:** executa especificação aprovada, com testes, evidências e checkpoint.
+- **Alteração rápida:** instrução curta e localizada — módulo + arquivo/tópico + alteração solicitada. Se houver novo contrato ou decisão, encaminha para Projeção.
+
+Cada prompt tem arquivo próprio por módulo e caminho exato no catálogo de subprojetos.

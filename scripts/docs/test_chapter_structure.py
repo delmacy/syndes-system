@@ -24,6 +24,10 @@ class ChapterStructureTests(unittest.TestCase):
                 self.assertTrue((d/"updates/README.md").is_file())
                 self.assertTrue((d/"PROJECAO.md").is_file())
                 self.assertTrue((d/"IMPLEMENTACAO.md").is_file())
+                self.assertTrue((d/"ALTERACAO.md").is_file())
+                self.assertEqual(u["promptAlteration"],(Path(u["scope"]).parent/"ALTERACAO.md").as_posix())
+                for key in ("promptProjection","promptImplementation","promptAlteration"):
+                    self.assertTrue((ROOT/u[key]).is_file())
 
     def test_capability_and_user_story_entry_points(self):
         for u in UNITS:

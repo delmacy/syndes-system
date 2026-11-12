@@ -1,6 +1,6 @@
 # Organização de páginas e subpastas
 
-O Syndes Docs utiliza uma árvore de **área → módulo → página (Escopo, Status, Sprint, Atualizações, Projeção ou Implementação)**. A árvore do portal é derivada diretamente de `catalog/work-units.json` pelo gerador `scripts/docs/build_site.py`. **Não** altera ownership, pacotes ou dependências.
+O Syndes Docs utiliza uma árvore de **área → módulo → página (Escopo, Status, Sprint, Atualizações, Projeção/Planejamento, Implementação ou Alteração rápida)**. A árvore do portal é derivada diretamente de `catalog/work-units.json` pelo gerador `scripts/docs/build_site.py`. **Não** altera ownership, pacotes ou dependências.
 
 ## Separação física dos capítulos
 
@@ -19,7 +19,7 @@ Uma subseção compõe o conteúdo de sua seção pai; por isso, uma alteração
 
 1. **Área** — Produto, Plataforma, Frontend, Qualidade/Infraestrutura ou Operação.
 2. **Módulo** — ID e nome da unidade no catálogo.
-3. **Página** — Visão geral, Escopo, Status, Sprint, Atualizações, Projeção e Implementação.
+3. **Página** — Visão geral, Escopo, Status, Sprint, Atualizações, Projeção/Planejamento, Implementação e Alteração rápida.
 
 A página **Escopo** agrega automaticamente o conteúdo dos capítulos Markdown do módulo no **corpo da documentação**, com sumário de títulos e diagramas Mermaid. Os capítulos permanecem arquivos independentes em chapters/, para edição por tópico, histórico e acesso dos agentes ao caminho exato. Esses caminhos não aparecem como novos níveis na navegação lateral.
 

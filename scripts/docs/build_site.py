@@ -120,8 +120,9 @@ def navigation_tree(units, canonical):
                 {"Status":str(d/"STATUS.md")},
                 {"Sprint":str(d/"SPRINT.md")},
                 {"Atualizações":str(d/"updates/index.md")},
-                {"Projeção":str(d/"PROJECAO.md")},
+                {"Projeção / Planejamento":str(d/"PROJECAO.md")},
                 {"Implementação":str(d/"IMPLEMENTACAO.md")},
+                {"Alteração rápida":str(d/"ALTERACAO.md")},
             ]
             modules.append({uid+" · "+unit["name"]:pages})
         nav.append({front_label:modules})
@@ -210,7 +211,7 @@ def main():
             target.write_text(marker+"[✏️ Editar arquivo original no GitHub](https://github.com/delmacy/syndes-system/edit/main/"+path+")\n\n"+rewrite_links(raw,source,included),encoding="utf-8")
             sections=annotate_revisions(markdown_sections(raw),raw,blame_revisions(source))
             payload={"source":path,"revision":revision,"sections":sections}
-            if source.name in ("PROJECAO.md","IMPLEMENTACAO.md"):
+            if source.name in ("PROJECAO.md","IMPLEMENTACAO.md","ALTERACAO.md"):
                 payload["fullMarkdown"]=raw
             target.with_suffix(".sections.json").write_text(json.dumps(payload,ensure_ascii=False),encoding="utf-8")
         else: shutil.copy2(source,target)

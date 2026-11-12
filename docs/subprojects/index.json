@@ -11,7 +11,10 @@
       "entry": "docs/subprojects/P01-crm/README.md",
       "scope": "docs/subprojects/P01-crm/ESCOPO.md",
       "status": "docs/subprojects/P01-crm/STATUS.md",
-      "sprint": "docs/subprojects/P01-crm/SPRINT.md"
+      "sprint": "docs/subprojects/P01-crm/SPRINT.md",
+      "promptProjection": "docs/subprojects/P01-crm/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P01-crm/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P01-crm/ALTERACAO.md"
     },
     {
       "id": "P02",
@@ -21,7 +24,10 @@
       "entry": "docs/subprojects/P02-inbox/README.md",
       "scope": "docs/subprojects/P02-inbox/ESCOPO.md",
       "status": "docs/subprojects/P02-inbox/STATUS.md",
-      "sprint": "docs/subprojects/P02-inbox/SPRINT.md"
+      "sprint": "docs/subprojects/P02-inbox/SPRINT.md",
+      "promptProjection": "docs/subprojects/P02-inbox/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P02-inbox/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P02-inbox/ALTERACAO.md"
     },
     {
       "id": "P03",
@@ -31,7 +37,10 @@
       "entry": "docs/subprojects/P03-whatsapp/README.md",
       "scope": "docs/subprojects/P03-whatsapp/ESCOPO.md",
       "status": "docs/subprojects/P03-whatsapp/STATUS.md",
-      "sprint": "docs/subprojects/P03-whatsapp/SPRINT.md"
+      "sprint": "docs/subprojects/P03-whatsapp/SPRINT.md",
+      "promptProjection": "docs/subprojects/P03-whatsapp/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P03-whatsapp/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P03-whatsapp/ALTERACAO.md"
     },
     {
       "id": "P04",
@@ -41,7 +50,10 @@
       "entry": "docs/subprojects/P04-organizations-workforce/README.md",
       "scope": "docs/subprojects/P04-organizations-workforce/ESCOPO.md",
       "status": "docs/subprojects/P04-organizations-workforce/STATUS.md",
-      "sprint": "docs/subprojects/P04-organizations-workforce/SPRINT.md"
+      "sprint": "docs/subprojects/P04-organizations-workforce/SPRINT.md",
+      "promptProjection": "docs/subprojects/P04-organizations-workforce/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P04-organizations-workforce/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P04-organizations-workforce/ALTERACAO.md"
     },
     {
       "id": "P05",
@@ -51,7 +63,10 @@
       "entry": "docs/subprojects/P05-gestao-de-atendimentos/README.md",
       "scope": "docs/subprojects/P05-gestao-de-atendimentos/ESCOPO.md",
       "status": "docs/subprojects/P05-gestao-de-atendimentos/STATUS.md",
-      "sprint": "docs/subprojects/P05-gestao-de-atendimentos/SPRINT.md"
+      "sprint": "docs/subprojects/P05-gestao-de-atendimentos/SPRINT.md",
+      "promptProjection": "docs/subprojects/P05-gestao-de-atendimentos/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P05-gestao-de-atendimentos/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P05-gestao-de-atendimentos/ALTERACAO.md"
     },
     {
       "id": "P06",
@@ -61,7 +76,10 @@
       "entry": "docs/subprojects/P06-syndes-support/README.md",
       "scope": "docs/subprojects/P06-syndes-support/ESCOPO.md",
       "status": "docs/subprojects/P06-syndes-support/STATUS.md",
-      "sprint": "docs/subprojects/P06-syndes-support/SPRINT.md"
+      "sprint": "docs/subprojects/P06-syndes-support/SPRINT.md",
+      "promptProjection": "docs/subprojects/P06-syndes-support/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P06-syndes-support/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P06-syndes-support/ALTERACAO.md"
     },
     {
       "id": "P07",
@@ -71,7 +89,10 @@
       "entry": "docs/subprojects/P07-scheduling/README.md",
       "scope": "docs/subprojects/P07-scheduling/ESCOPO.md",
       "status": "docs/subprojects/P07-scheduling/STATUS.md",
-      "sprint": "docs/subprojects/P07-scheduling/SPRINT.md"
+      "sprint": "docs/subprojects/P07-scheduling/SPRINT.md",
+      "promptProjection": "docs/subprojects/P07-scheduling/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P07-scheduling/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P07-scheduling/ALTERACAO.md"
     },
     {
       "id": "P08",
@@ -81,7 +102,10 @@
       "entry": "docs/subprojects/P08-ai-assistant/README.md",
       "scope": "docs/subprojects/P08-ai-assistant/ESCOPO.md",
       "status": "docs/subprojects/P08-ai-assistant/STATUS.md",
-      "sprint": "docs/subprojects/P08-ai-assistant/SPRINT.md"
+      "sprint": "docs/subprojects/P08-ai-assistant/SPRINT.md",
+      "promptProjection": "docs/subprojects/P08-ai-assistant/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P08-ai-assistant/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P08-ai-assistant/ALTERACAO.md"
     },
     {
       "id": "P09",
@@ -91,7 +115,10 @@
       "entry": "docs/subprojects/P09-documents/README.md",
       "scope": "docs/subprojects/P09-documents/ESCOPO.md",
       "status": "docs/subprojects/P09-documents/STATUS.md",
-      "sprint": "docs/subprojects/P09-documents/SPRINT.md"
+      "sprint": "docs/subprojects/P09-documents/SPRINT.md",
+      "promptProjection": "docs/subprojects/P09-documents/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P09-documents/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P09-documents/ALTERACAO.md"
     },
     {
       "id": "P10",
@@ -101,7 +128,10 @@
       "entry": "docs/subprojects/P10-email/README.md",
       "scope": "docs/subprojects/P10-email/ESCOPO.md",
       "status": "docs/subprojects/P10-email/STATUS.md",
-      "sprint": "docs/subprojects/P10-email/SPRINT.md"
+      "sprint": "docs/subprojects/P10-email/SPRINT.md",
+      "promptProjection": "docs/subprojects/P10-email/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P10-email/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P10-email/ALTERACAO.md"
     },
     {
       "id": "P11",
@@ -111,7 +141,10 @@
       "entry": "docs/subprojects/P11-onboarding/README.md",
       "scope": "docs/subprojects/P11-onboarding/ESCOPO.md",
       "status": "docs/subprojects/P11-onboarding/STATUS.md",
-      "sprint": "docs/subprojects/P11-onboarding/SPRINT.md"
+      "sprint": "docs/subprojects/P11-onboarding/SPRINT.md",
+      "promptProjection": "docs/subprojects/P11-onboarding/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P11-onboarding/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P11-onboarding/ALTERACAO.md"
     },
     {
       "id": "P12",
@@ -121,7 +154,10 @@
       "entry": "docs/subprojects/P12-billing/README.md",
       "scope": "docs/subprojects/P12-billing/ESCOPO.md",
       "status": "docs/subprojects/P12-billing/STATUS.md",
-      "sprint": "docs/subprojects/P12-billing/SPRINT.md"
+      "sprint": "docs/subprojects/P12-billing/SPRINT.md",
+      "promptProjection": "docs/subprojects/P12-billing/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P12-billing/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P12-billing/ALTERACAO.md"
     },
     {
       "id": "P13",
@@ -131,7 +167,10 @@
       "entry": "docs/subprojects/P13-commercial-site/README.md",
       "scope": "docs/subprojects/P13-commercial-site/ESCOPO.md",
       "status": "docs/subprojects/P13-commercial-site/STATUS.md",
-      "sprint": "docs/subprojects/P13-commercial-site/SPRINT.md"
+      "sprint": "docs/subprojects/P13-commercial-site/SPRINT.md",
+      "promptProjection": "docs/subprojects/P13-commercial-site/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P13-commercial-site/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P13-commercial-site/ALTERACAO.md"
     },
     {
       "id": "P14",
@@ -141,7 +180,10 @@
       "entry": "docs/subprojects/P14-platform-core/README.md",
       "scope": "docs/subprojects/P14-platform-core/ESCOPO.md",
       "status": "docs/subprojects/P14-platform-core/STATUS.md",
-      "sprint": "docs/subprojects/P14-platform-core/SPRINT.md"
+      "sprint": "docs/subprojects/P14-platform-core/SPRINT.md",
+      "promptProjection": "docs/subprojects/P14-platform-core/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/P14-platform-core/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/P14-platform-core/ALTERACAO.md"
     },
     {
       "id": "A01",
@@ -151,7 +193,10 @@
       "entry": "docs/subprojects/A01-workspace-frontend/README.md",
       "scope": "docs/subprojects/A01-workspace-frontend/ESCOPO.md",
       "status": "docs/subprojects/A01-workspace-frontend/STATUS.md",
-      "sprint": "docs/subprojects/A01-workspace-frontend/SPRINT.md"
+      "sprint": "docs/subprojects/A01-workspace-frontend/SPRINT.md",
+      "promptProjection": "docs/subprojects/A01-workspace-frontend/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/A01-workspace-frontend/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/A01-workspace-frontend/ALTERACAO.md"
     },
     {
       "id": "A02",
@@ -161,7 +206,10 @@
       "entry": "docs/subprojects/A02-platform-manager-frontend/README.md",
       "scope": "docs/subprojects/A02-platform-manager-frontend/ESCOPO.md",
       "status": "docs/subprojects/A02-platform-manager-frontend/STATUS.md",
-      "sprint": "docs/subprojects/A02-platform-manager-frontend/SPRINT.md"
+      "sprint": "docs/subprojects/A02-platform-manager-frontend/SPRINT.md",
+      "promptProjection": "docs/subprojects/A02-platform-manager-frontend/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/A02-platform-manager-frontend/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/A02-platform-manager-frontend/ALTERACAO.md"
     },
     {
       "id": "A03",
@@ -171,7 +219,10 @@
       "entry": "docs/subprojects/A03-support-frontend/README.md",
       "scope": "docs/subprojects/A03-support-frontend/ESCOPO.md",
       "status": "docs/subprojects/A03-support-frontend/STATUS.md",
-      "sprint": "docs/subprojects/A03-support-frontend/SPRINT.md"
+      "sprint": "docs/subprojects/A03-support-frontend/SPRINT.md",
+      "promptProjection": "docs/subprojects/A03-support-frontend/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/A03-support-frontend/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/A03-support-frontend/ALTERACAO.md"
     },
     {
       "id": "A04",
@@ -181,7 +232,10 @@
       "entry": "docs/subprojects/A04-core-host/README.md",
       "scope": "docs/subprojects/A04-core-host/ESCOPO.md",
       "status": "docs/subprojects/A04-core-host/STATUS.md",
-      "sprint": "docs/subprojects/A04-core-host/SPRINT.md"
+      "sprint": "docs/subprojects/A04-core-host/SPRINT.md",
+      "promptProjection": "docs/subprojects/A04-core-host/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/A04-core-host/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/A04-core-host/ALTERACAO.md"
     },
     {
       "id": "A05",
@@ -191,7 +245,10 @@
       "entry": "docs/subprojects/A05-manager-api/README.md",
       "scope": "docs/subprojects/A05-manager-api/ESCOPO.md",
       "status": "docs/subprojects/A05-manager-api/STATUS.md",
-      "sprint": "docs/subprojects/A05-manager-api/SPRINT.md"
+      "sprint": "docs/subprojects/A05-manager-api/SPRINT.md",
+      "promptProjection": "docs/subprojects/A05-manager-api/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/A05-manager-api/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/A05-manager-api/ALTERACAO.md"
     },
     {
       "id": "A06",
@@ -201,7 +258,10 @@
       "entry": "docs/subprojects/A06-account-access-api/README.md",
       "scope": "docs/subprojects/A06-account-access-api/ESCOPO.md",
       "status": "docs/subprojects/A06-account-access-api/STATUS.md",
-      "sprint": "docs/subprojects/A06-account-access-api/SPRINT.md"
+      "sprint": "docs/subprojects/A06-account-access-api/SPRINT.md",
+      "promptProjection": "docs/subprojects/A06-account-access-api/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/A06-account-access-api/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/A06-account-access-api/ALTERACAO.md"
     },
     {
       "id": "A07",
@@ -211,7 +271,10 @@
       "entry": "docs/subprojects/A07-front-shared/README.md",
       "scope": "docs/subprojects/A07-front-shared/ESCOPO.md",
       "status": "docs/subprojects/A07-front-shared/STATUS.md",
-      "sprint": "docs/subprojects/A07-front-shared/SPRINT.md"
+      "sprint": "docs/subprojects/A07-front-shared/SPRINT.md",
+      "promptProjection": "docs/subprojects/A07-front-shared/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/A07-front-shared/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/A07-front-shared/ALTERACAO.md"
     },
     {
       "id": "A08",
@@ -221,7 +284,10 @@
       "entry": "docs/subprojects/A08-core-kernel/README.md",
       "scope": "docs/subprojects/A08-core-kernel/ESCOPO.md",
       "status": "docs/subprojects/A08-core-kernel/STATUS.md",
-      "sprint": "docs/subprojects/A08-core-kernel/SPRINT.md"
+      "sprint": "docs/subprojects/A08-core-kernel/SPRINT.md",
+      "promptProjection": "docs/subprojects/A08-core-kernel/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/A08-core-kernel/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/A08-core-kernel/ALTERACAO.md"
     },
     {
       "id": "C01",
@@ -231,7 +297,10 @@
       "entry": "docs/subprojects/C01-control-plane/README.md",
       "scope": "docs/subprojects/C01-control-plane/ESCOPO.md",
       "status": "docs/subprojects/C01-control-plane/STATUS.md",
-      "sprint": "docs/subprojects/C01-control-plane/SPRINT.md"
+      "sprint": "docs/subprojects/C01-control-plane/SPRINT.md",
+      "promptProjection": "docs/subprojects/C01-control-plane/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/C01-control-plane/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/C01-control-plane/ALTERACAO.md"
     },
     {
       "id": "C02",
@@ -241,7 +310,10 @@
       "entry": "docs/subprojects/C02-tenant-installer/README.md",
       "scope": "docs/subprojects/C02-tenant-installer/ESCOPO.md",
       "status": "docs/subprojects/C02-tenant-installer/STATUS.md",
-      "sprint": "docs/subprojects/C02-tenant-installer/SPRINT.md"
+      "sprint": "docs/subprojects/C02-tenant-installer/SPRINT.md",
+      "promptProjection": "docs/subprojects/C02-tenant-installer/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/C02-tenant-installer/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/C02-tenant-installer/ALTERACAO.md"
     },
     {
       "id": "C03",
@@ -251,7 +323,10 @@
       "entry": "docs/subprojects/C03-identity-keycloak/README.md",
       "scope": "docs/subprojects/C03-identity-keycloak/ESCOPO.md",
       "status": "docs/subprojects/C03-identity-keycloak/STATUS.md",
-      "sprint": "docs/subprojects/C03-identity-keycloak/SPRINT.md"
+      "sprint": "docs/subprojects/C03-identity-keycloak/SPRINT.md",
+      "promptProjection": "docs/subprojects/C03-identity-keycloak/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/C03-identity-keycloak/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/C03-identity-keycloak/ALTERACAO.md"
     },
     {
       "id": "C04",
@@ -261,7 +336,10 @@
       "entry": "docs/subprojects/C04-authorization-openfga/README.md",
       "scope": "docs/subprojects/C04-authorization-openfga/ESCOPO.md",
       "status": "docs/subprojects/C04-authorization-openfga/STATUS.md",
-      "sprint": "docs/subprojects/C04-authorization-openfga/SPRINT.md"
+      "sprint": "docs/subprojects/C04-authorization-openfga/SPRINT.md",
+      "promptProjection": "docs/subprojects/C04-authorization-openfga/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/C04-authorization-openfga/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/C04-authorization-openfga/ALTERACAO.md"
     },
     {
       "id": "C05",
@@ -271,7 +349,10 @@
       "entry": "docs/subprojects/C05-secrets-openbao/README.md",
       "scope": "docs/subprojects/C05-secrets-openbao/ESCOPO.md",
       "status": "docs/subprojects/C05-secrets-openbao/STATUS.md",
-      "sprint": "docs/subprojects/C05-secrets-openbao/SPRINT.md"
+      "sprint": "docs/subprojects/C05-secrets-openbao/SPRINT.md",
+      "promptProjection": "docs/subprojects/C05-secrets-openbao/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/C05-secrets-openbao/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/C05-secrets-openbao/ALTERACAO.md"
     },
     {
       "id": "C06",
@@ -281,7 +362,10 @@
       "entry": "docs/subprojects/C06-event-platform/README.md",
       "scope": "docs/subprojects/C06-event-platform/ESCOPO.md",
       "status": "docs/subprojects/C06-event-platform/STATUS.md",
-      "sprint": "docs/subprojects/C06-event-platform/SPRINT.md"
+      "sprint": "docs/subprojects/C06-event-platform/SPRINT.md",
+      "promptProjection": "docs/subprojects/C06-event-platform/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/C06-event-platform/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/C06-event-platform/ALTERACAO.md"
     },
     {
       "id": "C07",
@@ -291,7 +375,10 @@
       "entry": "docs/subprojects/C07-apis-e-adapters/README.md",
       "scope": "docs/subprojects/C07-apis-e-adapters/ESCOPO.md",
       "status": "docs/subprojects/C07-apis-e-adapters/STATUS.md",
-      "sprint": "docs/subprojects/C07-apis-e-adapters/SPRINT.md"
+      "sprint": "docs/subprojects/C07-apis-e-adapters/SPRINT.md",
+      "promptProjection": "docs/subprojects/C07-apis-e-adapters/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/C07-apis-e-adapters/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/C07-apis-e-adapters/ALTERACAO.md"
     },
     {
       "id": "C08",
@@ -301,7 +388,10 @@
       "entry": "docs/subprojects/C08-audit-e-observabilidade/README.md",
       "scope": "docs/subprojects/C08-audit-e-observabilidade/ESCOPO.md",
       "status": "docs/subprojects/C08-audit-e-observabilidade/STATUS.md",
-      "sprint": "docs/subprojects/C08-audit-e-observabilidade/SPRINT.md"
+      "sprint": "docs/subprojects/C08-audit-e-observabilidade/SPRINT.md",
+      "promptProjection": "docs/subprojects/C08-audit-e-observabilidade/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/C08-audit-e-observabilidade/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/C08-audit-e-observabilidade/ALTERACAO.md"
     },
     {
       "id": "I01",
@@ -311,7 +401,10 @@
       "entry": "docs/subprojects/I01-devserver01/README.md",
       "scope": "docs/subprojects/I01-devserver01/ESCOPO.md",
       "status": "docs/subprojects/I01-devserver01/STATUS.md",
-      "sprint": "docs/subprojects/I01-devserver01/SPRINT.md"
+      "sprint": "docs/subprojects/I01-devserver01/SPRINT.md",
+      "promptProjection": "docs/subprojects/I01-devserver01/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/I01-devserver01/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/I01-devserver01/ALTERACAO.md"
     },
     {
       "id": "I02",
@@ -321,7 +414,10 @@
       "entry": "docs/subprojects/I02-server02/README.md",
       "scope": "docs/subprojects/I02-server02/ESCOPO.md",
       "status": "docs/subprojects/I02-server02/STATUS.md",
-      "sprint": "docs/subprojects/I02-server02/SPRINT.md"
+      "sprint": "docs/subprojects/I02-server02/SPRINT.md",
+      "promptProjection": "docs/subprojects/I02-server02/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/I02-server02/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/I02-server02/ALTERACAO.md"
     },
     {
       "id": "I03",
@@ -331,7 +427,10 @@
       "entry": "docs/subprojects/I03-win1-server/README.md",
       "scope": "docs/subprojects/I03-win1-server/ESCOPO.md",
       "status": "docs/subprojects/I03-win1-server/STATUS.md",
-      "sprint": "docs/subprojects/I03-win1-server/SPRINT.md"
+      "sprint": "docs/subprojects/I03-win1-server/SPRINT.md",
+      "promptProjection": "docs/subprojects/I03-win1-server/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/I03-win1-server/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/I03-win1-server/ALTERACAO.md"
     },
     {
       "id": "I04",
@@ -341,7 +440,10 @@
       "entry": "docs/subprojects/I04-postgresql/README.md",
       "scope": "docs/subprojects/I04-postgresql/ESCOPO.md",
       "status": "docs/subprojects/I04-postgresql/STATUS.md",
-      "sprint": "docs/subprojects/I04-postgresql/SPRINT.md"
+      "sprint": "docs/subprojects/I04-postgresql/SPRINT.md",
+      "promptProjection": "docs/subprojects/I04-postgresql/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/I04-postgresql/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/I04-postgresql/ALTERACAO.md"
     },
     {
       "id": "I05",
@@ -351,7 +453,10 @@
       "entry": "docs/subprojects/I05-docker-e-redes/README.md",
       "scope": "docs/subprojects/I05-docker-e-redes/ESCOPO.md",
       "status": "docs/subprojects/I05-docker-e-redes/STATUS.md",
-      "sprint": "docs/subprojects/I05-docker-e-redes/SPRINT.md"
+      "sprint": "docs/subprojects/I05-docker-e-redes/SPRINT.md",
+      "promptProjection": "docs/subprojects/I05-docker-e-redes/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/I05-docker-e-redes/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/I05-docker-e-redes/ALTERACAO.md"
     },
     {
       "id": "I06",
@@ -361,7 +466,10 @@
       "entry": "docs/subprojects/I06-traefik-https/README.md",
       "scope": "docs/subprojects/I06-traefik-https/ESCOPO.md",
       "status": "docs/subprojects/I06-traefik-https/STATUS.md",
-      "sprint": "docs/subprojects/I06-traefik-https/SPRINT.md"
+      "sprint": "docs/subprojects/I06-traefik-https/SPRINT.md",
+      "promptProjection": "docs/subprojects/I06-traefik-https/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/I06-traefik-https/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/I06-traefik-https/ALTERACAO.md"
     },
     {
       "id": "I07",
@@ -371,7 +479,10 @@
       "entry": "docs/subprojects/I07-tailnet/README.md",
       "scope": "docs/subprojects/I07-tailnet/ESCOPO.md",
       "status": "docs/subprojects/I07-tailnet/STATUS.md",
-      "sprint": "docs/subprojects/I07-tailnet/SPRINT.md"
+      "sprint": "docs/subprojects/I07-tailnet/SPRINT.md",
+      "promptProjection": "docs/subprojects/I07-tailnet/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/I07-tailnet/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/I07-tailnet/ALTERACAO.md"
     },
     {
       "id": "I08",
@@ -381,7 +492,10 @@
       "entry": "docs/subprojects/I08-komodo/README.md",
       "scope": "docs/subprojects/I08-komodo/ESCOPO.md",
       "status": "docs/subprojects/I08-komodo/STATUS.md",
-      "sprint": "docs/subprojects/I08-komodo/SPRINT.md"
+      "sprint": "docs/subprojects/I08-komodo/SPRINT.md",
+      "promptProjection": "docs/subprojects/I08-komodo/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/I08-komodo/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/I08-komodo/ALTERACAO.md"
     },
     {
       "id": "I09",
@@ -391,7 +505,10 @@
       "entry": "docs/subprojects/I09-whatsmeow-runtime/README.md",
       "scope": "docs/subprojects/I09-whatsmeow-runtime/ESCOPO.md",
       "status": "docs/subprojects/I09-whatsmeow-runtime/STATUS.md",
-      "sprint": "docs/subprojects/I09-whatsmeow-runtime/SPRINT.md"
+      "sprint": "docs/subprojects/I09-whatsmeow-runtime/SPRINT.md",
+      "promptProjection": "docs/subprojects/I09-whatsmeow-runtime/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/I09-whatsmeow-runtime/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/I09-whatsmeow-runtime/ALTERACAO.md"
     },
     {
       "id": "I10",
@@ -401,7 +518,10 @@
       "entry": "docs/subprojects/I10-backup-e-restore/README.md",
       "scope": "docs/subprojects/I10-backup-e-restore/ESCOPO.md",
       "status": "docs/subprojects/I10-backup-e-restore/STATUS.md",
-      "sprint": "docs/subprojects/I10-backup-e-restore/SPRINT.md"
+      "sprint": "docs/subprojects/I10-backup-e-restore/SPRINT.md",
+      "promptProjection": "docs/subprojects/I10-backup-e-restore/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/I10-backup-e-restore/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/I10-backup-e-restore/ALTERACAO.md"
     },
     {
       "id": "I11",
@@ -411,7 +531,10 @@
       "entry": "docs/subprojects/I11-release-e-rollback/README.md",
       "scope": "docs/subprojects/I11-release-e-rollback/ESCOPO.md",
       "status": "docs/subprojects/I11-release-e-rollback/STATUS.md",
-      "sprint": "docs/subprojects/I11-release-e-rollback/SPRINT.md"
+      "sprint": "docs/subprojects/I11-release-e-rollback/SPRINT.md",
+      "promptProjection": "docs/subprojects/I11-release-e-rollback/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/I11-release-e-rollback/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/I11-release-e-rollback/ALTERACAO.md"
     },
     {
       "id": "I12",
@@ -421,7 +544,10 @@
       "entry": "docs/subprojects/I12-seguranca-de-host/README.md",
       "scope": "docs/subprojects/I12-seguranca-de-host/ESCOPO.md",
       "status": "docs/subprojects/I12-seguranca-de-host/STATUS.md",
-      "sprint": "docs/subprojects/I12-seguranca-de-host/SPRINT.md"
+      "sprint": "docs/subprojects/I12-seguranca-de-host/SPRINT.md",
+      "promptProjection": "docs/subprojects/I12-seguranca-de-host/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/I12-seguranca-de-host/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/I12-seguranca-de-host/ALTERACAO.md"
     },
     {
       "id": "Q01",
@@ -431,7 +557,10 @@
       "entry": "docs/subprojects/Q01-plataforma-de-testes/README.md",
       "scope": "docs/subprojects/Q01-plataforma-de-testes/ESCOPO.md",
       "status": "docs/subprojects/Q01-plataforma-de-testes/STATUS.md",
-      "sprint": "docs/subprojects/Q01-plataforma-de-testes/SPRINT.md"
+      "sprint": "docs/subprojects/Q01-plataforma-de-testes/SPRINT.md",
+      "promptProjection": "docs/subprojects/Q01-plataforma-de-testes/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/Q01-plataforma-de-testes/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/Q01-plataforma-de-testes/ALTERACAO.md"
     },
     {
       "id": "Q02",
@@ -441,7 +570,10 @@
       "entry": "docs/subprojects/Q02-testes-unitarios/README.md",
       "scope": "docs/subprojects/Q02-testes-unitarios/ESCOPO.md",
       "status": "docs/subprojects/Q02-testes-unitarios/STATUS.md",
-      "sprint": "docs/subprojects/Q02-testes-unitarios/SPRINT.md"
+      "sprint": "docs/subprojects/Q02-testes-unitarios/SPRINT.md",
+      "promptProjection": "docs/subprojects/Q02-testes-unitarios/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/Q02-testes-unitarios/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/Q02-testes-unitarios/ALTERACAO.md"
     },
     {
       "id": "Q03",
@@ -451,7 +583,10 @@
       "entry": "docs/subprojects/Q03-integracao/README.md",
       "scope": "docs/subprojects/Q03-integracao/ESCOPO.md",
       "status": "docs/subprojects/Q03-integracao/STATUS.md",
-      "sprint": "docs/subprojects/Q03-integracao/SPRINT.md"
+      "sprint": "docs/subprojects/Q03-integracao/SPRINT.md",
+      "promptProjection": "docs/subprojects/Q03-integracao/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/Q03-integracao/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/Q03-integracao/ALTERACAO.md"
     },
     {
       "id": "Q04",
@@ -461,7 +596,10 @@
       "entry": "docs/subprojects/Q04-browser-e2e/README.md",
       "scope": "docs/subprojects/Q04-browser-e2e/ESCOPO.md",
       "status": "docs/subprojects/Q04-browser-e2e/STATUS.md",
-      "sprint": "docs/subprojects/Q04-browser-e2e/SPRINT.md"
+      "sprint": "docs/subprojects/Q04-browser-e2e/SPRINT.md",
+      "promptProjection": "docs/subprojects/Q04-browser-e2e/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/Q04-browser-e2e/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/Q04-browser-e2e/ALTERACAO.md"
     },
     {
       "id": "Q05",
@@ -471,7 +609,10 @@
       "entry": "docs/subprojects/Q05-seguranca/README.md",
       "scope": "docs/subprojects/Q05-seguranca/ESCOPO.md",
       "status": "docs/subprojects/Q05-seguranca/STATUS.md",
-      "sprint": "docs/subprojects/Q05-seguranca/SPRINT.md"
+      "sprint": "docs/subprojects/Q05-seguranca/SPRINT.md",
+      "promptProjection": "docs/subprojects/Q05-seguranca/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/Q05-seguranca/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/Q05-seguranca/ALTERACAO.md"
     },
     {
       "id": "Q06",
@@ -481,7 +622,10 @@
       "entry": "docs/subprojects/Q06-performance/README.md",
       "scope": "docs/subprojects/Q06-performance/ESCOPO.md",
       "status": "docs/subprojects/Q06-performance/STATUS.md",
-      "sprint": "docs/subprojects/Q06-performance/SPRINT.md"
+      "sprint": "docs/subprojects/Q06-performance/SPRINT.md",
+      "promptProjection": "docs/subprojects/Q06-performance/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/Q06-performance/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/Q06-performance/ALTERACAO.md"
     },
     {
       "id": "Q07",
@@ -491,7 +635,10 @@
       "entry": "docs/subprojects/Q07-ci-cd/README.md",
       "scope": "docs/subprojects/Q07-ci-cd/ESCOPO.md",
       "status": "docs/subprojects/Q07-ci-cd/STATUS.md",
-      "sprint": "docs/subprojects/Q07-ci-cd/SPRINT.md"
+      "sprint": "docs/subprojects/Q07-ci-cd/SPRINT.md",
+      "promptProjection": "docs/subprojects/Q07-ci-cd/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/Q07-ci-cd/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/Q07-ci-cd/ALTERACAO.md"
     },
     {
       "id": "Q08",
@@ -501,7 +648,10 @@
       "entry": "docs/subprojects/Q08-release-engineering/README.md",
       "scope": "docs/subprojects/Q08-release-engineering/ESCOPO.md",
       "status": "docs/subprojects/Q08-release-engineering/STATUS.md",
-      "sprint": "docs/subprojects/Q08-release-engineering/SPRINT.md"
+      "sprint": "docs/subprojects/Q08-release-engineering/SPRINT.md",
+      "promptProjection": "docs/subprojects/Q08-release-engineering/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/Q08-release-engineering/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/Q08-release-engineering/ALTERACAO.md"
     },
     {
       "id": "Q09",
@@ -511,7 +661,10 @@
       "entry": "docs/subprojects/Q09-infra-tests/README.md",
       "scope": "docs/subprojects/Q09-infra-tests/ESCOPO.md",
       "status": "docs/subprojects/Q09-infra-tests/STATUS.md",
-      "sprint": "docs/subprojects/Q09-infra-tests/SPRINT.md"
+      "sprint": "docs/subprojects/Q09-infra-tests/SPRINT.md",
+      "promptProjection": "docs/subprojects/Q09-infra-tests/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/Q09-infra-tests/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/Q09-infra-tests/ALTERACAO.md"
     },
     {
       "id": "Q10",
@@ -521,7 +674,10 @@
       "entry": "docs/subprojects/Q10-quality-gates/README.md",
       "scope": "docs/subprojects/Q10-quality-gates/ESCOPO.md",
       "status": "docs/subprojects/Q10-quality-gates/STATUS.md",
-      "sprint": "docs/subprojects/Q10-quality-gates/SPRINT.md"
+      "sprint": "docs/subprojects/Q10-quality-gates/SPRINT.md",
+      "promptProjection": "docs/subprojects/Q10-quality-gates/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/Q10-quality-gates/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/Q10-quality-gates/ALTERACAO.md"
     },
     {
       "id": "G01",
@@ -531,7 +687,10 @@
       "entry": "docs/subprojects/G01-arquitetura/README.md",
       "scope": "docs/subprojects/G01-arquitetura/ESCOPO.md",
       "status": "docs/subprojects/G01-arquitetura/STATUS.md",
-      "sprint": "docs/subprojects/G01-arquitetura/SPRINT.md"
+      "sprint": "docs/subprojects/G01-arquitetura/SPRINT.md",
+      "promptProjection": "docs/subprojects/G01-arquitetura/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/G01-arquitetura/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/G01-arquitetura/ALTERACAO.md"
     },
     {
       "id": "G02",
@@ -541,7 +700,10 @@
       "entry": "docs/subprojects/G02-produto-e-ux/README.md",
       "scope": "docs/subprojects/G02-produto-e-ux/ESCOPO.md",
       "status": "docs/subprojects/G02-produto-e-ux/STATUS.md",
-      "sprint": "docs/subprojects/G02-produto-e-ux/SPRINT.md"
+      "sprint": "docs/subprojects/G02-produto-e-ux/SPRINT.md",
+      "promptProjection": "docs/subprojects/G02-produto-e-ux/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/G02-produto-e-ux/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/G02-produto-e-ux/ALTERACAO.md"
     },
     {
       "id": "G03",
@@ -551,7 +713,10 @@
       "entry": "docs/subprojects/G03-engenharia-e-git/README.md",
       "scope": "docs/subprojects/G03-engenharia-e-git/ESCOPO.md",
       "status": "docs/subprojects/G03-engenharia-e-git/STATUS.md",
-      "sprint": "docs/subprojects/G03-engenharia-e-git/SPRINT.md"
+      "sprint": "docs/subprojects/G03-engenharia-e-git/SPRINT.md",
+      "promptProjection": "docs/subprojects/G03-engenharia-e-git/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/G03-engenharia-e-git/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/G03-engenharia-e-git/ALTERACAO.md"
     },
     {
       "id": "G04",
@@ -561,7 +726,10 @@
       "entry": "docs/subprojects/G04-privacidade/README.md",
       "scope": "docs/subprojects/G04-privacidade/ESCOPO.md",
       "status": "docs/subprojects/G04-privacidade/STATUS.md",
-      "sprint": "docs/subprojects/G04-privacidade/SPRINT.md"
+      "sprint": "docs/subprojects/G04-privacidade/SPRINT.md",
+      "promptProjection": "docs/subprojects/G04-privacidade/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/G04-privacidade/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/G04-privacidade/ALTERACAO.md"
     },
     {
       "id": "G05",
@@ -571,7 +739,10 @@
       "entry": "docs/subprojects/G05-operacao-e-suporte/README.md",
       "scope": "docs/subprojects/G05-operacao-e-suporte/ESCOPO.md",
       "status": "docs/subprojects/G05-operacao-e-suporte/STATUS.md",
-      "sprint": "docs/subprojects/G05-operacao-e-suporte/SPRINT.md"
+      "sprint": "docs/subprojects/G05-operacao-e-suporte/SPRINT.md",
+      "promptProjection": "docs/subprojects/G05-operacao-e-suporte/PROJECAO.md",
+      "promptImplementation": "docs/subprojects/G05-operacao-e-suporte/IMPLEMENTACAO.md",
+      "promptAlteration": "docs/subprojects/G05-operacao-e-suporte/ALTERACAO.md"
     }
   ]
 }

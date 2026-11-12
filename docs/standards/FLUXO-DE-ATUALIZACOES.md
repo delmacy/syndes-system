@@ -40,3 +40,7 @@ A transição não acontece só porque foi enviada uma Issue ou porque o CI pass
 - **IMPLEMENTACAO.md:** prompt detalhado de trabalho para o agente executor.
 - **STATUS.md / SPRINT.md:** andamento e comprovação, não nova especificação.
 - **Código e testes:** evidências executáveis; não são substituídos pelos documentos.
+
+## Ajuste rápido (terceiro prompt)
+
+Para uma mudança localizada e clara, selecione o tópico e use **Copiar prompt de alteração**, ou abra ALTERACAO.md do módulo. O agente lê o caminho direto e executa apenas o ajuste, com testes e STATUS. Quando surgirem ambiguidades, contrato, migração ou funcionalidade não aprovada, não implementa e encaminha para Projeção/Planejamento.

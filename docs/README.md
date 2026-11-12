@@ -10,6 +10,7 @@
 - [Como editar um tópico e enviar à caixa de entrada](standards/EDICAO-CONTEXTUAL.md)
 - [Prompt de projeção](standards/PROMPT-PROJECAO.md)
 - [Prompt de implementação](standards/PROMPT-IMPLEMENTACAO.md)
+- [Prompt de alteração rápida (modelo)](standards/PROMPT-ALTERACAO.md)
 - [Fluxo de propostas, atualização e implementação](standards/FLUXO-DE-ATUALIZACOES.md)
 - [Modelo de atualização aprovada](standards/TEMPLATE-ATUALIZACAO.md)
 - [Template do contrato público](standards/TEMPLATE-CONTRATO-PUBLICO.md)

@@ -50,6 +50,28 @@
     return lines.join("\n");
   }
 
+  function makeQuickChangePrompt(section, metadata, instruction) {
+    const match = metadata.source.match(/^docs\/subprojects\/([^/]+)\//);
+    const folder = match ? "docs/subprojects/" + match[1] : metadata.source.split("/").slice(0,-1).join("/");
+    const id = match ? match[1].split("-")[0] : "Geral";
+    return [
+      "# SYNDES — ALTERAÇÃO RÁPIDA · " + id,
+      "",
+      "Atue somente no módulo " + id + ".",
+      "Altere o seguinte item do módulo: " + instruction.trim(),
+      "Tópico: " + section.heading,
+      "Markdown de origem: " + metadata.source,
+      "Revisão consultada: " + metadata.revision,
+      "Leitura direta: " + folder + "/ALTERACAO.md; " + folder + "/STATUS.md; AGENTS.md; contratos públicos necessários.",
+      "",
+      "Execute apenas o ajuste pontual, verificando o estado atual. Preserve contratos,",
+      "reutilize imports públicos, não altere outro módulo e teste o que foi afetado.",
+      "Registre o resultado com evidências no STATUS e pare.",
+      "Se houver ambiguidade relevante, nova capability, migração ou quebra de contrato,",
+      "não implemente: encaminhe para Projeção/Planejamento."
+    ].join("\n");
+  }
+
   function makeProjectionPrompt(section, metadata, kind, proposal) {
     const match = metadata.source.match(/^docs\/subprojects\/([^/]+)\//);
     const directory = match ? "docs/subprojects/" + match[1] : metadata.source.split("/").slice(0,-1).join("/");
@@ -132,6 +154,8 @@
     });
     const copy = el("button", "syndes-topic-button", "Copiar solicitação");
     copy.type = "button";
+    const quickPrompt = el("button", "syndes-topic-button", "Copiar prompt de alteração");
+    quickPrompt.type = "button";
     const prompt = el("button", "syndes-topic-button", "Copiar prompt de projeção");
     prompt.type = "button";
     const open = el("button", "syndes-topic-button syndes-topic-primary", "Enviar à caixa de entrada ↗");
@@ -140,7 +164,7 @@
     feedback.setAttribute("role", "status");
 
     label.appendChild(input);
-    controls.append(selectLabel, copy, prompt, open);
+    controls.append(selectLabel, copy, quickPrompt, prompt, open);
     panel.append(descriptor, revisionInfo, disclaimer, label, controls, feedback);
     wrapper.append(toggle, revisionInfo.cloneNode(true), panel);
     heading.insertAdjacentElement("afterend", wrapper);
@@ -162,6 +186,20 @@
       }
     }
     copy.addEventListener("click", copyDraft);
+    quickPrompt.addEventListener("click", async () => {
+      if (!input.value.trim()) {
+        feedback.textContent = "Descreva o que deseja alterar antes de copiar o prompt.";
+        input.focus();
+        return;
+      }
+      const instruction = makeQuickChangePrompt(section, metadata, input.value);
+      try {
+        await navigator.clipboard.writeText(instruction);
+        feedback.textContent = "Prompt curto de alteração copiado. Cole em um chat com acesso ao módulo.";
+      } catch {
+        feedback.textContent = "O navegador bloqueou a cópia. Utilize Copiar solicitação.";
+      }
+    });
     prompt.addEventListener("click", async () => {
       if (!input.value.trim()) {
         feedback.textContent = "Descreva a proposta antes de copiar o prompt.";
