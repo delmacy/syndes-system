@@ -8,9 +8,10 @@
 .md-typeset .admonition { border-radius: 8px; }
 
 /* Compact documentation sidebar and topic-scoped editorial drafts. */
+.syndes-sidebar-toggle { display: none; }
 @media screen and (min-width: 76.25em) {
   .syndes-sidebar-toggle {
-    position: fixed; top: 4.15rem; left: .65rem; z-index: 8;
+    display: block; position: fixed; top: 4.15rem; left: .65rem; z-index: 8;
     background: var(--md-default-bg-color); color: var(--md-default-fg-color);
     border: 1px solid var(--md-default-fg-color--lightest); border-radius: .45rem;
     padding: .3rem .52rem; cursor: pointer; font-size: .73rem;
