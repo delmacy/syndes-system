@@ -458,6 +458,7 @@ def site_navigation(units,canonical):
         {"Documentação":[
             {"Mapa técnico":"blueprint/MAPA-TECNICO-POR-CAMADAS.md"},
             {"Catálogo e busca":"blueprint/CATALOGO-MODULOS.md"},
+            {"Ordem de atualização":"blueprint/PLANO-ATUALIZACAO-MODULOS.md"},
             {"Arquitetura e contratos":"blueprint/index.md"}]},
         {"Módulos por área":grouped_navigation(units,display_name)},
         {"APIs e dados":[

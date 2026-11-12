@@ -22,7 +22,7 @@ class HomeNavigationTests(unittest.TestCase):
         self.assertEqual([next(iter(x)) for x in nav[1]["Projetos"]],[
             "Visão geral","WBS e workpackages","Roadmap"])
         self.assertEqual([next(iter(x)) for x in nav[2]["Documentação"]],[
-            "Mapa técnico","Catálogo e busca","Arquitetura e contratos"])
+            "Mapa técnico","Catálogo e busca","Ordem de atualização","Arquitetura e contratos"])
         areas=nav[3]["Módulos por área"]
         self.assertEqual(len(areas),len(portal_views.SYSTEM_AREAS))
         ids=[next(iter(module)).split(" ",1)[0]

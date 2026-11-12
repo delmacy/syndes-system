@@ -18,6 +18,10 @@
   <div class="syndes-projects-results"></div>
 </div>
 
+## Plano de atualização da documentação {#plano-documental}
+
+A ordem de revisão dos STATUS e descrições das **57 unidades** está registrada no [plano de auditoria documental](PLANO-ATUALIZACAO-MODULOS.md). Esse roteiro organiza as evidências e o preenchimento, **não** altera prioridades de entrega, estado de Issues nem Product Gates. Cada unidade é revisada a partir de seu owner, com SHA, bloqueios e fontes verificáveis.
+
 ## Fontes de acompanhamento {#fontes-de-acompanhamento}
 
 | Necessidade | Fonte confiável | Limitação |

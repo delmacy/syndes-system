@@ -38,6 +38,7 @@
 |---|---|
 | **Uma camada da arquitetura** | [Mapa técnico: domínio, dados, interfaces, APIs e contratos](blueprint/MAPA-TECNICO-POR-CAMADAS.md) |
 | **Um módulo e sua implementação** | [Catálogo de módulos com busca por área e camada](blueprint/CATALOGO-MODULOS.md) |
+| **Ordem para revisar status e descrições** | [Plano documental das 57 unidades](blueprint/PLANO-ATUALIZACAO-MODULOS.md) |
 | **APIs, classes, métodos e contratos** | [APIs identificadas](blueprint/APIS.md) · [Contratos públicos](standards/CONTRATOS-PUBLICOS.md) |
 | **Schemas, tabelas, entidades e migrações** | [Dados e persistência](blueprint/DADOS.md) |
 | **Workpackages, WBS, Issues e dependências** | [Projetos](blueprint/PROJETOS.md) · [WBS e workpackages](blueprint/PROJETO-E-WORKPACKAGES.md) |
