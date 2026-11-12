@@ -1,0 +1,169 @@
+/* Syndes Docs: section-local draft editor. No tokens, no direct GitHub writes. */
+(() => {
+  "use strict";
+  const ISSUE_URL = "https://github.com/delmacy/syndes-system/issues/new";
+  let activePage = null;
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function pageMetadata() {
+    const marker = document.querySelector(".syndes-source-marker[data-doc-source]");
+    if (!marker) return null;
+    const source = marker.dataset.docSource;
+    if (!source.startsWith("docs/") || !/^[a-zA-Z0-9._/\-]+$/.test(source)) return null;
+    const filename = source.split("/").pop();
+    const sectionFile = filename === "README.md" ? "index.sections.json" : filename.replace(/\.md$/, ".sections.json");
+    const base = filename === "README.md" ? "./" : "../";
+    return {source, revision: marker.dataset.docRevision || "unverified", sectionsUrl: new URL(base + sectionFile, window.location.href).href};
+  }
+
+  function createIssueBody(section, metadata, kind, proposed) {
+    const original = section.markdown.trimEnd();
+    const lines = [
+      "## Solicitação contextual — Syndes Docs",
+      "",
+      "- Unidade: " + (metadata.source.match(/subprojects\/(\w\d{2})-/) || [,"Blueprint / padrões"])[1],
+      "- Arquivo Markdown: `" + metadata.source + "`",
+      "- Tópico: " + section.heading,
+      "- Cabeçalho: nível H" + section.level + ", linha inicial " + section.position,
+      "- Revisão de origem: `" + metadata.revision + "`",
+      "- Operação solicitada: " + kind,
+      "",
+      "## Proposta",
+      "```md",
+      proposed.trimEnd(),
+      "```",
+      "",
+      "## Contexto original",
+      "```md",
+      original,
+      "```",
+      "",
+      "## Orientação ao agente",
+      "Ler o arquivo e o tópico indicados, conferir a versão atual e os contratos públicos diretamente relacionados. Tratar esta issue como PROPOSTA, não como alteração aprovada. Não alterar outros módulos sem autorização."
+    ];
+    return lines.join("\n");
+  }
+
+  function wireEditor(heading, section, metadata) {
+    const wrapper = el("div", "syndes-topic-widget");
+    const toggle = el("button", "syndes-topic-toggle", "✎ Propor alteração neste tópico");
+    toggle.type = "button";
+    toggle.setAttribute("aria-expanded", "false");
+    const panel = el("div", "syndes-topic-panel");
+    panel.hidden = true;
+
+    const descriptor = el("div", "syndes-topic-context", metadata.source + "  ·  H" + section.level + "  ·  linha " + section.position);
+    const disclaimer = el("p", "syndes-topic-help", "Edite uma cópia do Markdown deste tópico. A documentação oficial não muda até a alteração ser revisada e aplicada no GitHub. Atenção: issues deste repositório público são visíveis publicamente; não inclua segredos.");
+    const label = el("label", "syndes-topic-label", "Alteração proposta");
+    const input = el("textarea", "syndes-topic-textarea");
+    input.value = section.markdown;
+    input.rows = Math.min(20, Math.max(7, section.markdown.split("\n").length + 1));
+    input.spellcheck = false;
+
+    const controls = el("div", "syndes-topic-controls");
+    const selectLabel = el("label", "syndes-topic-label", "Tipo: ");
+    const select = el("select", "syndes-topic-type");
+    [["alterar","Alterar"],["adicionar","Acrescentar"],["remover","Remover"]].forEach(([value,title]) => {
+      const option = el("option", "", title);
+      option.value = value;
+      select.appendChild(option);
+    });
+    selectLabel.appendChild(select);
+    const copy = el("button", "syndes-topic-button", "Copiar solicitação");
+    copy.type = "button";
+    const open = el("button", "syndes-topic-button syndes-topic-primary", "Enviar à caixa de entrada ↗");
+    open.type = "button";
+    const feedback = el("span", "syndes-topic-feedback");
+    feedback.setAttribute("role", "status");
+
+    label.appendChild(input);
+    controls.append(selectLabel, copy, open);
+    panel.append(descriptor, disclaimer, label, controls, feedback);
+    wrapper.append(toggle, panel);
+    heading.insertAdjacentElement("afterend", wrapper);
+
+    toggle.addEventListener("click", () => {
+      panel.hidden = !panel.hidden;
+      toggle.setAttribute("aria-expanded", String(!panel.hidden));
+      if (!panel.hidden) input.focus();
+    });
+    function draft() { return createIssueBody(section, metadata, select.value, input.value); }
+    async function copyDraft() {
+      try {
+        await navigator.clipboard.writeText(draft());
+        feedback.textContent = "Solicitação copiada. Cole no chat ou numa issue.";
+      } catch {
+        input.focus();
+        input.select();
+        feedback.textContent = "Cópia automática indisponível. Selecione o texto ou utilize a caixa de entrada.";
+      }
+    }
+    copy.addEventListener("click", copyDraft);
+    open.addEventListener("click", () => {
+      const text = draft();
+      const title = "[Syndes Docs] " + section.heading.slice(0,70) + " — " + select.options[select.selectedIndex].text;
+      const params = new URLSearchParams({title, body: text});
+      // Browsers and proxies may truncate long URLs. Never silently drop the user proposal.
+      if ((ISSUE_URL + "?" + params).length > 6000) {
+        feedback.textContent = "Conteúdo extenso. Copie a solicitação, depois cole na issue aberta.";
+        copyDraft();
+        window.open(ISSUE_URL + "?" + new URLSearchParams({title}), "_blank", "noopener,noreferrer");
+      } else {
+        feedback.textContent = "Confirme a criação da issue no GitHub. Nada foi enviado automaticamente.";
+        window.open(ISSUE_URL + "?" + params, "_blank", "noopener,noreferrer");
+      }
+    });
+  }
+
+  async function enhance() {
+    const metadata = pageMetadata();
+    if (!metadata || activePage === metadata.source + window.location.pathname) return;
+    activePage = metadata.source + window.location.pathname;
+    let body;
+    try {
+      const response = await fetch(metadata.sectionsUrl, {cache: "no-store"});
+      if (!response.ok) throw new Error("missing sections");
+      body = await response.json();
+    } catch {
+      return; // Non-document pages retain normal navigation and GitHub edit link.
+    }
+    if (body.source !== metadata.source || !Array.isArray(body.sections)) return;
+    const content = document.querySelector(".md-content__inner");
+    if (!content) return;
+    const headings = [...content.querySelectorAll("h1,h2,h3,h4")]
+      .filter(h => !h.closest(".syndes-topic-widget"));
+    const claimed = new Set();
+    for (const section of body.sections) {
+      // Align by heading text AND level; avoid silently attaching an editor to the wrong topic.
+      const clean = (s) => s.replace(/¶/g, "").replace(/\s+/g," ").trim().toLowerCase();
+      const match = headings.find(h => !claimed.has(h) && h.tagName.toLowerCase() === "h" + section.level && clean(h.textContent) === clean(section.heading));
+      if (match) {
+        claimed.add(match);
+        wireEditor(match, section, metadata);
+      }
+    }
+  }
+  function addNavigationToggle() {
+    if (document.querySelector(".syndes-sidebar-toggle")) return;
+    const toggle = el("button", "syndes-sidebar-toggle", "☰ Menu");
+    toggle.type="button";
+    toggle.setAttribute("aria-label", "Recolher ou expandir menu lateral");
+    toggle.setAttribute("aria-expanded", String(!document.body.classList.contains("syndes-nav-collapsed")));
+    toggle.addEventListener("click", () => {
+      document.body.classList.toggle("syndes-nav-collapsed");
+      toggle.setAttribute("aria-expanded", String(!document.body.classList.contains("syndes-nav-collapsed")));
+    });
+    document.body.appendChild(toggle);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", addNavigationToggle);
+  else addNavigationToggle();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", enhance);
+  else enhance();
+  if (typeof document$ !== "undefined" && document$.subscribe) document$.subscribe(enhance);
+})();

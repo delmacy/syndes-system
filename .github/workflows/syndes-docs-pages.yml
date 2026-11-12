@@ -43,6 +43,9 @@ jobs:
       - name: Validate the repository ownership index
         run: bash tests/integrity/repository-structure.sh
 
+      - name: Validate topic-level editor parser
+        run: python -m unittest discover -s scripts/docs -p "test_*.py" -v
+
       - name: Prepare selected documentation
         run: python scripts/docs/build_site.py
 

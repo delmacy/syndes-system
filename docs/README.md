@@ -6,6 +6,7 @@
 - [57 unidades: escopo, status e sprint](subprojects/README.md)
 - [Catálogo JSON com paths para o portal](subprojects/index.json)
 - [Contratos públicos, bibliotecas e interfaces](standards/CONTRATOS-PUBLICOS.md)
+- [Como editar um tópico e enviar à caixa de entrada](standards/EDICAO-CONTEXTUAL.md)
 - [Prompt de projeção](standards/PROMPT-PROJECAO.md)
 - [Prompt de implementação](standards/PROMPT-IMPLEMENTACAO.md)
 - [Template do contrato público](standards/TEMPLATE-CONTRATO-PUBLICO.md)
