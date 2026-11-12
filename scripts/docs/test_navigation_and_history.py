@@ -15,7 +15,7 @@ class NavigationTests(unittest.TestCase):
         units=json.loads((site.DOCS/"subprojects/index.json").read_text())["units"]
         canonical=json.loads((site.ROOT/"catalog/work-units.json").read_text())["units"]
         nav=site.navigation_tree(units,canonical)
-        self.assertEqual(len(nav),5)
+        self.assertEqual(len(nav),6)
         # Exactly 3 levels: area > module > page, with headings in document body.
         for area in nav:
             modules=next(iter(area.values()))
@@ -30,7 +30,7 @@ class NavigationTests(unittest.TestCase):
         for unit in units:
             expected=0 if unit.get("documentationParent") else 1
             self.assertEqual(flat.count(unit["id"]+" · "+unit["name"]),expected)
-        self.assertEqual(sum(len(next(iter(a.values()))) for a in nav),56)
+        self.assertEqual(sum(len(next(iter(a.values()))) for a in nav),49)
         self.assertIn("P03 · WhatsApp",flat)
         self.assertNotIn("I09 · Whatsmeow runtime",flat)
 

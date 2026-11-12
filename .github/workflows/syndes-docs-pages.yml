@@ -9,6 +9,10 @@ on:
       - "catalog/evolution-associations.json"
       - "catalog/traceability-links.json"
       - "scripts/docs/**"
+      - "modules/**"
+      - "apps/**"
+      - "packages/**"
+      - "infra/**"
       - ".github/workflows/syndes-docs-pages.yml"
   workflow_dispatch:
 

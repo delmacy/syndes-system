@@ -166,3 +166,13 @@ O diagrama descreve o **processo desejado**, não uma automação atualmente dis
 ## Linha do tempo do Syndes
 
 [Ver alterações verificadas do programa](LINHA-DO-TEMPO.md). Planejamento e datas continuam nas WBS e nas Issues/Projects; commits são histórico de código, não aceite de produto.
+
+
+## Busca humana e para agentes
+
+[Catálogo técnico por módulo](CATALOGO-MODULOS.md) com busca por nome, ID e código-fonte, links de contratos públicos, métodos, APIs, frontend e banco; [JSON estruturado](../assets/catalog/modules.json) gerado automaticamente na publicação.
+
+
+## Projeto, backlog e execução
+
+[GitHub Projects e sincronização](../standards/GITHUB-PROJECTS.md) — **depende de autorização explícita para Projects**. [Workpackages](../subprojects/README.md) vinculam tarefas a módulos; status do Project não é replicado manualmente.

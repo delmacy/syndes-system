@@ -1,0 +1,51 @@
+name: Syndes Docs — sincronizar workpackages com GitHub Projects
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Apenas listar o que seria adicionado (sem alterar o Project)"
+        required: false
+        type: boolean
+        default: true
+  issues:
+    types: [opened, reopened, labeled]
+
+permissions:
+  contents: read
+  issues: read
+
+concurrency:
+  group: syndes-docs-project-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync workpackage Issues → Project
+    if: ${{ vars.SYNDES_PROJECT_URL != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify project authorization
+        env:
+          SYNDES_PROJECTS_PAT: ${{ secrets.SYNDES_PROJECTS_PAT }}
+          SYNDES_PROJECT_URL: ${{ vars.SYNDES_PROJECT_URL }}
+        run: |
+          if [ -z "$SYNDES_PROJECTS_PAT" ]; then
+            echo "::error::Configure SYNDES_PROJECTS_PAT in repository Actions secrets for this GitHub user-owned Project."
+            exit 1
+          fi
+      - name: Sync existing labeled workpackages
+        env:
+          SYNDES_PROJECTS_PAT: ${{ secrets.SYNDES_PROJECTS_PAT }}
+          SYNDES_PROJECT_URL: ${{ vars.SYNDES_PROJECT_URL }}
+          SYNDES_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '0' }}
+        run: |
+          if [ "$SYNDES_DRY_RUN" = 1 ]; then
+            python scripts/docs/sync_github_project.py --dry-run
+          else
+            python scripts/docs/sync_github_project.py
+          fi

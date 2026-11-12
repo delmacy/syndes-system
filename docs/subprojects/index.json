@@ -528,11 +528,13 @@
       "evolution": "docs/subprojects/I01-devserver01/EVOLUCAO.md",
       "technicalReference": "docs/subprojects/I01-devserver01/REFERENCIA-TECNICA.md",
       "history": "docs/subprojects/I01-devserver01/HISTORICO.md",
-      "operation": "docs/subprojects/I01-devserver01/OPERACAO.md"
+      "operation": "docs/subprojects/I01-devserver01/OPERACAO.md",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "I02",
-      "name": "server02",
+      "name": "Hospedagem e ambientes",
       "front": "qualidade",
       "source": "infra",
       "entry": "docs/subprojects/I02-server02/README.md",
@@ -562,7 +564,9 @@
       "evolution": "docs/subprojects/I03-win1-server/EVOLUCAO.md",
       "technicalReference": "docs/subprojects/I03-win1-server/REFERENCIA-TECNICA.md",
       "history": "docs/subprojects/I03-win1-server/HISTORICO.md",
-      "operation": "docs/subprojects/I03-win1-server/OPERACAO.md"
+      "operation": "docs/subprojects/I03-win1-server/OPERACAO.md",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "I04",
@@ -596,7 +600,9 @@
       "evolution": "docs/subprojects/I05-docker-e-redes/EVOLUCAO.md",
       "technicalReference": "docs/subprojects/I05-docker-e-redes/REFERENCIA-TECNICA.md",
       "history": "docs/subprojects/I05-docker-e-redes/HISTORICO.md",
-      "operation": "docs/subprojects/I05-docker-e-redes/OPERACAO.md"
+      "operation": "docs/subprojects/I05-docker-e-redes/OPERACAO.md",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "I06",
@@ -613,7 +619,9 @@
       "evolution": "docs/subprojects/I06-traefik-https/EVOLUCAO.md",
       "technicalReference": "docs/subprojects/I06-traefik-https/REFERENCIA-TECNICA.md",
       "history": "docs/subprojects/I06-traefik-https/HISTORICO.md",
-      "operation": "docs/subprojects/I06-traefik-https/OPERACAO.md"
+      "operation": "docs/subprojects/I06-traefik-https/OPERACAO.md",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "I07",
@@ -630,7 +638,9 @@
       "evolution": "docs/subprojects/I07-tailnet/EVOLUCAO.md",
       "technicalReference": "docs/subprojects/I07-tailnet/REFERENCIA-TECNICA.md",
       "history": "docs/subprojects/I07-tailnet/HISTORICO.md",
-      "operation": "docs/subprojects/I07-tailnet/OPERACAO.md"
+      "operation": "docs/subprojects/I07-tailnet/OPERACAO.md",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "I08",
@@ -647,7 +657,9 @@
       "evolution": "docs/subprojects/I08-komodo/EVOLUCAO.md",
       "technicalReference": "docs/subprojects/I08-komodo/REFERENCIA-TECNICA.md",
       "history": "docs/subprojects/I08-komodo/HISTORICO.md",
-      "operation": "docs/subprojects/I08-komodo/OPERACAO.md"
+      "operation": "docs/subprojects/I08-komodo/OPERACAO.md",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "I09",
@@ -716,7 +728,9 @@
       "evolution": "docs/subprojects/I12-seguranca-de-host/EVOLUCAO.md",
       "technicalReference": "docs/subprojects/I12-seguranca-de-host/REFERENCIA-TECNICA.md",
       "history": "docs/subprojects/I12-seguranca-de-host/HISTORICO.md",
-      "operation": "docs/subprojects/I12-seguranca-de-host/OPERACAO.md"
+      "operation": "docs/subprojects/I12-seguranca-de-host/OPERACAO.md",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "Q01",

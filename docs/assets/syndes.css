@@ -87,3 +87,17 @@
   max-width: 100%;
   overflow-x: auto;
 }
+
+
+/* Compact, accessible source-backed module directory. */
+.syndes-catalog-controls { display:grid; grid-template-columns:2fr 1fr; gap:.5rem 1rem; align-items:center; }
+.syndes-catalog-controls label { color:var(--md-default-fg-color--light); font-size:.72rem; }
+.syndes-catalog-controls input, .syndes-catalog-controls select { width:100%; min-width:0; padding:.52rem .65rem; font-size:.82rem; border:1px solid var(--md-default-fg-color--lightest); border-radius:.4rem; color:var(--md-default-fg-color); background:var(--md-default-bg-color); }
+.syndes-catalog-state, .syndes-catalog-meta { font-size:.72rem; color:var(--md-default-fg-color--light); }
+.syndes-catalog-results { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr)); gap:.7rem; }
+.syndes-catalog-entry { border:1px solid var(--md-default-fg-color--lightest); padding:.85rem; border-radius:.55rem; min-width:0; }
+.md-typeset .syndes-catalog-entry h3 { font-size:.92rem; margin:.1rem 0 .3rem; }
+.md-typeset .syndes-catalog-entry p { margin:.2rem 0 .65rem; word-break:break-word; }
+.syndes-catalog-links { display:flex; gap:.4rem .75rem; flex-wrap:wrap; }
+.md-typeset .syndes-catalog-links a { font-size:.68rem; }
+@media(max-width:41rem){.syndes-catalog-controls { grid-template-columns:1fr; }}

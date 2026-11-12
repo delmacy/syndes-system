@@ -239,11 +239,13 @@
       "name": "DevServer01",
       "front": "qualidade",
       "path": "docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md",
-      "maturity": "verified"
+      "maturity": "verified",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "I02",
-      "name": "server02",
+      "name": "Hospedagem e ambientes",
       "front": "qualidade",
       "path": "infra",
       "maturity": "unverified"
@@ -253,7 +255,9 @@
       "name": "win1-server",
       "front": "qualidade",
       "path": "infra",
-      "maturity": "unverified"
+      "maturity": "unverified",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "I04",
@@ -267,28 +271,36 @@
       "name": "Docker e redes",
       "front": "qualidade",
       "path": "infra",
-      "maturity": "verified"
+      "maturity": "verified",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "I06",
       "name": "Traefik HTTPS",
       "front": "qualidade",
       "path": "docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md",
-      "maturity": "verified"
+      "maturity": "verified",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "I07",
       "name": "Tailnet",
       "front": "qualidade",
       "path": "infra/master-admin/check-tailnet-route.py",
-      "maturity": "partial"
+      "maturity": "partial",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "I08",
       "name": "Komodo",
       "front": "qualidade",
       "path": "infra",
-      "maturity": "verified"
+      "maturity": "verified",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "I09",
@@ -317,7 +329,9 @@
       "name": "Segurança de host",
       "front": "qualidade",
       "path": "infra",
-      "maturity": "partial"
+      "maturity": "partial",
+      "documentationParent": "I02",
+      "documentationRelation": "infrastructure-hosting"
     },
     {
       "id": "Q01",

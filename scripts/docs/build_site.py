@@ -106,10 +106,15 @@ def navigation_tree(units, canonical):
     canonical_by_id={u["id"]:u for u in canonical}
     ids=set()
     nav=[]
-    for front_id, front_label in FRONTS:
+    areas=[(front_id,label,"all") for front_id,label in FRONTS if front_id!="qualidade"]
+    areas.extend([("qualidade","Infraestrutura e hospedagem","I"),
+                  ("qualidade","Qualidade e testes","Q")])
+    for front_id,front_label,kind in areas:
         modules=[]
         for unit in units:
             if unit["front"]!=front_id: continue
+            if kind=="I" and not unit["id"].startswith("I"): continue
+            if kind=="Q" and unit["id"].startswith("I"): continue
             uid=unit["id"]
             if uid in ids or uid not in canonical_by_id or canonical_by_id[uid]["front"]!=front_id:
                 raise ValueError("Invalid owner or duplicate unit "+uid)
@@ -119,11 +124,18 @@ def navigation_tree(units, canonical):
                 parent=canonical_by_id.get(parent_id)
                 catalog_unit=canonical_by_id[uid]
                 child_source=Path(unit["source"])
+                relation=unit.get("documentationRelation")
+                if relation != catalog_unit.get("documentationRelation"):
+                    raise ValueError("Documentation relationship mismatch for "+uid)
+                contained=(bool(parent) and child_source.is_relative_to(Path(parent["path"]))
+                           and child_source!=Path(parent["path"]))
+                hosting=(bool(parent) and relation=="infrastructure-hosting" and parent_id=="I02"
+                         and uid.startswith("I") and parent["front"]==unit["front"]
+                         and (ROOT/child_source).exists())
                 if (not parent or uid==parent_id
                         or catalog_unit.get("documentationParent")!=parent_id
                         or parent.get("documentationParent")
-                        or not child_source.is_relative_to(Path(parent["path"]))
-                        or child_source==Path(parent["path"])):
+                        or not (contained or hosting)):
                     raise ValueError("Invalid documentation component/parent for "+uid)
                 # Work-unit remains addressable by ID, but is not a top-level product module.
                 continue
@@ -317,6 +329,41 @@ def embed_global_history(revision):
     ])
     path.write_text(body.replace("<!-- SYNDES-GLOBAL-HISTORY -->",compiled),encoding="utf-8")
 
+def embed_code_inventory(units,revision):
+    """Enrich rendered reference pages with source-derived evidence, never a deployed API claim."""
+    from code_inventory import open_source_symbols,render
+    directory=CONTENT/"assets/catalog"
+    directory.mkdir(parents=True,exist_ok=True)
+    payload=[]
+    for u in units:
+        data=open_source_symbols(u)
+        data["revision"]=revision
+        ref_page=CONTENT/site_rel(ROOT/u["technicalReference"])
+        ref_page.write_text(ref_page.read_text(encoding="utf-8")+render(data),encoding="utf-8")
+        (directory/(u["id"]+".json")).write_text(json.dumps(data,ensure_ascii=False),encoding="utf-8")
+        base=Path(u["entry"]).parent.relative_to("docs")
+        web="https://delmacy.github.io/syndes-system/"+base.as_posix()+"/"
+        payload.append({"id":u["id"],"name":u["name"],"area":u["front"],
+                        "documentationParent":u.get("documentationParent"),
+                        "source":u["source"],
+                        "home":web,
+                        "anchors":{"capabilities":web+"#capacidades",
+                                   "stack":web+"REFERENCIA-TECNICA/#inventario-codigo",
+                                   "publicContracts":web+"REFERENCIA-TECNICA/#pacote-publico",
+                                   "privateMethods":web+"REFERENCIA-TECNICA/#metodos",
+                                   "http":web+"REFERENCIA-TECNICA/#endpoints-http",
+                                   "frontend":web+"REFERENCIA-TECNICA/#frontend-identificado",
+                                   "database":web+"REFERENCIA-TECNICA/#schemas-sql",
+                                   "workpackages":web+"EVOLUCAO/",
+                                   "history":web+"HISTORICO/",
+                                   "agents":web+"#agentes"},
+                        "symbolCount":len(data["declared"]),
+                        "methodCount":len(data["methods"]),
+                        "httpDecoratorCount":len(data["routes"]),
+                        "frontendCandidateCount":len(data["frontendCandidates"]),
+                        "inventory":"assets/catalog/"+u["id"]+".json"})
+    (directory/"modules.json").write_text(json.dumps({"revision":revision,"modules":payload},ensure_ascii=False),encoding="utf-8")
+
 def git_sha():
     try:
         return subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True,stderr=subprocess.DEVNULL).strip()
@@ -358,14 +405,19 @@ def main():
     embed_chapters_in_scopes(units,revision,included)
     embed_provenance(units,revision)
     embed_global_history(revision)
+    embed_code_inventory(units,revision)
     nav=[{"Início":"index.md"},{"Monitoramento":"monitoramento/index.md"},
          {"Blueprint":[{"Visão geral":"blueprint/index.md"},
                        {"Proposta ERP Lite e referência técnica":"blueprint/PROPOSTA-ERP-LITE-E-REFERENCIA-TECNICA.md"},
-                       {"Linha do tempo geral":"blueprint/LINHA-DO-TEMPO.md"}]}]
+                       {"Linha do tempo geral":"blueprint/LINHA-DO-TEMPO.md"},
+                       {"Catálogo e busca técnica":"blueprint/CATALOGO-MODULOS.md"},
+                       {"Projeto e workpackages":"blueprint/PROJETO-E-WORKPACKAGES.md"}]}]
     nav.extend(navigation_tree(units,canonical))
     nav.extend([{"Contratos e padrões":[
         {"Contratos públicos":"standards/CONTRATOS-PUBLICOS.md"},
         {"Fontes e rastreabilidade":"standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md"},
+        {"Busca para agentes":"standards/BUSCA-PARA-AGENTES.md"},
+        {"Integração GitHub Projects":"standards/GITHUB-PROJECTS.md"},
         {"Editar tópicos e enviar propostas":"standards/EDICAO-CONTEXTUAL.md"},
         {"Organização por subpáginas":"standards/ORGANIZACAO-DE-PAGINAS.md"},
         {"Modelo de contrato":"standards/TEMPLATE-CONTRATO-PUBLICO.md"},
@@ -401,7 +453,7 @@ def main():
                   "format":"!!python/name:pymdownx.superfences.fence_code_format"}]}},
              "pymdownx.details","pymdownx.tasklist","pymdownx.highlight",
              "pymdownx.inlinehilite"],
-        "plugins":["search"],"extra_css":["assets/syndes.css"],"extra_javascript":["assets/topic-editor.js","assets/workflows.js"],"nav":nav
+        "plugins":["search"],"extra_css":["assets/syndes.css"],"extra_javascript":["assets/topic-editor.js","assets/workflows.js","assets/module-directory.js"],"nav":nav
     }
     OUT.mkdir(exist_ok=True)
     mkdocs_yaml = yaml.safe_dump(config,allow_unicode=True,sort_keys=False,width=106)
