@@ -1,0 +1,431 @@
+{
+  "schema_version": 1,
+  "purpose": "Ownership only, not deployment/acceptance status",
+  "fronts": [
+    {
+      "id": "produto",
+      "name": "Produto e integrações"
+    },
+    {
+      "id": "aplicacoes",
+      "name": "Frontends e aplicações"
+    },
+    {
+      "id": "plataforma",
+      "name": "Core e plataforma"
+    },
+    {
+      "id": "infra",
+      "name": "Infraestrutura e operações"
+    },
+    {
+      "id": "qualidade",
+      "name": "Qualidade e CI/CD"
+    },
+    {
+      "id": "gestao",
+      "name": "Gestão transversal"
+    }
+  ],
+  "units": [
+    {
+      "id": "P01",
+      "name": "CRM",
+      "front": "produto",
+      "path": "modules/core-crm",
+      "maturity": "code"
+    },
+    {
+      "id": "P02",
+      "name": "Inbox",
+      "front": "produto",
+      "path": "modules/inbox",
+      "maturity": "code"
+    },
+    {
+      "id": "P03",
+      "name": "WhatsApp",
+      "front": "produto",
+      "path": "modules/whatsapp",
+      "maturity": "code"
+    },
+    {
+      "id": "P04",
+      "name": "Organizations & Workforce",
+      "front": "produto",
+      "path": "modules/organizations",
+      "maturity": "code"
+    },
+    {
+      "id": "P05",
+      "name": "Gestão de Atendimentos",
+      "front": "produto",
+      "path": "modules/service-management",
+      "maturity": "code"
+    },
+    {
+      "id": "P06",
+      "name": "Syndes Support",
+      "front": "produto",
+      "path": "modules/support",
+      "maturity": "code"
+    },
+    {
+      "id": "P07",
+      "name": "Scheduling",
+      "front": "produto",
+      "path": "modules/scheduling",
+      "maturity": "contract"
+    },
+    {
+      "id": "P08",
+      "name": "AI Assistant",
+      "front": "produto",
+      "path": "modules/ai-assistant",
+      "maturity": "contract"
+    },
+    {
+      "id": "P09",
+      "name": "Documents",
+      "front": "produto",
+      "path": "modules/documents",
+      "maturity": "contract"
+    },
+    {
+      "id": "P10",
+      "name": "Email",
+      "front": "produto",
+      "path": "modules/email",
+      "maturity": "contract"
+    },
+    {
+      "id": "P11",
+      "name": "Onboarding",
+      "front": "produto",
+      "path": "modules/onboarding",
+      "maturity": "contract"
+    },
+    {
+      "id": "P12",
+      "name": "Billing",
+      "front": "produto",
+      "path": "modules/billing",
+      "maturity": "contract"
+    },
+    {
+      "id": "P13",
+      "name": "Commercial Site",
+      "front": "produto",
+      "path": "modules/commercial-site",
+      "maturity": "contract"
+    },
+    {
+      "id": "P14",
+      "name": "Platform Core",
+      "front": "produto",
+      "path": "modules/platform-core",
+      "maturity": "contract"
+    },
+    {
+      "id": "A01",
+      "name": "Workspace Frontend",
+      "front": "aplicacoes",
+      "path": "apps/workspace-web",
+      "maturity": "code"
+    },
+    {
+      "id": "A02",
+      "name": "Platform Manager Frontend",
+      "front": "aplicacoes",
+      "path": "apps/master-admin-web",
+      "maturity": "code"
+    },
+    {
+      "id": "A03",
+      "name": "Support Frontend",
+      "front": "aplicacoes",
+      "path": "apps/support-web",
+      "maturity": "code"
+    },
+    {
+      "id": "A04",
+      "name": "Core Host",
+      "front": "aplicacoes",
+      "path": "apps/core-host",
+      "maturity": "code"
+    },
+    {
+      "id": "A05",
+      "name": "Manager API",
+      "front": "aplicacoes",
+      "path": "apps/master-admin-api",
+      "maturity": "code"
+    },
+    {
+      "id": "A06",
+      "name": "Account Access API",
+      "front": "aplicacoes",
+      "path": "apps/account-access-api",
+      "maturity": "code"
+    },
+    {
+      "id": "A07",
+      "name": "Front Shared",
+      "front": "aplicacoes",
+      "path": "packages/front-shared",
+      "maturity": "code"
+    },
+    {
+      "id": "A08",
+      "name": "Core Kernel",
+      "front": "aplicacoes",
+      "path": "packages/core-kernel",
+      "maturity": "code"
+    },
+    {
+      "id": "C01",
+      "name": "Control Plane",
+      "front": "plataforma",
+      "path": "infra/postgres/bootstrap",
+      "maturity": "distributed"
+    },
+    {
+      "id": "C02",
+      "name": "Tenant Installer",
+      "front": "plataforma",
+      "path": "apps/core-host/src/module-installer.ts",
+      "maturity": "distributed"
+    },
+    {
+      "id": "C03",
+      "name": "Identity Keycloak",
+      "front": "plataforma",
+      "path": "infra/security-access",
+      "maturity": "distributed"
+    },
+    {
+      "id": "C04",
+      "name": "Authorization OpenFGA",
+      "front": "plataforma",
+      "path": "infra/security-access/fga-model.json",
+      "maturity": "distributed"
+    },
+    {
+      "id": "C05",
+      "name": "Secrets OpenBao",
+      "front": "plataforma",
+      "path": "infra/security-access/openbao",
+      "maturity": "distributed"
+    },
+    {
+      "id": "C06",
+      "name": "Event Platform",
+      "front": "plataforma",
+      "path": "apps/core-host/src/platform-event-dispatcher.ts",
+      "maturity": "distributed"
+    },
+    {
+      "id": "C07",
+      "name": "APIs e adapters",
+      "front": "plataforma",
+      "path": "apps/core-host/src/adapters.ts",
+      "maturity": "distributed"
+    },
+    {
+      "id": "C08",
+      "name": "Audit e observabilidade",
+      "front": "plataforma",
+      "path": "apps/core-host",
+      "maturity": "distributed"
+    },
+    {
+      "id": "I01",
+      "name": "DevServer01",
+      "front": "infra",
+      "path": "docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md",
+      "maturity": "verified"
+    },
+    {
+      "id": "I02",
+      "name": "server02",
+      "front": "infra",
+      "path": "infra",
+      "maturity": "unverified"
+    },
+    {
+      "id": "I03",
+      "name": "win1-server",
+      "front": "infra",
+      "path": "infra",
+      "maturity": "unverified"
+    },
+    {
+      "id": "I04",
+      "name": "PostgreSQL",
+      "front": "infra",
+      "path": "infra/postgres",
+      "maturity": "verified"
+    },
+    {
+      "id": "I05",
+      "name": "Docker e redes",
+      "front": "infra",
+      "path": "infra",
+      "maturity": "verified"
+    },
+    {
+      "id": "I06",
+      "name": "Traefik HTTPS",
+      "front": "infra",
+      "path": "docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md",
+      "maturity": "verified"
+    },
+    {
+      "id": "I07",
+      "name": "Tailnet",
+      "front": "infra",
+      "path": "infra/master-admin/check-tailnet-route.py",
+      "maturity": "partial"
+    },
+    {
+      "id": "I08",
+      "name": "Komodo",
+      "front": "infra",
+      "path": "infra",
+      "maturity": "verified"
+    },
+    {
+      "id": "I09",
+      "name": "Whatsmeow runtime",
+      "front": "infra",
+      "path": "modules/whatsapp/gateway",
+      "maturity": "verified"
+    },
+    {
+      "id": "I10",
+      "name": "Backup e Restore",
+      "front": "infra",
+      "path": "scripts/events/disposable_restore_drill.py",
+      "maturity": "partial"
+    },
+    {
+      "id": "I11",
+      "name": "Release e Rollback",
+      "front": "infra",
+      "path": "infra/master-admin/homolog-deploy.sh",
+      "maturity": "partial"
+    },
+    {
+      "id": "I12",
+      "name": "Segurança de host",
+      "front": "infra",
+      "path": "infra",
+      "maturity": "partial"
+    },
+    {
+      "id": "Q01",
+      "name": "Plataforma de testes",
+      "front": "qualidade",
+      "path": "tests",
+      "maturity": "distributed"
+    },
+    {
+      "id": "Q02",
+      "name": "Testes unitários",
+      "front": "qualidade",
+      "path": "modules",
+      "maturity": "distributed"
+    },
+    {
+      "id": "Q03",
+      "name": "Integração",
+      "front": "qualidade",
+      "path": "scripts/events",
+      "maturity": "distributed"
+    },
+    {
+      "id": "Q04",
+      "name": "Browser E2E",
+      "front": "qualidade",
+      "path": "tests/platform",
+      "maturity": "distributed"
+    },
+    {
+      "id": "Q05",
+      "name": "Segurança",
+      "front": "qualidade",
+      "path": "tests/security",
+      "maturity": "distributed"
+    },
+    {
+      "id": "Q06",
+      "name": "Performance",
+      "front": "qualidade",
+      "path": "tests/performance",
+      "maturity": "contract"
+    },
+    {
+      "id": "Q07",
+      "name": "CI/CD",
+      "front": "qualidade",
+      "path": "scripts/ci/plan.mjs",
+      "maturity": "code"
+    },
+    {
+      "id": "Q08",
+      "name": "Release Engineering",
+      "front": "qualidade",
+      "path": "infra/master-admin",
+      "maturity": "distributed"
+    },
+    {
+      "id": "Q09",
+      "name": "Infra Tests",
+      "front": "qualidade",
+      "path": "tests/platform",
+      "maturity": "code"
+    },
+    {
+      "id": "Q10",
+      "name": "Quality Gates",
+      "front": "qualidade",
+      "path": "tests/integrity",
+      "maturity": "code"
+    },
+    {
+      "id": "G01",
+      "name": "Arquitetura",
+      "front": "gestao",
+      "path": "docs/engineering",
+      "maturity": "distributed"
+    },
+    {
+      "id": "G02",
+      "name": "Produto e UX",
+      "front": "gestao",
+      "path": "docs/product",
+      "maturity": "distributed"
+    },
+    {
+      "id": "G03",
+      "name": "Engenharia e Git",
+      "front": "gestao",
+      "path": "AGENTS.md",
+      "maturity": "distributed"
+    },
+    {
+      "id": "G04",
+      "name": "Privacidade",
+      "front": "gestao",
+      "path": "tests/security",
+      "maturity": "distributed"
+    },
+    {
+      "id": "G05",
+      "name": "Operação e suporte",
+      "front": "gestao",
+      "path": "docs/engineering/SYNDES-SUPPORT-RUNBOOK.md",
+      "maturity": "distributed"
+    }
+  ]
+}

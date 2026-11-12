@@ -178,3 +178,11 @@ O diagnóstico antigo de ID/schema/transação inválidos foi corrigido no códi
 
 **ATIVAÇÃO OPERACIONAL CONTINUA PROIBIDA:** nenhum Control Catalog/entitlement/ledger real, Workforce 007 nem restore real, Keycloak/FGA/grants efetivos homologados. `python3 scripts/service-management/readiness_preflight.py --strict` sempre nega instalação até essas aprovações. `apps/core-host/config/modules.json` não deve registrar o plugin até Product Gate. Ver `docs/engineering/ADR-SERVICE-CANONICAL-INSTALLER-SM03C-20261111.md`. Não alterar Actions/CI (Issue #94), bancos reais, frontend de outra worktree nem PR #92.
 - Cutover WhatsApp: migration 008 define `projection_path` imutável default legacy, e o bridge novo só publica registros events. O projetor legado usa filtro compatível antes/depois da migration. **Não ativar o novo ingress enquanto houver worker legado antigo sem o filtro**, nem migrar path de eventos históricos. ADR `docs/engineering/ADR-WHATSAPP-SINGLE-PROJECTOR-20261111.md`.
+
+## Catálogo multidisciplinar do repositório (11/11/2026)
+
+- Usar `catalog/work-units.json` e `catalog/README.md` como mapa canônico de responsabilidades/caminhos reais, não como tracker de conclusão ou deploy.
+- Gerir **cinco frentes executivas e no máximo três entregas simultâneas** no projeto, mantendo issues como fonte de verdade de status.
+- Antes de criar pacote ou mover código, verificar se já existe owner em `modules/`, `apps/`, `packages/`, `infra/`, `tests/` ou `scripts/`. Não produzir serviços/diretórios vazios para imitar o organograma.
+- Ao criar módulo: atualizar o catálogo e `modules/README.md`, validar `bash tests/integrity/repository-structure.sh`, atualizar contratos/AGENTS e mapear os testes afetados. A alteração do planner/workflows GitHub Actions pertence à frente CI delegada.
+- Não confundir maturity (`code`, `contract`, `distributed`) com `DONE`, instalação, autenticação real ou Product Gate.
