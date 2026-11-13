@@ -17,5 +17,6 @@
 
 ## Registros
 - [SPRINT — acompanhamento do incremento](SPRINT.md): planejamento, não aceite operacional.
+- [Projeção](PROJECAO.md) · [Implementação](IMPLEMENTACAO.md) · [Alteração](ALTERACAO.md): instruções de agentes, não procedimentos aprovados de produção.
 - [STATUS](STATUS.md) · [Referência técnica](REFERENCIA-TECNICA.md) · [Checkpoint](../../evidence/checkpoints/I06-traefik-https-github-reconciliation-20261113.md) · [Plano geral](../../blueprint/PLANO-ATUALIZACAO-MODULOS.md).
 - Não usar valores de `env_file`, tokens, certificados privados ou dumps no relatório público.
