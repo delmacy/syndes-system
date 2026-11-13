@@ -41,6 +41,17 @@ jobs:
           trap 'kill "$pid" || true' EXIT
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3000 >/dev/null && break || sleep 2; done
           npx playwright test
+      - name: Verify Next.js static export with Pages base path
+        working-directory: apps/docs-reader
+        env:
+          NEXT_PUBLIC_READER_BASEPATH: /syndes-system/assets/docs-reader
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          npm run build
+          test -s out/index.html
+          test -s out/modulos/crm/index.html
+          grep -q '/syndes-system/assets/docs-reader/_next/' out/index.html
+
       - name: Preserve browser screenshots and traces
         if: always()
         uses: actions/upload-artifact@v4
