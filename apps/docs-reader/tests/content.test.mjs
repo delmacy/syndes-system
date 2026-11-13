@@ -47,3 +47,14 @@ test("Distingue código encontrado de homologação de produto",async()=>{
     assert.ok(all.includes(required),required);
   }
 });
+
+test("Funções do CRM particionam os doze assuntos sem duplicidade",async()=>{
+  const {crmFunctions,crmFunctionForSection}=await import("../lib/crm-functions.js");
+  assert.equal(crmFunctions.length,6);
+  assert.deepEqual(crmFunctions.map(g=>g.title),["Visão geral","Cadastros","Atendimento","Validações","Integrações","Evolução"]);
+  const ids=crmFunctions.flatMap(group=>group.sections);
+  assert.equal(ids.length,12);
+  assert.equal(new Set(ids).size,12);
+  assert.deepEqual(new Set(ids),new Set(crmSections.map(section=>section.id)));
+  for(const id of ids)assert.ok(crmFunctionForSection(id));
+});
