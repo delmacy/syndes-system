@@ -1,6 +1,6 @@
 # Q10 — Quality Gates
 
-> **Unidade do catálogo Syndes.** Esta é a entrada humana do módulo: navegue pelas seis páginas abaixo. Código e documentação técnica podem existir sem estar implantados ou homologados.
+> **Quality Gates — Q10.** Unidade proprietária de `tests/integrity`, que verifica estrutura mínima, AGENTS e catálogo. A política de qualidade transversal também referencia Q02–Q09 e os gates de produto, segurança e operação. **A existência de um teste estrutural não comprova produto aprovado.** Auditoria documental parcial em 12/11/2026.
 
 <!-- syndes:module-id=Q10;source=tests/integrity;kind=module -->
 
@@ -9,23 +9,31 @@
 | Quero descobrir | Abrir |
 |---|---|
 | **O que o módulo faz?** | [Especificação, capacidades e histórias](ESCOPO.md) |
-| **Como funciona do banco à interface?** | [Referência técnica: stack, classes e contratos](REFERENCIA-TECNICA.md) |
+| **Quais gates foram definidos e como são verificados?** | [Matriz dos gates](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md) · [Referência técnica](REFERENCIA-TECNICA.md) |
 | **O que será feito?** | [Evolução: workpackages e dependências](EVOLUCAO.md) |
 | **O que realmente mudou?** | [Histórico Git e evidências relacionadas](HISTORICO.md) |
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
 
+## Critérios de qualidade por camada {#criterios}
+
+- **Integridade estrutural:** `tests/integrity/repository-structure.sh` e contratos AGENTS sob owner Q10.
+- **Build e regressão:** suites de Q02/Q03 e módulos, seleção por impacto/full na Q07.
+- **Segurança e experiência:** Q04/Q05, cenários reais tenant A/B, OIDC, autorização, browser e falhas.
+- **Operação:** Q06/Q08/Q09, stress, backup/restore, rollback e janela de release.
+- **STATUS atual:** [CI principal com falha de paridade](STATUS.md), sem Product Gate aprovado.
+
 ## Capacidades e requisitos {#capacidades}
 
-Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O conteúdo da especificação define o que é aprovado; presença de um item na documentação não comprova implementação.**
+Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **Políticas existentes e aprovação não são equivalentes à execução e ao aceite de suites: registrar cada etapa por SHA/ambiente.**
 
 ## Stack, contratos e persistência {#stack}
 
-A [referência técnica](REFERENCIA-TECNICA.md) lista exports de pacote, interfaces públicas, declarações internas de classes/métodos, APIs HTTP identificadas, candidatos de frontend e objetos SQL com origem verificável.
+Q10 **não tem API HTTP, frontend operacional nem schemas próprios**. Sua [referência técnica](REFERENCIA-TECNICA.md) reúne testes de integridade, comandos, limites e relações com CI.
 
-- **Fonte do código/artefato:** [`tests/integrity`](https://github.com/delmacy/syndes-system/tree/main/tests/integrity).
-- **Banco de tenant e Control/Manager:** [seção de persistência da referência](REFERENCIA-TECNICA.md).
-- **Contrato público vs. interno:** [referência técnica](REFERENCIA-TECNICA.md).
+- **Fonte de código:** [`tests/integrity`](https://github.com/delmacy/syndes-system/tree/main/tests/integrity).
+- **Regras de aceite:** [evidência mínima e contratos entre áreas](chapters/04-contratos-e-dependencias-publicas.md).
+- **Persistência/identidade:** testes pertencem a Q03/Q05 e owners de banco e segurança.
 
 
 ## Planejamento, progresso e provas {#evolucao}

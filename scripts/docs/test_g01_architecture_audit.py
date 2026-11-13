@@ -54,8 +54,8 @@ class G01AuditTests(unittest.TestCase):
             self.assertIn(keyword.lower(),status.lower())
         self.assertNotIn("G01: DONE",status)
         plan=(ROOT/"docs/blueprint/PLANO-ATUALIZACAO-MODULOS.md").read_text()
-        self.assertIn("7 STATUS",plan)
-        self.assertIn("50 STATUS",plan)
+        self.assertIn("8 STATUS",plan)
+        self.assertIn("49 STATUS",plan)
         self.assertIn("G01 — Arquitetura",plan)
         self.assertIn("Parcial — fontes/ADRs reconciliadas; aprovação pendente",plan)
 
