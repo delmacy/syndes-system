@@ -4,6 +4,8 @@
 
 <!-- syndes:module-id=I05;source=infra;kind=component -->
 
+**Checkpoint 13/11/2026:** [auditoria técnica parcial](STATUS.md) de manifests Docker, redes e observação read-only; isolamento efetivo ainda não comprovado. [Contratos e limites](REFERENCIA-TECNICA.md).
+
 ## Acessar a documentação {#acessos}
 
 | Quero descobrir | Abrir |

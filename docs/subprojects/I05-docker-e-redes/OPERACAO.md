@@ -1,33 +1,17 @@
 # I05 — Docker e redes | Operação
 
-> **ÍNDICE DE FONTES, NÃO RUNBOOK HOMOLOGADO.** Não executar migrations, alterar permissões ou ativar workers apenas com esta página.
+> **RUNBOOK DE VERIFICAÇÃO, NÃO AUTORIZAÇÃO DE MUDANÇA.** Em 13/11/2026 foram observados 16 containers Up e bridges Syndes/Komodo, sem `docker inspect`, sem leitura de secrets e sem executar Compose. O serviço Up não prova readiness.
 
-## Estado operacional e evidências
+## Gate de leitura autorizado
 
-- [STATUS](STATUS.md): nível de validação, bloqueios, testes, ambiente e SHA.
-- [SPRINT](SPRINT.md): incremento autorizado e checkpoints, quando existentes.
-- [Evolução](EVOLUCAO.md): workpackages e dependências; nenhum item é concluído por estar planejado.
-- [Histórico](HISTORICO.md): commits de código e documentos.
-- [Workflows GitHub](../../monitoramento/README.md): resultado CI geral, não estado operacional do módulo.
+1. Registrar SHA da fonte e owner de cada stack; distinguir I05 de I06 Traefik, I07 Tailnet, I08 Komodo e I12 hardening.
+2. Planejar validação de `docker compose config --quiet` **em cópia isolada** e sem importar arquivos secretos; o manifesto Manager exige variáveis e arquivos operacionais, portanto não executar cegamente no host.
+3. Com autorização operacional, coletar **somente campos sanitizados** de rede, `internal`, portas publicadas, privilégios, health e labels; nunca registrar env, tokens, mounts privados, IPs privados ou caminhos sensíveis.
+4. Conferir se topologia efetiva corresponde ao Compose da revisão analisada; testar negativas de comunicação entre domínios em ambiente segregado, com plano de rollback.
+5. Requerer evidências de backup/restore e custódia de volumes dos respectivos owners. Só após aceites registrar I05 como homologado.
 
-## Fontes e contratos
+## Bloqueios
 
-- [Código/artefato do módulo](https://github.com/delmacy/syndes-system/tree/main/infra) — `infra`.
-- [Contratos públicos](../../standards/CONTRATOS-PUBLICOS.md).
-- [Regras de rastreabilidade](../../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
-- **Runbook específico:** não verificado neste inventário. Não criar comandos de ambiente por inferência.
+Não existe evidência de isolamento efetivo, rede de produção ou inventário completo de todos os stacks. O job `openfga-migrate` não foi executado. Nenhuma configuração, secret, container, volume, porta ou firewall foi modificado.
 
-## Operações orientadas por agentes
-
-- [Projeção / Planejamento](PROJECAO.md)
-- [Implementação](IMPLEMENTACAO.md)
-- [Alteração rápida](ALTERACAO.md)
-- [Entrada de propostas](updates/README.md)
-
-## Gates para operação real
-
-1. Conferir fonte, tenant/org/workspace, ambiente, SHA e autorização explícita.
-2. Validar identity/service grants e ownership de banco.
-3. Confirmar migrations realmente aplicadas, backup/restore e rollback antes de SQL.
-4. Testar com critérios apropriados: unitário, contrato, integração, E2E e CI.
-5. Registrar resultado e evidência em STATUS, sem confundir merge com deploy ou aceite.
+[Status](STATUS.md) · [Referência](REFERENCIA-TECNICA.md) · [Sprint](SPRINT.md) · [Evolução](EVOLUCAO.md) · [Projeção](PROJECAO.md) · [Implementação](IMPLEMENTACAO.md) · [Alteração](ALTERACAO.md).

@@ -1,10 +1,7 @@
 ## 0. Endereços exatos de leitura
-- Catálogo: catalog/work-units.json
-- Código/artefato: infra
-- AGENTS global: AGENTS.md
-- AGENTS local: Não existe arquivo local específico; aplicar AGENTS.md raiz
-- Package/exports: N/A; localizar configuração declarativa
-- Contratos públicos: docs/standards/CONTRATOS-PUBLICOS.md
-- Escopo: docs/subprojects/I05-docker-e-redes/ESCOPO.md
-- Status: docs/subprojects/I05-docker-e-redes/STATUS.md
-- Sprint: docs/subprojects/I05-docker-e-redes/SPRINT.md
+
+- `infra/postgres/compose.yaml`, `infra/security-access/compose.yaml`, `infra/master-admin/compose.yaml`.
+- `docs/evidence/checkpoints/I05-docker-networks-initial-20261113-1000.md`.
+- `docs/subprojects/I05-docker-e-redes/{STATUS,REFERENCIA-TECNICA,OPERACAO}.md`.
+- `docs/blueprint/PLANO-ATUALIZACAO-MODULOS.md` e `catalog/work-units.json`.
+- Donos adjacentes: I04, I06, I07, I08, I12, C03, C04 e C05.
