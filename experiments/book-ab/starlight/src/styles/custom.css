@@ -290,6 +290,29 @@ html { scroll-padding-top: 5.5rem; }
   margin-block-start: 1.15rem;
 }
 
+/* A single edit guide at the end: keep the document body uninterrupted. */
+.sl-markdown-content details.syndes-edit-note {
+  border-top: 1px solid var(--syndes-rule);
+  margin-block: 1.25rem 1.6rem;
+  padding-block: .75rem;
+  max-width: 48rem;
+}
+.sl-markdown-content .syndes-edit-note summary {
+  width: fit-content;
+  min-height: 2.2rem;
+  display: list-item;
+  padding-block: .55rem;
+  color: var(--sl-color-text-accent);
+}
+.sl-markdown-content .syndes-edit-note[open] {
+  border-inline-start: 0;
+  padding-inline-start: 0;
+}
+.sl-markdown-content .syndes-edit-note summary:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 3px;
+}
+
 /* Tablet and phone: compact article headings and less dead vertical space.
    The content remains a single, linear scroll surface. */
 @media (max-width: 50rem) {
