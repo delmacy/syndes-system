@@ -1,3 +1,2 @@
-## 6. WBS, marcos e aceite
-- I09.DOC.01: reconciliar escopo com artefatos e decisão do responsável.
-- Testes, CI e gates: exigir evidência, não presumir DONE.
+# 06 — WBS, marcos e aceite
+[WBS existente](../EVOLUCAO.md): 40.04 (conta Support), 50.05 (homologação Whatsmeow), 50.06 (quota/integridade), 95.05 (DR). Auditoria estática I09.DOC.01 parcial; nenhum gate operacional aprovado. Critérios pendentes: `go test`, integração PostgreSQL, isolamento por conta, quotas sob concorrência, callbacks, restore e smoke real com SHA/ambiente. Não iniciar sprint ou declarar DONE por documento atualizado.
