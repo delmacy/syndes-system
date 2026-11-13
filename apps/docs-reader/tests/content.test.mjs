@@ -58,3 +58,33 @@ test("Funções do CRM particionam os doze assuntos sem duplicidade",async()=>{
   assert.deepEqual(new Set(ids),new Set(crmSections.map(section=>section.id)));
   for(const id of ids)assert.ok(crmFunctionForSection(id));
 });
+
+
+test("Cada operação pertence a uma função e tem contrato, aceite e fonte",async()=>{
+  const {crmFunctions}=await import("../lib/crm-functions.js");
+  const {crmOperations,crmOperationIds,operationById,operationsByGroup}=await import("../lib/crm-operations.js");
+  assert.equal(crmOperations.length,9);
+  assert.equal(new Set(crmOperationIds).size,crmOperations.length);
+  for(const op of crmOperations){
+    assert.ok(crmFunctions.some(g=>g.id===op.group),op.id);
+    assert.ok(op.objective.length>30,op.id);
+    assert.ok(op.behavior.length>=2,op.id);
+    assert.ok(op.inputs.length>=2,op.id);
+    assert.ok(op.rules.length>=2,op.id);
+    assert.ok(op.acceptance.length>=3,op.id);
+    assert.ok(op.sources.every(s=>s.url.startsWith("https://github.com/delmacy/syndes-system/")),op.id);
+    assert.ok(op.contract.method&&op.contract.http&&op.contract.permission&&op.contract.data,op.id);
+    assert.ok(op.task.length>45,op.id);
+    assert.equal(operationById(op.id),op);
+    assert.ok(operationsByGroup(op.group).includes(op));
+  }
+});
+test("Criar contato preserva contrato real e não afirma homologação",async()=>{
+  const {operationById}=await import("../lib/crm-operations.js");
+  const op=operationById("crm-create-person");
+  assert.equal(op.contract.method,"CrmService.createPerson(context, input: CreatePerson)");
+  assert.equal(op.contract.permission,"crm:people · write");
+  assert.equal(op.contract.data,"crm_people, crm_audit");
+  assert.match(op.state,/homologação pendente/);
+  assert.ok(op.acceptance.some(a=>a.includes("tenant A")));
+});
