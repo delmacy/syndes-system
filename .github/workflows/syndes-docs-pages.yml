@@ -60,7 +60,7 @@ jobs:
       - name: Compose the Starlight book from canonical Markdown
         run: |
           python scripts/docs/build_starlight_continuous.py
-          npm --prefix experiments/book-ab/starlight install --no-audit --no-fund
+          npm --prefix experiments/book-ab/starlight ci --no-audit --no-fund
           npm --prefix experiments/book-ab/starlight run build
           rm -rf docs/assets/experimentos/livros/b
           mkdir -p docs/assets/experimentos/livros/b
