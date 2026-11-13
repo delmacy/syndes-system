@@ -1,33 +1,16 @@
 # A06 — Account Access API | Operação
 
-> **ÍNDICE DE FONTES, NÃO RUNBOOK HOMOLOGADO.** Não executar migrations, alterar permissões ou ativar workers apenas com esta página.
+> Checklist de auditoria, não runbook homologado. Nenhuma migration, role, segredo ou serviço foi alterado.
 
-## Estado operacional e evidências
+## Testes
 
-- [STATUS](STATUS.md): nível de validação, bloqueios, testes, ambiente e SHA.
-- [SPRINT](SPRINT.md): incremento autorizado e checkpoints, quando existentes.
-- [Evolução](EVOLUCAO.md): workpackages e dependências; nenhum item é concluído por estar planejado.
-- [Histórico](HISTORICO.md): commits de código e documentos.
-- [Workflows GitHub](../../monitoramento/README.md): resultado CI geral, não estado operacional do módulo.
+A primeira tentativa npm test falhou por dependência ausente (ERR_MODULE_NOT_FOUND). Após npm ci em /tmp descartável, os 10 testes Node passaram. Isso não valida banco ou implantação.
 
-## Fontes e contratos
+## Gates pendentes
 
-- [Código/artefato do módulo](https://github.com/delmacy/syndes-system/tree/main/apps/account-access-api) — `apps/account-access-api`.
-- [Contratos públicos](../../standards/CONTRATOS-PUBLICOS.md).
-- [Regras de rastreabilidade](../../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
-- **Runbook específico:** não verificado neste inventário. Não criar comandos de ambiente por inferência.
+1. PostgreSQL 17 descartável: grants, EXECUTE, tenant A/B, último owner, idempotência e replay.
+2. Validar role syndes_account_api, JWT/JWKS, OpenFGA e secrets em ambiente autorizado sem ler valores.
+3. Validar readiness, ingress, logs, backup, rollback e CI por SHA.
+4. Sign-off C01/C03/C04/C05/A06 e segurança.
 
-## Operações orientadas por agentes
-
-- [Projeção / Planejamento](PROJECAO.md)
-- [Implementação](IMPLEMENTACAO.md)
-- [Alteração rápida](ALTERACAO.md)
-- [Entrada de propostas](updates/README.md)
-
-## Gates para operação real
-
-1. Conferir fonte, tenant/org/workspace, ambiente, SHA e autorização explícita.
-2. Validar identity/service grants e ownership de banco.
-3. Confirmar migrations realmente aplicadas, backup/restore e rollback antes de SQL.
-4. Testar com critérios apropriados: unitário, contrato, integração, E2E e CI.
-5. Registrar resultado e evidência em STATUS, sem confundir merge com deploy ou aceite.
+[STATUS](STATUS.md) · [SPRINT](SPRINT.md) · [Evolução](EVOLUCAO.md) · [Histórico](HISTORICO.md) · [Projeção](PROJECAO.md) · [Implementação](IMPLEMENTACAO.md) · [Alteração](ALTERACAO.md).

@@ -148,6 +148,42 @@
       "symbol": "main",
       "document": "docs/subprojects/C05-secrets-openbao/REFERENCIA-TECNICA.md",
       "documentMarker": "render-master.main"
+    },
+    {
+      "id": "A06-createAccountAccessServer",
+      "module": "A06",
+      "owner": "A06",
+      "source": "apps/account-access-api/src/server.mjs",
+      "symbolKind": "js-export-function",
+      "symbol": "createAccountAccessServer",
+      "document": "docs/subprojects/A06-account-access-api/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "A06-createTokenVerifier",
+      "module": "A06",
+      "owner": "A06",
+      "source": "apps/account-access-api/src/auth.mjs",
+      "symbolKind": "js-export-function",
+      "symbol": "createTokenVerifier",
+      "document": "docs/subprojects/A06-account-access-api/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "A06-fgaObject",
+      "module": "A06",
+      "owner": "A06",
+      "source": "apps/account-access-api/src/auth.mjs",
+      "symbolKind": "js-export-function",
+      "symbol": "fgaObject",
+      "document": "docs/subprojects/A06-account-access-api/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "A06-createFgaWriteAuthorizer",
+      "module": "A06",
+      "owner": "A06",
+      "source": "apps/account-access-api/src/auth.mjs",
+      "symbolKind": "js-export-function",
+      "symbol": "createFgaWriteAuthorizer",
+      "document": "docs/subprojects/A06-account-access-api/REFERENCIA-TECNICA.md"
     }
   ]
 }

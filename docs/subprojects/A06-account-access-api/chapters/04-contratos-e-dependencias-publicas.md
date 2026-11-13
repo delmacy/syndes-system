@@ -1,4 +1,3 @@
 ## 4. Contratos e dependências públicas
-- Entradas, saídas, APIs, eventos e ports: A INVENTARIAR pela fonte executável.
-- Dependências obrigatórias e opcionais: A VERIFICAR.
-- Bibliotecas permitidas: consultar exports públicos e dependências existentes, sem copiar implementação privada.
+
+HTTP: GET /healthz, GET /readyz e POST /v1/accounts/{tenantUuid}/access/delegations. Exports internos: createAccountAccessServer, createTokenVerifier, fgaObject, createFgaWriteAuthorizer. Helpers privados: bodyObject, credentialFromFile, main. SQL: apply_tenant_account_delegation. Dependências: C01/C03/C04/C05.

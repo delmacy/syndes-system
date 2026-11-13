@@ -1,46 +1,37 @@
 # A06 — Account Access API | Referência técnica
 
-> **INVENTÁRIO DOCUMENTAL NÃO AUDITADO.** Só descreve arquivos/declarações presentes no repositório; não representa funcionalidade implantada.
+> Auditoria estática de código de7b065; testes Node 10/10 em ambiente descartável, sem integração real.
 
-## Stack e ownership
+## Stack e fronteiras
 
-- **Fonte:** [apps/account-access-api](https://github.com/delmacy/syndes-system/tree/main/apps/account-access-api) — diretório.
-- **Owner:** declarado em `catalog/work-units.json`. Contratos públicos de outros owners não podem ser alterados diretamente.
-- **Pacote:** `@syndes/account-access-api`.
-- **Manifesto:** [apps/account-access-api/package.json](https://github.com/delmacy/syndes-system/blob/main/apps/account-access-api/package.json).
+Node ESM >=22, jose 6.0.11, pg 8.16.3. Serviço backend de delegação owner/admin, sem frontend, CRM, Inbox ou proxy genérico. C01 é owner do Control, C03 da identidade, C04 da autorização, C05 dos segredos.
 
-### Scripts do pacote (não executados aqui)
+## HTTP
 
-| Nome | Comando declarado |
-|---|---|
-| `start` | `node src/main.mjs` |
-| `test` | `node --test test/*.test.mjs` |
+- GET /healthz: liveness 200 sem dependências.
+- GET /readyz: 200/503, verifica presença da função SQL.
+- POST /v1/accounts/{tenantUuid}/access/delegations: exige Origin HTTPS exata, Bearer, Idempotency-Key UUID, Content-Type JSON, body até 2048 bytes com operation grant/revoke, principalId e role owner/admin; retorna role, state, alreadyApplied. Respostas de erro sanitizadas.
 
-## Backend: classes, métodos e responsabilidades
+## Símbolos e contratos
 
-**A AUDITAR:** inspecionar código e testes, assinaturas, parâmetros, efeitos e erros. Não publicar API privada como contrato.
+| Símbolo | Fonte | Responsabilidade |
+|---|---|---|
+| createAccountAccessServer | src/server.mjs | Factory HTTP exportada, injeta verificador, autorização e delegação |
+| createTokenVerifier | src/auth.mjs | Export JWKS RS256, issuer, audience, azp, subject |
+| fgaObject | src/auth.mjs | Export resource:sha256(tenantId e resource) |
+| createFgaWriteAuthorizer | src/auth.mjs | Export can_write tenant-scoped, timeout 3s |
+| bodyObject | src/server.mjs | Parser privado de JSON |
+| credentialFromFile | src/main.mjs | Helper privado, Control URL em /run/secrets e role syndes_account_api |
+| main | src/main.mjs | Entrypoint privado, pool PG, OIDC, FGA e HTTP loopback |
 
-## Contratos públicos, APIs e eventos
+Exports são internos ao pacote Node, não SDK externo.
 
-[Índice normativo de contratos](../../standards/CONTRATOS-PUBLICOS.md). Imports, endpoints e consumers exigem evidência de export, versão e compatibilidade.
+## SQL e segurança
 
-## Frontend: aplicações, telas e componentes
+infra/postgres/bootstrap/control-account-roles.schema e control-account-delegation.schema contêm apply_tenant_account_delegation com SECURITY DEFINER, search_path fixo, tenant ativo, owner ativo, membership do alvo, idempotência, lock e proteção do último owner. Papel syndes_account_delegate NOLOGIN com EXECUTE limitado, sem DML direto. Login syndes_account_api exige provisionamento separado, não comprovado.
 
-**A AUDITAR:** conferir telas em Workspace, Manager ou Support e componentes compartilhados; não inferir rota a partir do nome da unidade.
+## Testes e operação
 
-## Schemas e migrations
+apps/account-access-api/test/server.test.mjs e auth.test.mjs passaram 10/10 em /tmp descartável. pg-e2e.mjs e tests/platform/account-roles-pg-smoke.sh não executados. Sem prova de banco, grants, deploy ou eventos de domínio publicados pelo HTTP.
 
-### Tenant DB
-
-Tabelas e migrações precisam de ownership e prova de aplicação; arquivo SQL presente não equivale a mudança executada.
-
-Nenhuma migration em subpasta SQL nesta fonte; isso **não** comprova ausência de persistência.
-
-### Control / Manager DB
-
-Nenhuma tabela pode ser atribuída ao Control por inferência; confirmar owner e schema. Negócio do cliente fica no Tenant DB.
-
-## Diagramas, testes e pendências
-
-- [Escopo](ESCOPO.md) · [Evolução](EVOLUCAO.md) · [Status](STATUS.md) · [Histórico](HISTORICO.md).
-- **Próximo passo:** auditar classes/exports, contratos, telas, tabelas, testes e evidências sem inventar funcionalidades.
+[Status](STATUS.md) · [Operação](OPERACAO.md).

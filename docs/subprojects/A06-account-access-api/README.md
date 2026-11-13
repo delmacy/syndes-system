@@ -4,6 +4,8 @@
 
 <!-- syndes:module-id=A06;source=apps/account-access-api;kind=module -->
 
+**Checkpoint 13/11/2026:** [auditoria parcial](STATUS.md), [contratos](REFERENCIA-TECNICA.md), [operação](OPERACAO.md). Node 10/10; PG e deploy não homologados.
+
 ## Acessar a documentação {#acessos}
 
 | Quero descobrir | Abrir |

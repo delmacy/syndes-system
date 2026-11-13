@@ -1,10 +1,3 @@
 ## 0. Endereços exatos de leitura
-- Catálogo: catalog/work-units.json
-- Código/artefato: apps/account-access-api
-- AGENTS global: AGENTS.md
-- AGENTS local: Não existe arquivo local específico; aplicar AGENTS.md raiz
-- Package/exports: apps/account-access-api/package.json
-- Contratos públicos: docs/standards/CONTRATOS-PUBLICOS.md
-- Escopo: docs/subprojects/A06-account-access-api/ESCOPO.md
-- Status: docs/subprojects/A06-account-access-api/STATUS.md
-- Sprint: docs/subprojects/A06-account-access-api/SPRINT.md
+
+Código: apps/account-access-api/src/server.mjs, auth.mjs, main.mjs; testes server.test.mjs, auth.test.mjs, pg-e2e.mjs; SQL infra/postgres/bootstrap/control-account-roles.schema e control-account-delegation.schema; checkpoint docs/evidence/checkpoints/A06-account-access-audit-20261113-0800.md.

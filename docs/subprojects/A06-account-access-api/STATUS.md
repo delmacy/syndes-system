@@ -1,23 +1,24 @@
 # A06 — Account Access API | STATUS
 
-> Documentação-base, SEM AUDITORIA FUNCIONAL. Ver ESCOPO.md e SPRINT.md nesta pasta.
+> **AUDITORIA TÉCNICA PARCIAL — 13/11/2026**. Código de7b065; testes Node isolados **10/10 aprovados**. **NÃO HOMOLOGADO**: PostgreSQL 17, OpenFGA, Keycloak, OpenBao e deploy reais não verificados.
 
-## Onde paramos?
-- Estrutura documental criada; maturidade operacional não verificada.
-- Fonte rastreável: apps/account-access-api
+## Evidências
 
-## Para onde vamos?
-- Revisar escopo e contratos do próprio módulo; aprovar primeiro incremento.
+- HTTP: createAccountAccessServer oferece GET /healthz, GET /readyz e POST /v1/accounts/{tenantUuid}/access/delegations; oito testes mockados passaram.
+- Auth: createTokenVerifier usa RS256/JWKS, issuer/audience/azp dedicado; createFgaWriteAuthorizer exige can_write em recurso tenant-scoped; dois testes passaram.
+- SQL: control-account-roles.schema e control-account-delegation.schema definem apply_tenant_account_delegation e proteção de último owner. Inspeção estática, sem PG17.
+- Startup: exige login syndes_account_api, não criado automaticamente pela migration.
 
-## WBS e capabilities
-| ID | Estado | Evidência | Próxima etapa |
-|---|---|---|---|
-| A06.DOC.01 | PENDENTE DE REVISÃO | Catálogo da unidade | Inventariar requisitos |
+## WBS
 
-## Dependências e bloqueios
-- A INVENTARIAR com contratos públicos, distinguindo dependências obrigatórias e opcionais.
+| ID | Estado | Gate |
+|---|---|---|
+| A06.DOC.01 | AUDITORIA PARCIAL | Contratos e evidências vinculados |
+| A06.SQL.01 | PENDENTE | PG17 descartável, A/B, idempotência, último owner |
+| A06.SEC.01 | PENDENTE | JWKS/FGA/segredos reais |
+| A06.OPS.01 | PENDENTE | Deploy, readiness, rollback |
+| A06.GATE | BLOQUEADO | Aceite C01/C03/C04/C05/A06 |
 
-## Checkpoints
-| Data | Resultado | SHA / CI / ambiente | Continuidade |
-|---|---|---|---|
-| 2026-11-12 | Estrutura documental inicial | Não constitui evidência operacional | Revisar o escopo |
+Próxima unidade: A04 — Core Host.
+
+[Referência](REFERENCIA-TECNICA.md) · [Operação](OPERACAO.md).

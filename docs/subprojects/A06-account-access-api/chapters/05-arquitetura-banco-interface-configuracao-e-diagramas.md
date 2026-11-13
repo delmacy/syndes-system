@@ -1,4 +1,3 @@
 ## 5. Arquitetura, banco, interface, configuração e diagramas
-- Componentes, ownership de dados, migrations e autorização: A VERIFICAR.
-- Nomes reais de variáveis de ambiente: A DOCUMENTAR, nunca incluir valores de segredos.
-- Diagramas versionados: A ELABORAR se aplicáveis.
+
+Fluxo: HTTP POST -> JWT RS256 -> OpenFGA can_write -> SQL Control SECURITY DEFINER -> resposta sanitizada. Persistência Control, não Tenant DB. Segredos via /run/secrets; rede loopback por padrão; frontend próprio inexistente. Nenhum evento de negócio publicado pela API HTTP foi identificado.
