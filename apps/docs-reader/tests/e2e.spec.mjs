@@ -33,7 +33,7 @@ test("A operação apresenta comportamento, campos, contrato, critérios e refer
   await expect(op.locator(".evidence-table tbody tr")).toHaveCount(3);
   await expect(op.locator(".source-footer a")).toHaveCount(6);
   await expect(op.locator(".operation-expander")).toHaveCount(2);
-  await expect(op.getByText("POST /v1/tenants/:tenantId/crm/people")).toHaveCount(0);
+  await expect(op.getByText("POST /v1/tenants/:tenantId/crm/people")).not.toBeVisible();
   await op.locator(".operation-expander").first().locator("summary").click();
   await expect(op.getByText("POST /v1/tenants/:tenantId/crm/people")).toBeVisible();
   await op.locator(".operation-expander").nth(1).locator("summary").click();
