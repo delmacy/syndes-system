@@ -1,0 +1,53 @@
+name: Syndes Docs Reader — Next.js Pilot
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/docs-reader/**"
+      - ".github/workflows/syndes-docs-reader-pilot.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reader-build-and-ux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install independent reader
+        working-directory: apps/docs-reader
+        run: npm install --no-audit --no-fund
+      - name: Validate editorial content contracts
+        working-directory: apps/docs-reader
+        run: npm test
+      - name: Build Next.js and Chakra UI
+        working-directory: apps/docs-reader
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build
+      - name: Prepare Playwright browser
+        working-directory: apps/docs-reader
+        run: npx playwright install --with-deps chromium
+      - name: Browser validation desktop and mobile
+        working-directory: apps/docs-reader
+        env:
+          CI: "true"
+        run: |
+          npm run start -- --hostname 127.0.0.1 > /tmp/syndes-reader-next.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" || true' EXIT
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3000 >/dev/null && break || sleep 2; done
+          npx playwright test
+      - name: Preserve browser screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-reader-chakra-ux
+          path: |
+            apps/docs-reader/test-results/
+            apps/docs-reader/playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
