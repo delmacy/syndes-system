@@ -117,7 +117,7 @@ test("CRM exibe os inventários reais sem interromper a leitura editorial",async
   await expect(page.locator(".verified-evidence")).toHaveCount(2);
   await expect(page.locator(".evidence-table")).toHaveCount(2);
   await page.getByRole("navigation",{name:"Selecionar função do CRM"}).getByRole("button",{name:/Integrações/}).click();
-  await expect(page.locator(".evidence-table")).toHaveCount(5);
+  await expect(page.locator(".evidence-table")).toHaveCount(6);
   const contracts=page.locator("#contratos");
   await expect(contracts).toContainText("/v1/tenants/:tenantId/crm");
   await expect(contracts).toContainText("crm:people");
