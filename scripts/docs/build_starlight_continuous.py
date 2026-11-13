@@ -89,6 +89,22 @@ def render():
             source=root/'chapters'/name
             if source.is_file():
                 sections[TOPIC_TO_SECTION[num]].append((source,source.read_text(encoding='utf-8')))
+        # Other existing owner documents are included once, not left as an appendix.
+        supplementary=[
+            ('arquitetura',u.get('entry')),
+            ('requisitos',u.get('scope')),
+            ('wbs',u.get('sprint')),
+            ('wbs',u.get('history')),
+            ('wbs',u.get('evolution')),
+        ]
+        for key,relative in supplementary:
+            if relative:
+                source=ROOT/relative
+                if source.is_file():
+                    sections[key].append((source,source.read_text(encoding='utf-8')))
+        contracts=root/'CONTRATOS.md'
+        if contracts.is_file():
+            sections['contratos'].append((contracts,contracts.read_text(encoding='utf-8')))
         body=frontmatter(uid+' — '+u['name'],'Markdown contínuo, integral e versionado')
         body+='# '+uid+' — '+u['name']+'\n\n'
         body+='[← Volume](../) · [↑ Biblioteca](../../)\n\n'
