@@ -1,33 +1,18 @@
 # I07 — Tailnet | Operação
 
-> **ÍNDICE DE FONTES, NÃO RUNBOOK HOMOLOGADO.** Não executar migrations, alterar permissões ou ativar workers apenas com esta página.
+> **Runbook de verificação planejada, não procedimento homologado.** Não aplicar Tailscale Serve, alterar ACL, ingress ou certificados como parte desta auditoria.
 
-## Estado operacional e evidências
+## Inventário e proveniência
+- [STATUS](STATUS.md), [referência técnica](REFERENCIA-TECNICA.md), [checkpoint de código](../../evidence/checkpoints/I07-tailnet-source-audit-20261113.md).
+- Fonte: `infra/master-admin/check-tailnet-route.py`, verificador somente leitura de JSON estruturado. O script não comprova configuração efetiva nem o estado do Manager.
+- O [runbook histórico Workspace](../../engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md) registra URLs/portas de outro fluxo, não prova de I07 ativo hoje.
 
-- [STATUS](STATUS.md): nível de validação, bloqueios, testes, ambiente e SHA.
-- [SPRINT](SPRINT.md): incremento autorizado e checkpoints, quando existentes.
-- [Evolução](EVOLUCAO.md): workpackages e dependências; nenhum item é concluído por estar planejado.
-- [Histórico](HISTORICO.md): commits de código e documentos.
-- [Workflows GitHub](../../monitoramento/README.md): resultado CI geral, não estado operacional do módulo.
+## Gates seguros pendentes
+1. Em ambiente isolado, alimentar o script com JSON de fixture **sem dados reais** para casos `free` e `active`; registrar SHA, entrada sintética e código de saída.
+2. Inspecionar configuração efetiva Tailscale Serve em ambiente autorizado, sem publicar hostnames ou tokens.
+3. Validar HTTPS e negativa de acesso não autorizado, ACL e ausência de Funnel público; correlacionar com I06 sem presumir equivalência.
+4. Confirmar que o proxy aponta ao Manager correto e que a rota não substitui serviço existente.
+5. Registrar evidências, rollback aprovado e owner antes de qualquer promoção operacional.
 
-## Fontes e contratos
-
-- [Código/artefato do módulo](https://github.com/delmacy/syndes-system/tree/main/infra/master-admin/check-tailnet-route.py) — `infra/master-admin/check-tailnet-route.py`.
-- [Contratos públicos](../../standards/CONTRATOS-PUBLICOS.md).
-- [Regras de rastreabilidade](../../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
-- **Runbook específico:** não verificado neste inventário. Não criar comandos de ambiente por inferência.
-
-## Operações orientadas por agentes
-
-- [Projeção / Planejamento](PROJECAO.md)
-- [Implementação](IMPLEMENTACAO.md)
-- [Alteração rápida](ALTERACAO.md)
-- [Entrada de propostas](updates/README.md)
-
-## Gates para operação real
-
-1. Conferir fonte, tenant/org/workspace, ambiente, SHA e autorização explícita.
-2. Validar identity/service grants e ownership de banco.
-3. Confirmar migrations realmente aplicadas, backup/restore e rollback antes de SQL.
-4. Testar com critérios apropriados: unitário, contrato, integração, E2E e CI.
-5. Registrar resultado e evidência em STATUS, sem confundir merge com deploy ou aceite.
+## Proibições neste incremento
+Nenhuma alteração de runtime, DNS, firewall, ACL, Docker, segredos, migrations, grants ou serviços. Merge de documentação não constitui deploy.
