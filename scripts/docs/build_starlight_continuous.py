@@ -133,11 +133,13 @@ def render():
                 content=source_markdown(full_text,source)
                 content=re.sub(r'^(#{1,6})(\s+)',lambda match:'#'*min(6,len(match.group(1))+3)+match.group(2),content,flags=re.M)
                 body+=content.rstrip()+'\n\n'
-            body+='<details class="syndes-edit-note"><summary>Propor ajuste nesta seção</summary>\n\n'
-            body+='Registre na fonte canônica a implementação alterada, os testes, as evidências, as pendências e o aceite. '
-            body+='Esta página é somente leitura.\n\n</details>\n\n'
+            # Source links remain inline. One editorial change guide appears only at article end.
         body+='<a id="registro-de-alteracoes"></a>\n\n## Registro de alterações\n\n'
         body+='Os arquivos Markdown canônicos recebem alterações versionadas no GitHub. Esta página é recomposta no próximo build.\n\n'
+        body+='<details class="syndes-edit-note"><summary>Como propor uma alteração</summary>\n\n'
+        body+='Abra o link **Editar fonte** junto à matéria relevante. Documente a implementação afetada, '
+        body+='os testes executados, evidências, pendências e critérios de aceite antes da revisão. '
+        body+='O GitHub Pages é somente leitura.\n\n</details>\n\n'
         body+='[Editar STATUS]('+EDIT_PREFIX+status.relative_to(ROOT).as_posix()+') · [Editar referência técnica]('+EDIT_PREFIX+tech.relative_to(ROOT).as_posix()+') · [Editar operação]('+EDIT_PREFIX+op.relative_to(ROOT).as_posix()+')\n\n'
         body+='*A documentação canônica permanece em docs/subprojects. Nenhum STATUS parcial equivale a homologação.*\n'
         page=BASE/volume/(uid.lower()+'.md')
