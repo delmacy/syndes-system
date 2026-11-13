@@ -1,33 +1,16 @@
 # I08 — Komodo | Operação
 
-> **ÍNDICE DE FONTES, NÃO RUNBOOK HOMOLOGADO.** Não executar migrations, alterar permissões ou ativar workers apenas com esta página.
+> **Runbook não homologado.** Nenhuma ação de deploy, configuração ou acesso ao ambiente está autorizada por este documento.
 
-## Estado operacional e evidências
+## Pré-condições para qualquer operação futura
+1. Identificar o artefato exato, commit, owner, ambiente e autorização.
+2. Verificar rede privada, proxy, TLS, identidade, permissões e trilha de auditoria.
+3. Documentar volumes, dados, retenção, restore e rollback sem expor segredos.
+4. Executar smoke/integração em ambiente autorizado e vincular logs sanitizados ao SHA.
+5. Registrar aceite operacional em [STATUS](STATUS.md), separadamente do aceite documental.
 
-- [STATUS](STATUS.md): nível de validação, bloqueios, testes, ambiente e SHA.
-- [SPRINT](SPRINT.md): incremento autorizado e checkpoints, quando existentes.
-- [Evolução](EVOLUCAO.md): workpackages e dependências; nenhum item é concluído por estar planejado.
-- [Histórico](HISTORICO.md): commits de código e documentos.
-- [Workflows GitHub](../../monitoramento/README.md): resultado CI geral, não estado operacional do módulo.
+## Estado observado
+Leitura apenas de GitHub em `891559a` (2026-11-13). Fonte `infra` é genérica. Não foi comprovada instância Komodo, porta, endpoint, container, configuração, versão, disponibilidade ou conectividade Tailnet. Não executar comandos inferidos.
 
-## Fontes e contratos
-
-- [Código/artefato do módulo](https://github.com/delmacy/syndes-system/tree/main/infra) — `infra`.
-- [Contratos públicos](../../standards/CONTRATOS-PUBLICOS.md).
-- [Regras de rastreabilidade](../../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
-- **Runbook específico:** não verificado neste inventário. Não criar comandos de ambiente por inferência.
-
-## Operações orientadas por agentes
-
-- [Projeção / Planejamento](PROJECAO.md)
-- [Implementação](IMPLEMENTACAO.md)
-- [Alteração rápida](ALTERACAO.md)
-- [Entrada de propostas](updates/README.md)
-
-## Gates para operação real
-
-1. Conferir fonte, tenant/org/workspace, ambiente, SHA e autorização explícita.
-2. Validar identity/service grants e ownership de banco.
-3. Confirmar migrations realmente aplicadas, backup/restore e rollback antes de SQL.
-4. Testar com critérios apropriados: unitário, contrato, integração, E2E e CI.
-5. Registrar resultado e evidência em STATUS, sem confundir merge com deploy ou aceite.
+## Referências
+[Referência técnica](REFERENCIA-TECNICA.md) · [Escopo e capítulos](ESCOPO.md) · [Sprint](SPRINT.md) · [Evolução/WBS](EVOLUCAO.md) · [Padrões de contratos](../../standards/CONTRATOS-PUBLICOS.md).
