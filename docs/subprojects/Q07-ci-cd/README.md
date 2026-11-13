@@ -20,7 +20,7 @@
 - **Mainline:** `syndes-ci.yml` coordena `foundation`, seleção por impacto/full, regressões, paridades e gate.
 - **Workflows auxiliares:** Docs Pages e Projects têm gatilhos específicos e não criam outro pipeline de PR.
 - **Cobertura ampliada:** 15 suites instaladas com `service-management`; PG17 descartável validado localmente.
-- **Estado real:** [STATUS](STATUS.md) distingue prova local e resultado do CI remoto; não confundir testes com deploy.
+- **Estado real:** [STATUS](STATUS.md) confirma **24/24 jobs aprovados no SHA `ec688ce`**, sem confundir CI com deploy ou Product Gate.
 
 ## Capacidades e requisitos {#capacidades}
 

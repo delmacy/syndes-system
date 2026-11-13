@@ -1,6 +1,6 @@
 # Q07 — CI/CD | Referência técnica
 
-> **AUDITORIA E CORREÇÃO LOCAL — 12/11/2026.** Base `origin/main` SHA `9521919178bcc0341c4d187492f9d027d188a6bd`. Scripts de CI corrigidos em worktree isolada, com suites reais executadas localmente. **O novo commit só estará validado pela mainline após o run no GitHub Actions.**
+> **AUDITORIA E CORREÇÃO LOCAL — 12/11/2026.** Base `origin/main` SHA `9521919178bcc0341c4d187492f9d027d188a6bd`. Scripts de CI corrigidos em worktree isolada, com suites reais executadas localmente. **CI mainline concluída com sucesso no SHA `ec688ce3b6884ef4d1e6dd10ba4c2f3048dbef0f` ([run 43339625873](https://github.com/delmacy/syndes-system/actions/runs/43339625873), 24/24 jobs success).** Não equivale a Product Gate nem deploy.
 
 ## Stack e ownership
 
@@ -45,6 +45,6 @@ Q07 **não possui frontend, schema SQL ou migration próprios**. GitHub Actions 
 
 - **Antes:** [mainline CI de Q10](https://github.com/delmacy/syndes-system/actions/runs/43337290670) falhou porque `parity.test.mjs` exigia exatamente três workflows, mas Docs Pages e Projects Sync ampliaram para cinco.
 - **Depois local:** `node --test scripts/ci/*.test.mjs` 19/19 PASS; `bash tests/integrity/repository-structure.sh` PASS; `bash -n scripts/ci/*.sh` PASS; `service-management` PG17 19/19 PASS; `mkdocs build --strict` a validar na mesma revisão.
-- **Depois remoto:** consultar [GitHub Actions](https://github.com/delmacy/syndes-system/actions) por commit e só então atualizar o estado do CI global.
+- **Depois remoto:** [run 43339625873](https://github.com/delmacy/syndes-system/actions/runs/43339625873) do commit `ec688ce3b6884ef4d1e6dd10ba4c2f3048dbef0f`: **24/24 jobs success**, incluído `Syndes CI Gate`. Evidência válida somente para essa revisão e ambientes descartáveis do CI.
 
 [Escopo e matrizes Q07](ESCOPO.md) · [STATUS](STATUS.md) · [WBS](EVOLUCAO.md).

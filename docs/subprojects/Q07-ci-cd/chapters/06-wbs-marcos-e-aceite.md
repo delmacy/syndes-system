@@ -18,14 +18,14 @@ A [EVOLUÇÃO da Q07](../EVOLUCAO.md) vincula dois workitems da [WBS mestre](../
 | `bash -n scripts/ci/*.sh` | Obrigatório pelo workflow | PASS no checkout alterado |
 | `plan.mjs full` | 14 suites instaladas | 15 suites, incluindo Serviço |
 | `run-suite.sh service-management` | Suite não registrada | Check/build, 19 testes NestJS/PG17 e `npm pack --dry-run` PASS |
-| CI remoto do novo SHA | **Ainda não executado no checkpoint local** | Registrar somente após run completo, sem inferir release |
+| CI remoto do novo SHA | FAIL na revisão anterior | **24/24 jobs SUCCESS**, incluindo final Gate, [run 43339625873](https://github.com/delmacy/syndes-system/actions/runs/43339625873) no SHA `ec688ce3b6884ef4d1e6dd10ba4c2f3048dbef0f` |
 
 ### Critérios de conclusão técnica
 
-- `foundation` e `impact` **success** no mesmo SHA do commit.
+- `foundation` e `impact` **success** no mesmo SHA do commit (comprovados no SHA `ec688ce`).
 - `regression` executa todas as suites instaladas em push `main`, inclusive Serviço, com testes PG17 **não ignorados**.
 - Paridades Manager/Support executam quando requeridas, de acordo com o planner.
 - `gate` só recebe **success** após jobs obrigatórios e evidências; `skipped` necessário não passa.
 - Release e Product Gate permanecem externos ao CI e exigem autorização operacional explícita.
 
-**Próximo módulo na ordem de auditoria documental:** **Q01 — Plataforma de testes**. Se a CI identificar defeito adicional, priorizar o bloqueio na Q07 antes de classificar `main` como saudável.
+**Situação:** pipeline recuperado no [run 43339625873](https://github.com/delmacy/syndes-system/actions/runs/43339625873). **Próximo módulo na auditoria documental:** **Q01 — Plataforma de testes**. A aprovação de CI é por SHA e não dá aceite ao produto.

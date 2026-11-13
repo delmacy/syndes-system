@@ -47,13 +47,15 @@ class Q07CIGovernanceTests(unittest.TestCase):
         self.assertIn("43337290670",status)
         self.assertIn("19/19",status)
         self.assertIn("CI central pós-correção",status)
-        self.assertIn("PENDENTE",status)
+        self.assertIn("24/24 jobs success",status)
+        self.assertIn("43339625873",status)
+        self.assertIn("ec688ce3b6884ef4d1e6dd10ba4c2f3048dbef0f",status)
         self.assertIn("não habilita P05",status)
         self.assertNotIn("Q07: DONE",status)
         plan=(ROOT/"docs/blueprint/PLANO-ATUALIZACAO-MODULOS.md").read_text()
         self.assertIn("9 STATUS",plan)
         self.assertIn("48 STATUS",plan)
-        self.assertIn("Parcial — paridade e Serviço PG17 corrigidos localmente",plan)
+        self.assertIn("Parcial — CI mainline validada (24/24 no SHA ec688ce)",plan)
 
 if __name__=="__main__":
     unittest.main()

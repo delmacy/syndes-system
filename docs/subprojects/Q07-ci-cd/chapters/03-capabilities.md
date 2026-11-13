@@ -8,7 +8,7 @@
 | Gate de segurança estrutural | `tests/integrity/repository-structure.sh` | Executado localmente sem erro |
 | Shell de executor | `scripts/ci/run-suite.sh` | Sintaxe Bash verificada localmente; suíte de Serviço executada |
 | Suíte Serviço Basic | `modules/service-management`, `scripts/ci/plan.mjs`, `run-suite.sh` | Incorporada; 19 testes locais PG17/NestJS passaram; permanece opt-in no Host |
-| Paridade Manager/Support | `platform-manager.yml`, `support-browser-e2e.yml` | Verificada por assertivas de presença; cenários reais no GitHub ainda dependem do novo run |
+| Paridade Manager/Support | `platform-manager.yml`, `support-browser-e2e.yml` | Cenários do GitHub **SUCCESS** no [run 43339625873](https://github.com/delmacy/syndes-system/actions/runs/43339625873); não são homologação operacional |
 | Docs publisher/Projects sync | Dois workflows `syndes-docs-*` | Considerados auxiliares por gatilhos e escopo; não são gate de produto |
 | Evidências de release | Run GitHub, SHA, logs de job, WBS e Product Gate | Devem ser conectadas ao STATUS, sem inventar percentuais |
 
@@ -22,4 +22,4 @@
 
 ### Lacunas ainda não encerradas
 
-Cobertura total de módulos e flows de ponta a ponta requer inspeção por Q07/owners à medida que módulos são criados. CI no GitHub deve passar todos os 15 jobs selecionados mais as paridades; o teste local não prova essa condição.
+Cobertura total de módulos e fluxos de ponta a ponta continua sujeita a inspeção de owners. A mainline passou **24/24 jobs** no [run 43339625873](https://github.com/delmacy/syndes-system/actions/runs/43339625873), com 15 suítes e paridades. Isso não libera instalação de Serviço nem comprova operação real.

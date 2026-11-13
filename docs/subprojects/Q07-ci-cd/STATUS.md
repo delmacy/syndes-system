@@ -1,6 +1,6 @@
 # Q07 — CI/CD | STATUS
 
-> **AUDITORIA TÉCNICA PARCIAL + CORREÇÃO LOCAL VALIDADA — 12/11/2026.** Base `origin/main` SHA `9521919178bcc0341c4d187492f9d027d188a6bd`, DevServer01/worktree isolada. A falha de paridade foi reproduzida e o planner/runner corrigido, com testes locais executados. **Ainda requer verificação do CI completo no novo SHA remoto para declarar mainline saudável.**
+> **AUDITORIA TÉCNICA PARCIAL + CORREÇÃO LOCAL VALIDADA — 12/11/2026.** Base `origin/main` SHA `9521919178bcc0341c4d187492f9d027d188a6bd`, DevServer01/worktree isolada. A falha de paridade foi reproduzida e o planner/runner corrigido, com testes locais executados. **CI mainline validada no commit `ec688ce3b6884ef4d1e6dd10ba4c2f3048dbef0f`: 24/24 jobs SUCCESS, inclusive `Syndes CI Gate`.** Isso comprova o pipeline neste SHA, não o Product Gate nem a operação do MVP.
 
 ## Estado multidimensional
 
@@ -11,7 +11,7 @@
 | **CI unitário e integridade** | **PASS local:** 19/19 testes `scripts/ci/*.test.mjs`, `repository-structure.sh` e `bash -n scripts/ci/*.sh` |
 | **Integração de módulo Serviço** | **PASS local em PG17 descartável:** 19/19 testes, incluindo Nest HTTP, tenant A/B, equipes e trilha auditável, `npm pack --dry-run` |
 | **CI central anterior** | **FAIL no SHA base:** [run 43337290670](https://github.com/delmacy/syndes-system/actions/runs/43337290670), etapa `Prove fail-closed test selection and removed-workflow parity` |
-| **CI central pós-correção** | **PENDENTE:** precisa de matriz completa e `Syndes CI Gate` sucessos no SHA integrado |
+| **CI central pós-correção** | **SUCCESS confirmado:** [run 43339625873](https://github.com/delmacy/syndes-system/actions/runs/43339625873), commit `ec688ce3b6884ef4d1e6dd10ba4c2f3048dbef0f`, **24/24 jobs success**, incluindo Serviço, Support, Manager e Infra; `Syndes CI Gate` **success** |
 | **Release/Produto/Operação** | **Não verificados:** alteração de seleção CI não habilita P05 nem libera migrations, grant, deploy, backup/restore ou Product Gate |
 
 ## Causa, reparo e prova
@@ -26,7 +26,7 @@
 
 ## Riscos restantes
 
-1. **CI remoto pós-integração** pode expor novos erros em outras suites; se ocorrerem, manter FAIL e diagnosticar o run específico, não desligar testes.
+1. **Novos commits podem introduzir falhas**; a aprovação de `ec688ce` não se transfere automaticamente às SHAs posteriores. Não enfraquecer checks para manter verde.
 2. **Serviço opt-in:** pacote continua ausente do `apps/core-host/config/modules.json`; a suíte bem-sucedida não comprova release nem módulo ENABLED em tenant.
 3. **Módulos futuros:** novos pacotes devem entrar no catálogo e no runner conforme owner; evitar regressões faltantes no `full`.
 4. **Workpackages:** WBS 00.07 e 95.02 associadas; progresso real requer evidências de CI por commit, não inferência da documentação.
@@ -41,6 +41,7 @@
 
 | Data | Base de evidência | Método | Não comprovado |
 |---|---|---|---|
-| 2026-11-12 | `9521919178bcc0341c4d187492f9d027d188a6bd`, DevServer01/worktree isolada | 17 testes prévios (16 PASS/1 FAIL), 19 de CI pós-reparo PASS, 19 PG17 Serviço PASS, integridade e shell PASS | GitHub CI do novo SHA, deploy, release e Product Gate |
+| 2026-11-12 | `9521919178bcc0341c4d187492f9d027d188a6bd`, DevServer01/worktree isolada | 17 testes prévios (16 PASS/1 FAIL), 19 de CI pós-reparo PASS, 19 PG17 Serviço PASS, integridade e shell PASS | CI remoto validado posteriormente; deploy, release e Product Gate ainda não verificados |
+| 2026-11-12 | `ec688ce3b6884ef4d1e6dd10ba4c2f3048dbef0f`, [run 43339625873](https://github.com/delmacy/syndes-system/actions/runs/43339625873) | **24/24 jobs success**, incluído `Syndes CI Gate`; Pages publicado em run 43339625845 | Homologação operacional, backup/restore real e Product Gate continuam separados |
 
-**Critério para declarar gate de CI recuperado:** o job `foundation`, todas as regressões instaladas e paridades requeridas devem concluir `success` no commit integrado, e o `Syndes CI Gate` também. Um Docs Pages verde não substitui esse requisito.
+**Gate de CI recuperado e comprovado no SHA `ec688ce`:** `foundation`, regressões, paridades e gate final concluíram com `success`. Para futuros commits, exigir a mesma evidência. **Q07 permanece em auditoria documental parcial** por depender da revisão formal do owner; produto e produção não estão homologados.
