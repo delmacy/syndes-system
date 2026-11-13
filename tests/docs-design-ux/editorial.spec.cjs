@@ -28,9 +28,12 @@ test('Índice abre, navega por âncoras e mantém o artigo na mesma URL', async 
   await index.locator('a[href="#apis"]').click();
   await expect(page).toHaveURL(/\/a06\/#apis$/);
   await expect(page.locator('#apis')).toHaveCount(1);
+  // CSS smooth scrolling is animated. Assert the settled position, not the first frame.
+  await expect.poll(async () => page.locator('#apis')
+    .evaluate(e => e.getBoundingClientRect().top), { timeout: 6_000 })
+    .toBeLessThan(850);
   const top = await page.locator('#apis').evaluate(e => e.getBoundingClientRect().top);
   expect(top).toBeGreaterThan(-120);
-  expect(top).toBeLessThan(1000);
 });
 
 test('Links editoriais discretos, ajuste recolhido, sem manchetes duplicadas', async ({ page }) => {
