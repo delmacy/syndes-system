@@ -15,6 +15,22 @@
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
 
+
+## Capítulos temáticos independentes
+
+| Assunto | Página |
+|---|---|
+| Visão geral | [00](chapters/00-visao-geral.md) |
+| Arquitetura e fronteiras | [01](chapters/01-arquitetura-e-fronteiras.md) |
+| Requisitos e casos de uso | [02](chapters/02-requisitos-historias-e-casos-de-uso.md) |
+| Capabilities | [03](chapters/03-capabilities.md) |
+| Contratos, APIs e eventos | [04](chapters/04-contratos-apis-eventos.md) |
+| Dados e persistência | [05](chapters/05-dados-e-persistencia.md) |
+| Testes e evidências | [06](chapters/06-testes-e-evidencias.md) |
+| Riscos e próximos passos | [07](chapters/07-riscos-e-proximos-passos.md) |
+
+As oito páginas são arquivos separados, não âncoras da mesma página. Os estados nelas descritos são de auditoria parcial.
+
 ## Capacidades e requisitos {#capacidades}
 
 Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O conteúdo da especificação define o que é aprovado; presença de um item na documentação não comprova implementação.**
