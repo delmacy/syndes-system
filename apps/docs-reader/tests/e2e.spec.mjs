@@ -111,3 +111,14 @@ test("Navegação móvel continua acessível sem overflow",async({page,isMobile}
     await expect(page.getByRole("navigation",{name:"Navegação principal"})).toBeVisible();
   }else await expect(page.locator(".module-sidebar")).toBeVisible();
 });
+
+test("Briefing de agente pode ser exportado sem clipboard e sem executar ações",async({page})=>{
+  await page.goto("/modulos/crm/#crm-create-person");
+  const op=page.locator("#crm-create-person");
+  await op.locator(".operation-agent summary").click();
+  const download=page.waitForEvent("download");
+  await op.getByRole("button",{name:"Exportar briefing .md"}).click();
+  const artifact=await download;
+  expect(artifact.suggestedFilename()).toBe("syndes-p01-crm-create-person-briefing.md");
+  await expect(op.getByRole("status")).toContainText("exportado");
+});
