@@ -1,4 +1,2 @@
-## 5. Arquitetura, banco, interface, configuração e diagramas
-- Componentes, ownership de dados, migrations e autorização: A VERIFICAR.
-- Nomes reais de variáveis de ambiente: A DOCUMENTAR, nunca incluir valores de segredos.
-- Diagramas versionados: A ELABORAR se aplicáveis.
+# 05 — Arquitetura, dados e configuração
+Fluxo declarativo: Nest API → sidecar HTTP interno → Whatsmeow; sidecar → callback autenticado → API. [main.go](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/main.go) declara store PG e tabelas `syndes_whatsapp_accounts`, `syndes_whatsapp_inbound_outbox`; [outbound.go](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/outbound.go) usa `syndes_whatsapp_outbound` e `syndes_whatsapp_send_windows`. O banco do adaptador é distinto de Tenant DB/Control. Configuração: quatro variáveis obrigatórias nomeadas no [README](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/README.md), bind loopback opcional. Nenhuma UI própria confirmada; nenhuma migration executada nesta revisão.
