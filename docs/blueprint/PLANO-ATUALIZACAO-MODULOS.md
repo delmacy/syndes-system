@@ -11,6 +11,8 @@
 
 **Validação técnica automatizada:** [auditoria código ↔ documentação](../standards/AUDITORIA-CODIGO-DOCUMENTACAO.md) descreve extração de símbolos, vínculos auditáveis, checagem de divergências e limites de evidência.
 
+> **Checkpoint concorrente I09 (13/11/2026):** a branch `docs/i09-whatsmeow-audit-20261113-1422` documentou parcialmente o gateway Go a partir de `a1754ccc`. Este registro acompanha a revisão **em branch**, não afirma integração ao `main`, execução de `go test`, deploy, Product Gate ou publicação Pages. A contagem consolidada do `main` acima permanece inalterada até merge e revalidação. I09 permanece componente de P03. Próximos gates: revisar capítulo 07 e referências WBS, executar testes documentais e de contrato em ambiente isolado, rebase/reconciliação contra `main` atualizado, revisão de owner e publicação comprovada por SHA. Não criar witnesses AST sem extração verificável.
+
 ## Procedimento padrão por unidade
 
 1. **Baseline (as-is):** conferir SHA de origem, branch, owner, arquivos, comportamento real, stack e revisão dos ambientes. Registrar o que foi observado, distinguindo código de implantação.
@@ -106,7 +108,7 @@ Respeitar sequência funcional CRM → Inbox → WhatsApp → Atendimento Basic,
 | 34 | [P01 — CRM](../subprojects/P01-crm/README.md) · [STATUS](../subprojects/P01-crm/STATUS.md) | CRM: pessoas, relações, tags, notas e histórico. | **Parcial; revalidar SHA** |
 | 35 | [P02 — Inbox](../subprojects/P02-inbox/README.md) · [STATUS](../subprojects/P02-inbox/STATUS.md) | Inbox: conversas, filas, operadores, handoff e atribuições. | **Parcial; revalidar SHA** |
 | 36 | [P03 — WhatsApp](../subprojects/P03-whatsapp/README.md) · [STATUS](../subprojects/P03-whatsapp/STATUS.md) | WhatsApp: contas/canais, mensagens, estados e integração. | **Parcial; revalidar SHA** |
-| 37 | [I09 — Whatsmeow runtime (componente de P03)](../subprojects/I09-whatsmeow-runtime/README.md) · [STATUS](../subprojects/I09-whatsmeow-runtime/STATUS.md) | Whatsmeow: gateway Go subordinado ao WhatsApp. | Baseline; não auditado |
+| 37 | [I09 — Whatsmeow runtime (componente de P03)](../subprojects/I09-whatsmeow-runtime/README.md) · [STATUS](../subprojects/I09-whatsmeow-runtime/STATUS.md) | Whatsmeow: gateway Go subordinado ao WhatsApp. | **Auditoria estática parcial em branch documental; Go, integração e operação não verificados; não homologado** |
 | 38 | [P05 — Gestão de Atendimentos](../subprojects/P05-gestao-de-atendimentos/README.md) · [STATUS](../subprojects/P05-gestao-de-atendimentos/STATUS.md) | Gestão de Atendimentos Basic, estados e regras do fluxo. | Baseline; não auditado |
 | 39 | [P06 — Syndes Support](../subprojects/P06-syndes-support/README.md) · [STATUS](../subprojects/P06-syndes-support/STATUS.md) | Syndes Support: atendimento da plataforma interno/externo. | Baseline; não auditado |
 | 40 | [A03 — Support Frontend](../subprojects/A03-support-frontend/README.md) · [STATUS](../subprojects/A03-support-frontend/STATUS.md) | Frontend de Support, jornadas e sessões separadas. | Baseline; não auditado |
