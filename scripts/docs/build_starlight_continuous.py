@@ -106,28 +106,36 @@ def render():
         if contracts.is_file():
             sections['contratos'].append((contracts,contracts.read_text(encoding='utf-8')))
         body=frontmatter(uid+' — '+u['name'],'Markdown contínuo, integral e versionado')
-        body+='# '+uid+' — '+u['name']+'\n\n'
-        body+='[← Volume](../) · [↑ Biblioteca](../../)\n\n'
-        body+='> Conteúdo integral dos arquivos versionados. Código documentado não significa homologação.\n\n'
-        body+='**Código:** '+u['source']+' · [STATUS]('+gh(status)+') · [Referência técnica]('+gh(tech)+') · [Operação]('+gh(op)+')\n\n'
-        body+='## Índice do módulo\n\n'
-        for key,label in headings: body+='- ['+label+'](#'+key+')\n'
-        body+='- [Registro de alterações](#registro-de-alteracoes)\n\n'
+        # The Starlight theme already renders the frontmatter title and breadcrumbs.
+        # A second H1 and full-width link table interrupt editorial reading.
+        body+='<p class="syndes-chapter-kicker">Capítulo '+uid+' · '+AREAS[u['front']][1]+'</p>\n\n'
+        body+='<p class="syndes-chapter-lead">Leitura contínua da documentação técnica, composta integralmente das fontes versionadas.</p>\n\n'
+        body+='<p class="syndes-reading-note">O conteúdo documentado não comprova homologação funcional.</p>\n\n'
+        body+='<p class="syndes-meta">Código: <code>'+u['source']+'</code> · '
+        body+='<a href="'+gh(status)+'">STATUS</a> · <a href="'+gh(tech)+'">Referência técnica</a> · '
+        body+='<a href="'+gh(op)+'">Operação</a></p>\n\n'
+        body+='<details class="syndes-chapter-index"><summary>Explorar assuntos do módulo <span>16 seções</span></summary>\n'
+        body+='<nav aria-label="Índice do módulo"><ul>\n'
+        for key,label in headings: body+='<li><a href="#'+key+'">'+label+'</a></li>\n'
+        body+='<li><a href="#registro-de-alteracoes">Registro de alterações</a></li>\n'
+        body+='</ul></nav></details>\n\n'
         counts={}
         for key,label in headings:
             body+='\n<a id="'+key+'"></a>\n\n## '+label+'\n\n'
             blocks=sections[key]; counts[key]=len(blocks)
             if not blocks:
-                body+='**Lacuna documental:** não há conteúdo canônico específico para esta área. Nenhuma funcionalidade é presumida.\n\n'
-                body+='[Editar referência técnica]('+EDIT_PREFIX+tech.relative_to(ROOT).as_posix()+')\n\n'
+                body+='<p class="syndes-gap"><strong>Documentação pendente.</strong> Ainda não há especificação canônica para esta área. '
+                body+='<a href="'+EDIT_PREFIX+tech.relative_to(ROOT).as_posix()+'">Registrar na fonte</a>.</p>\n\n'
             for source,full_text in blocks:
                 rel=source.relative_to(ROOT).as_posix()
-                body+='**Fonte completa:** ['+rel+']('+gh(source)+') · [Editar conteúdo]('+EDIT_PREFIX+rel+')\n\n'
+                body+='<p class="syndes-source-meta">Origem: <a href="'+gh(source)+'">'+source.name+'</a> '
+                body+='· <a href="'+EDIT_PREFIX+rel+'">Editar fonte</a></p>\n\n'
                 content=source_markdown(full_text,source)
                 content=re.sub(r'^(#{1,6})(\s+)',lambda match:'#'*min(6,len(match.group(1))+3)+match.group(2),content,flags=re.M)
                 body+=content.rstrip()+'\n\n'
-            body+='<details>\n<summary>Espaço para alterações</summary>\n\n'
-            body+='Edite o arquivo-fonte pelo link acima, registrando implementação, testes, evidências, pendências e aceite. O Pages é somente leitura.\n\n</details>\n\n'
+            body+='<details class="syndes-edit-note"><summary>Propor ajuste nesta seção</summary>\n\n'
+            body+='Registre na fonte canônica a implementação alterada, os testes, as evidências, as pendências e o aceite. '
+            body+='Esta página é somente leitura.\n\n</details>\n\n'
         body+='<a id="registro-de-alteracoes"></a>\n\n## Registro de alterações\n\n'
         body+='Os arquivos Markdown canônicos recebem alterações versionadas no GitHub. Esta página é recomposta no próximo build.\n\n'
         body+='[Editar STATUS]('+EDIT_PREFIX+status.relative_to(ROOT).as_posix()+') · [Editar referência técnica]('+EDIT_PREFIX+tech.relative_to(ROOT).as_posix()+') · [Editar operação]('+EDIT_PREFIX+op.relative_to(ROOT).as_posix()+')\n\n'
