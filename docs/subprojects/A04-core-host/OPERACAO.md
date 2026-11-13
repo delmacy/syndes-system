@@ -1,33 +1,18 @@
 # A04 — Core Host | Operação
 
-> **ÍNDICE DE FONTES, NÃO RUNBOOK HOMOLOGADO.** Não executar migrations, alterar permissões ou ativar workers apenas com esta página.
+> **CHECKLIST DE AUDITORIA, NÃO RUNBOOK DE PRODUÇÃO.** Nenhum deploy, worker, migration, alteração de grant ou consulta de secrets foi realizado neste incremento.
 
-## Estado operacional e evidências
+## Preparação e testes futuros
 
-- [STATUS](STATUS.md): nível de validação, bloqueios, testes, ambiente e SHA.
-- [SPRINT](SPRINT.md): incremento autorizado e checkpoints, quando existentes.
-- [Evolução](EVOLUCAO.md): workpackages e dependências; nenhum item é concluído por estar planejado.
-- [Histórico](HISTORICO.md): commits de código e documentos.
-- [Workflows GitHub](../../monitoramento/README.md): resultado CI geral, não estado operacional do módulo.
+1. Confirmar SHA de código, lockfile, owners e ausência de edição concorrente. Preparar cópia **descartável** com dependências Node pinadas; rodar `npm run check` e suites A04, separando SKIP, PASS e falhas reais.
+2. Inventariar controllers e contratos HTTP/SSE de cada plugin. Conferir ordem de JWT → membership → FGA → gates Control; documentar negativas cross-tenant e org/workspace.
+3. Em PostgreSQL 17 **segregado**, confrontar migrations Control/Tenant, roles/grants e `TenantPgProvider` com testes de isolamento, sem usar dados reais.
+4. Em ambiente autorizado, validar readiness, TLS, OpenBao, OpenFGA, revogação, entitlements e comportamento em indisponibilidade; não usar resultado sintético como homologação.
+5. Somente com aprovação operacional, planejar testes de Event Platform: publisher, dispatcher, worker admission, idempotência, replay e DLQ. Não iniciar serviços a partir de documentação.
+6. Registrar evidência sanitizada por SHA/ambiente, owner review, CI e rollback antes de promover status.
 
-## Fontes e contratos
+## Limites e navegação
 
-- [Código/artefato do módulo](https://github.com/delmacy/syndes-system/tree/main/apps/core-host) — `apps/core-host`.
-- [Contratos públicos](../../standards/CONTRATOS-PUBLICOS.md).
-- [Regras de rastreabilidade](../../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
-- **Runbook específico:** não verificado neste inventário. Não criar comandos de ambiente por inferência.
+[STATUS](STATUS.md) · [SPRINT](SPRINT.md) · [Evolução](EVOLUCAO.md) · [Projeção](PROJECAO.md) · [Implementação](IMPLEMENTACAO.md) · [Alteração](ALTERACAO.md) · [Referência técnica](REFERENCIA-TECNICA.md).
 
-## Operações orientadas por agentes
-
-- [Projeção / Planejamento](PROJECAO.md)
-- [Implementação](IMPLEMENTACAO.md)
-- [Alteração rápida](ALTERACAO.md)
-- [Entrada de propostas](updates/README.md)
-
-## Gates para operação real
-
-1. Conferir fonte, tenant/org/workspace, ambiente, SHA e autorização explícita.
-2. Validar identity/service grants e ownership de banco.
-3. Confirmar migrations realmente aplicadas, backup/restore e rollback antes de SQL.
-4. Testar com critérios apropriados: unitário, contrato, integração, E2E e CI.
-5. Registrar resultado e evidência em STATUS, sem confundir merge com deploy ou aceite.
+Não registrar tokens, strings de conexão, identidades privadas, grants ou informações sensíveis em Git.

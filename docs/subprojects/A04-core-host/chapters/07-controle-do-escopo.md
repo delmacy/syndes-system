@@ -1,3 +1,7 @@
 ## 7. Controle do escopo
-- Baseline: NÃO APROVADO.
-- Alterações futuras: registrar impacto, dependências e aprovação antes de alterar o escopo.
+
+- Fonte de auditoria: checkpoint `94fdcc6`, integração documental local `f4fbfe5`, branch de reconciliação própria.
+- Não executar `PgModuleInstaller.apply/enable/disable`, migrations, SQL operacional, worker, rotação ou deploy.
+- Não declarar homologação a partir de código versionado, testemunhas lexicais ou testes históricos.
+- Preservar ownership de módulos, Control e C06; inventariar controllers, SSE e jobs separadamente.
+- Publicação só se confirma por push, CI Pages e SHA efetivamente servido no site.

@@ -5,7 +5,7 @@
 ## Situação da documentação
 
 - **57 unidades:** 49 principais e 8 componentes documentais vinculados. Os vínculos não criam módulos executáveis novos.
-- **17 STATUS com auditoria técnica parcial registrada:** G01, G02, G03, Q10, Q07, Q01, P14, **I02**, **I04**, **C01** (Control no DevServer01), **C03** (Identity Keycloak no DevServer01), **C04** (OpenFGA com modelo/adapters auditados), **C05** (OpenBao com configuração/consumidores auditados), **A06** (Account API código/SQL e testes Node) e P01, P02, P03. **40 STATUS** ainda mostram baseline documental sem auditoria funcional verificada. A CI mainline foi aprovada na revisão `bd0aa69`; módulos e produto mantêm seus Product Gates independentes.
+- **18 STATUS com auditoria técnica parcial registrada:** G01, G02, G03, Q10, Q07, Q01, P14, **I02**, **I04**, **C01** (Control no DevServer01), **C03** (Identity Keycloak no DevServer01), **C04** (OpenFGA com modelo/adapters auditados), **C05** (OpenBao com configuração/consumidores auditados), **A06** (Account API código/SQL e testes Node), **A04** (Core Host com contratos/adapters auditados) e P01, P02, P03. **39 STATUS** ainda mostram baseline documental sem auditoria funcional verificada. A CI mainline foi aprovada na revisão `bd0aa69`; módulos e produto mantêm seus Product Gates independentes.
 - O marcador `maturity` do catálogo é metadado de inventário, não sinônimo de integração/produção/homologação.
 - A [WBS do programa](https://github.com/delmacy/syndes-system/blob/main/docs/engineering/WBS-PROGRAMA-SYNDES-20261110.md) e a [ordem funcional](https://github.com/delmacy/syndes-system/blob/main/docs/product/MODULE-ORDER.md) permanecem as fontes de priorização de entrega.
 
@@ -77,7 +77,7 @@ Descrever ports, composição, instalação, Event Bus/Outbox, adapters, logs, b
 | Ordem | Unidade / fonte de status | Descrição e escopo a conferir | STATUS inicial |
 |---:|---|---|---|
 | 21 | [A08 — Core Kernel](../subprojects/A08-core-kernel/README.md) · [STATUS](../subprojects/A08-core-kernel/STATUS.md) | Core Kernel, ports, contratos tipados e lifecycle. | Baseline; não auditado |
-| 22 | [A04 — Core Host](../subprojects/A04-core-host/README.md) · [STATUS](../subprojects/A04-core-host/STATUS.md) | Core Host, composição, workers e roteamento runtime. | Baseline; não auditado |
+| 22 | [A04 — Core Host](../subprojects/A04-core-host/README.md) · [STATUS](../subprojects/A04-core-host/STATUS.md) | Composição NestJS, adapters, lifecycle, tenant e worker; execução real não verificada. | **Parcial — contratos reconciliados; testes A04/PG17/FGA e runtime pendentes** |
 | 23 | [C02 — Tenant Installer](../subprojects/C02-tenant-installer/README.md) · [STATUS](../subprojects/C02-tenant-installer/STATUS.md) | Tenant Installer, provisionamento e migrations seguras. | Baseline; não auditado |
 | 24 | [C06 — Event Platform](../subprojects/C06-event-platform/README.md) · [STATUS](../subprojects/C06-event-platform/STATUS.md) | Event Bus, envelopes, outbox, idempotência, replay e consumers. | Baseline; não auditado |
 | 25 | [C07 — APIs e adapters](../subprojects/C07-apis-e-adapters/README.md) · [STATUS](../subprojects/C07-apis-e-adapters/STATUS.md) | APIs e adapters, imports permitidos e limites de integração. | Baseline; não auditado |
@@ -162,4 +162,4 @@ Registrar como contrato/proposta até aprovação de Product Gate; não afirmar 
 
 ## Próxima ação de auditoria
 
-**Executadas como auditoria parcial:** G01 → G02 → G03 → Q10 → Q07 → Q01 → P14 → I02 → I04 → C01 → C03 → C04 → C05 → A06. **Próxima unidade:** A04 — Core Host. Continuar por segurança, Core e integrações do MVP. Para o negócio, manter **P01 CRM → P02 Inbox → P03 WhatsApp → P05 Gestão de Atendimentos Basic** conforme o plano de produto. O I09 acompanha a auditoria do P03. A ordem é de **documentação**; não muda o Product Gate vigente.
+**Executadas como auditoria parcial:** G01 → G02 → G03 → Q10 → Q07 → Q01 → P14 → I02 → I04 → C01 → C03 → C04 → C05 → A06 → A04. **Próxima unidade:** conferir próximo baseline no catálogo. Continuar por segurança, Core e integrações do MVP. Para o negócio, manter **P01 CRM → P02 Inbox → P03 WhatsApp → P05 Gestão de Atendimentos Basic** conforme o plano de produto. O I09 acompanha a auditoria do P03. A ordem é de **documentação**; não muda o Product Gate vigente.

@@ -184,6 +184,113 @@
       "symbolKind": "js-export-function",
       "symbol": "createFgaWriteAuthorizer",
       "document": "docs/subprojects/A06-account-access-api/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "A04-PLUGINS",
+      "module": "A04",
+      "owner": "A04",
+      "source": "apps/core-host/src/module-host.ts",
+      "symbolKind": "function",
+      "symbol": "loadInstalledPlugins",
+      "document": "docs/subprojects/A04-core-host/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "A04-ASSETS",
+      "module": "A04",
+      "owner": "A04",
+      "source": "apps/core-host/src/module-host.ts",
+      "symbolKind": "function",
+      "symbol": "installModuleAssets",
+      "document": "docs/subprojects/A04-core-host/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "A04-JWT",
+      "module": "A04",
+      "owner": "A04",
+      "source": "apps/core-host/src/adapters.ts",
+      "symbolKind": "method",
+      "symbol": "verify",
+      "document": "docs/subprojects/A04-core-host/REFERENCIA-TECNICA.md",
+      "className": "ActorVerifier"
+    },
+    {
+      "id": "A04-MEMBER",
+      "module": "A04",
+      "owner": "A04",
+      "source": "apps/core-host/src/adapters.ts",
+      "symbolKind": "method",
+      "symbol": "canAccessTenant",
+      "document": "docs/subprojects/A04-core-host/REFERENCIA-TECNICA.md",
+      "className": "PgMembership"
+    },
+    {
+      "id": "A04-REGISTRY",
+      "module": "A04",
+      "owner": "A04",
+      "source": "apps/core-host/src/tenant-database.ts",
+      "symbolKind": "function",
+      "symbol": "resolveRegistry",
+      "document": "docs/subprojects/A04-core-host/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "A04-TENANT",
+      "module": "A04",
+      "owner": "A04",
+      "source": "apps/core-host/src/tenant-database.ts",
+      "symbolKind": "method",
+      "symbol": "resolve",
+      "document": "docs/subprojects/A04-core-host/REFERENCIA-TECNICA.md",
+      "className": "TenantPgProvider"
+    },
+    {
+      "id": "A04-CATALOG",
+      "module": "A04",
+      "owner": "A04",
+      "source": "apps/core-host/src/module-catalog.ts",
+      "symbolKind": "method",
+      "symbol": "listAvailableForTenant",
+      "document": "docs/subprojects/A04-core-host/REFERENCIA-TECNICA.md",
+      "className": "PgModuleCatalog"
+    },
+    {
+      "id": "A04-LIFECYCLE",
+      "module": "A04",
+      "owner": "A04",
+      "source": "apps/core-host/src/module-lifecycle.ts",
+      "symbolKind": "method",
+      "symbol": "listModuleStates",
+      "document": "docs/subprojects/A04-core-host/REFERENCIA-TECNICA.md",
+      "className": "PgModuleLifecycle"
+    },
+    {
+      "id": "A04-EFFECTIVE",
+      "module": "A04",
+      "owner": "A04",
+      "source": "apps/core-host/src/module-effective-access.ts",
+      "symbolKind": "method",
+      "symbol": "canExecuteModule",
+      "document": "docs/subprojects/A04-core-host/REFERENCIA-TECNICA.md",
+      "className": "PgEffectiveModuleAccess"
+    },
+    {
+      "id": "A04-INSTALL",
+      "module": "A04",
+      "owner": "A04",
+      "source": "apps/core-host/src/module-installer.ts",
+      "symbolKind": "method",
+      "symbol": "plan",
+      "document": "docs/subprojects/A04-core-host/REFERENCIA-TECNICA.md",
+      "className": "PgModuleInstaller"
+    },
+    {
+      "id": "A04-ACTIVATE",
+      "module": "A04",
+      "owner": "A04",
+      "source": "apps/core-host/src/module-installer.ts",
+      "symbolKind": "method",
+      "symbol": "enable",
+      "document": "docs/subprojects/A04-core-host/REFERENCIA-TECNICA.md",
+      "className": "PgModuleInstaller"
     }
   ]
 }

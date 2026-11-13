@@ -4,6 +4,8 @@
 
 <!-- syndes:module-id=A04;source=apps/core-host;kind=module -->
 
+**Checkpoint 13/11/2026:** [auditoria técnica parcial](STATUS.md) de composição NestJS, adapters, tenant, módulos e eventos. **Sem homologação operacional.** [Referência técnica](REFERENCIA-TECNICA.md).
+
 ## Acessar a documentação {#acessos}
 
 | Quero descobrir | Abrir |
