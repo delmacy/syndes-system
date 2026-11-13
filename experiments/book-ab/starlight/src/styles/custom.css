@@ -229,3 +229,119 @@ html { scroll-padding-top: 5.5rem; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
+
+
+/* Reading refinement v2: compact book navigation, with no navigation redesign.
+   Use Starlight's existing collapsible volume groups and active link semantics. */
+:root {
+  --sl-sidebar-width: 15.75rem;
+}
+.sidebar-content {
+  font-size: .875rem;
+  line-height: 1.38;
+}
+.sidebar-content :is(ul, li) {
+  margin-block: 0;
+}
+.sidebar-content a {
+  min-height: 1.75rem;
+  padding-block: .24rem;
+  border-radius: .28rem;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.sidebar-content a[aria-current="page"] {
+  font-weight: 650;
+  color: var(--sl-color-accent-high);
+}
+:root[data-theme="light"] .sidebar-content a[aria-current="page"] {
+  color: var(--sl-color-accent);
+}
+.sidebar-content details > summary {
+  padding-block: .5rem;
+  line-height: 1.35;
+  font-weight: 650;
+}
+.sidebar-content :is(a, summary):focus-visible,
+.sl-markdown-content .syndes-chapter-index summary:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+}
+
+/* Clear document boundaries without oversized section dividers.
+   Metadata and editorial controls never dominate the text. */
+.sl-markdown-content .syndes-chapter-lead {
+  max-width: 65ch;
+  margin-block-end: 1rem;
+}
+.sl-markdown-content .syndes-chapter-index {
+  max-width: 46rem;
+}
+.sl-markdown-content h2 {
+  margin-block-start: 3.1rem;
+  padding-block-start: 2.1rem;
+}
+.sl-markdown-content h2::before { width: 2.1rem; }
+.sl-markdown-content :where(p,li) {
+  hanging-punctuation: first;
+}
+.sl-markdown-content .syndes-source-meta + :is(h4,h5,h6) {
+  margin-block-start: 1.15rem;
+}
+
+/* Tablet and phone: compact article headings and less dead vertical space.
+   The content remains a single, linear scroll surface. */
+@media (max-width: 50rem) {
+  main h1 {
+    font-size: clamp(1.7rem, 5.5vw, 2.15rem);
+    line-height: 1.17;
+    letter-spacing: -.035em;
+    text-wrap: balance;
+    margin-block-end: .9rem;
+  }
+  .sl-markdown-content .syndes-chapter-kicker {
+    font-size: .69rem;
+    letter-spacing: .09em;
+    margin-block: .15rem .45rem;
+  }
+  .sl-markdown-content .syndes-chapter-lead {
+    font-size: 1.04rem;
+    line-height: 1.62;
+    margin-block: .3rem .9rem;
+  }
+  .sl-markdown-content .syndes-meta {
+    margin-block-end: 1.3rem;
+    line-height: 1.55;
+  }
+  .sl-markdown-content h2 {
+    font-size: clamp(1.35rem, 4.5vw, 1.58rem);
+    margin-block: 2.3rem .85rem;
+    padding-block-start: 1.2rem;
+    scroll-margin-block-start: 4.75rem;
+  }
+  .sl-markdown-content h2::before {
+    top: .33rem;
+    width: 1.8rem;
+  }
+  .sl-markdown-content h3 {
+    font-size: 1.14rem;
+    margin-block-start: 1.65rem;
+  }
+  .sl-markdown-content details.syndes-chapter-index {
+    margin-block: 1.25rem 2rem;
+  }
+  .sl-markdown-content .syndes-chapter-index summary {
+    min-height: 2.75rem;
+    display: list-item;
+    padding-block: .75rem;
+  }
+  .sl-markdown-content :is(pre, table, blockquote) {
+    margin-block: 1.15rem;
+  }
+}
+@media (max-width: 24rem) {
+  .sl-markdown-content .syndes-chapter-index summary span {
+    display: block;
+    margin-inline-start: 1rem;
+  }
+}
