@@ -53,8 +53,8 @@ class Q07CIGovernanceTests(unittest.TestCase):
         self.assertIn("não habilita P05",status)
         self.assertNotIn("Q07: DONE",status)
         plan=(ROOT/"docs/blueprint/PLANO-ATUALIZACAO-MODULOS.md").read_text()
-        self.assertIn("12 STATUS",plan)
-        self.assertIn("45 STATUS",plan)
+        self.assertIn("13 STATUS",plan)
+        self.assertIn("44 STATUS",plan)
         self.assertIn("Parcial — CI mainline validada (24/24 no SHA ec688ce)",plan)
 
 if __name__=="__main__":

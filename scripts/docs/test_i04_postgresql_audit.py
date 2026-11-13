@@ -7,7 +7,7 @@ import unittest
 ROOT=Path(__file__).resolve().parents[2]
 I04=ROOT/"docs/subprojects/I04-postgresql"
 BASE="13955974bc0702f4c7fcb5717ee2d7cb243f5f08"
-PARTIAL={"G01","G02","G03","Q10","Q07","Q01","P14","I02","I04","P01","P02","P03"}
+PARTIAL={"G01","G02","G03","Q10","Q07","Q01","P14","I02","I04","C01","P01","P02","P03"}
 
 class I04PostgreSQLAudit(unittest.TestCase):
     def test_catalog_and_real_source_paths(self):
@@ -76,8 +76,8 @@ class I04PostgreSQLAudit(unittest.TestCase):
 
     def test_program_baseline_and_exact_57_unit_ids(self):
         plan=(ROOT/"docs/blueprint/PLANO-ATUALIZACAO-MODULOS.md").read_text()
-        self.assertIn("12 STATUS",plan)
-        self.assertIn("45 STATUS",plan)
+        self.assertIn("13 STATUS",plan)
+        self.assertIn("44 STATUS",plan)
         self.assertIn("Control com 6 migrations pendentes",plan)
         ids=re.findall(r"^\|\s*\d+\s*\|\s*\[([A-Z]\d{2})\s",plan,re.M)
         self.assertEqual(len(ids),57)

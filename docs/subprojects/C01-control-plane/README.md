@@ -1,6 +1,6 @@
 # C01 — Control Plane
 
-> **Unidade do catálogo Syndes.** Esta é a entrada humana do módulo: navegue pelas seis páginas abaixo. Código e documentação técnica podem existir sem estar implantados ou homologados.
+> **Control Plane (C01) — auditoria técnica parcial, 13/11/2026.** No DevServer01, registry, memberships e metadados básicos do Manager existem. **Catálogo, entitlements, instalações, ledger e outbox Control não estão instalados; seis migrations aparecem PENDING.** Nenhum DDL/grant foi executado. Os contratos estão distribuídos entre C01, Kernel, Host, Installer, Manager e Event Platform.
 
 <!-- syndes:module-id=C01;source=infra/postgres/bootstrap;kind=module -->
 
@@ -9,23 +9,31 @@
 | Quero descobrir | Abrir |
 |---|---|
 | **O que o módulo faz?** | [Especificação, capacidades e histórias](ESCOPO.md) |
-| **Como funciona do banco à interface?** | [Referência técnica: stack, classes e contratos](REFERENCIA-TECNICA.md) |
+| **Quais contratos Control, APIs e tabelas existem?** | [Referência técnica por owner](REFERENCIA-TECNICA.md) · [Fronteiras e SQL](chapters/04-contratos-e-dependencias-publicas.md) |
 | **O que será feito?** | [Evolução: workpackages e dependências](EVOLUCAO.md) |
 | **O que realmente mudou?** | [Histórico Git e evidências relacionadas](HISTORICO.md) |
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
 
+## Snapshot do Control Plane {#estado-control}
+
+- **Instalado no DevServer01:** `tenant_registry`, `tenant_memberships`, `platform_operator_access`, `platform_tenant_profiles`; um tenant consta como `active`.
+- **Não instalado:** `module_catalog`, `tenant_module_entitlements`, `tenant_module_installs`, `tenant_module_audit`, roles específicas de módulos e `control_events`.
+- **Migrations Control:** seis stages `PENDING` no comando de consulta `--plan`; ledger ausente.
+- **Impacto:** adaptadores Host e inventário de módulos do Manager dependem de SQL ausente; **nenhuma rota foi homologada neste host**.
+- **Separação:** tenant `active` não significa módulo `enabled`; schema instalado não é prova de acesso FGA, restore ou Product Gate.
+
 ## Capacidades e requisitos {#capacidades}
 
-Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O conteúdo da especificação define o que é aprovado; presença de um item na documentação não comprova implementação.**
+Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **Contratos versionados, objetos SQL presentes, API implantada e autorização são estados distintos.**
 
 ## Stack, contratos e persistência {#stack}
 
-A [referência técnica](REFERENCIA-TECNICA.md) lista exports de pacote, interfaces públicas, declarações internas de classes/métodos, APIs HTTP identificadas, candidatos de frontend e objetos SQL com origem verificável.
+A [referência técnica](REFERENCIA-TECNICA.md) identifica as **tabelas versionadas versus instaladas**, exports Kernel (A08), classes Host (A04) e APIs Manager/Account Access (A05/A06). **C01 não é um backend independente.**
 
-- **Fonte do código/artefato:** [`infra/postgres/bootstrap`](https://github.com/delmacy/syndes-system/tree/main/infra/postgres/bootstrap).
-- **Banco de tenant e Control/Manager:** [seção de persistência da referência](REFERENCIA-TECNICA.md).
-- **Contrato público vs. interno:** [referência técnica](REFERENCIA-TECNICA.md).
+- **Fonte de contratos SQL:** [`infra/postgres/bootstrap`](https://github.com/delmacy/syndes-system/tree/main/infra/postgres/bootstrap).
+- **Persistência:** [diagrama de fronteiras e migrations](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md).
+- **Contratos administrativos:** [matriz SQL, HTTP e events](chapters/04-contratos-e-dependencias-publicas.md).
 
 
 ## Planejamento, progresso e provas {#evolucao}

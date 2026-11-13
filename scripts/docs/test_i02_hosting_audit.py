@@ -7,7 +7,7 @@ import unittest
 ROOT=Path(__file__).resolve().parents[2]
 I02=ROOT/"docs/subprojects/I02-server02"
 BASE="9ac228e8cb21cb37f5c6892063dfdbc3d0238f20"
-PARTIAL={"G01","G02","G03","Q10","Q07","Q01","P14","I02","I04","P01","P02","P03"}
+PARTIAL={"G01","G02","G03","Q10","Q07","Q01","P14","I02","I04","C01","P01","P02","P03"}
 
 class I02HostingEvidenceAudit(unittest.TestCase):
     def test_catalog_owner_and_no_saas_api(self):
@@ -69,8 +69,8 @@ class I02HostingEvidenceAudit(unittest.TestCase):
         self.assertEqual(len(set(uid for _,uid in rows)),57)
         self.assertEqual(sum(uid=="I01" for _,uid in rows),1)
         self.assertEqual([int(n) for n,_ in rows],list(range(1,58)))
-        self.assertIn("12 STATUS",text)
-        self.assertIn("45 STATUS",text)
+        self.assertIn("13 STATUS",text)
+        self.assertIn("44 STATUS",text)
         self.assertIn("16 containers DevServer01 observados",text)
         units=json.loads((ROOT/"docs/subprojects/index.json").read_text())["units"]
         self.assertEqual(len(units),57)
