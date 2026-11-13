@@ -33,17 +33,20 @@ export default function CrmPage(){
     };
   },[]);
   const group=crmFunctions.find(item=>item.id===selected)||crmFunctions[0];
-  const navigate=(sectionId)=>{
+  const navigate=(sectionId,scrollTo="section")=>{
     const target=crmFunctionForSection(sectionId);
     if(!target)return;
     setSelected(target.id);
     setActive(sectionId);
     window.history.pushState(null,"","#"+sectionId);
-    window.scrollTo({top:0,behavior:"instant"});
+    window.requestAnimationFrame(()=>{
+      const targetId=scrollTo==="intro"?"selected-function-heading":sectionId;
+      document.getElementById(targetId)?.scrollIntoView({behavior:"smooth",block:"start"});
+    });
   };
   const switchGroup=(groupId)=>{
     const next=crmFunctions.find(g=>g.id===groupId);
-    if(next)navigate(next.sections[0]);
+    if(next)navigate(next.sections[0],"intro");
   };
   return <SiteShell>
     <div className="module-layout">
