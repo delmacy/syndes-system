@@ -20,7 +20,7 @@ test("O CRM tem seis funções e abre uma operação sem exibir catálogo interm
   await expect(page.locator(".operation-detail")).toHaveCount(1);
   await expect(page.locator("#crm-create-person")).toBeVisible();
   await expect(page.locator(".reading-section")).toHaveCount(0);
-  await page.getByRole("button",{name:/Consultar e pesquisar contatos/}).first().click();
+  await page.locator(".operation-choice").filter({hasText:"Consultar e pesquisar contatos"}).click();
   await expect(page.locator("#crm-search-person")).toBeVisible();
   await expect(page.locator("#crm-create-person")).toHaveCount(0);
 });
