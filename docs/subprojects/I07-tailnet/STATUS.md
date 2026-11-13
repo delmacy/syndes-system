@@ -1,23 +1,27 @@
 # I07 — Tailnet | STATUS
 
-> Documentação-base, SEM AUDITORIA FUNCIONAL. Ver ESCOPO.md e SPRINT.md nesta pasta.
+> **AUDITORIA TÉCNICA PARCIAL — não homologação.** Fonte [check-tailnet-route.py](../../../infra/master-admin/check-tailnet-route.py); [checkpoint 2026-11-13](../../evidence/checkpoints/I07-tailnet-source-audit-20261113.md). Base: `main@05d46ca`.
 
 ## Onde paramos?
-- Estrutura documental criada; maturidade operacional não verificada.
-- Fonte rastreável: infra/master-admin/check-tailnet-route.py
+- O script Python verifica declarativamente uma rota privada Tailscale Serve dedicada ao Platform Manager. Não altera configuração nem revela hostname.
+- Contrato de `check(config, mode, port=9447, target="http://127.0.0.1:18085")` inspecionado via GitHub. `free` rejeita porta ocupada; `active` exige HTTPS, rota única, proxy exato e ausência de Funnel público.
+- Nenhum teste do script, configuração ativa, ACL, certificado, roteamento ou deploy foi comprovado nesta revisão.
 
-## Para onde vamos?
-- Revisar escopo e contratos do próprio módulo; aprovar primeiro incremento.
+## Eixos de estado
+| Eixo | Estado | Limite |
+|---|---|---|
+| Documentação | Auditoria parcial | Código e contrato inspecionados |
+| Implementação | Fonte Python encontrada | Sem execução de testes comprovada |
+| Integração | Não verificada | Sem fixtures ou integração I06 |
+| Operação | Não verificada | Sem Serve/ACL/TLS/Manager ativo comprovados |
 
-## WBS e capabilities
-| ID | Estado | Evidência | Próxima etapa |
-|---|---|---|---|
-| I07.DOC.01 | PENDENTE DE REVISÃO | Catálogo da unidade | Inventariar requisitos |
+## WBS
+| ID | Estado | Gate |
+|---|---|---|
+| I07.DOC.01 | PARCIAL | Revisão de owner, capítulos e contrato |
+| I07.TEST.01 | PENDENTE | Fixtures de casos positivos e negativos |
+| I07.SEC.01 | PENDENTE | ACL, Funnel e negativas de acesso |
+| I07.OPS.01 | PENDENTE | Configuração ativa, HTTPS e destino real |
 
-## Dependências e bloqueios
-- A INVENTARIAR com contratos públicos, distinguindo dependências obrigatórias e opcionais.
-
-## Checkpoints
-| Data | Resultado | SHA / CI / ambiente | Continuidade |
-|---|---|---|---|
-| 2026-11-12 | Estrutura documental inicial | Não constitui evidência operacional | Revisar o escopo |
+## Próximo passo
+Conferir a [referência técnica](REFERENCIA-TECNICA.md), [operação](OPERACAO.md) e [checkpoint](../../evidence/checkpoints/I07-tailnet-source-audit-20261113.md). Nenhuma mudança em runtime ou permissões foi autorizada.
