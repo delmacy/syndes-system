@@ -14,7 +14,7 @@ for(const path of paths){
 }
 test("CRM tem doze tópicos contínuos e referências depois da explicação",async({page})=>{
   await page.goto("/modulos/crm");
-  await expect(page.locator("article section.reading-section")).toHaveCount(12);
+  await expect(page.locator("article section.reading-section")).toHaveCount(2);
   const data=await page.locator("article section.reading-section").first().evaluate(el=>{
     const lead=el.querySelector(".section-lead");
     const source=el.querySelector(".source-footer");
@@ -24,12 +24,8 @@ test("CRM tem doze tópicos contínuos e referências depois da explicação",as
   });
   expect(data.leadBeforeSource).toBeTruthy();
   expect(data.sourceBeforeProposal).toBeTruthy();
-  if (test.info().project.name === "mobile") {
-    await page.locator(".mobile-outline summary").click();
-    await page.locator('.mobile-outline a[href="#contratos"]').click();
-  } else {
-    await page.locator('.side-link[href="#contratos"]').click();
-  }
+  await page.getByRole("navigation",{name:"Selecionar função do CRM"}).getByRole("button",{name:/Integrações/}).click();
+  await page.locator(".function-topic").filter({hasText:"Contratos e interfaces técnicas"}).click();
   await expect(page).toHaveURL(/#contratos$/);
   await expect(page.locator("#contratos")).toBeVisible();
 });
@@ -56,7 +52,7 @@ test("Menu mobile abre sem interromper a leitura",async({page,isMobile})=>{
     await toggle.click();
     await expect(page.getByRole("button",{name:"Fechar menu"})).toHaveAttribute("aria-expanded","true");
     await expect(page.getByRole("navigation",{name:"Navegação principal"})).toBeVisible();
-    await expect(page.locator(".mobile-outline")).toBeVisible();
+    await expect(page.getByRole("navigation",{name:"Selecionar função do CRM"})).toBeVisible();
   }
 });
 
@@ -95,8 +91,8 @@ test("Identidade editorial tecnológica usa IBM Plex e azul discreto em Home e C
 
 test("Leitura editorial conserva contraste, foco e organização em todos os viewports",async({page,isMobile})=>{
   await page.goto("/modulos/crm/");
-  await expect(page.locator("article .source-footer")).toHaveCount(12);
-  await expect(page.locator("article .proposal-area")).toHaveCount(12);
+  await expect(page.locator("article .source-footer")).toHaveCount(2);
+  await expect(page.locator("article .proposal-area")).toHaveCount(2);
   const stats=await page.evaluate(()=>{
     const body=getComputedStyle(document.body);
     return {clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,lineHeight:parseFloat(getComputedStyle(document.querySelector(".reading-section .copy")).lineHeight),fontSize:parseFloat(getComputedStyle(document.querySelector(".reading-section .copy")).fontSize),bodyColor:body.color};
@@ -104,12 +100,13 @@ test("Leitura editorial conserva contraste, foco e organização em todos os vie
   expect(stats.scrollWidth).toBeLessThanOrEqual(stats.clientWidth+2);
   expect(stats.lineHeight/stats.fontSize).toBeGreaterThan(1.6);
   if(isMobile){
-    await expect(page.locator(".mobile-outline")).toBeVisible();
-    await page.locator(".mobile-outline summary").click();
-    await expect(page.locator('.mobile-outline a[href="#dados"]')).toBeVisible();
+    await expect(page.getByRole("navigation",{name:"Selecionar função do CRM"})).toBeVisible();
+    await page.getByRole("navigation",{name:"Selecionar função do CRM"}).getByRole("button",{name:/Cadastros/}).click();
+    await expect(page.locator("#dados")).toBeVisible();
   }else{
     await expect(page.locator(".module-sidebar")).toBeVisible();
-    await expect(page.locator('.side-link[href="#dados"]')).toBeVisible();
+    await page.getByRole("navigation",{name:"Funções do CRM"}).getByRole("button",{name:/Cadastros/}).click();
+    await expect(page.locator("#dados")).toBeVisible();
   }
 });
 
@@ -117,15 +114,20 @@ test("Leitura editorial conserva contraste, foco e organização em todos os vie
 test("CRM exibe os inventários reais sem interromper a leitura editorial",async({page},testInfo)=>{
   await page.goto("/modulos/crm/");
   await expect(page.locator("article section.reading-section")).toHaveCount(12);
-  await expect(page.locator(".verified-evidence")).toHaveCount(12);
-  await expect(page.locator(".evidence-table")).toHaveCount(19);
+  await expect(page.locator(".verified-evidence")).toHaveCount(2);
+  await expect(page.locator(".evidence-table")).toHaveCount(2);
+  await page.getByRole("navigation",{name:"Selecionar função do CRM"}).getByRole("button",{name:/Integrações/}).click();
+  await expect(page.locator(".evidence-table")).toHaveCount(5);
   const contracts=page.locator("#contratos");
   await expect(contracts).toContainText("/v1/tenants/:tenantId/crm");
   await expect(contracts).toContainText("crm:people");
+  await page.getByRole("navigation",{name:"Selecionar função do CRM"}).getByRole("button",{name:/Cadastros/}).click();
   const data=page.locator("#dados");
   await expect(data).toContainText("crm_people");
+  await page.getByRole("navigation",{name:"Selecionar função do CRM"}).getByRole("button",{name:/Validações/}).click();
   const security=page.locator("#seguranca");
   await expect(security).toContainText("CoreKernel.execute");
+  await page.getByRole("navigation",{name:"Selecionar função do CRM"}).getByRole("button",{name:/Integrações/}).click();
   const position=await contracts.evaluate(el=>{
     const evidence=el.querySelector(".verified-evidence");
     const sources=el.querySelector(".source-footer");
@@ -137,4 +139,25 @@ test("CRM exibe os inventários reais sem interromper a leitura editorial",async
   expect(position).toBe(true);
   await page.locator("#contratos").scrollIntoViewIfNeeded();
   await page.screenshot({path:testInfo.outputPath("crm-real-contracts.png"),fullPage:false});
+});
+
+test("Funções isolam assuntos sem duplicar documentação e preservam URLs profundas",async({page})=>{
+  await page.goto("/modulos/crm/");
+  const nav=page.getByRole("navigation",{name:"Selecionar função do CRM"});
+  await expect(nav.getByRole("button")).toHaveCount(6);
+  await expect(page.locator("article section.reading-section")).toHaveCount(2);
+  await expect(page.locator("#contratos")).toHaveCount(0);
+  await nav.getByRole("button",{name:/Integrações/}).click();
+  await expect(page.locator("article section.reading-section")).toHaveCount(3);
+  await expect(page.locator("#contratos")).toBeVisible();
+  await expect(page.locator("#identificacao")).toHaveCount(0);
+  await page.locator(".function-topic").filter({hasText:"Contratos e interfaces técnicas"}).click();
+  await expect(page).toHaveURL(/#contratos$/);
+  await page.reload();
+  await expect(page.locator("#contratos")).toBeVisible();
+  await nav.getByRole("button",{name:/Atendimento/}).click();
+  await expect(page.locator("#processos")).toBeVisible();
+  await expect(page.locator("#contratos")).toHaveCount(0);
+  await page.goBack();
+  await expect(page.locator("#contratos")).toBeVisible();
 });
