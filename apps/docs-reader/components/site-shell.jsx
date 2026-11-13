@@ -8,7 +8,7 @@ import { useState } from "react";
 export default function SiteShell({ children }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
-  return <Box minH="100vh" bg="#FBFAF7" color="#253631">
+  return <Box minH="100vh" bg="var(--surface)" color="var(--ink)">
     <header className="site-header">
       <div className="site-header-inner">
         <Link href="/" className="site-brand" onClick={() => setOpen(false)} aria-label="Biblioteca Syndes, início">
