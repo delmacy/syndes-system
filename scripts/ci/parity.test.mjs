@@ -10,10 +10,21 @@ const must=(source,fragments,label)=>{
   }
 };
 
-test("only the central mainline workflow handles Git push, PR and merge-group",async()=>{
+const expectedWorkflows=[
+ "platform-manager.yml",
+ "support-browser-e2e.yml",
+ "syndes-ci.yml",
+ "syndes-docs-pages.yml",
+ "syndes-docs-project-sync.yml",
+];
+const mainlineEvents=source=>[...source.matchAll(/^  (push|pull_request|merge_group):/gm)]
+ .map(match=>match[1]).sort();
+
+test("only the central mainline owns PR and merge-group regression; Docs push is scoped",async()=>{
  const dir=new URL(".github/workflows/",root);
  const names=(await readdir(dir)).filter(x=>/\.ya?ml$/.test(x)).sort();
- assert.deepEqual(names,["platform-manager.yml","support-browser-e2e.yml","syndes-ci.yml"]);
+ // Fail closed when a new workflow is added without a conscious classification.
+ assert.deepEqual(names,expectedWorkflows);
  const main=await read(".github/workflows/syndes-ci.yml");
  must(main,[
    "name: Syndes Mainline CI","pull_request:","push:","merge_group:","workflow_dispatch:",
@@ -23,18 +34,39 @@ test("only the central mainline workflow handles Git push, PR and merge-group",a
    "needs: [foundation, impact, regression, support-browser-parity, platform-manager-parity]",
    "check_selected_parity","Preserve the physical single-organization guard",
  ],"central mainline");
- for(const name of names.filter(n=>n!=="syndes-ci.yml")){
+ assert.deepEqual(mainlineEvents(main),["merge_group","pull_request","push"]);
+ for(const name of ["platform-manager.yml","support-browser-e2e.yml"]){
    const content=await read(".github/workflows/"+name);
    assert.match(content,/^on:\s*\n  workflow_call:/m,name+" must be reusable only");
-   assert.doesNotMatch(content,/^  (?:push|pull_request|merge_group):/m,name+" must not trigger duplicate runs");
+   assert.deepEqual(mainlineEvents(content),[],name+" must not trigger independent regression runs");
  }
+ const pages=await read(".github/workflows/syndes-docs-pages.yml");
+ assert.deepEqual(mainlineEvents(pages),["push"],"Docs must not duplicate PR/merge-group gates");
+ must(pages,[
+   "name: Syndes Docs","branches: [main]","    paths:",
+   '      - "docs/**"','      - "scripts/docs/**"',
+   '      - ".github/workflows/syndes-docs-pages.yml"',
+   "actions/deploy-pages@v4"
+ ],"scoped documentation publisher");
+ assert.doesNotMatch(pages,/^  (?:pull_request|merge_group):/m);
+ const project=await read(".github/workflows/syndes-docs-project-sync.yml");
+ assert.deepEqual(mainlineEvents(project),[],"GitHub Projects sync must not trigger mainline regression");
+ must(project,["workflow_dispatch:","  issues:","SYNDES_PROJECT_URL","SYNDES_PROJECTS_PAT"],
+      "independent issue/project sync");
+});
+
+test("event classifier rejects independent CI events, not scoped documentation publication",()=>{
+ assert.deepEqual(mainlineEvents("on:\n  push:\n  pull_request:\n  merge_group:\n"),
+                  ["merge_group","pull_request","push"]);
+ assert.deepEqual(mainlineEvents("on:\n  workflow_dispatch:\n  issues:\n"),[]);
+ assert.deepEqual(mainlineEvents("on:\n  push:\n    paths:\n      - \"docs/**\"\n"),["push"]);
 });
 
 test("mainline planner and suite runner cover all approved independent domains",async()=>{
  const planner=await read("scripts/ci/plan.mjs");
  const suite=await read("scripts/ci/run-suite.sh");
  for(const name of [
-  "kernel","organizations","crm","inbox","whatsapp-ts","whatsapp-go",
+  "kernel","organizations","crm","inbox","service-management","whatsapp-ts","whatsapp-go",
   "host","workspace","support","support-web","platform-api","platform-web","account-access","infra"
  ]){
    assert.ok(planner.includes("suite: '"+name+"'"),"planner omits "+name);

@@ -1,6 +1,6 @@
 # Q07 — CI/CD
 
-> **Unidade do catálogo Syndes.** Esta é a entrada humana do módulo: navegue pelas seis páginas abaixo. Código e documentação técnica podem existir sem estar implantados ou homologados.
+> **CI central — Q07.** Unidade de engenharia responsável pela seleção, execução e paridade dos testes no `main`. **Revisão parcial com correção técnica testada localmente:** a publicação dos Docs e o sync Projects são workflows auxiliares, e Gestão de Atendimentos agora tem suite PG17 própria. CI global e Product Gate só serão considerados aprovados após prova no SHA remoto.
 
 <!-- syndes:module-id=Q07;source=scripts/ci/plan.mjs;kind=module -->
 
@@ -9,23 +9,30 @@
 | Quero descobrir | Abrir |
 |---|---|
 | **O que o módulo faz?** | [Especificação, capacidades e histórias](ESCOPO.md) |
-| **Como funciona do banco à interface?** | [Referência técnica: stack, classes e contratos](REFERENCIA-TECNICA.md) |
+| **Como o CI é planejado, executado e auditado?** | [Mapa de triggers e gates](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md) · [Referência técnica](REFERENCIA-TECNICA.md) |
 | **O que será feito?** | [Evolução: workpackages e dependências](EVOLUCAO.md) |
 | **O que realmente mudou?** | [Histórico Git e evidências relacionadas](HISTORICO.md) |
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
 
+## Critérios de execução e cobertura {#visao-ci}
+
+- **Mainline:** `syndes-ci.yml` coordena `foundation`, seleção por impacto/full, regressões, paridades e gate.
+- **Workflows auxiliares:** Docs Pages e Projects têm gatilhos específicos e não criam outro pipeline de PR.
+- **Cobertura ampliada:** 15 suites instaladas com `service-management`; PG17 descartável validado localmente.
+- **Estado real:** [STATUS](STATUS.md) distingue prova local e resultado do CI remoto; não confundir testes com deploy.
+
 ## Capacidades e requisitos {#capacidades}
 
-Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O conteúdo da especificação define o que é aprovado; presença de um item na documentação não comprova implementação.**
+Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O resultado de um teste local não equivale a execução do GitHub Actions no mesmo SHA nem a homologação operacional.**
 
 ## Stack, contratos e persistência {#stack}
 
-A [referência técnica](REFERENCIA-TECNICA.md) lista exports de pacote, interfaces públicas, declarações internas de classes/métodos, APIs HTTP identificadas, candidatos de frontend e objetos SQL com origem verificável.
+Q07 **não possui API HTTP, frontend de produto nem banco próprio**. A [referência técnica](REFERENCIA-TECNICA.md) descreve o planner Node, o runner Bash, a matriz JSON, os gatilhos YAML e os requisitos de evidência.
 
-- **Fonte do código/artefato:** [`scripts/ci/plan.mjs`](https://github.com/delmacy/syndes-system/tree/main/scripts/ci/plan.mjs).
-- **Banco de tenant e Control/Manager:** [seção de persistência da referência](REFERENCIA-TECNICA.md).
-- **Contrato público vs. interno:** [referência técnica](REFERENCIA-TECNICA.md).
+- **Fonte principal:** [`scripts/ci/plan.mjs`](https://github.com/delmacy/syndes-system/blob/main/scripts/ci/plan.mjs).
+- **Contratos:** [matriz e dependências](chapters/04-contratos-e-dependencias-publicas.md).
+- **Serviços descartáveis:** PostgreSQL 17 somente para testes de Serviço, sem migrations operacionais.
 
 
 ## Planejamento, progresso e provas {#evolucao}

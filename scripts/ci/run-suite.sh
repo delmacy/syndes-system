@@ -25,8 +25,10 @@ build_host_modules() {
 }
 
 start_pg() {
-  local name="$1" port="$2" password="$3" version="$4"
-  docker run -d --name "$name" -p "127.0.0.1:$port:5432" \
+  local name="$1" port="$2" password="$3" version="$4" label="${5:-}"
+  local label_args=()
+  if [[ -n "$label" ]]; then label_args=(--label "syndes.disposable=$label"); fi
+  docker run -d --name "$name" "${label_args[@]}" -p "127.0.0.1:$port:5432" \
     -e POSTGRES_PASSWORD="$password" postgres:"$version" >/dev/null
   trap 'docker rm -f "$pg_container" >/dev/null 2>&1 || true' EXIT
   for attempt in $(seq 1 45); do
@@ -67,6 +69,16 @@ case "$suite" in
     (cd apps/core-host && npm run link-peers && npm run build)
     (cd modules/inbox && npm run check && npm test && npm pack --dry-run)
     bash modules/inbox/test/postgres-integration.sh
+    ;;
+  service-management)
+    build_kernel
+    install modules/service-management
+    pg_container="syndes-funnel-pg17-20261111"
+    start_pg "$pg_container" 32772 "ci-only-disposable-funnel-ci" "17-alpine" "funnel-mvp-pg17"
+    (cd modules/service-management && npm run check &&
+      SYNDES_FUNNEL_DISPOSABLE=FUNNEL_PG17_ONLY \
+      SYNDES_FUNNEL_PG_URL="postgresql://postgres:ci-only-disposable-funnel-ci@127.0.0.1:32772/postgres" \
+      npm test && npm pack --dry-run)
     ;;
   whatsapp-ts)
     build_kernel

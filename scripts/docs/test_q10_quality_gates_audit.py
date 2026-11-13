@@ -44,7 +44,7 @@ class Q10AuditTests(unittest.TestCase):
         self.assertIn("substituir testes unitários",docs.lower())
         planner=(ROOT/"scripts/ci/plan.mjs").read_text()
         self.assertIn("suite: 'crm'",planner)
-        self.assertNotIn("suite: 'service-management'",planner)
+        self.assertIn("suite: 'service-management'",planner)
         self.assertIn("service-management",(Q10/"STATUS.md").read_text())
 
     def test_current_ci_failure_is_a_blocker_not_approval(self):
@@ -59,12 +59,12 @@ class Q10AuditTests(unittest.TestCase):
 
     def test_plan_separates_quality_status_from_implementation(self):
         plan=(ROOT/"docs/blueprint/PLANO-ATUALIZACAO-MODULOS.md").read_text()
-        self.assertIn("8 STATUS",plan)
-        self.assertIn("49 STATUS",plan)
+        self.assertIn("9 STATUS",plan)
+        self.assertIn("48 STATUS",plan)
         self.assertIn("integridade/CI inventariados; gate global bloqueado",plan)
         statuses={u["id"]:u["status"] for u in json.loads((ROOT/"docs/subprojects/index.json").read_text())["units"]}
         partial={mid for mid,path in statuses.items() if "AUDITORIA TÉCNICA PARCIAL" in (ROOT/path).read_text()}
-        self.assertEqual(partial,{"G01","G02","G03","Q10","P14","P01","P02","P03"})
+        self.assertEqual(partial,{"G01","G02","G03","Q10","Q07","P14","P01","P02","P03"})
 
 if __name__=="__main__":
     unittest.main()

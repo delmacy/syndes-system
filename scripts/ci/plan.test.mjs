@@ -20,6 +20,18 @@ test('core host security changes require full regression', () => {
   assert.deepEqual(names(['infra/security-access/compose.yaml']), available);
 });
 
+test('service-management is required on full and service/CRM/Inbox impact', () => {
+  for (const [path, expected] of [
+    ['modules/service-management/src/plugin.ts', ['service-management', 'inbox', 'host', 'workspace']],
+    ['modules/core-crm/src/service.ts', ['service-management']],
+    ['modules/inbox/src/service.ts', ['service-management']],
+  ]) {
+    const actual=names([path]);
+    for (const suite of expected) assert.ok(actual.includes(suite), `${path}: missing ${suite}`);
+  }
+  assert.ok(names([], 'full').includes('service-management'));
+});
+
 test('WhatsApp provider change reaches Go, TypeScript, host and consumers', () => {
   const impacted = names(['modules/whatsapp/gateway/whatsmeow/gateway.go']);
   for (const suite of ['whatsapp-go', 'whatsapp-ts', 'inbox', 'host', 'workspace']) {

@@ -9,6 +9,7 @@ export const catalog = [
   { suite: 'organizations', marker: 'modules/organizations/package-lock.json', node: '22' },
   { suite: 'crm', marker: 'modules/core-crm/package-lock.json', node: '22' },
   { suite: 'inbox', marker: 'modules/inbox/package-lock.json', node: '22' },
+  { suite: 'service-management', marker: 'modules/service-management/package-lock.json', node: '22' },
   { suite: 'whatsapp-ts', marker: 'modules/whatsapp/package-lock.json', node: '22' },
   { suite: 'whatsapp-go', marker: 'modules/whatsapp/gateway/whatsmeow/go.mod', node: 'go' },
   { suite: 'host', marker: 'apps/core-host/package-lock.json', node: '22' },
@@ -39,9 +40,11 @@ export function selectSuites(changedPaths, available = all, mode = 'impact') {
         /^(apps\/core-host\/src\/|apps\/core-host\/test\/)/.test(file)) {
       add(affected, ...all);
     } else if (file.startsWith('modules/core-crm/')) {
-      add(affected, 'crm', 'inbox', 'host', 'workspace', 'support');
+      add(affected, 'crm', 'inbox', 'service-management', 'host', 'workspace', 'support');
     } else if (file.startsWith('modules/inbox/')) {
-      add(affected, 'inbox', 'whatsapp-ts', 'host', 'workspace', 'support');
+      add(affected, 'inbox', 'service-management', 'whatsapp-ts', 'host', 'workspace', 'support');
+    } else if (file.startsWith('modules/service-management/')) {
+      add(affected, 'service-management', 'inbox', 'host', 'workspace');
     } else if (file.startsWith('modules/whatsapp/')) {
       add(affected, 'whatsapp-ts', 'inbox', 'host', 'workspace');
       if (file.startsWith('modules/whatsapp/gateway/whatsmeow/')) add(affected, 'whatsapp-go');
