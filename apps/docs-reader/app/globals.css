@@ -219,3 +219,97 @@ body {
   .principle-inner h2 { font-size: clamp(2rem, 7.7vw, 3rem); }
   .site-nav { background: #f9fbfe; box-shadow: 0 14px 30px rgba(31,59,98,.11); }
 }
+
+
+/* Source-backed technical inventory: narrative first, evidence second, citations last. */
+.verified-evidence {
+  margin-block: 2.1rem 2.2rem;
+  display: grid;
+  gap: 1.75rem;
+}
+.verified-intro {
+  border-left: 3px solid #b6caec;
+  padding: .15rem 0 .25rem 1.1rem;
+}
+.verified-kicker {
+  display: block;
+  color: #295bb5;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-size: .69rem;
+  font-weight: 700;
+  margin-bottom: .6rem;
+}
+.verified-intro p {
+  color: #4b5e75;
+  font-size: .92rem;
+  line-height: 1.75;
+  max-width: 66ch;
+  margin: 0;
+}
+.evidence-block { min-width: 0; }
+.evidence-block h3 {
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -.025em;
+  line-height: 1.35;
+  font-size: clamp(1.07rem, 1.5vw, 1.23rem);
+  color: #26394f;
+  margin: 0 0 .5rem;
+}
+.evidence-description {
+  color: #62748a;
+  font-size: .86rem;
+  line-height: 1.75;
+  margin: 0 0 1rem;
+  max-width: 69ch;
+}
+.evidence-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  scrollbar-color: #b9cce7 transparent;
+}
+.evidence-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.evidence-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 440px;
+  font-size: .84rem;
+  line-height: 1.62;
+}
+.evidence-table th {
+  text-align: left;
+  font-size: .69rem;
+  font-weight: 650;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+  color: #667991;
+  background: #f2f6fd;
+  padding: .73rem .9rem;
+  border-bottom: 1px solid #dfe7f3;
+}
+.evidence-table td {
+  vertical-align: top;
+  padding: .83rem .9rem;
+  border-bottom: 1px solid #e9eef6;
+  color: #465970;
+}
+.evidence-table td:first-child {
+  color: #2f4764;
+  font-weight: 600;
+  width: 36%;
+  overflow-wrap: anywhere;
+}
+.evidence-table tr:last-child td { border-bottom: 0; }
+.evidence-table tbody tr:hover { background: #f7f9fd; }
+@media(max-width: 760px) {
+  .verified-evidence { margin-block: 1.7rem 1.8rem; gap: 1.5rem; }
+  .evidence-scroll { margin-right: 0; }
+  .evidence-table { font-size: .81rem; }
+  .evidence-table td,.evidence-table th { padding: .72rem .76rem; }
+}
