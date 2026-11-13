@@ -1,4 +1,4 @@
-# I02 — server02 | Atualizações e propostas
+# I02 — Hospedagem e ambientes | Atualizações e propostas
 
 > **Caixa de entrada lógica.** A origem das sugestões é a Issue do GitHub; este índice não significa requisito aprovado.
 

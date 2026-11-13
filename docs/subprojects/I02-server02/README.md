@@ -1,6 +1,6 @@
 # I02 — Hospedagem e ambientes
 
-> **Unidade do catálogo Syndes.** Esta é a entrada humana do módulo: navegue pelas seis páginas abaixo. Código e documentação técnica podem existir sem estar implantados ou homologados.
+> **Hospedagem por ambiente e função (I02).** Auditoria **parcial** com observação somente leitura do Docker no DevServer01 em 12/11/2026. **Staging e produção não foram verificados**, e o caminho físico histórico `I02-server02` não define o ambiente. Serviços observados não significam deploy homologado.
 
 <!-- syndes:module-id=I02;source=infra;kind=module -->
 
@@ -9,23 +9,30 @@
 | Quero descobrir | Abrir |
 |---|---|
 | **O que o módulo faz?** | [Especificação, capacidades e histórias](ESCOPO.md) |
-| **Como funciona do banco à interface?** | [Referência técnica: stack, classes e contratos](REFERENCIA-TECNICA.md) |
+| **Quais ambientes, containers e serviços existem?** | [Inventário observado e manifests](REFERENCIA-TECNICA.md) · [Diagrama e paridade por serviço](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md) |
 | **O que será feito?** | [Evolução: workpackages e dependências](EVOLUCAO.md) |
 | **O que realmente mudou?** | [Histórico Git e evidências relacionadas](HISTORICO.md) |
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
 
+## Ambientes e evidências {#ambientes}
+
+- **Desenvolvimento:** DevServer01 — **16 containers Up**, incluindo PostgreSQL, Keycloak, OpenFGA, OpenBao, Traefik/Komodo, Core Host, Workspace e WhatsApp. São metadados observados, não aceite de serviços.
+- **Homologação / staging:** manifests e scripts identificados, **nenhuma instalação homologada confirmada**.
+- **Produção:** **não verificada** — os conectores de `win1-server` e `server02` estavam offline na coleta; isso não comprova que os servidores estejam parados.
+- **Riscos:** previews/cutovers e um PG17 de teste sem owner reconciliado, versões/digests e roteamento a auditar.
+
 ## Capacidades e requisitos {#capacidades}
 
-Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O conteúdo da especificação define o que é aprovado; presença de um item na documentação não comprova implementação.**
+Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **A existência de Compose ou de container Up não comprova health funcional, backups, staging/produção ou aceite.**
 
 ## Stack, contratos e persistência {#stack}
 
-A [referência técnica](REFERENCIA-TECNICA.md) lista exports de pacote, interfaces públicas, declarações internas de classes/métodos, APIs HTTP identificadas, candidatos de frontend e objetos SQL com origem verificável.
+A [referência técnica](REFERENCIA-TECNICA.md) documenta Compose, networks, images, stores, dependências e o inventário datado. **I02 não publica endpoints, classes de domínio ou UI próprias.**
 
-- **Fonte do código/artefato:** [`infra`](https://github.com/delmacy/syndes-system/tree/main/infra).
-- **Banco de tenant e Control/Manager:** [seção de persistência da referência](REFERENCIA-TECNICA.md).
-- **Contrato público vs. interno:** [referência técnica](REFERENCIA-TECNICA.md).
+- **Fonte versionada:** [`infra/`](https://github.com/delmacy/syndes-system/tree/main/infra) e Compose dos owners.
+- **Dados:** [separação Control, tenant e stores técnicos](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md).
+- **Contratos operacionais:** [matriz de serviços e dependências](chapters/04-contratos-e-dependencias-publicas.md).
 
 
 ## Planejamento, progresso e provas {#evolucao}

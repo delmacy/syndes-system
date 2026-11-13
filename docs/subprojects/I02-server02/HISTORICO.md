@@ -1,4 +1,4 @@
-# I02 — server02 | Histórico
+# I02 — Hospedagem e ambientes | Histórico
 
 > **Histórico realizado, não cronograma.** Commits comprovam mudança de arquivo, não implantação, integração ou aceite. Gerado com a revisão Git do build do Pages.
 

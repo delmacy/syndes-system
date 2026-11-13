@@ -5,7 +5,7 @@
 ## Situação da documentação
 
 - **57 unidades:** 49 principais e 8 componentes documentais vinculados. Os vínculos não criam módulos executáveis novos.
-- **10 STATUS com auditoria técnica parcial registrada:** G01, G02, G03, Q10, Q07, Q01 (fontes e testes) e P14, P01, P02, P03. **47 STATUS** ainda mostram baseline documental sem auditoria funcional verificada. A CI mainline foi aprovada na revisão `bd0aa69`; módulos e produto mantêm seus Product Gates independentes.
+- **11 STATUS com auditoria técnica parcial registrada:** G01, G02, G03, Q10, Q07, Q01, P14, **I02** (DevServer01 observado) e P01, P02, P03. **46 STATUS** ainda mostram baseline documental sem auditoria funcional verificada. A CI mainline foi aprovada na revisão `bd0aa69`; módulos e produto mantêm seus Product Gates independentes.
 - O marcador `maturity` do catálogo é metadado de inventário, não sinônimo de integração/produção/homologação.
 - A [WBS do programa](https://github.com/delmacy/syndes-system/blob/main/docs/engineering/WBS-PROGRAMA-SYNDES-20261110.md) e a [ordem funcional](https://github.com/delmacy/syndes-system/blob/main/docs/product/MODULE-ORDER.md) permanecem as fontes de priorização de entrega.
 
@@ -54,7 +54,7 @@ Identificar ambientes, dados/tenancy, identidade, autorização, segredos e limi
 
 | Ordem | Unidade / fonte de status | Descrição e escopo a conferir | STATUS inicial |
 |---:|---|---|---|
-| 08 | [I02 — Hospedagem e ambientes](../subprojects/I02-server02/README.md) · [STATUS](../subprojects/I02-server02/STATUS.md) | Hospedagem por ambiente, hosts e composição sem dados sensíveis. | Baseline; não auditado |
+| 08 | [I02 — Hospedagem e ambientes](../subprojects/I02-server02/README.md) · [STATUS](../subprojects/I02-server02/STATUS.md) | Hospedagem por ambiente: DevServer01 auditado parcialmente, demais hosts e staging/produção sem verificação. | **Parcial — 16 containers DevServer01 observados, hosts remotos não verificados** |
 | 09 | [I04 — PostgreSQL](../subprojects/I04-postgresql/README.md) · [STATUS](../subprojects/I04-postgresql/STATUS.md) | PostgreSQL, Tenant/Control DB, schemas, roles e migrations. | Baseline; não auditado |
 | 10 | [C01 — Control Plane](../subprojects/C01-control-plane/README.md) · [STATUS](../subprojects/C01-control-plane/STATUS.md) | Control Plane, tenants, grants, organizações e segregação. | Baseline; não auditado |
 | 11 | [C03 — Identity Keycloak](../subprojects/C03-identity-keycloak/README.md) · [STATUS](../subprojects/C03-identity-keycloak/STATUS.md) | Keycloak, OIDC, clients, JWT, audiences e sessões. | Baseline; não auditado |

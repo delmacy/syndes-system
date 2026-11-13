@@ -59,12 +59,12 @@ class Q10AuditTests(unittest.TestCase):
 
     def test_plan_separates_quality_status_from_implementation(self):
         plan=(ROOT/"docs/blueprint/PLANO-ATUALIZACAO-MODULOS.md").read_text()
-        self.assertIn("10 STATUS",plan)
-        self.assertIn("47 STATUS",plan)
+        self.assertIn("11 STATUS",plan)
+        self.assertIn("46 STATUS",plan)
         self.assertIn("integridade inventariada; CI Q07 recuperada, Product Gates pendentes",plan)
         statuses={u["id"]:u["status"] for u in json.loads((ROOT/"docs/subprojects/index.json").read_text())["units"]}
         partial={mid for mid,path in statuses.items() if "AUDITORIA TÉCNICA PARCIAL" in (ROOT/path).read_text()}
-        self.assertEqual(partial,{"G01","G02","G03","Q10","Q07","Q01","P14","P01","P02","P03"})
+        self.assertEqual(partial,{"G01","G02","G03","Q10","Q07","Q01","P14","I02","P01","P02","P03"})
 
 if __name__=="__main__":
     unittest.main()

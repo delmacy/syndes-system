@@ -1,4 +1,4 @@
-# I02 — server02 | PAINEL DE SPRINT
+# I02 — Hospedagem e ambientes | PAINEL DE SPRINT
 
 > SEM SPRINT ATIVA. Abrir chat não inicia sprint. Não confundir planejamento com aceite.
 

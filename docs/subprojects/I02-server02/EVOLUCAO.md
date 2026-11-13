@@ -1,4 +1,4 @@
-# I02 — server02 | Evolução
+# I02 — Hospedagem e ambientes | Evolução
 
 > **PLANO DE EVOLUÇÃO · RASCUNHO DE VINCULAÇÃO.** Os workpackages abaixo são associações com a WBS existente, **não designações exclusivas de ownership**, nem confirmação de que a tarefa esteja em andamento ou concluída. Validar antes de autorizar execução.
 
