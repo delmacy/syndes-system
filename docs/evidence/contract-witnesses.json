@@ -41,6 +41,63 @@
       "symbolKind": "function",
       "symbol": "getWorkspaceConfig",
       "document": "docs/subprojects/C03-identity-keycloak/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "C04-A04-CAN-ACCESS",
+      "module": "C04",
+      "owner": "A04",
+      "source": "apps/core-host/src/adapters.ts",
+      "symbolKind": "method",
+      "symbol": "canAccess",
+      "document": "docs/subprojects/C04-authorization-openfga/REFERENCIA-TECNICA.md",
+      "className": "FgaPermission"
+    },
+    {
+      "id": "C04-A04-FGA-RESOURCE",
+      "module": "C04",
+      "owner": "A04",
+      "source": "apps/core-host/src/adapters.ts",
+      "symbolKind": "function",
+      "symbol": "fgaResourceObject",
+      "document": "docs/subprojects/C04-authorization-openfga/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "C04-A04-EVENT-GRANT",
+      "module": "C04",
+      "owner": "A04",
+      "source": "apps/core-host/src/platform-event-service-grant.ts",
+      "symbolKind": "method",
+      "symbol": "canProcess",
+      "document": "docs/subprojects/C04-authorization-openfga/REFERENCIA-TECNICA.md",
+      "className": "OpenFgaServiceEventGrant"
+    },
+    {
+      "id": "C04-A04-EVENT-OBJECT",
+      "module": "C04",
+      "owner": "A04",
+      "source": "apps/core-host/src/platform-event-service-grant.ts",
+      "symbolKind": "function",
+      "symbol": "fgaEventDeliveryObject",
+      "document": "docs/subprojects/C04-authorization-openfga/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "C04-A04-WORKER-AUTH",
+      "module": "C04",
+      "owner": "A04",
+      "source": "apps/core-host/src/platform-event-worker-admission.ts",
+      "symbolKind": "method",
+      "symbol": "authorize",
+      "document": "docs/subprojects/C04-authorization-openfga/REFERENCIA-TECNICA.md",
+      "className": "TenantEventWorkerAdmission"
+    },
+    {
+      "id": "C04-A06-WRITE-AUTH",
+      "module": "C04",
+      "owner": "A06",
+      "source": "apps/account-access-api/src/auth.mjs",
+      "symbolKind": "js-export-function",
+      "symbol": "createFgaWriteAuthorizer",
+      "document": "docs/subprojects/C04-authorization-openfga/REFERENCIA-TECNICA.md"
     }
   ]
 }

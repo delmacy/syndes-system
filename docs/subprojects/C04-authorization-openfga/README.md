@@ -4,6 +4,8 @@
 
 <!-- syndes:module-id=C04;source=infra/security-access/fga-model.json;kind=module -->
 
+**Checkpoint 13/11/2026:** [auditoria técnica parcial](STATUS.md) de modelo OpenFGA, adapters A04/A06 e grants C06, com evidências de testes descartáveis. **Modelo e tuples reais não verificados.** [Referência técnica](REFERENCIA-TECNICA.md).
+
 ## Acessar a documentação {#acessos}
 
 | Quero descobrir | Abrir |

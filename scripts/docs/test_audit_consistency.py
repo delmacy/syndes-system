@@ -31,7 +31,7 @@ class AuditConsistencyTests(unittest.TestCase):
                 target.parent.mkdir(parents=True,exist_ok=True)
                 shutil.copy2(ROOT/unit["status"],target)
             self.assertEqual(validate(root)[1],[])
-            status=root/next(unit["status"] for unit in units if unit["id"]=="C04")
+            status=root/next(unit["status"] for unit in units if "AUDITORIA TÉCNICA PARCIAL" not in (root/unit["status"]).read_text())
             status.write_text(status.read_text()+"\nAUDITORIA TÉCNICA PARCIAL\n")
             snapshot,issues=validate(root)
             self.assertTrue(issues)

@@ -1,4 +1,19 @@
 ## 5. Arquitetura, banco, interface, configuração e diagramas
-- Componentes, ownership de dados, migrations e autorização: A VERIFICAR.
-- Nomes reais de variáveis de ambiente: A DOCUMENTAR, nunca incluir valores de segredos.
-- Diagramas versionados: A ELABORAR se aplicáveis.
+
+```mermaid
+flowchart TD
+ K[Keycloak C03] --> U[Actor JWT validado]
+ U --> T[Membership Control C01]
+ T --> F[Check OpenFGA C04]
+ F -->|allow| R[Recurso do tenant]
+ F -->|deny/error| X[Sem acesso]
+ S[Service principal confiável] --> E[Module ENABLED C01]
+ E --> W[Org/Workspace ativo]
+ W --> G[event_delivery can_process]
+ G -->|allow| D[Processamento C06]
+ G -->|deny/error| N[Denied/Suspended]
+```
+
+**Persistência:** OpenFGA usa PostgreSQL próprio de serviço conforme Compose; `fga-model.json` não é migration SQL Tenant nem Control. `openfga-migrate` pertence à inicialização operacional do provedor.
+
+**Configuração e redes:** arquivo runtime privado montado pelo Compose, sem publicar valores de store, tokens, URLs, endereços internos ou tuples. Container Up não significa modelo instalado. **Frontend:** não existe tela C04; enforcement pertence aos backends.

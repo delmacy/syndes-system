@@ -63,7 +63,7 @@ def validate(root=ROOT, ast=False, typescript_package_json=None):
             elif witness["symbolKind"]=="method":
                 pattern=r"\b"+re.escape(name)+r"\s*\("
             else:
-                pattern=r"\b(?:export\s+)?(?:async\s+)?function\s+"+re.escape(name)+r"\s*\("
+                pattern=(r"\b(?:export\s+)?(?:async\s+)?function\s+"+re.escape(name)+r"\s*\(" + r"|\bexport\s+const\s+"+re.escape(name)+r"\s*=")
             if not re.search(pattern,text):
                 issues.append(f"{sid}: symbol not found by lexical witness")
         if witness.get("documentMarker",name) not in doc.read_text():

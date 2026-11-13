@@ -5,7 +5,7 @@
 ## Situação da documentação
 
 - **57 unidades:** 49 principais e 8 componentes documentais vinculados. Os vínculos não criam módulos executáveis novos.
-- **14 STATUS com auditoria técnica parcial registrada:** G01, G02, G03, Q10, Q07, Q01, P14, **I02**, **I04**, **C01** (Control no DevServer01), **C03** (Identity Keycloak no DevServer01) e P01, P02, P03. **43 STATUS** ainda mostram baseline documental sem auditoria funcional verificada. A CI mainline foi aprovada na revisão `bd0aa69`; módulos e produto mantêm seus Product Gates independentes.
+- **15 STATUS com auditoria técnica parcial registrada:** G01, G02, G03, Q10, Q07, Q01, P14, **I02**, **I04**, **C01** (Control no DevServer01), **C03** (Identity Keycloak no DevServer01), **C04** (OpenFGA com modelo/adapters auditados) e P01, P02, P03. **42 STATUS** ainda mostram baseline documental sem auditoria funcional verificada. A CI mainline foi aprovada na revisão `bd0aa69`; módulos e produto mantêm seus Product Gates independentes.
 - O marcador `maturity` do catálogo é metadado de inventário, não sinônimo de integração/produção/homologação.
 - A [WBS do programa](https://github.com/delmacy/syndes-system/blob/main/docs/engineering/WBS-PROGRAMA-SYNDES-20261110.md) e a [ordem funcional](https://github.com/delmacy/syndes-system/blob/main/docs/product/MODULE-ORDER.md) permanecem as fontes de priorização de entrega.
 
@@ -60,7 +60,7 @@ Identificar ambientes, dados/tenancy, identidade, autorização, segredos e limi
 | 09 | [I04 — PostgreSQL](../subprojects/I04-postgresql/README.md) · [STATUS](../subprojects/I04-postgresql/STATUS.md) | PostgreSQL: catálogos e grants reais auditados no DevServer01; Control com 6 migrations pendentes. | **Parcial — isolamento SQL básico observado; schemas e restore operacional pendentes** |
 | 10 | [C01 — Control Plane](../subprojects/C01-control-plane/README.md) · [STATUS](../subprojects/C01-control-plane/STATUS.md) | Control base e Manager presentes; 1 tenant `active`, porém catálogos, lifecycle e Control Events ausentes. | **Parcial — seis migrations Control PENDING; sem autorização de apply** |
 | 11 | [C03 — Identity Keycloak](../subprojects/C03-identity-keycloak/README.md) · [STATUS](../subprojects/C03-identity-keycloak/STATUS.md) | OIDC/Keycloak e consumidores JWT: contrato e runtime DevServer01 inventariados, sem inspecionar realm ou usuário real. | **Parcial — JWT/PKCE reconciliados; E2E e realm real pendentes** |
-| 12 | [C04 — Authorization OpenFGA](../subprojects/C04-authorization-openfga/README.md) · [STATUS](../subprojects/C04-authorization-openfga/STATUS.md) | OpenFGA, relações, autorizações e negativas de acesso. | Baseline; não auditado |
+| 12 | [C04 — Authorization OpenFGA](../subprojects/C04-authorization-openfga/README.md) · [STATUS](../subprojects/C04-authorization-openfga/STATUS.md) | Modelo 1.1, checks de usuário e serviço; model/tuples operacionais não verificados. | **Parcial — contratos/adapters reconciliados, grants reais pendentes** |
 | 13 | [C05 — Secrets OpenBao](../subprojects/C05-secrets-openbao/README.md) · [STATUS](../subprojects/C05-secrets-openbao/STATUS.md) | OpenBao, segredos runtime, políticas e rotação. | Baseline; não auditado |
 | 14 | [A06 — Account Access API](../subprojects/A06-account-access-api/README.md) · [STATUS](../subprojects/A06-account-access-api/STATUS.md) | Acesso da conta, memberships e limites da API. | Baseline; não auditado |
 | 15 | [I05 — Docker e redes (componente de I02)](../subprojects/I05-docker-e-redes/README.md) · [STATUS](../subprojects/I05-docker-e-redes/STATUS.md) | Docker, redes, volumes, isolamento e serviços. | Baseline; não auditado |
@@ -162,4 +162,4 @@ Registrar como contrato/proposta até aprovação de Product Gate; não afirmar 
 
 ## Próxima ação de auditoria
 
-**Executadas como auditoria parcial:** G01 → G02 → G03 → Q10 → Q07 → Q01 → P14 → I02 → I04 → C01 → C03. **Próxima unidade:** C04 — Authorization OpenFGA. Continuar por segurança, Core e integrações do MVP. Para o negócio, manter **P01 CRM → P02 Inbox → P03 WhatsApp → P05 Gestão de Atendimentos Basic** conforme o plano de produto. O I09 acompanha a auditoria do P03. A ordem é de **documentação**; não muda o Product Gate vigente.
+**Executadas como auditoria parcial:** G01 → G02 → G03 → Q10 → Q07 → Q01 → P14 → I02 → I04 → C01 → C03 → C04. **Próxima unidade:** C05 — Secrets OpenBao. Continuar por segurança, Core e integrações do MVP. Para o negócio, manter **P01 CRM → P02 Inbox → P03 WhatsApp → P05 Gestão de Atendimentos Basic** conforme o plano de produto. O I09 acompanha a auditoria do P03. A ordem é de **documentação**; não muda o Product Gate vigente.
