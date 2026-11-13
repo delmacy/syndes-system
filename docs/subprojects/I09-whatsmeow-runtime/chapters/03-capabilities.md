@@ -1,4 +1,2 @@
-## 3. Capabilities
-- Capacidades existentes, planejadas e opcionais: A VERIFICAR.
-- Evolução preferencialmente aditiva, sempre compatível e testada.
-- Declarado não significa implementado ou disponível.
+# 03 — Capabilities e limites
+Código inspecionado: `whatsmeowGateway.restore` e sessões QR ([gateway.go](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/gateway.go)); persistência de envios, idempotência e reserva de quota por conta ([outbound.go](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/outbound.go)); autenticação e endpoints internos ([main.go](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/main.go)). Capabilities de código não são capacidades operacionais comprovadas. Quotas e isolamento requerem testes reais.

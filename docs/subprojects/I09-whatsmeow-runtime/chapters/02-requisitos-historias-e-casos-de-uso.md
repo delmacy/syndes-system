@@ -1,2 +1,2 @@
-## 2. Requisitos, histórias e casos de uso
-- RF/US/UC/AC/RN: A INVENTARIAR, sem criar requisitos fictícios.
+# 02 — Casos de uso e requisitos observáveis
+Os caminhos `pairing`, `connect`, `disconnect` e `messages` são branches do handler em [main.go](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/main.go). Autorização usa `authorizeAccount` por accountId, conta habilitada e token derivado de tenant/conta. Casos de teste estão declarados em [main_test.go](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/main_test.go). Histórias de usuário e critérios aprovados devem ser reconciliados com P03; esta auditoria não os inventa.
