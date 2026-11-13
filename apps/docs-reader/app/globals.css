@@ -404,3 +404,15 @@ body {
  .operation-purpose{font-size:16px}
  .operation-contract>div{grid-template-columns:1fr;gap:4px}
 }
+
+
+/* Operation-level exclusive documentation tabs: a single category is visible. */
+.operation-tablist {display:flex;flex-wrap:wrap;gap:7px;margin:26px 0 0;padding:0 0 13px;border-bottom:1px solid var(--line)}
+.operation-tab {border:1px solid #dce4f0;background:#fff;color:#52657f;border-radius:8px;padding:9px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.operation-tab:hover {background:#eef4fd;color:#204e98}
+.operation-tab.active,.operation-tab[aria-selected="true"] {background:#e8f0ff;border-color:#a9c4ef;color:#17478d}
+.operation-tabpanel {min-height:180px;padding-top:13px;outline-offset:4px}
+.operation-tabpanel .operation-part {border-bottom:0}
+.operation-tabpanel .operation-part h4 {margin-top:18px}
+.operation-unverified,.operation-evidence-note {font-size:12px;color:#687b95;line-height:1.7;margin:17px 0}
+@media(max-width:760px){.operation-tablist{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;padding-bottom:14px}.operation-tab{flex:0 0 auto}.operation-tabpanel{min-height:120px}}
