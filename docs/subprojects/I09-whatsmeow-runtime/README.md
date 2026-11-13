@@ -15,6 +15,12 @@
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
 
+## Capítulos temáticos independentes {#capitulos}
+
+[00 — Endereços de leitura](chapters/00-enderecos-exatos-de-leitura.md) · [01 — Missão e fronteiras](chapters/01-missao-objetivos-e-fronteiras.md) · [02 — Requisitos e casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md) · [03 — Capabilities](chapters/03-capabilities.md) · [04 — Contratos públicos](chapters/04-contratos-e-dependencias-publicas.md) · [05 — Arquitetura e dados](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md) · [06 — WBS e aceite](chapters/06-wbs-marcos-e-aceite.md) · [07 — Riscos e lacunas](chapters/07-riscos-lacunas-e-proximos-passos.md).
+
+Cada capítulo é uma página própria, não uma âncora que simula uma aba. A presença de links não comprova a publicação no Pages.
+
 ## Capacidades e requisitos {#capacidades}
 
 Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O conteúdo da especificação define o que é aprovado; presença de um item na documentação não comprova implementação.**
