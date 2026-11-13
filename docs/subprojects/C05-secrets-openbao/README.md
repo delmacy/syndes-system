@@ -4,6 +4,8 @@
 
 <!-- syndes:module-id=C05;source=infra/security-access/openbao;kind=module -->
 
+**Checkpoint 13/11/2026:** [auditoria parcial](STATUS.md) do OpenBao, renderers, AppRole, policies e consumers. Container observado Up, sem consultar seal/ACL/KV. [Contratos e evidências](REFERENCIA-TECNICA.md).
+
 ## Acessar a documentação {#acessos}
 
 | Quero descobrir | Abrir |

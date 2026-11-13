@@ -1,10 +1,10 @@
 ## 0. Endereços exatos de leitura
-- Catálogo: catalog/work-units.json
-- Código/artefato: infra/security-access/openbao
-- AGENTS global: AGENTS.md
-- AGENTS local: Não existe arquivo local específico; aplicar AGENTS.md raiz
-- Package/exports: N/A; localizar configuração declarativa
-- Contratos públicos: docs/standards/CONTRATOS-PUBLICOS.md
-- Escopo: docs/subprojects/C05-secrets-openbao/ESCOPO.md
-- Status: docs/subprojects/C05-secrets-openbao/STATUS.md
-- Sprint: docs/subprojects/C05-secrets-openbao/SPRINT.md
+
+- Catálogo C05: `catalog/work-units.json`; índice: `docs/subprojects/index.json`.
+- Compose: `infra/security-access/compose.yaml`; configuração: `infra/security-access/openbao/config.hcl`.
+- Contratos: `infra/security-access/openbao/render_runtime.py`, `run-renderer.sh` e `policies/*.hcl`.
+- Core Host A04: `apps/core-host/src/secrets.ts`, `test/secrets.test.mjs`.
+- Manager: `infra/master-admin/openbao/render-master.py`, `operator-provision.py`, `run-renderer.sh`.
+- Smoke descartável: `tests/platform/openbao-smoke.sh`.
+- Runbook: `infra/security-access/openbao/README.md`.
+- Auditoria: `docs/subprojects/C05-secrets-openbao/{STATUS,REFERENCIA-TECNICA,OPERACAO}.md`.

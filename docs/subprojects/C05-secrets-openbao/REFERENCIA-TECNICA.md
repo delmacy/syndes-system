@@ -1,38 +1,52 @@
 # C05 — Secrets OpenBao | Referência técnica
 
-> **INVENTÁRIO DOCUMENTAL NÃO AUDITADO.** Só descreve arquivos/declarações presentes no repositório; não representa funcionalidade implantada.
+> **AUDITORIA ESTÁTICA + CONTAINER UP — 13/11/2026.** Baseline `e86beda`; não houve requisições ao OpenBao, leitura de KV, comandos administrativos ou dump de arquivos runtime. Código versionado não significa configuração em operação.
 
-## Stack e ownership
+## Stack, modelo e ownership
 
-- **Fonte:** [infra/security-access/openbao](https://github.com/delmacy/syndes-system/tree/main/infra/security-access/openbao) — diretório.
-- **Owner:** declarado em `catalog/work-units.json`. Contratos públicos de outros owners não podem ser alterados diretamente.
-- **Stack/manifests:** não foi encontrado package.json nesta fonte; auditar o artefato antes de declarar framework.
+| Responsável | Fonte | Contrato/consequência |
+|---|---|---|
+| C05 — servidor | `infra/security-access/compose.yaml`, `infra/security-access/openbao/config.hcl` | OpenBao `openbao/openbao:2.7.0`, HTTPS, rede `syndes-secrets`, volume `openbao_raft`; não é banco Tenant/Control |
+| C05 — políticas candidatas | `infra/security-access/openbao/policies/*.hcl` | Templates declarativos para `core-host`, `core-tenant-db`, `keycloak`, `openfga`, `runtime-delivery`; não comprovam instalação |
+| C05 — renderer | `infra/security-access/openbao/render_runtime.py`, `run-renderer.sh` | AppRole → KV v2 → arquivo de runtime em diretório protegido → revoke-self |
+| A04 — Core Host | `apps/core-host/src/secrets.ts` | `loadCoreSecrets` exige HTTPS + AppRole por arquivos; `openBaoSourceFromEnv` fornece endereços/caminhos, **não valores de secrets** |
+| Manager / operação | `infra/master-admin/openbao/{render-master.py,operator-provision.py,run-renderer.sh}` | Operador e renderer próprios; revisão operacional e autorizações separadas |
 
-## Backend: classes, métodos e responsabilidades
+## Funções e contratos verificáveis
 
-**A AUDITAR:** inspecionar código e testes, assinaturas, parâmetros, efeitos e erros. Não publicar API privada como contrato.
+| Owner | Função | Efeitos e falhas |
+|---|---|---|
+| C05 | `render_runtime.main` (`render_runtime.py`) | Verifica URL fixa, diretório protegido e CA; autentica AppRole e lê KV de `postgres`, `keycloak`, `openfga`; gera arquivos via `mkstemp` + `os.replace`; tenta revogar token |
+| C05 | `render_runtime.password` | Validação local de formato/força mínima para entradas do renderer; não equivale a política de rotação |
+| A04 | `loadCoreSecrets` (`secrets.ts`) | Lê `roleIdFile`/`secretIdFile`; `POST /v1/auth/approle/login`, `GET /v1/kv/data/production/core-host`, `POST /v1/auth/token/revoke-self`; requer `control_db_url` e `openfga_token` |
+| A04 | `openBaoSourceFromEnv` | Seleciona somente `CORE_OPENBAO_URL`, `CORE_BAO_ROLE_ID_FILE`, `CORE_BAO_SECRET_ID_FILE`; não substitui segredo falho por env |
+| Manager | `render-master.main` | Renderer de runtime Manager em owner infra/master-admin; não é API C05 |
+| Manager | `operator-provision.main` | Procedimento operacional com preflight e efeitos; **não executar** como parte de auditoria |
 
-## Contratos públicos, APIs e eventos
+**Notas:** O Core Host tenta revogar o token inclusive após erro no read. Revogação malsucedida bloqueia startup. Este comportamento está em `secrets.test.mjs` com fetch mockado; nenhuma prova de token revogado em ambiente real foi obtida. `render_runtime.py` tem garantia de falha por exceção para requests, mas a revogação é um gate operacional a observar em integração.
 
-[Índice normativo de contratos](../../standards/CONTRATOS-PUBLICOS.md). Imports, endpoints e consumers exigem evidência de export, versão e compatibilidade.
+## Modelo de transporte e persistência
 
-## Frontend: aplicações, telas e componentes
+```mermaid
+flowchart TD
+ O[Operador e cadeia de confiança TLS] --> B[OpenBao C05]
+ B --> V[KV v2 e ACL por AppRole]
+ V --> R[Renderer de infraestrutura]
+ R --> F[Arquivos runtime em tmpfs]
+ F --> P[PostgreSQL / Keycloak / OpenFGA]
+ V --> A[AppRole Core Host A04]
+ A --> H[loadCoreSecrets via HTTPS]
+ H --> S[Configuração interna Core Host]
+```
 
-**A AUDITAR:** conferir telas em Workspace, Manager ou Support e componentes compartilhados; não inferir rota a partir do nome da unidade.
+A conexão apresentada é **arquitetura declarada e/ou caminho no código**, não topologia implantada comprovada. Nenhuma UI própria pertence ao C05. O cofre não define entidades CRM/Inbox, eventos de negócio nem migrations Tenant DB. `openbao_raft` é persistência interna do serviço OpenBao, sem inferir PostgreSQL separado.
 
-## Schemas e migrations
+## Testes e verificação
 
-### Tenant DB
+- `apps/core-host/test/secrets.test.mjs`: success/fail, TLS inválido, KV ausente, revogação falha e ausência de fallback inseguro.
+- `tests/platform/openbao-smoke.sh`: define ensaio descartável com TLS, inicialização/unseal, Raft, AppRole, policies e renderer; **não executar no ambiente com segredos reais**.
+- `infra/security-access/openbao/README.md`: runbook de preparação/DR, com limites explícitos da migração. A checagem só de conteúdo documental não implica resultado de CI ou teste in-memory.
 
-Tabelas e migrações precisam de ownership e prova de aplicação; arquivo SQL presente não equivale a mudança executada.
+**Não homologado:** integração real em DevServer01, CA/SAN instalado, políticas/identidades efetivas, seal state, auditoria OpenBao, snapshots testados, rotação e consumers totalmente migrados.
 
-Nenhuma migration em subpasta SQL nesta fonte; isso **não** comprova ausência de persistência.
-
-### Control / Manager DB
-
-Nenhuma tabela pode ser atribuída ao Control por inferência; confirmar owner e schema. Negócio do cliente fica no Tenant DB.
-
-## Diagramas, testes e pendências
-
-- [Escopo](ESCOPO.md) · [Evolução](EVOLUCAO.md) · [Status](STATUS.md) · [Histórico](HISTORICO.md).
-- **Próximo passo:** auditar classes/exports, contratos, telas, tabelas, testes e evidências sem inventar funcionalidades.
+[Status](STATUS.md) · [Operação](OPERACAO.md) · [Capítulos](ESCOPO.md).

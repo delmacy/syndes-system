@@ -1,33 +1,20 @@
 # C05 — Secrets OpenBao | Operação
 
-> **ÍNDICE DE FONTES, NÃO RUNBOOK HOMOLOGADO.** Não executar migrations, alterar permissões ou ativar workers apenas com esta página.
+> **RUNBOOK DE AUDITORIA, NÃO PROCEDIMENTO APROVADO DE PRODUÇÃO.** O container versionado estava Up no DevServer01 (13/11/2026); **não foi acessado** o cofre ou seu estado lógico. Nenhum comando de `init`, `unseal`, `raft snapshot`, política, rotação ou provisionamento foi executado.
 
-## Estado operacional e evidências
+## Verificações futuras — somente com autorização operacional
 
-- [STATUS](STATUS.md): nível de validação, bloqueios, testes, ambiente e SHA.
-- [SPRINT](SPRINT.md): incremento autorizado e checkpoints, quando existentes.
-- [Evolução](EVOLUCAO.md): workpackages e dependências; nenhum item é concluído por estar planejado.
-- [Histórico](HISTORICO.md): commits de código e documentos.
-- [Workflows GitHub](../../monitoramento/README.md): resultado CI geral, não estado operacional do módulo.
+1. Registrar SHA/digest do serviço, TLS CA/SAN, health/initialized/sealed do ambiente **sem divulgar segredo ou topologia privada**.
+2. Verificar em ambiente autorizado a presença e versão de KV, AppRole, políticas mínimas por workload, restrições negativas e registro de auditoria; guardar evidência sanitizada e segregada.
+3. Validar arquivos tmpfs, permissões, atomicidade do renderer, escopo de rede, expiração e revogação de tokens. A ausência de secrets em logs/compose/metadata requer prova específica.
+4. Separar os consumers efetivamente migrados (Core Host, Manager, PostgreSQL, Keycloak, OpenFGA) por ambiente; não extrapolar do código/README. Testar restart/reload, rotação e fallback recusado.
+5. Preparar backup off-host e exercício de snapshot/restore do Raft, custódia de recovery/unseal, procedimento de rollback e aprovação de segurança antes de registrar operação homologada.
 
-## Fontes e contratos
+## Limites
 
-- [Código/artefato do módulo](https://github.com/delmacy/syndes-system/tree/main/infra/security-access/openbao) — `infra/security-access/openbao`.
-- [Contratos públicos](../../standards/CONTRATOS-PUBLICOS.md).
-- [Regras de rastreabilidade](../../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
-- **Runbook específico:** não verificado neste inventário. Não criar comandos de ambiente por inferência.
+- Nunca copiar shares/tokens, certificados privados, credenciais, conteúdos KV ou arquivo de runtime para Git, artefatos de CI ou documentação.
+- Nunca utilizar o smoke descartável `tests/platform/openbao-smoke.sh` contra volume real: o script inicializa um cofre de teste e usa identidade descartável.
+- O renderer é uma ação com efeitos de escrita de arquivos. **Não foi executado.**
+- O Product Gate exige aprovação dos owners e evidência do ambiente-alvo.
 
-## Operações orientadas por agentes
-
-- [Projeção / Planejamento](PROJECAO.md)
-- [Implementação](IMPLEMENTACAO.md)
-- [Alteração rápida](ALTERACAO.md)
-- [Entrada de propostas](updates/README.md)
-
-## Gates para operação real
-
-1. Conferir fonte, tenant/org/workspace, ambiente, SHA e autorização explícita.
-2. Validar identity/service grants e ownership de banco.
-3. Confirmar migrations realmente aplicadas, backup/restore e rollback antes de SQL.
-4. Testar com critérios apropriados: unitário, contrato, integração, E2E e CI.
-5. Registrar resultado e evidência em STATUS, sem confundir merge com deploy ou aceite.
+[Referência técnica](REFERENCIA-TECNICA.md) · [Status](STATUS.md) · [Evolução](EVOLUCAO.md) · [Sprint](SPRINT.md) · [Projeção](PROJECAO.md) · [Implementação](IMPLEMENTACAO.md) · [Alteração](ALTERACAO.md) · [Runbook upstream](../../../infra/security-access/openbao/README.md).

@@ -58,7 +58,9 @@ def validate(root=ROOT, ast=False, typescript_package_json=None):
                 issues.append(f"{sid}: method visibility differs")
         else:
             # Explicit lexical fallback: do not present as AST or signature proof.
-            if witness["symbolKind"]=="js-export-function":
+            if witness["symbolKind"]=="python-function":
+                pattern=r"(?m)^def\s+"+re.escape(name)+r"\s*\("
+            elif witness["symbolKind"]=="js-export-function":
                 pattern=r"\bexport\s+function\s+"+re.escape(name)+r"\s*\("
             elif witness["symbolKind"]=="method":
                 pattern=r"\b"+re.escape(name)+r"\s*\("

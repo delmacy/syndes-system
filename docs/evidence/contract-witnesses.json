@@ -98,6 +98,56 @@
       "symbolKind": "js-export-function",
       "symbol": "createFgaWriteAuthorizer",
       "document": "docs/subprojects/C04-authorization-openfga/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "C05-C05-RENDER",
+      "module": "C05",
+      "owner": "C05",
+      "source": "infra/security-access/openbao/render_runtime.py",
+      "symbolKind": "python-function",
+      "symbol": "main",
+      "document": "docs/subprojects/C05-secrets-openbao/REFERENCIA-TECNICA.md",
+      "documentMarker": "render_runtime.main"
+    },
+    {
+      "id": "C05-C05-PASSWORD",
+      "module": "C05",
+      "owner": "C05",
+      "source": "infra/security-access/openbao/render_runtime.py",
+      "symbolKind": "python-function",
+      "symbol": "password",
+      "document": "docs/subprojects/C05-secrets-openbao/REFERENCIA-TECNICA.md",
+      "documentMarker": "render_runtime.password"
+    },
+    {
+      "id": "C05-A04-LOAD",
+      "module": "C05",
+      "owner": "A04",
+      "source": "apps/core-host/src/secrets.ts",
+      "symbolKind": "function",
+      "symbol": "loadCoreSecrets",
+      "document": "docs/subprojects/C05-secrets-openbao/REFERENCIA-TECNICA.md",
+      "documentMarker": "loadCoreSecrets"
+    },
+    {
+      "id": "C05-A04-ENV",
+      "module": "C05",
+      "owner": "A04",
+      "source": "apps/core-host/src/secrets.ts",
+      "symbolKind": "function",
+      "symbol": "openBaoSourceFromEnv",
+      "document": "docs/subprojects/C05-secrets-openbao/REFERENCIA-TECNICA.md",
+      "documentMarker": "openBaoSourceFromEnv"
+    },
+    {
+      "id": "C05-MGR-RENDER",
+      "module": "C05",
+      "owner": "A05",
+      "source": "infra/master-admin/openbao/render-master.py",
+      "symbolKind": "python-function",
+      "symbol": "main",
+      "document": "docs/subprojects/C05-secrets-openbao/REFERENCIA-TECNICA.md",
+      "documentMarker": "render-master.main"
     }
   ]
 }
