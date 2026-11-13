@@ -22,7 +22,7 @@ test("Source evidence does not claim unverified product acceptance",()=>{
   assert.ok(domains.filter(d=>d.pilot).length===1);
 });
 
-test("Cada um dos 12 tópicos tem inventário técnico com fontes verificáveis", async()=>{
+test("Cada um dos 12 tópicos possui inventário técnico e fontes verificáveis",async()=>{
   const {CRM_EVIDENCE,evidenceIds}=await import("../lib/crm-evidence.js");
   assert.equal(evidenceIds.length,12);
   assert.deepEqual(new Set(evidenceIds),new Set(crmSections.map(section=>section.id)));
@@ -36,20 +36,14 @@ test("Cada um dos 12 tópicos tem inventário técnico com fontes verificáveis"
       assert.equal(block.headers.length,2,section.id);
       assert.ok(block.rows.every(cells=>cells.length===2),section.id);
       assert.ok(block.references.length>=1,section.id);
-      for(const source of block.references)assert.match(source.href,/^https:\\/\\/github\\.com\\/delmacy\\/syndes-system\\//);
+      for(const source of block.references)assert.ok(source.href.startsWith("https://github.com/delmacy/syndes-system/"));
     }
   }
 });
-
-test("Exemplos operacionais nao equivalem a homologacao", async()=>{
+test("Distingue código encontrado de homologação de produto",async()=>{
   const {CRM_EVIDENCE}=await import("../lib/crm-evidence.js");
   const all=Object.values(CRM_EVIDENCE).flatMap(e=>e.blocks).flatMap(b=>b.rows).flat().join(" ");
-  assert.match(all,/b452a03e/);
-  assert.match(all,/29 PASS/);
-  assert.match(all,/Product Gate/);
-  assert.match(all,/crm_people/);
-  assert.match(all,/CrmService/);
-  assert.match(all,/crm:people/);
-  assert.match(all,/inbox\\.participant\\.observed\\.v1/);
-  assert.match(all,/50\\.02/);
+  for(const required of ["b452a03e","29 PASS","Product Gate","crm_people","CrmService","crm:people","inbox.participant.observed.v1","50.02"]){
+    assert.ok(all.includes(required),required);
+  }
 });
