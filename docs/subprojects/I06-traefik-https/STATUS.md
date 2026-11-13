@@ -1,6 +1,6 @@
 # I06 — Traefik HTTPS | STATUS
 
-> **Auditoria documental parcial, não homologação operacional.** Fonte principal: `modules/whatsapp/deploy/devserver01-cutover.compose.yaml`; [evidência datada](../../evidence/checkpoints/I06-traefik-https-github-reconciliation-20261113.md).
+> **AUDITORIA TÉCNICA PARCIAL — não homologação operacional.** Fonte principal: `modules/whatsapp/deploy/devserver01-cutover.compose.yaml`; [evidência datada](../../evidence/checkpoints/I06-traefik-https-github-reconciliation-20261113.md).
 
 ## Onde paramos?
 - Compose versionado de cutover WhatsApp contém dois routers, prioridades 110/2, entrypoint `web`, middleware referenciado `syndes-tailnet-only@docker` e destinos 8082/80.
