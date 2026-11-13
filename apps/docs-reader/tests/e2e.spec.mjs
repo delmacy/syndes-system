@@ -24,27 +24,26 @@ test("O CRM tem seis funções e abre uma operação sem exibir catálogo interm
   await expect(page.locator("#crm-search-person")).toBeVisible();
   await expect(page.locator("#crm-create-person")).toHaveCount(0);
 });
-test("A operação apresenta comportamento, campos, contrato, critérios e referências nesta ordem",async({page})=>{
+test("As nove abas da operação são exclusivas e exibem conteúdo correto",async({page})=>{
   await page.goto("/modulos/crm/#crm-create-person");
   const op=page.locator("#crm-create-person");
-  await expect(op).toBeVisible();
-  await expect(op).toContainText("CrmService");
-  await expect(op.locator(".operation-steps li")).toHaveCount(3);
-  await expect(op.locator(".evidence-table tbody tr")).toHaveCount(3);
-  await expect(op.locator(".source-footer a")).toHaveCount(6);
-  await expect(op.locator(".operation-expander")).toHaveCount(2);
+  const tabs=op.getByRole("tablist",{name:/Documentação de/});
+  await expect(tabs.getByRole("tab")).toHaveCount(9);
+  await expect(op.getByRole("tabpanel")).toHaveCount(1);
   await expect(op.getByText("POST /v1/tenants/:tenantId/crm/people")).not.toBeVisible();
-  await op.locator(".operation-expander").first().locator("summary").click();
+  await tabs.getByRole("tab",{name:"Fluxo"}).click();
+  await expect(op.locator(".operation-steps li")).toHaveCount(3);
+  await expect(op.locator(".evidence-table")).toHaveCount(0);
+  await tabs.getByRole("tab",{name:"Dados"}).click();
+  await expect(op.locator(".evidence-table tbody tr")).toHaveCount(3);
+  await expect(op.locator(".operation-steps")).toHaveCount(0);
+  await tabs.getByRole("tab",{name:"API",exact:true}).click();
   await expect(op.getByText("POST /v1/tenants/:tenantId/crm/people")).toBeVisible();
-  await op.locator(".operation-expander").nth(1).locator("summary").click();
-  await expect(op.locator(".operation-checklist li")).toHaveCount(5);
-  const ordered=await op.evaluate(el=>{
-    const refs=el.querySelector(".source-footer");
-    const proposal=el.querySelector(".proposal-area");
-    const rules=el.querySelector(".operation-rules");
-    return Boolean(rules&&refs&&proposal&&(rules.compareDocumentPosition(refs)&Node.DOCUMENT_POSITION_FOLLOWING)&&(refs.compareDocumentPosition(proposal)&Node.DOCUMENT_POSITION_FOLLOWING));
-  });
-  expect(ordered).toBe(true);
+  await expect(op.getByRole("tab",{name:"API",exact:true})).toHaveAttribute("aria-selected","true");
+  await expect(op.locator(".source-footer a")).toHaveCount(6);
+  await tabs.getByRole("tab",{name:"Pendências"}).click();
+  await expect(op.getByRole("button",{name:"Exportar briefing .md"})).toBeVisible();
+  await expect(op.locator(".proposal-area")).toHaveCount(1);
 });
 test("Modo referência técnica preserva os doze assuntos e links diretos",async({page})=>{
   await page.goto("/modulos/crm/#contratos");
@@ -72,6 +71,7 @@ test("Histórico e URL levam diretamente à operação correta",async({page})=>{
 });
 test("Rascunho por operação persiste e é exportável sem enviar ao servidor",async({page})=>{
   await page.goto("/modulos/crm/#crm-create-person");
+  await page.locator("#crm-create-person").getByRole("tab",{name:"Pendências"}).click();
   const area=page.locator(".operation-detail .proposal-area");
   await area.locator(".proposal-trigger").click();
   await area.locator("input").fill("Melhorar validação de email");
@@ -115,7 +115,7 @@ test("Navegação móvel continua acessível sem overflow",async({page,isMobile}
 test("Briefing de agente pode ser exportado sem clipboard e sem executar ações",async({page})=>{
   await page.goto("/modulos/crm/#crm-create-person");
   const op=page.locator("#crm-create-person");
-  await op.locator(".operation-agent summary").click();
+  await op.getByRole("tab",{name:"Pendências"}).click();
   const download=page.waitForEvent("download");
   await op.getByRole("button",{name:"Exportar briefing .md"}).click();
   const artifact=await download;
