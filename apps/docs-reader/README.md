@@ -25,7 +25,9 @@ O pacote é isolado, sem imports das aplicações `workspace-web` ou `platform-m
 
 ## Publicação experimental
 
-Vercel com projeto independente: `syndes-docs-reader` (root `apps/docs-reader`), sem associar o domínio de produção da plataforma. Uma URL `.vercel.app` é adequada para testes. A futura migração para um servidor próprio deverá manter o mesmo pacote Next.js.
+O projeto Vercel independente `syndes-docs-reader` foi criado (root `apps/docs-reader`), mas a primeira tentativa de deploy foi bloqueada por limite diário de deployments do plano. Não modificar configurações de cobrança para contornar isso.
+
+**Fallback aprovado:** exportar o mesmo Next.js como conteúdo estático no GitHub Pages, em `https://delmacy.github.io/syndes-system/assets/docs-reader/`. O pipeline documental define `NEXT_PUBLIC_READER_BASEPATH=/syndes-system/assets/docs-reader`, executa `next build` com `output: "export"` e publica o diretório `out` como subpasta isolada. A persistência local das propostas funciona sem backend, mas elas não sincronizam entre dispositivos. Na migração posterior para Vercel/servidor, retirar a variável de exportação reativa o Next convencional.
 
 ## Próximos passos
 
