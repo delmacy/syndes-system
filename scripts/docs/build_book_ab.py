@@ -64,8 +64,10 @@ def build():
  (b/'astro.config.mjs').write_text('import { defineConfig } from "astro/config";\nimport starlight from "@astrojs/starlight";\nexport default defineConfig({site:"https://delmacy.github.io",base:"/syndes-system/assets/experimentos/livros/b",integrations:[starlight({title:"Syndes · Biblioteca B", description:"Acervo técnico do Syndes", locales:{root:{label:"Português",lang:"pt-BR"}}, sidebar:'+json.dumps(sidebar,ensure_ascii=False)+',tableOfContents:{minHeadingLevel:2,maxHeadingLevel:3},customCss:["./src/styles/custom.css"]})]});\n')
  (b/'src/content.config.ts').write_text('import { defineCollection } from "astro:content";\nimport { docsLoader } from "@astrojs/starlight/loaders";\nimport { docsSchema } from "@astrojs/starlight/schema";\nexport const collections = { docs: defineCollection({ loader: docsLoader(), schema: docsSchema() }) };\n')
  (b/'src/styles').mkdir(parents=True)
- (b/'src/styles/custom.css').write_text(':root { --sl-color-accent-low: #142d36; --sl-color-accent: #0c8b9c; --sl-color-accent-high: #c8f5f5; }\n')
+ (b/'src/styles/custom.css').write_text((ROOT/'scripts/docs/book_edition.css').read_text(encoding='utf-8'))
  (b/'package.json').write_text(json.dumps({'private':True,'type':'module','scripts':{'build':'astro build'},'dependencies':{'astro':'^5.15.0','@astrojs/starlight':'^0.36.0'}},indent=2))
  (DEST/'README.md').write_text('# Syndes · Prototipação A/B de biblioteca\n\nA = VitePress, B = Astro Starlight. Mesma fonte para 57 capítulos em cinco volumes. Snapshot para avaliação da interface, não da completude técnica.\n\nA execução `python3 scripts/docs/build_book_ab.py` gera dois projetos temporários. Para produzir os bundles HTML, execute `npm install` + `npm run build` em cada projeto e copie `vitepress/docs/.vitepress/dist` e `starlight/dist` para caminhos de prévia isolados. Não substituir MkDocs sem decisão explícita.\n')
+ from enrich_starlight_book import enrich
+ enrich()
  print('Generated',len(CAT),'chapters in both frameworks')
 if __name__=='__main__':build()

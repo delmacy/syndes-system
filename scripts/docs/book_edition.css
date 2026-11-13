@@ -1,0 +1,9 @@
+/* Syndes — Book edition, experimental. No changes to canonical MkDocs. */
+:root { --sl-color-accent-low: #143d43; --sl-color-accent: #147983; --sl-color-accent-high: #d3f7f2; --sl-content-width: 54rem; }
+:root[data-theme="light"] { --sl-color-accent-low: #d5edf0; --sl-color-accent: #116874; --sl-color-accent-high: #14404b; }
+.sl-markdown-content h1, .sl-markdown-content h2 { letter-spacing: -.022em; }
+.sl-markdown-content h2 { border-bottom: 1px solid var(--sl-color-hairline); padding-bottom: .48rem; margin-top: 2.1rem; }
+.sl-markdown-content table { font-size: .92rem; }
+.sl-markdown-content table a { text-underline-offset: .18rem; }
+.sl-markdown-content blockquote { border-inline-start: 3px solid var(--sl-color-accent); }
+.sl-markdown-content code { overflow-wrap: anywhere; }
