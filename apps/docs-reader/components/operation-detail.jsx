@@ -36,7 +36,15 @@ export function agentBrief(operation) {
   ];
   return lines.join("\n");
 }
+const TABS=[
+  ["resumo","Resumo"],["fluxo","Fluxo"],["contratos","Contratos"],["dados","Dados"],
+  ["api","API"],["seguranca","Segurança"],["testes","Testes"],["operacao","Operação"],["pendencias","Pendências"]
+];
+function Unverified({children="Não documentado nas evidências desta operação."}) {
+  return <p className="operation-unverified">{children}</p>;
+}
 export default function OperationDetail({operation}) {
+  const [tab,setTab]=useState("resumo");
   const [feedback,setFeedback]=useState("");
   const copy=async()=>{
     try {await navigator.clipboard.writeText(agentBrief(operation));setFeedback("Briefing copiado para revisão por um agente.");}
@@ -52,59 +60,76 @@ export default function OperationDetail({operation}) {
     URL.revokeObjectURL(url);
     setFeedback("Briefing Markdown exportado para revisão.");
   };
+  const tabId="operation-panel-"+tab;
   return <section className="operation-detail" aria-labelledby="operation-title" id={operation.id}>
     <div className="operation-head">
-      <div>
-        <span className="eyebrow">OPERAÇÃO · {operation.kind}</span>
-        <h3 id="operation-title">{operation.title}</h3>
-      </div>
+      <div><span className="eyebrow">OPERAÇÃO · {operation.kind}</span><h3 id="operation-title">{operation.title}</h3></div>
       <span className="operation-status">{operation.state}</span>
     </div>
     <p className="operation-purpose">{operation.objective}</p>
-    <section className="operation-part" aria-labelledby="operation-flow">
-      <div className="operation-part-title"><Check size={16}/><h4 id="operation-flow">Como funciona</h4></div>
-      <ol className="operation-steps">{operation.behavior.map((step,i)=><li key={i}>{step}</li>)}</ol>
-    </section>
-    <section className="operation-part" aria-labelledby="operation-inputs">
-      <div className="operation-part-title"><TableProperties size={16}/><h4 id="operation-inputs">Entradas e resultado</h4></div>
-      <div className="evidence-scroll" role="region" tabIndex={0} aria-label="Entradas da operação">
-        <table className="evidence-table">
-          <thead><tr><th scope="col">Campo</th><th scope="col">Regra encontrada</th></tr></thead>
-          <tbody>{operation.inputs.map(([name,rule])=><tr key={name}><td><code>{name}</code></td><td>{rule}</td></tr>)}</tbody>
-        </table>
-      </div>
-      <p className="operation-result"><strong>Resultado:</strong> {operation.output}</p>
-    </section>
-    <section className="operation-part">
-      <div className="operation-part-title"><ShieldCheck size={16}/><h4>Regras e limites</h4></div>
-      <ul className="operation-rules">{operation.rules.map((rule,i)=><li key={i}>{rule}</li>)}</ul>
-    </section>
-    <details className="operation-expander">
-      <summary>Contratos, dados e evidências técnicas <FileCode2 size={16}/></summary>
-      <div className="operation-expander-body">
-        <dl className="operation-contract">
-          <div><dt>Classe ou método</dt><dd><code>{operation.contract.method}</code></dd></div>
-          <div><dt>Rota HTTP declarada</dt><dd><code>{operation.contract.http}</code></dd></div>
-          <div><dt>Permissão</dt><dd>{operation.contract.permission}</dd></div>
-          <div><dt>Dados</dt><dd>{operation.contract.data}</dd></div>
-        </dl>
-        <p>{operation.evidence}</p>
-      </div>
-    </details>
-    <details className="operation-expander operation-agent">
-      <summary>Critérios de aceite e briefing para agente <ClipboardCopy size={16}/></summary>
-      <div className="operation-expander-body">
-        <p>Esta é uma delimitação de trabalho, não uma autorização automática de implementação.</p>
-        <ul className="operation-checklist">{operation.acceptance.map((criterion,i)=><li key={i}><span className="criterion-box" aria-hidden="true"/> {criterion}</li>)}</ul>
-        <p><strong>Próxima ação sugerida:</strong> {operation.task}</p>
+    <div className="operation-tablist" role="tablist" aria-label={"Documentação de "+operation.title}>
+      {TABS.map(([id,label])=><button key={id} type="button" role="tab" id={"operation-tab-"+id} aria-selected={tab===id} aria-controls={"operation-panel-"+id} className={"operation-tab"+(tab===id?" active":"")} onClick={()=>setTab(id)}>{label}</button>)}
+    </div>
+    <div role="tabpanel" id={tabId} aria-labelledby={"operation-tab-"+tab} className="operation-tabpanel" tabIndex={0}>
+      {tab==="resumo"&&<section className="operation-part">
+        <div className="operation-part-title"><Check size={16}/><h4>Propósito e resultado</h4></div>
+        <p>{operation.objective}</p>
+        <p className="operation-result"><strong>Resultado:</strong> {operation.output||"Não documentado."}</p>
+        <p className="operation-result"><strong>Estado declarado:</strong> {operation.state}</p>
+        <p className="operation-result"><strong>Natureza:</strong> {operation.kind}</p>
+        <p className="operation-evidence-note">O estado é documental; código identificado não comprova aceite, implantação ou homologação.</p>
+      </section>}
+      {tab==="fluxo"&&<section className="operation-part">
+        <div className="operation-part-title"><Check size={16}/><h4>Como funciona</h4></div>
+        {operation.behavior?.length?<ol className="operation-steps">{operation.behavior.map((step,i)=><li key={i}>{step}</li>)}</ol>:<Unverified/>}
+        <h4>Regras do fluxo</h4>
+        {operation.rules?.length?<ul className="operation-rules">{operation.rules.map((rule,i)=><li key={i}>{rule}</li>)}</ul>:<Unverified/>}
+      </section>}
+      {tab==="contratos"&&<section className="operation-part">
+        <div className="operation-part-title"><FileCode2 size={16}/><h4>Contratos identificados</h4></div>
+        <dl className="operation-contract"><div><dt>Classe ou método</dt><dd><code>{operation.contract?.method||"Não documentado"}</code></dd></div><div><dt>Permissão</dt><dd>{operation.contract?.permission||"Não documentado"}</dd></div></dl>
+        <p>{operation.evidence||"Não há evidência técnica registrada."}</p>
+        <Unverified>Contratos públicos/privados, comandos e eventos não discriminados nesta ficha devem ser reconciliados com a fonte; não são presumidos.</Unverified>
+      </section>}
+      {tab==="dados"&&<section className="operation-part">
+        <div className="operation-part-title"><TableProperties size={16}/><h4>Entradas, persistência e saídas</h4></div>
+        {operation.inputs?.length?<div className="evidence-scroll" role="region" tabIndex={0} aria-label="Entradas da operação"><table className="evidence-table"><thead><tr><th scope="col">Campo</th><th scope="col">Regra encontrada</th></tr></thead><tbody>{operation.inputs.map(([name,rule])=><tr key={name}><td><code>{name}</code></td><td>{rule}</td></tr>)}</tbody></table></div>:<Unverified/>}
+        <p className="operation-result"><strong>Persistência:</strong> {operation.contract?.data||"Não documentada"}</p>
+        <p className="operation-result"><strong>Saída:</strong> {operation.output||"Não documentada"}</p>
+      </section>}
+      {tab==="api"&&<section className="operation-part">
+        <div className="operation-part-title"><FileCode2 size={16}/><h4>Superfície de API</h4></div>
+        <dl className="operation-contract"><div><dt>Rota HTTP declarada</dt><dd><code>{operation.contract?.http||"Não documentada"}</code></dd></div><div><dt>Método interno</dt><dd><code>{operation.contract?.method||"Não documentado"}</code></dd></div></dl>
+        <Unverified>Não inferir schemas, códigos HTTP, autenticação ou estabilidade pública além das referências verificadas.</Unverified>
+      </section>}
+      {tab==="seguranca"&&<section className="operation-part">
+        <div className="operation-part-title"><ShieldCheck size={16}/><h4>Autorização e isolamento</h4></div>
+        <p><strong>Permissão declarada:</strong> {operation.contract?.permission||"Não documentada"}</p>
+        {operation.rules?.length?<ul className="operation-rules">{operation.rules.map((rule,i)=><li key={i}>{rule}</li>)}</ul>:<Unverified/>}
+        <p className="operation-evidence-note">Confirmar identidade confiável, tenant scope e políticas no código e nos testes antes de homologar.</p>
+      </section>}
+      {tab==="testes"&&<section className="operation-part">
+        <div className="operation-part-title"><Check size={16}/><h4>Critérios de aceite a verificar</h4></div>
+        {operation.acceptance?.length?<ul className="operation-checklist">{operation.acceptance.map((criterion,i)=><li key={i}><span className="criterion-box" aria-hidden="true"/> {criterion}</li>)}</ul>:<Unverified/>}
+        <p className="operation-evidence-note">Critério listado não significa teste executado ou aprovado.</p>
+      </section>}
+      {tab==="operacao"&&<section className="operation-part">
+        <div className="operation-part-title"><ShieldCheck size={16}/><h4>Operação e evidências</h4></div>
+        <p>{operation.evidence||"Não documentado."}</p>
+        <Unverified>Ambiente de execução, métricas, alertas, reprocessamento e runbook exigem evidências próprias.</Unverified>
+      </section>}
+      {tab==="pendencias"&&<section className="operation-part operation-agent">
+        <div className="operation-part-title"><ClipboardCopy size={16}/><h4>Próximo trabalho focado</h4></div>
+        <p>{operation.task||"Não documentado."}</p>
+        <p>Briefing para revisão, não autorização automática para implementação, migrations ou deploy.</p>
         <div className="proposal-actions"><button className="action-ghost" type="button" onClick={copy}><ClipboardCopy size={14} style={{display:"inline",marginRight:6}}/>Copiar briefing técnico</button><button className="action-ghost" type="button" onClick={download}><Download size={14} style={{display:"inline",marginRight:6}}/>Exportar briefing .md</button></div>
         {feedback&&<p className="proposal-feedback" role="status">{feedback}</p>}
-      </div>
-    </details>
+        <ProposalEditor moduleId="P01" sectionId={operation.id} sectionTitle={operation.title} sourceLink={operation.sources?.[0]?.url||""}/>
+      </section>}
+    </div>
     <footer className="source-footer" aria-label={"Fontes da operação "+operation.title}>
       <span className="source-label">Fontes e registros originais</span>
-      <div className="source-links">{operation.sources.map(s=><a href={s.url} key={s.url} target="_blank" rel="noopener noreferrer">{s.label}<ArrowUpRight size={12}/></a>)}</div>
+      <div className="source-links">{(operation.sources||[]).map(s=><a href={s.url} key={s.url} target="_blank" rel="noopener noreferrer">{s.label}<ArrowUpRight size={12}/></a>)}</div>
     </footer>
-    <ProposalEditor moduleId="P01" sectionId={operation.id} sectionTitle={operation.title} sourceLink={operation.sources[0]?.url||""}/>
   </section>;
 }
