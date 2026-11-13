@@ -5,7 +5,7 @@
 ## Situação da documentação
 
 - **57 unidades:** 49 principais e 8 componentes documentais vinculados. Os vínculos não criam módulos executáveis novos.
-- **9 STATUS com auditoria técnica parcial registrada:** G01, G02, G03, Q10, Q07 (auditoria documental e correção local de CI) e P14, P01, P02, P03. **48 STATUS** ainda mostram baseline documental sem auditoria funcional verificada. Aprovação de CI, serviços e produto requer validação independente.
+- **10 STATUS com auditoria técnica parcial registrada:** G01, G02, G03, Q10, Q07, Q01 (fontes e testes) e P14, P01, P02, P03. **47 STATUS** ainda mostram baseline documental sem auditoria funcional verificada. A CI mainline foi aprovada na revisão `bd0aa69`; módulos e produto mantêm seus Product Gates independentes.
 - O marcador `maturity` do catálogo é metadado de inventário, não sinônimo de integração/produção/homologação.
 - A [WBS do programa](https://github.com/delmacy/syndes-system/blob/main/docs/engineering/WBS-PROGRAMA-SYNDES-20261110.md) e a [ordem funcional](https://github.com/delmacy/syndes-system/blob/main/docs/product/MODULE-ORDER.md) permanecem as fontes de priorização de entrega.
 
@@ -43,9 +43,9 @@ Acordar critérios de evidência, ownership, escopo e arquitetura antes de detal
 | 01 | [G01 — Arquitetura](../subprojects/G01-arquitetura/README.md) · [STATUS](../subprojects/G01-arquitetura/STATUS.md) | Arquitetura, decisões e fronteiras entre domínios e owners. | **Parcial — fontes/ADRs reconciliadas; aprovação pendente** |
 | 02 | [G02 — Produto e UX](../subprojects/G02-produto-e-ux/README.md) · [STATUS](../subprojects/G02-produto-e-ux/STATUS.md) | Jornadas, requisitos de produto, UX e critérios de aceite. | **Parcial — PRDs/UX reconciliados; Product Gates pendentes** |
 | 03 | [G03 — Engenharia e Git](../subprojects/G03-engenharia-e-git/README.md) · [STATUS](../subprojects/G03-engenharia-e-git/STATUS.md) | Engenharia, Git/worktrees, AGENTS e rastreabilidade. | **Parcial — regras/CI e Projects inventariados; aprovação pendente** |
-| 04 | [Q10 — Quality Gates](../subprojects/Q10-quality-gates/README.md) · [STATUS](../subprojects/Q10-quality-gates/STATUS.md) | Gates de qualidade, critérios e evidências exigidas. | **Parcial — integridade/CI inventariados; gate global bloqueado** |
+| 04 | [Q10 — Quality Gates](../subprojects/Q10-quality-gates/README.md) · [STATUS](../subprojects/Q10-quality-gates/STATUS.md) | Gates de qualidade, critérios e evidências exigidas. | **Parcial — integridade inventariada; CI Q07 recuperada, Product Gates pendentes** |
 | 05 | [Q07 — CI/CD](../subprojects/Q07-ci-cd/README.md) · [STATUS](../subprojects/Q07-ci-cd/STATUS.md) | CI central, seleção de testes e promoção por revisão. | **Parcial — CI mainline validada (24/24 no SHA ec688ce); aceite de produto separado** |
-| 06 | [Q01 — Plataforma de testes](../subprojects/Q01-plataforma-de-testes/README.md) · [STATUS](../subprojects/Q01-plataforma-de-testes/STATUS.md) | Plataforma de testes, ambientes, fixtures e execução. | Baseline; não auditado |
+| 06 | [Q01 — Plataforma de testes](../subprojects/Q01-plataforma-de-testes/README.md) · [STATUS](../subprojects/Q01-plataforma-de-testes/STATUS.md) | Plataforma de testes, ambientes, fixtures e execução. | **Parcial — suites/ambientes identificados, CI verde por SHA; RC pendente** |
 | 07 | [P14 — Platform Core](../subprojects/P14-platform-core/README.md) · [STATUS](../subprojects/P14-platform-core/STATUS.md) | Mapa do Core lógico: não supor runtime próprio. | **Parcial; revalidar SHA** |
 
 ### Onda 1 — Hospedagem, identidade e segurança

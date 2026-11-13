@@ -1,6 +1,6 @@
 # Q01 — Plataforma de testes
 
-> **Unidade do catálogo Syndes.** Esta é a entrada humana do módulo: navegue pelas seis páginas abaixo. Código e documentação técnica podem existir sem estar implantados ou homologados.
+> **Plataforma de testes — Q01.** Conjunto de cenários, políticas e scripts de infraestrutura e segurança distribuídos em `tests/`, módulos e apps. A auditoria documenta **quais testes existem**, os ambientes e limites das provas. O CI do SHA `bd0aa69` foi aprovado; performance e Product Gates permanecem sem homologação.
 
 <!-- syndes:module-id=Q01;source=tests;kind=module -->
 
@@ -9,23 +9,30 @@
 | Quero descobrir | Abrir |
 |---|---|
 | **O que o módulo faz?** | [Especificação, capacidades e histórias](ESCOPO.md) |
-| **Como funciona do banco à interface?** | [Referência técnica: stack, classes e contratos](REFERENCIA-TECNICA.md) |
+| **Quais scripts e ambientes verificam o sistema?** | [Arquitetura/fixtures](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md) · [Referência técnica](REFERENCIA-TECNICA.md) |
 | **O que será feito?** | [Evolução: workpackages e dependências](EVOLUCAO.md) |
 | **O que realmente mudou?** | [Histórico Git e evidências relacionadas](HISTORICO.md) |
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
 
+## Mapa de provas por camada {#mapa-provas}
+
+- **Integridade:** Q10 verifica catálogo, AGENTS e estrutura mínima.
+- **Integração e segurança:** Q01 mantém scripts em `tests/platform`; os módulos executam suas próprias suites.
+- **Orquestração:** Q07 seleciona e executa as suites sob GitHub Actions; o [run auditado](https://github.com/delmacy/syndes-system/actions/runs/43340637846) passou 24/24 jobs no SHA `bd0aa69`.
+- **Performance e RC:** cenários de carga previstos por estratégia, **sem benchmark ou restore operacional comprovado**.
+
 ## Capacidades e requisitos {#capacidades}
 
-Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O conteúdo da especificação define o que é aprovado; presença de um item na documentação não comprova implementação.**
+Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **Um AGENTS ou script existente não é um teste executado, e CI aprovado não substitui Product Gate ou deploy.**
 
 ## Stack, contratos e persistência {#stack}
 
-A [referência técnica](REFERENCIA-TECNICA.md) lista exports de pacote, interfaces públicas, declarações internas de classes/métodos, APIs HTTP identificadas, candidatos de frontend e objetos SQL com origem verificável.
+Q01 **não expõe endpoint, classe de domínio, frontend ou schema próprios**. Sua [referência técnica](REFERENCIA-TECNICA.md) apresenta scripts, comandos e efeitos, com ownership e restrições de segurança.
 
-- **Fonte do código/artefato:** [`tests`](https://github.com/delmacy/syndes-system/tree/main/tests).
-- **Banco de tenant e Control/Manager:** [seção de persistência da referência](REFERENCIA-TECNICA.md).
-- **Contrato público vs. interno:** [referência técnica](REFERENCIA-TECNICA.md).
+- **Fonte canônica:** [`tests/`](https://github.com/delmacy/syndes-system/tree/main/tests).
+- **Contratos de execução:** [matriz de entradas e saídas](chapters/04-contratos-e-dependencias-publicas.md).
+- **Banco/identidade:** apenas fixtures descartáveis; responsabilidades de runtime permanecem com seus owners.
 
 
 ## Planejamento, progresso e provas {#evolucao}
