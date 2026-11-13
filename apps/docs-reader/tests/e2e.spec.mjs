@@ -16,7 +16,7 @@ test("O CRM tem seis funções e abre uma operação sem exibir catálogo interm
   await expect(nav.getByRole("button")).toHaveCount(6);
   await expect(page.locator(".reading-section")).toHaveCount(2);
   await nav.getByRole("button",{name:/Cadastros/}).click();
-  await expect(page.locator(".operation-choice")).toHaveCount(4);
+  await expect(page.locator(".operation-choice")).toHaveCount(9);
   await expect(page.locator(".operation-detail")).toHaveCount(1);
   await expect(page.locator("#crm-create-person")).toBeVisible();
   await expect(page.locator(".reading-section")).toHaveCount(0);
@@ -103,7 +103,7 @@ test("Navegação móvel continua acessível sem overflow",async({page,isMobile}
   const nav=page.getByRole("navigation",{name:"Selecionar função do CRM"});
   await expect(nav).toBeVisible();
   await nav.getByRole("button",{name:/Cadastros/}).click();
-  await expect(page.locator(".operation-choice")).toHaveCount(4);
+  await expect(page.locator(".operation-choice")).toHaveCount(9);
   const widths=await page.evaluate(()=>({a:document.documentElement.scrollWidth,b:document.documentElement.clientWidth}));
   expect(widths.a).toBeLessThanOrEqual(widths.b+2);
   if(isMobile){
@@ -122,4 +122,22 @@ test("Briefing de agente pode ser exportado sem clipboard e sem executar ações
   const artifact=await download;
   expect(artifact.suggestedFilename()).toBe("syndes-p01-crm-create-person-briefing.md");
   await expect(op.getByRole("status")).toContainText("exportado");
+});
+
+
+test("Atlas técnico apresenta diagramas, 30 APIs, métodos e 9 tabelas",async({page})=>{
+  await page.goto("/modulos/crm/");
+  await page.getByRole("button",{name:/Atlas técnico, inventários e diagramas/}).click();
+  await expect(page.getByRole("heading",{name:"Atlas do CRM"})).toBeVisible();
+  await expect(page.getByRole("img",{name:"Camadas e dependências"})).toBeVisible();
+  await page.getByRole("button",{name:"Persistência CRM — relações principais"}).click();
+  await expect(page.getByRole("img",{name:"Persistência CRM — relações principais"})).toBeVisible();
+  await page.getByRole("tab",{name:"APIs",exact:true}).click();
+  await expect(page.getByRole("region",{name:"APIs HTTP CRM"}).locator("tbody tr")).toHaveCount(30);
+  await page.getByLabel("Filtrar por rota, verbo, ação ou permissão").fill("imports/csv");
+  await expect(page.getByRole("region",{name:"APIs HTTP CRM"}).locator("tbody tr")).toHaveCount(1);
+  await page.getByRole("tab",{name:"Dados e SQL"}).click();
+  await expect(page.locator(".crm-table-detail")).toHaveCount(9);
+  await page.getByRole("tab",{name:"Classes e métodos"}).click();
+  await expect(page.getByRole("region",{name:"Inventário de métodos CRM"}).locator("tbody tr").first()).toBeVisible();
 });

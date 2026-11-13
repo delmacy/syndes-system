@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowUpRight, BookOpenText, ChevronRight, FileCode2 } from "
 import SiteShell from "@/components/site-shell";
 import ReadingSection from "@/components/reading-section";
 import OperationDetail from "@/components/operation-detail";
+import CrmTechnicalAtlas from "@/components/crm-technical-atlas";
 import { crmSections, CRM } from "@/lib/content";
 import { crmFunctions, crmFunctionForSection } from "@/lib/crm-functions";
 import { crmOperations, operationById, operationsByGroup } from "@/lib/crm-operations";
@@ -18,6 +19,7 @@ const firstFor=(groupId)=>{
 function stateFromHash(){
   if(typeof window==="undefined")return firstFor(crmFunctions[0].id);
   const id=decodeURIComponent(window.location.hash.slice(1));
+  if(id==="crm-atlas")return {groupId:"integracoes",mode:"atlas",id:"crm-atlas"};
   const op=operationById(id);
   if(op)return {groupId:op.group,mode:"operation",id:op.id};
   const group=crmFunctionForSection(id);
@@ -83,7 +85,8 @@ export default function CrmPage(){
             {item.title}<span className="function-tab-count">{operationsByGroup(item.id).length||item.sections.length}</span>
           </button>)}
         </nav>
-        <section className="function-intro" aria-labelledby="selected-function-heading">
+        <div className="crm-atlas-link-wrap"><button type="button" className="reference-mode-button" onClick={()=>navigate({groupId:group.id,mode:"atlas",id:"crm-atlas"},"crm-atlas-anchor")}><FileCode2 size={16}/> Atlas técnico, inventários e diagramas</button></div>
+        {reader.mode!=="atlas"&&<section className="function-intro" aria-labelledby="selected-function-heading">
           <span className="eyebrow">FUNÇÃO DO MÓDULO</span>
           <Heading as="h2" id="selected-function-heading">{group.title}</Heading>
           <p>{group.description}</p>
@@ -93,7 +96,8 @@ export default function CrmPage(){
             </button>)}
           </div>}
           <button type="button" className="reference-mode-button" onClick={()=>switchReference(group.sections[0])}><BookOpenText size={16}/> Consultar os assuntos técnicos desta função</button>
-        </section>
+        </section>}
+        {reader.mode==="atlas"&&<div id="crm-atlas-anchor"><CrmTechnicalAtlas/></div>}
         {selectedOperation&&<div id="operation-reader-anchor" className="operation-reader"><OperationDetail key={selectedOperation.id} operation={selectedOperation}/></div>}
         {reader.mode==="reference"&&<div className="function-reference" id="reference-reader-anchor">
           <div className="reference-heading">

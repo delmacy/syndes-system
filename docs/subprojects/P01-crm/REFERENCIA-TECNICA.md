@@ -50,3 +50,8 @@
 - Testes locais: **29 PASS**; integração real, manager↔tenant, E2E e Product Gate pendentes.
 - Dívida prioritária: tirar conceito de trabalhador interno da semântica CRM sem quebrar `platform_staff_identity_links` nem migrations existentes.
 - Fontes: [service.ts](https://github.com/delmacy/syndes-system/blob/main/modules/core-crm/src/service.ts), [index.ts](https://github.com/delmacy/syndes-system/blob/main/modules/core-crm/src/index.ts), [SQL](https://github.com/delmacy/syndes-system/tree/main/modules/core-crm/sql).
+
+
+## Inventário detalhado e diagramas
+
+A referência resumida acima é complementada por [INVENTARIO-INTEGRAL.md](INVENTARIO-INTEGRAL.md) e pelos diagramas versionados em [DIAGRAMAS.md](DIAGRAMAS.md). O inventário foi reconciliado em 13/11/2026 com 30 rotas, 9 tabelas e 53 declarações de colunas; não representa homologação de runtime.

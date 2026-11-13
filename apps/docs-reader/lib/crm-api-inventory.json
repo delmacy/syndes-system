@@ -1,0 +1,242 @@
+[
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/capabilities",
+    "actionId": "crm-authorization",
+    "permission": "crm:context/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/people",
+    "actionId": "crm-search-person",
+    "permission": "crm:people/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "POST",
+    "path": "/v1/tenants/:tenantId/crm/people",
+    "actionId": "crm-create-person",
+    "permission": "crm:people/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/people/:id",
+    "actionId": "crm-search-person",
+    "permission": "crm:people/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "PATCH",
+    "path": "/v1/tenants/:tenantId/crm/people/:id",
+    "actionId": "crm-maintain-person",
+    "permission": "crm:people/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "DELETE",
+    "path": "/v1/tenants/:tenantId/crm/people/:id",
+    "actionId": "crm-maintain-person",
+    "permission": "crm:people/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/organizations",
+    "actionId": "crm-manage-organizations",
+    "permission": "crm:organizations/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "POST",
+    "path": "/v1/tenants/:tenantId/crm/organizations",
+    "actionId": "crm-create-organization",
+    "permission": "crm:organizations/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/organizations/:id",
+    "actionId": "crm-manage-organizations",
+    "permission": "crm:organizations/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "PATCH",
+    "path": "/v1/tenants/:tenantId/crm/organizations/:id",
+    "actionId": "crm-manage-organizations",
+    "permission": "crm:organizations/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "DELETE",
+    "path": "/v1/tenants/:tenantId/crm/organizations/:id",
+    "actionId": "crm-manage-organizations",
+    "permission": "crm:organizations/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "POST",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/organizations",
+    "actionId": "crm-link-organization",
+    "permission": "crm:relationships/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/tags",
+    "actionId": "crm-tags",
+    "permission": "crm:tags/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "DELETE",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/organizations/:organizationId",
+    "actionId": "crm-manage-links",
+    "permission": "crm:relationships/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "DELETE",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/tags/:tagId",
+    "actionId": "crm-tags",
+    "permission": "crm:tags/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "POST",
+    "path": "/v1/tenants/:tenantId/crm/tags",
+    "actionId": "crm-tags",
+    "permission": "crm:tags/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "POST",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/tags",
+    "actionId": "crm-tags",
+    "permission": "crm:tags/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "POST",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/notes",
+    "actionId": "crm-create-note",
+    "permission": "crm:notes/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/notes",
+    "actionId": "crm-read-timeline",
+    "permission": "crm:notes/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/organizations",
+    "actionId": "crm-manage-links",
+    "permission": "crm:organizations/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/tags",
+    "actionId": "crm-tags",
+    "permission": "crm:tags/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/channels",
+    "actionId": "crm-channels",
+    "permission": "crm:channels/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/employee",
+    "actionId": "crm-employees",
+    "permission": "crm:employees/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/employees",
+    "actionId": "crm-employees",
+    "permission": "crm:employees/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/timeline",
+    "actionId": "crm-read-timeline",
+    "permission": "crm:people/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "POST",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/employee",
+    "actionId": "crm-employees",
+    "permission": "crm:employees/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "POST",
+    "path": "/v1/tenants/:tenantId/crm/people/:id/channels",
+    "actionId": "crm-channels",
+    "permission": "crm:channels/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "POST",
+    "path": "/v1/tenants/:tenantId/crm/duplicates",
+    "actionId": "crm-duplicates",
+    "permission": "crm:people/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "POST",
+    "path": "/v1/tenants/:tenantId/crm/imports/csv",
+    "actionId": "crm-csv",
+    "permission": "crm:people/write",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  },
+  {
+    "method": "GET",
+    "path": "/v1/tenants/:tenantId/crm/exports/csv",
+    "actionId": "crm-csv",
+    "permission": "crm:people/read",
+    "source": "modules/core-crm/src/crm.controller.ts",
+    "state": "Código declarado; disponibilidade e homologação não comprovadas"
+  }
+]

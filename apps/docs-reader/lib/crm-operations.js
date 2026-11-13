@@ -1,3 +1,4 @@
+import { extraCrmOperations } from "./crm-expanded-operations.js";
 /**
  * CRM operations are reader-sized entry points. Evidence is source-backed,
  * never proof of rollout. Related technical topics remain in crmSections.
@@ -12,7 +13,7 @@ const sql1=source("Migration SQL 001","modules/core-crm/sql/001_crm_foundation.s
 const sql2=source("Migration SQL 002","modules/core-crm/sql/002_crm_tags_notes.sql");
 const status=source("Estado e gates CRM","docs/subprojects/P01-crm/STATUS.md");
 const extras=source("Operações adicionais","modules/core-crm/src/extra.ts");
-export const crmOperations=[
+const crmOperationsBase=[
   {
     id:"crm-create-person",group:"cadastros",title:"Criar contato",kind:"Cadastro",state:"Código identificado · homologação pendente",
     objective:"Registrar uma pessoa dentro do contexto autorizado de um tenant para iniciar ou preservar o relacionamento.",
@@ -122,6 +123,7 @@ export const crmOperations=[
     task:"Produzir matriz de evidências para fechamento do CRM MVP, sem executar migrations ou habilitar funcionalidades.",sources:[status,source("Evolução do CRM","docs/subprojects/P01-crm/EVOLUCAO.md")]
   }
 ];
+export const crmOperations=[...crmOperationsBase,...extraCrmOperations];
 export const operationById=(id)=>crmOperations.find(op=>op.id===id);
 export const operationsByGroup=(groupId)=>crmOperations.filter(op=>op.group===groupId);
 export const crmOperationIds=crmOperations.map(op=>op.id);

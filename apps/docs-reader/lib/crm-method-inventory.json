@@ -1,0 +1,506 @@
+[
+  {
+    "file": "modules/core-crm/src/service.ts",
+    "method": "async",
+    "signature": "async()=>handler(await this.repositoryForTenant(context.tenantId,context.organizationId)));",
+    "line": 35
+  },
+  {
+    "file": "modules/core-crm/src/service.ts",
+    "method": "createOrganization",
+    "signature": "createOrganization(context:CrmContext,input:CreateOrganization):Promise<Organization>{",
+    "line": 37
+  },
+  {
+    "file": "modules/core-crm/src/service.ts",
+    "method": "createPerson",
+    "signature": "createPerson(context:CrmContext,input:CreatePerson):Promise<Person>{",
+    "line": 47
+  },
+  {
+    "file": "modules/core-crm/src/service.ts",
+    "method": "linkPerson",
+    "signature": "linkPerson(context:CrmContext,personId:string,organizationId:string):Promise<PersonOrganization>{",
+    "line": 57
+  },
+  {
+    "file": "modules/core-crm/src/service.ts",
+    "method": "getPerson",
+    "signature": "getPerson(context:CrmContext,personId:string):Promise<Person|null>{",
+    "line": 63
+  },
+  {
+    "file": "modules/core-crm/src/service.ts",
+    "method": "listPeople",
+    "signature": "listPeople(context:CrmContext,query:unknown=null,limit=25,offset=0):Promise<readonly Person[]>{",
+    "line": 69
+  },
+  {
+    "file": "modules/core-crm/src/service.ts",
+    "method": "archivePerson",
+    "signature": "archivePerson(context:CrmContext,personId:string):Promise<boolean>{",
+    "line": 77
+  },
+  {
+    "file": "modules/core-crm/src/service.ts",
+    "method": "createTag",
+    "signature": "createTag(context:CrmContext,label:unknown):Promise<Tag>{",
+    "line": 83
+  },
+  {
+    "file": "modules/core-crm/src/service.ts",
+    "method": "tagPerson",
+    "signature": "tagPerson(context:CrmContext,personId:string,tagId:string):Promise<PersonTag>{",
+    "line": 90
+  },
+  {
+    "file": "modules/core-crm/src/service.ts",
+    "method": "createNote",
+    "signature": "createNote(context:CrmContext,personId:string,body:unknown):Promise<Note>{",
+    "line": 96
+  },
+  {
+    "file": "modules/core-crm/src/service.ts",
+    "method": "listNotes",
+    "signature": "listNotes(context:CrmContext,personId:string,limit=50):Promise<readonly Note[]>{",
+    "line": 107
+  },
+  {
+    "file": "modules/core-crm/src/service.ts",
+    "method": "listTimeline",
+    "signature": "listTimeline(context:CrmContext,personId:string,limit=50):Promise<readonly TimelineEntry[]>{",
+    "line": 114
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "updatePerson",
+    "signature": "updatePerson(tenant:string,actor:string,personId:string,fields:CreatePerson):Promise<Person|null>;",
+    "line": 18
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "getOrganization",
+    "signature": "getOrganization(tenant:string,orgId:string):Promise<Organization|null>;",
+    "line": 19
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listOrganizations",
+    "signature": "listOrganizations(tenant:string,query:string|null,limit:number,offset?:number):Promise<readonly Organization[]>;",
+    "line": 20
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "updateOrganization",
+    "signature": "updateOrganization(tenant:string,actor:string,orgId:string,fields:{legalName:string;tradeName:string|null;taxId:string|null}):Promise<Organization|null>;",
+    "line": 21
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "archiveOrganization",
+    "signature": "archiveOrganization(tenant:string,actor:string,orgId:string):Promise<boolean>;",
+    "line": 22
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "createEmployee",
+    "signature": "createEmployee(tenant:string,actor:string,employeeId:string,personId:string,jobTitle:string):Promise<Employee>;",
+    "line": 23
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "linkChannel",
+    "signature": "linkChannel(tenant:string,actor:string,id:string,personId:string,channel:string,externalId:string,displayName:string|null):Promise<ChannelIdentity>;",
+    "line": 24
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "duplicates",
+    "signature": "duplicates(tenant:string,email:string|null,phone:string|null,excludeId:string|null):Promise<readonly DuplicateCandidate[]>;",
+    "line": 25
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "importPeople",
+    "signature": "importPeople(tenant:string,actor:string,people:readonly (CreatePerson&{id:string})[]):Promise<number>;",
+    "line": 26
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listExportPeople",
+    "signature": "listExportPeople(tenant:string,limit:number):Promise<readonly Person[]>;",
+    "line": 27
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listEmployees",
+    "signature": "listEmployees(tenant:string,limit:number):Promise<readonly Employee[]>;",
+    "line": 28
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "getPersonEmployee",
+    "signature": "getPersonEmployee(tenant:string,personId:string):Promise<Employee|null>;",
+    "line": 29
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listChannels",
+    "signature": "listChannels(tenant:string,personId:string,limit:number):Promise<readonly ChannelIdentity[]>;",
+    "line": 30
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listPersonOrganizations",
+    "signature": "listPersonOrganizations(tenant:string,personId:string,limit:number):Promise<readonly Organization[]>;",
+    "line": 31
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listPersonTags",
+    "signature": "listPersonTags(tenant:string,personId:string,limit:number):Promise<readonly {id:string;label:string}[]>;",
+    "line": 32
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listTags",
+    "signature": "listTags(tenant:string,limit:number):Promise<readonly {id:string;label:string}[]>;",
+    "line": 33
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "unlinkOrganization",
+    "signature": "unlinkOrganization(tenant:string,actor:string,personId:string,orgId:string):Promise<boolean>;",
+    "line": 34
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "unlinkTag",
+    "signature": "unlinkTag(tenant:string,actor:string,personId:string,tagId:string):Promise<boolean>;",
+    "line": 35
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "async",
+    "signature": "async()=>work(await this.resolve(ctx.tenantId,ctx.organizationId)));",
+    "line": 45
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "updatePerson",
+    "signature": "updatePerson(ctx:CrmContext,personId:string,input:CreatePerson):Promise<Person|null>{",
+    "line": 47
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "getOrganization",
+    "signature": "getOrganization(ctx:CrmContext,orgId:string):Promise<Organization|null>{",
+    "line": 52
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listOrganizations",
+    "signature": "listOrganizations(ctx:CrmContext,query:unknown=null,limit=25,offset=0):Promise<readonly Organization[]>{",
+    "line": 56
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "updateOrganization",
+    "signature": "updateOrganization(ctx:CrmContext,orgId:string,input:{legalName:string;tradeName?:string|null;taxId?:string|null}):Promise<Organization|null>{",
+    "line": 62
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "archiveOrganization",
+    "signature": "archiveOrganization(ctx:CrmContext,orgId:string):Promise<boolean>{",
+    "line": 68
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "createEmployee",
+    "signature": "createEmployee(ctx:CrmContext,personId:string,jobTitle:unknown):Promise<Employee>{",
+    "line": 72
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "linkChannel",
+    "signature": "linkChannel(ctx:CrmContext,personId:string,input:{channel:string;externalId:string;displayName?:string|null}):Promise<ChannelIdentity>{",
+    "line": 77
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "possibleDuplicates",
+    "signature": "possibleDuplicates(ctx:CrmContext,input:{email?:string|null;phone?:string|null;excludeId?:string|null}):Promise<readonly DuplicateCandidate[]>{",
+    "line": 87
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "importCsv",
+    "signature": "importCsv(ctx:CrmContext,csv:unknown):Promise<ImportResult>{",
+    "line": 93
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "getPersonEmployee",
+    "signature": "getPersonEmployee(ctx:CrmContext,personId:string):Promise<Employee|null>{",
+    "line": 97
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listEmployees",
+    "signature": "listEmployees(ctx:CrmContext,limit=100):Promise<readonly Employee[]>{",
+    "line": 102
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listPersonOrganizations",
+    "signature": "listPersonOrganizations(ctx:CrmContext,personId:string):Promise<readonly Organization[]>{",
+    "line": 106
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listTags",
+    "signature": "listTags(ctx:CrmContext):Promise<readonly {id:string;label:string}[]>{",
+    "line": 111
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "unlinkOrganization",
+    "signature": "unlinkOrganization(ctx:CrmContext,personId:string,orgId:string):Promise<boolean>{",
+    "line": 114
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "unlinkTag",
+    "signature": "unlinkTag(ctx:CrmContext,personId:string,tagId:string):Promise<boolean>{",
+    "line": 119
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listPersonTags",
+    "signature": "listPersonTags(ctx:CrmContext,personId:string):Promise<readonly {id:string;label:string}[]>{",
+    "line": 124
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listChannels",
+    "signature": "listChannels(ctx:CrmContext,personId:string):Promise<readonly ChannelIdentity[]>{",
+    "line": 129
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "exportCsv",
+    "signature": "exportCsv(ctx:CrmContext):Promise<string>{",
+    "line": 133
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "updatePerson",
+    "signature": "updatePerson(t:string,a:string,p:string,v:CreatePerson):Promise<Person|null>{",
+    "line": 155
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "getOrganization",
+    "signature": "getOrganization(t:string,id:string):Promise<Organization|null>{",
+    "line": 166
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listOrganizations",
+    "signature": "listOrganizations(t:string,q:string|null,limit:number,offset=0):Promise<readonly Organization[]>{",
+    "line": 171
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "updateOrganization",
+    "signature": "updateOrganization(t:string,a:string,id:string,v:{legalName:string;tradeName:string|null;taxId:string|null}):Promise<Organization|null>{",
+    "line": 182
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "archiveOrganization",
+    "signature": "archiveOrganization(t:string,a:string,id:string):Promise<boolean>{",
+    "line": 193
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "createEmployee",
+    "signature": "createEmployee(t:string,a:string,id:string,p:string,job:string):Promise<Employee>{",
+    "line": 204
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "linkChannel",
+    "signature": "linkChannel(t:string,a:string,id:string,p:string,channel:string,external:string,display:string|null):Promise<ChannelIdentity>{",
+    "line": 217
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "duplicates",
+    "signature": "duplicates(t:string,em:string|null,ph:string|null,excluded:string|null):Promise<readonly DuplicateCandidate[]>{",
+    "line": 231
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "importPeople",
+    "signature": "importPeople(t:string,a:string,people:readonly (CreatePerson&{id:string})[]):Promise<number>{",
+    "line": 243
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "getPersonEmployee",
+    "signature": "getPersonEmployee(t:string,personId:string):Promise<Employee|null>{",
+    "line": 261
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listEmployees",
+    "signature": "listEmployees(t:string,limit:number):Promise<readonly Employee[]>{",
+    "line": 269
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listChannels",
+    "signature": "listChannels(t:string,personId:string,limit:number):Promise<readonly ChannelIdentity[]>{",
+    "line": 276
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listPersonOrganizations",
+    "signature": "listPersonOrganizations(t:string,personId:string,limit:number):Promise<readonly Organization[]>{",
+    "line": 286
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listPersonTags",
+    "signature": "listPersonTags(t:string,personId:string,limit:number):Promise<readonly {id:string;label:string}[]>{",
+    "line": 300
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listTags",
+    "signature": "listTags(t:string,limit:number):Promise<readonly {id:string;label:string}[]>{",
+    "line": 312
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "unlinkOrganization",
+    "signature": "unlinkOrganization(t:string,a:string,personId:string,orgId:string):Promise<boolean>{",
+    "line": 318
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "unlinkTag",
+    "signature": "unlinkTag(t:string,a:string,personId:string,tagId:string):Promise<boolean>{",
+    "line": 332
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "listExportPeople",
+    "signature": "listExportPeople(t:string,limit:number):Promise<readonly Person[]>{",
+    "line": 346
+  },
+  {
+    "file": "modules/core-crm/src/extra.ts",
+    "method": "forTenant",
+    "signature": "forTenant(t:string,organizationId?:string):Promise<ExtraRepository>{",
+    "line": 356
+  },
+  {
+    "file": "modules/core-crm/src/postgres.ts",
+    "method": "createOrganization",
+    "signature": "createOrganization(tenantId:string,actorId:string,id:string,input:CreateOrganization):Promise<Organization>{",
+    "line": 42
+  },
+  {
+    "file": "modules/core-crm/src/postgres.ts",
+    "method": "createPerson",
+    "signature": "createPerson(tenantId:string,actorId:string,id:string,input:CreatePerson):Promise<Person>{",
+    "line": 60
+  },
+  {
+    "file": "modules/core-crm/src/postgres.ts",
+    "method": "linkPerson",
+    "signature": "linkPerson(tenantId:string,actorId:string,personId:string,organizationId:string):Promise<PersonOrganization>{",
+    "line": 78
+  },
+  {
+    "file": "modules/core-crm/src/postgres.ts",
+    "method": "getPerson",
+    "signature": "getPerson(tenantId:string,id:string):Promise<Person|null>{",
+    "line": 107
+  },
+  {
+    "file": "modules/core-crm/src/postgres.ts",
+    "method": "listPeople",
+    "signature": "listPeople(tenantId:string,query:string|null,limit:number,offset=0):Promise<readonly Person[]>{",
+    "line": 115
+  },
+  {
+    "file": "modules/core-crm/src/postgres.ts",
+    "method": "archivePerson",
+    "signature": "archivePerson(tenantId:string,actorId:string,id:string):Promise<boolean>{",
+    "line": 145
+  },
+  {
+    "file": "modules/core-crm/src/postgres.ts",
+    "method": "createTag",
+    "signature": "createTag(tenantId:string,actorId:string,id:string,label:string):Promise<Tag>{",
+    "line": 161
+  },
+  {
+    "file": "modules/core-crm/src/postgres.ts",
+    "method": "tagPerson",
+    "signature": "tagPerson(tenantId:string,actorId:string,personId:string,tagId:string):Promise<PersonTag>{",
+    "line": 179
+  },
+  {
+    "file": "modules/core-crm/src/postgres.ts",
+    "method": "createNote",
+    "signature": "createNote(tenantId:string,actorId:string,id:string,personId:string,body:string):Promise<Note>{",
+    "line": 201
+  },
+  {
+    "file": "modules/core-crm/src/postgres.ts",
+    "method": "listNotes",
+    "signature": "listNotes(tenantId:string,personId:string,limit:number):Promise<readonly Note[]>{",
+    "line": 226
+  },
+  {
+    "file": "modules/core-crm/src/postgres.ts",
+    "method": "listTimeline",
+    "signature": "listTimeline(tenantId:string,personId:string,limit:number):Promise<readonly TimelineEntry[]>{",
+    "line": 239
+  },
+  {
+    "file": "modules/core-crm/src/postgres.ts",
+    "method": "forTenant",
+    "signature": "forTenant(tenantId:string,organizationId?:string):Promise<CrmRepository>{",
+    "line": 259
+  },
+  {
+    "file": "modules/core-crm/src/whatsapp-identity-events.ts",
+    "method": "loadIdentity",
+    "signature": "loadIdentity(tx:TenantTransaction,scope:CrmIdentityScope):Promise<CrmWhatsAppIdentityContext>;",
+    "line": 11
+  },
+  {
+    "file": "modules/core-crm/src/whatsapp-identity-events.ts",
+    "method": "decide",
+    "signature": "decide(tx:TenantTransaction,scope:CrmIdentityScope):Promise<CrmIdentityDecision>{",
+    "line": 21
+  },
+  {
+    "file": "modules/core-crm/src/whatsapp-identity-events.ts",
+    "method": "validateLink",
+    "signature": "validateLink(tx:TenantTransaction,scope:CrmIdentityScope & Readonly<{",
+    "line": 62
+  },
+  {
+    "file": "modules/core-crm/src/whatsapp-identity-events.ts",
+    "method": "handle",
+    "signature": "handle(tx:TenantTransaction,event:StoredPlatformEvent):Promise<void>{",
+    "line": 74
+  }
+]

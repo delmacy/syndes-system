@@ -81,3 +81,11 @@ Não interpretar task cadastrada como tarefa concluída, nem commit como deploy.
     | [Operação](OPERACAO.md) | Status, sprint, gates, runbooks e os três prompts de agentes |
 
     **Fonte de verdade:** o catálogo define o proprietário; o Git registra as alterações; Issues/Projects cuidam da execução; Actions e evidências de ambiente comprovam testes/deploy. Não promover status por inferência.
+
+
+## Atlas de implementação (13/11/2026)
+
+- [Inventário integral: 30 rotas, 9 tabelas, assinaturas e rastreabilidade](INVENTARIO-INTEGRAL.md)
+- [Diagramas: arquitetura, persistência, fluxo HTTP, eventos, segurança e gates](DIAGRAMAS.md)
+
+Esses documentos registram a superfície do código e **não encerram** o Product Gate.

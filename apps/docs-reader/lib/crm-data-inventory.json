@@ -1,0 +1,330 @@
+[
+  {
+    "table": "crm_organizations",
+    "migration": "001_crm_foundation.sql",
+    "source": "modules/core-crm/sql/001_crm_foundation.sql",
+    "columns": [
+      {
+        "name": "id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "tenant_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "legal_name",
+        "type": "TEXT",
+        "constraints": "NOT NULL CHECK (char_length(legal_name) BETWEEN 1 AND 160)"
+      },
+      {
+        "name": "trade_name",
+        "type": "TEXT",
+        "constraints": ""
+      },
+      {
+        "name": "tax_id",
+        "type": "TEXT",
+        "constraints": ""
+      },
+      {
+        "name": "archived_at",
+        "type": "TIMESTAMPTZ",
+        "constraints": ""
+      },
+      {
+        "name": "created_at",
+        "type": "TIMESTAMPTZ",
+        "constraints": "NOT NULL DEFAULT now()"
+      }
+    ]
+  },
+  {
+    "table": "crm_people",
+    "migration": "001_crm_foundation.sql",
+    "source": "modules/core-crm/sql/001_crm_foundation.sql",
+    "columns": [
+      {
+        "name": "id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "tenant_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "name",
+        "type": "TEXT",
+        "constraints": "NOT NULL CHECK (char_length(name) BETWEEN 1 AND 160)"
+      },
+      {
+        "name": "email",
+        "type": "TEXT",
+        "constraints": ""
+      },
+      {
+        "name": "phone",
+        "type": "TEXT",
+        "constraints": ""
+      },
+      {
+        "name": "archived_at",
+        "type": "TIMESTAMPTZ",
+        "constraints": ""
+      },
+      {
+        "name": "created_at",
+        "type": "TIMESTAMPTZ",
+        "constraints": "NOT NULL DEFAULT now()"
+      }
+    ]
+  },
+  {
+    "table": "crm_person_organizations",
+    "migration": "001_crm_foundation.sql",
+    "source": "modules/core-crm/sql/001_crm_foundation.sql",
+    "columns": [
+      {
+        "name": "tenant_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "person_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "organization_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "created_at",
+        "type": "TIMESTAMPTZ",
+        "constraints": "NOT NULL DEFAULT now()"
+      }
+    ]
+  },
+  {
+    "table": "crm_audit",
+    "migration": "001_crm_foundation.sql",
+    "source": "modules/core-crm/sql/001_crm_foundation.sql",
+    "columns": [
+      {
+        "name": "id",
+        "type": "BIGINT",
+        "constraints": "GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
+      },
+      {
+        "name": "tenant_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "actor_id",
+        "type": "TEXT",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "entity_type",
+        "type": "TEXT",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "entity_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "action",
+        "type": "TEXT",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "recorded_at",
+        "type": "TIMESTAMPTZ",
+        "constraints": "NOT NULL DEFAULT now()"
+      }
+    ]
+  },
+  {
+    "table": "crm_tags",
+    "migration": "002_crm_tags_notes.sql",
+    "source": "modules/core-crm/sql/002_crm_tags_notes.sql",
+    "columns": [
+      {
+        "name": "tenant_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "label",
+        "type": "TEXT",
+        "constraints": "NOT NULL CHECK(char_length(label) BETWEEN 1 AND 64)"
+      },
+      {
+        "name": "label_key",
+        "type": "TEXT",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "created_at",
+        "type": "TIMESTAMPTZ",
+        "constraints": "NOT NULL DEFAULT now()"
+      }
+    ]
+  },
+  {
+    "table": "crm_person_tags",
+    "migration": "002_crm_tags_notes.sql",
+    "source": "modules/core-crm/sql/002_crm_tags_notes.sql",
+    "columns": [
+      {
+        "name": "tenant_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "person_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "tag_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "created_at",
+        "type": "TIMESTAMPTZ",
+        "constraints": "NOT NULL DEFAULT now()"
+      }
+    ]
+  },
+  {
+    "table": "crm_notes",
+    "migration": "002_crm_tags_notes.sql",
+    "source": "modules/core-crm/sql/002_crm_tags_notes.sql",
+    "columns": [
+      {
+        "name": "tenant_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "person_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "body",
+        "type": "TEXT",
+        "constraints": "NOT NULL CHECK(char_length(body) BETWEEN 1 AND 5000)"
+      },
+      {
+        "name": "created_by",
+        "type": "TEXT",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "created_at",
+        "type": "TIMESTAMPTZ",
+        "constraints": "NOT NULL DEFAULT now()"
+      }
+    ]
+  },
+  {
+    "table": "crm_employees",
+    "migration": "003_crm_employees_channels.sql",
+    "source": "modules/core-crm/sql/003_crm_employees_channels.sql",
+    "columns": [
+      {
+        "name": "tenant_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "person_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "job_title",
+        "type": "TEXT",
+        "constraints": "NOT NULL CHECK(char_length(job_title) BETWEEN 1 AND 160)"
+      },
+      {
+        "name": "active",
+        "type": "BOOLEAN",
+        "constraints": "NOT NULL DEFAULT true"
+      },
+      {
+        "name": "created_at",
+        "type": "TIMESTAMPTZ",
+        "constraints": "NOT NULL DEFAULT now()"
+      }
+    ]
+  },
+  {
+    "table": "crm_channel_identities",
+    "migration": "003_crm_employees_channels.sql",
+    "source": "modules/core-crm/sql/003_crm_employees_channels.sql",
+    "columns": [
+      {
+        "name": "tenant_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "person_id",
+        "type": "UUID",
+        "constraints": "NOT NULL"
+      },
+      {
+        "name": "channel",
+        "type": "TEXT",
+        "constraints": "NOT NULL CHECK(channel IN ('whatsapp','instagram','email'))"
+      },
+      {
+        "name": "external_id",
+        "type": "TEXT",
+        "constraints": "NOT NULL CHECK(char_length(external_id) BETWEEN 1 AND 256)"
+      },
+      {
+        "name": "display_name",
+        "type": "TEXT",
+        "constraints": ""
+      },
+      {
+        "name": "created_at",
+        "type": "TIMESTAMPTZ",
+        "constraints": "NOT NULL DEFAULT now()"
+      }
+    ]
+  }
+]

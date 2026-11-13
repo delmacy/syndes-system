@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { ArrowUpRight, Check, ClipboardCopy, Download, FileCode2, ShieldCheck, TableProperties } from "lucide-react";
 import ProposalEditor from "./proposal-editor";
+import crmRoutes from "@/lib/crm-api-inventory.json";
 
 export function agentBrief(operation) {
   const lines=[
@@ -99,6 +100,7 @@ export default function OperationDetail({operation}) {
       </section>}
       {tab==="api"&&<section className="operation-part">
         <div className="operation-part-title"><FileCode2 size={16}/><h4>Superfície de API</h4></div>
+        {crmRoutes.filter(route=>route.actionId===operation.id).length>0&&<div className="evidence-scroll" role="region" aria-label="Rotas desta ação" tabIndex={0}><table className="evidence-table"><thead><tr><th>Verbo</th><th>Rota</th><th>Permissão de referência</th></tr></thead><tbody>{crmRoutes.filter(route=>route.actionId===operation.id).map(route=><tr key={route.method+route.path}><td><code>{route.method}</code></td><td><code>{route.path}</code></td><td>{route.permission}</td></tr>)}</tbody></table></div>}
         <dl className="operation-contract"><div><dt>Rota HTTP declarada</dt><dd><code>{operation.contract?.http||"Não documentada"}</code></dd></div><div><dt>Método interno</dt><dd><code>{operation.contract?.method||"Não documentado"}</code></dd></div></dl>
         <Unverified>Não inferir schemas, códigos HTTP, autenticação ou estabilidade pública além das referências verificadas.</Unverified>
       </section>}

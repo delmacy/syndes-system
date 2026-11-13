@@ -63,7 +63,7 @@ test("Funções do CRM particionam os doze assuntos sem duplicidade",async()=>{
 test("Cada operação pertence a uma função e tem contrato, aceite e fonte",async()=>{
   const {crmFunctions}=await import("../lib/crm-functions.js");
   const {crmOperations,crmOperationIds,operationById,operationsByGroup}=await import("../lib/crm-operations.js");
-  assert.equal(crmOperations.length,9);
+  assert.equal(crmOperations.length,18);
   assert.equal(new Set(crmOperationIds).size,crmOperations.length);
   for(const op of crmOperations){
     assert.ok(crmFunctions.some(g=>g.id===op.group),op.id);
@@ -87,4 +87,30 @@ test("Criar contato preserva contrato real e não afirma homologação",async()=
   assert.equal(op.contract.data,"crm_people, crm_audit");
   assert.match(op.state,/homologação pendente/);
   assert.ok(op.acceptance.some(a=>a.includes("tenant A")));
+});
+
+
+test("Inventário CRM cobre exatamente as rotas declaradas e mapeia todas às fichas",async()=>{
+  const {readFileSync}=await import("node:fs");
+  const {crmOperationIds}=await import("../lib/crm-operations.js");
+  const routes=JSON.parse(readFileSync(new URL("../lib/crm-api-inventory.json",import.meta.url),"utf8"));
+  const controller=readFileSync(new URL("../../../modules/core-crm/src/crm.controller.ts",import.meta.url),"utf8");
+  const found=[...controller.matchAll(/@(Get|Post|Patch|Delete)\("([^"]+)"\)/g)]
+    .map(m=>m[1].toUpperCase()+" /v1/tenants/:tenantId/crm/"+m[2]).sort();
+  assert.equal(routes.length,30);
+  assert.deepEqual(routes.map(r=>r.method+" "+r.path).sort(),found);
+  for(const route of routes){
+    assert.ok(crmOperationIds.includes(route.actionId),route.path);
+    assert.match(route.permission,/^crm:/);
+  }
+});
+test("Nove tabelas e seus campos têm fontes SQL versionadas e diagramas",async()=>{
+  const {readFileSync}=await import("node:fs");
+  const tables=JSON.parse(readFileSync(new URL("../lib/crm-data-inventory.json",import.meta.url),"utf8"));
+  assert.equal(tables.length,9);
+  assert.equal(new Set(tables.map(t=>t.table)).size,9);
+  assert.equal(tables.reduce((n,t)=>n+t.columns.length,0),53);
+  const diagrams=readFileSync(new URL("../../../docs/subprojects/P01-crm/DIAGRAMAS.md",import.meta.url),"utf8");
+  assert.equal((diagrams.match(/```mermaid/g)||[]).length,6);
+  for(const t of tables)assert.ok(diagrams.includes(t.table)||t.table==="crm_audit",t.table);
 });
