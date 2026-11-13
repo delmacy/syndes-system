@@ -44,7 +44,7 @@ export default function Home() {
     </div>
     <section className="principle-band">
       <div className="page-container principle-inner">
-        <div><span className="eyebrow" style={{color:"#a8d8be"}}>02 / UMA REGRA EDITORIAL</span><Heading as="h2">Primeiro entender.<br/>Depois verificar.</Heading></div>
+        <div><span className="eyebrow" style={{color:"#A7C8FA"}}>02 / UMA REGRA EDITORIAL</span><Heading as="h2">Primeiro entender.<br/>Depois verificar.</Heading></div>
         <div>
           <p>Cada módulo responde, nesta ordem: o que faz, como funciona e qual é sua situação real. Explicações e exemplos vêm primeiro. Links de referência aparecem ao final de cada assunto, sem interromper a leitura.</p>
           <p>O que foi planejado, implementado, testado ou homologado permanece distinguível. Ter um arquivo no GitHub não significa que o serviço está ativo.</p>
