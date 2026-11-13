@@ -1,6 +1,6 @@
 # G03 — Engenharia e Git
 
-> **Unidade do catálogo Syndes.** Esta é a entrada humana do módulo: navegue pelas seis páginas abaixo. Código e documentação técnica podem existir sem estar implantados ou homologados.
+> **Governança de engenharia e colaboração (G03).** Regras de AGENTS, ownership, worktrees, contratos de mudança, GitHub Issues/Projects e gates de CI. **G03 não é um módulo executável**: esta ficha explica como alterar o produto com rastreabilidade, não como liberar permissões de execução. Revisão estática parcial em 12/11/2026.
 
 <!-- syndes:module-id=G03;source=AGENTS.md;kind=module -->
 
@@ -9,23 +9,30 @@
 | Quero descobrir | Abrir |
 |---|---|
 | **O que o módulo faz?** | [Especificação, capacidades e histórias](ESCOPO.md) |
-| **Como funciona do banco à interface?** | [Referência técnica: stack, classes e contratos](REFERENCIA-TECNICA.md) |
+| **Que regras, scripts e contratos governam mudanças?** | [Referência técnica de engenharia](REFERENCIA-TECNICA.md) · [Matriz de owners e contratos](chapters/04-contratos-e-dependencias-publicas.md) |
 | **O que será feito?** | [Evolução: workpackages e dependências](EVOLUCAO.md) |
 | **O que realmente mudou?** | [Histórico Git e evidências relacionadas](HISTORICO.md) |
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
 
+## Engenharia e agentes por responsabilidade {#governanca}
+
+- **Preparar trabalho:** ler [AGENTS global](https://github.com/delmacy/syndes-system/blob/main/AGENTS.md), regra local aplicável, catálogo e WBS; fixar SHA, dono, artefato e escopo.
+- **Executar com limite:** usar worktree isolada, revisar diff e [verificar escopo consultivamente](chapters/04-contratos-e-dependencias-publicas.md); o scanner não impõe sandbox.
+- **Verificar:** [matriz do pipeline e gates](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md) e [STATUS G03](STATUS.md); falha do CI central não é release aprovado.
+- **Rastrear:** [WBS/Issues/Projects](EVOLUCAO.md) com fontes separadas, sem criar progresso fictício.
+
 ## Capacidades e requisitos {#capacidades}
 
-Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O conteúdo da especificação define o que é aprovado; presença de um item na documentação não comprova implementação.**
+Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **Regras e decisões aprovadas estão nas fontes originais; uma proposta no Docs ou um script no Git não comprovam execução, controle de acesso ou aceite.**
 
 ## Stack, contratos e persistência {#stack}
 
-A [referência técnica](REFERENCIA-TECNICA.md) lista exports de pacote, interfaces públicas, declarações internas de classes/métodos, APIs HTTP identificadas, candidatos de frontend e objetos SQL com origem verificável.
+A [referência técnica](REFERENCIA-TECNICA.md) documenta scripts, workflows e checagens de engenharia. **G03 não possui classes de produto, APIs HTTP ou tabelas próprias**; os contratos dos módulos ficam em cada owner.
 
-- **Fonte do código/artefato:** [`AGENTS.md`](https://github.com/delmacy/syndes-system/tree/main/AGENTS.md).
-- **Banco de tenant e Control/Manager:** [seção de persistência da referência](REFERENCIA-TECNICA.md).
-- **Contrato público vs. interno:** [referência técnica](REFERENCIA-TECNICA.md).
+- **Fonte de regras:** [`AGENTS.md`](https://github.com/delmacy/syndes-system/blob/main/AGENTS.md).
+- **Contrato de alteração:** [owner e revisão de diff](chapters/04-contratos-e-dependencias-publicas.md).
+- **Bancos:** Control e Tenant pertencem a seus owners; documentação de engenharia não executa migrations.
 
 
 ## Planejamento, progresso e provas {#evolucao}
