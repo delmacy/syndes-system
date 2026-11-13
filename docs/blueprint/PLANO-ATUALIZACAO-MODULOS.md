@@ -46,7 +46,7 @@ Acordar critérios de evidência, ownership, escopo e arquitetura antes de detal
 | 04 | [Q10 — Quality Gates](../subprojects/Q10-quality-gates/README.md) · [STATUS](../subprojects/Q10-quality-gates/STATUS.md) | Gates de qualidade, critérios e evidências exigidas. | **Parcial — integridade inventariada; CI Q07 recuperada, Product Gates pendentes** |
 | 05 | [Q07 — CI/CD](../subprojects/Q07-ci-cd/README.md) · [STATUS](../subprojects/Q07-ci-cd/STATUS.md) | CI central, seleção de testes e promoção por revisão. | **Parcial — CI mainline validada (24/24 no SHA ec688ce); aceite de produto separado** |
 | 06 | [Q01 — Plataforma de testes](../subprojects/Q01-plataforma-de-testes/README.md) · [STATUS](../subprojects/Q01-plataforma-de-testes/STATUS.md) | Plataforma de testes, ambientes, fixtures e execução. | **Parcial — suites/ambientes identificados, CI verde por SHA; RC pendente** |
-| 07 | [P14 — Platform Core](../subprojects/P14-platform-core/README.md) · [STATUS](../subprojects/P14-platform-core/STATUS.md) | Mapa do Core lógico: não supor runtime próprio. | **Parcial; revalidar SHA** |
+| 07 | [P14 — Platform Core](../subprojects/P14-platform-core/README.md) · [STATUS](../subprojects/P14-platform-core/STATUS.md) | Core lógico: P14 contratual, Kernel A08, Host A04, Control/Identity; CMP planejado. | **Parcial — contratos/owners reconciliados; perfis CMP não implementados** |
 
 ### Onda 1 — Hospedagem, identidade e segurança
 

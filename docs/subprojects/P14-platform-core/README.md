@@ -1,6 +1,6 @@
 # P14 — Platform Core
 
-> **Unidade do catálogo Syndes.** Esta é a entrada humana do módulo: navegue pelas seis páginas abaixo. Código e documentação técnica podem existir sem estar implantados ou homologados.
+> **Platform Core (P14) é uma fronteira de arquitetura, não um runtime.** `modules/platform-core` contém apenas `AGENTS.md`; os contratos executáveis pertencem ao Core Kernel (A08), ao Core Host (A04) e aos owners de segurança, Control e domínio. **Auditoria documental parcial**, com CI da baseline aprovado por SHA e perfis CMP ainda não implementados.
 
 <!-- syndes:module-id=P14;source=modules/platform-core;kind=module -->
 
@@ -9,23 +9,31 @@
 | Quero descobrir | Abrir |
 |---|---|
 | **O que o módulo faz?** | [Especificação, capacidades e histórias](ESCOPO.md) |
-| **Como funciona do banco à interface?** | [Referência técnica: stack, classes e contratos](REFERENCIA-TECNICA.md) |
+| **Quais contratos são Kernel, Host ou módulos?** | [Referência por owner](REFERENCIA-TECNICA.md) · [Fronteiras e métodos](chapters/04-contratos-e-dependencias-publicas.md) |
 | **O que será feito?** | [Evolução: workpackages e dependências](EVOLUCAO.md) |
 | **O que realmente mudou?** | [Histórico Git e evidências relacionadas](HISTORICO.md) |
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
 
+## Mapa das responsabilidades {#mapa-core}
+
+- **P14:** mapa de governança transversal e fronteiras de arquitetura — não é um processo.
+- **A08:** [`@syndes/core-kernel`](https://github.com/delmacy/syndes-system/tree/main/packages/core-kernel), ports, contratos, module registry e envelopes de eventos.
+- **A04:** [`Core Host`](https://github.com/delmacy/syndes-system/tree/main/apps/core-host), NestJS, composição, autenticação, adapters e trusted plugins.
+- **Control, Identity, FGA e módulos:** processos e dados pertencentes aos respectivos owners, com gating de tenant/ENABLED.
+- **Perfis de implantação CMP:** [ADR e matriz de gates](chapters/06-wbs-marcos-e-aceite.md), ainda **não implementados/homologados**.
+
 ## Capacidades e requisitos {#capacidades}
 
-Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O conteúdo da especificação define o que é aprovado; presença de um item na documentação não comprova implementação.**
+Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **Esta especificação registra fontes e decisões; publicação no Docs ou CI verde não equivale a um Core por perfil instalado nem a Product Gate.**
 
 ## Stack, contratos e persistência {#stack}
 
-A [referência técnica](REFERENCIA-TECNICA.md) lista exports de pacote, interfaces públicas, declarações internas de classes/métodos, APIs HTTP identificadas, candidatos de frontend e objetos SQL com origem verificável.
+A [referência técnica](REFERENCIA-TECNICA.md) identifica **símbolos públicos do Kernel** e **rotas internas do Host**, sem atribuí-los ao P14. **P14 não possui APIs, frontend ou migrations próprios.**
 
-- **Fonte do código/artefato:** [`modules/platform-core`](https://github.com/delmacy/syndes-system/tree/main/modules/platform-core).
-- **Banco de tenant e Control/Manager:** [seção de persistência da referência](REFERENCIA-TECNICA.md).
-- **Contrato público vs. interno:** [referência técnica](REFERENCIA-TECNICA.md).
+- **Regras P14:** [`modules/platform-core/AGENTS.md`](https://github.com/delmacy/syndes-system/blob/main/modules/platform-core/AGENTS.md).
+- **Contratos:** [matriz de exports, ports e interfaces](chapters/04-contratos-e-dependencias-publicas.md).
+- **Banco:** Control e tenant DB pertencem às respectivas unidades; o P14 não instala DDL.
 
 
 ## Planejamento, progresso e provas {#evolucao}
