@@ -9,3 +9,7 @@ A execução `python3 scripts/docs/build_book_ab.py` gera dois projetos temporá
 Cada módulo possui **14 subcapítulos técnicos independentes**, incluindo casos de uso, histórias de usuário, contratos, APIs, eventos, dados, schema, dependências, configuração, interfaces, testes, operação e WBS. As oito matérias canônicas continuam acessíveis. A sidebar do Starlight agrupa volumes, módulos e páginas por tema.
 
 Subcapítulos novos são **projeções de leitura**, com citações extraídas dos arquivos versionados. Resultado de busca textual é contexto, não homologação ou prova completa de contrato. Se faltar conteúdo, a lacuna fica explícita. Nenhuma fonte canônica é modificada pelo gerador.
+
+## Iteração de leitura contínua
+
+Cada módulo é **uma única página Markdown**, com 14 subcapítulos ancorados no índice da página e oito matérias canônicas reproduzidas em apêndice. A navegação lateral lista volumes e módulos. Cada subcapítulo fornece um link para editar o documento-fonte no GitHub e um modelo recolhível para registrar alterações. Não há formulário de gravação dentro do Pages, que continua estático.

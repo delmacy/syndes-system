@@ -75,6 +75,8 @@ def build():
  (b/'package.json').write_text(json.dumps({'private':True,'type':'module','scripts':{'build':'astro build'},'dependencies':{'astro':'^5.15.0','@astrojs/starlight':'^0.36.0'}},indent=2))
  (DEST/'README.md').write_text('# Syndes · Prototipação A/B de biblioteca\n\nA = VitePress, B = Astro Starlight. Mesma fonte para 57 capítulos em cinco volumes. Snapshot para avaliação da interface, não da completude técnica.\n\nA execução `python3 scripts/docs/build_book_ab.py` gera dois projetos temporários. Para produzir os bundles HTML, execute `npm install` + `npm run build` em cada projeto e copie `vitepress/docs/.vitepress/dist` e `starlight/dist` para caminhos de prévia isolados. Não substituir MkDocs sem decisão explícita.\n')
  from enrich_starlight_book import enrich
+ from build_starlight_continuous import render
  enrich()
+ render()
  print('Generated',len(CAT),'chapters in both frameworks')
 if __name__=='__main__':build()

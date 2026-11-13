@@ -31,42 +31,40 @@ class BookEditionTests(unittest.TestCase):
             p=BOOK/area/(sid.lower()+'.md')
             self.assertTrue(p.is_file(),p)
             contents=p.read_text()
-            for term in ['## Identificação e rastreabilidade','## Situação registrada','## Matérias deste capítulo','## Referências operacionais e evolução','**Leitura técnica, não homologação.**','STATUS original','REFERENCIA-TECNICA','OPERACAO']:
+            for term in ['## Identificação e rastreabilidade','## Situação registrada','## Índice dos subcapítulos','## Controle de alterações','**Leitura técnica, não homologação.**','STATUS original','REFERENCIA-TECNICA','OPERACAO']:
                 self.assertIn(term,contents,sid)
             self.assertIn(unit['source'],contents,sid)
             self.assertIn(unit['id'],contents,sid)
             self.assertIn('https://github.com/delmacy/syndes-system/blob/main/',contents,sid)
             self.assertTrue((OUT/area/sid.lower()/'index.html').is_file(),sid)
 
-    def test_topic_pages_are_real_independent_documents(self):
-        total=0
-        for unit in self.units:
-            sid=unit['id']; area=AREA[unit['front']]
-            source=ROOT/unit['entry']
-            for _,_,name in TOPICS:
-                p=source.parent/'chapters'/name
-                if not p.is_file():continue
-                self.assertTrue((BOOK/area/sid.lower()/p.name).is_file(),p)
-                self.assertTrue((OUT/area/sid.lower()/p.stem/'index.html').is_file(),p)
-                total+=1
-        self.assertEqual(total,sum(x['topics'] for x in self.manifest))
-        self.assertGreaterEqual(total,440)
-
-    def test_independent_technical_subchapters_and_navigation(self):
+    def test_all_subchapters_are_anchors_in_one_module_page(self):
+        import re
         for unit in self.units:
             uid=unit['id']; area=AREA[unit['front']]
-            book=(BOOK/area/(uid.lower()+'.md')).read_text()
+            source=BOOK/area/(uid.lower()+'.md')
+            html=OUT/area/uid.lower()/'index.html'
+            self.assertTrue(source.is_file(),source)
+            self.assertTrue(html.is_file(),html)
+            page=source.read_text(encoding='utf-8')
+            rendered=html.read_text(encoding='utf-8')
             for slug,title,_,_ in SUBCHAPTERS:
-                source=BOOK/area/uid.lower()/(slug+'.md')
-                output=OUT/area/uid.lower()/slug/'index.html'
-                self.assertTrue(source.is_file(),source)
-                self.assertTrue(output.is_file(),output)
-                self.assertIn('./'+slug+'/',book)
-                page=source.read_text()
-                self.assertIn('Referências verificáveis',page)
-                self.assertIn('não homologação',page)
-                self.assertIn('STATUS original',page)
-        self.assertEqual(798,len(self.units)*len(SUBCHAPTERS))
+                self.assertIn('## '+title,page)
+                self.assertIn('<a id="'+slug+'"></a>',page)
+                self.assertIn('](#'+slug+')',page)
+                self.assertIn('id="'+slug+'"',rendered)
+                self.assertFalse((BOOK/area/uid.lower()/(slug+'.md')).exists())
+                self.assertFalse((OUT/area/uid.lower()/slug/'index.html').exists())
+            self.assertEqual(1,page.count('## Controle de alterações'))
+            self.assertIn('Espaço para ajustes e implementação',page)
+            self.assertIn('https://github.com/delmacy/syndes-system/edit/main/',page)
+            self.assertIn('Documentação de origem integral',page)
+            for _,_,filename in TOPICS:
+                original=ROOT/unit['entry']
+                doc=original.parent/'chapters'/filename
+                if doc.is_file():
+                    self.assertIn(doc.name,page)
+            self.assertIn('tableOfContents', (ROOT/'experiments/book-ab/starlight/astro.config.mjs').read_text())
 
     def test_no_claim_of_functional_homologation(self):
         for u in self.units:
