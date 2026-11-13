@@ -10,6 +10,7 @@ on:
       - "catalog/traceability-links.json"
       - "scripts/docs/**"
       - "experiments/book-ab/starlight/**"
+      - "apps/docs-reader/**"
       - "tests/docs-design-ux/**"
       - "modules/**"
       - "apps/**"
@@ -96,6 +97,20 @@ jobs:
 
       - name: Verify contextual prompt generation
         run: node --test scripts/docs/test_editor.mjs scripts/docs/test_layered_portal.mjs scripts/docs/test_projects_dashboard.mjs
+
+      - name: Export Next.js and Chakra docs reader to isolated Pages path
+        env:
+          NEXT_PUBLIC_READER_BASEPATH: /syndes-system/assets/docs-reader
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          npm --prefix apps/docs-reader install --no-audit --no-fund
+          npm --prefix apps/docs-reader test
+          npm --prefix apps/docs-reader run build
+          rm -rf docs/assets/docs-reader
+          mkdir -p docs/assets/docs-reader
+          cp -a apps/docs-reader/out/. docs/assets/docs-reader/
+          test -s docs/assets/docs-reader/index.html
+          test -s docs/assets/docs-reader/modulos/crm/index.html
 
       - name: Prepare selected documentation
         run: python scripts/docs/build_site.py
