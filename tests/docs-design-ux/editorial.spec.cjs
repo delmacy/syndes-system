@@ -124,3 +124,27 @@ test('Módulo selecionado tem rótulo legível no menu lateral', async ({ page }
   const color = await active.evaluate(el => getComputedStyle(el).color);
   expect(color, 'White text must remain visible on the Starlight accent selection').toBe('rgb(255, 255, 255)');
 });
+
+test('Uma única orientação de edição ao final, sem interromper cada seção', async ({ page }, testInfo) => {
+  await page.goto(A06);
+  const article = page.locator('.sl-markdown-content');
+  const guide = article.locator('details.syndes-edit-note');
+  await expect(guide).toHaveCount(1);
+  await expect(guide).not.toHaveAttribute('open', '');
+  await expect(guide.locator('summary')).toContainText('Como propor uma alteração');
+  const section = article.locator('h2', { hasText: 'APIs e endpoints' });
+  await expect(section).toHaveCount(1);
+  // A single editorial footer follows the module sections, never 16 repeated panels.
+  const positions = await page.evaluate(() => {
+    const article = document.querySelector('.sl-markdown-content');
+    const guide = article.querySelector('details.syndes-edit-note');
+    const headings = [...article.querySelectorAll('h2')];
+    return { guide: guide.getBoundingClientRect().top + scrollY,
+      lastHeading: headings[headings.length - 1].getBoundingClientRect().top + scrollY };
+  });
+  expect(positions.guide).toBeGreaterThan(positions.lastHeading);
+  await guide.scrollIntoViewIfNeeded();
+  await guide.locator('summary').click();
+  await expect(guide).toHaveAttribute('open', '');
+  await page.screenshot({ path: testInfo.outputPath('single-edit-footer.png'), fullPage: false });
+});
