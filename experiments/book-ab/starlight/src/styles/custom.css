@@ -252,10 +252,11 @@ html { scroll-padding-top: 5.5rem; }
 }
 .sidebar-content a[aria-current="page"] {
   font-weight: 650;
-  color: var(--sl-color-accent-high);
 }
+/* Starlight draws an accent-colored active surface in light mode.
+   Its foreground must contrast with the background, not reuse accent teal. */
 :root[data-theme="light"] .sidebar-content a[aria-current="page"] {
-  color: var(--sl-color-accent);
+  color: #fff;
 }
 .sidebar-content details > summary {
   padding-block: .5rem;
