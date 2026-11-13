@@ -1,4 +1,4 @@
-"""Starlight book: 57 full Markdown chapters, one page per module."""
+"""Contract tests for continuous, editorial Starlight module pages."""
 import json
 import unittest
 from pathlib import Path
@@ -6,70 +6,85 @@ from pathlib import Path
 from enrich_starlight_book import TOPICS
 from build_starlight_continuous import complete_heading_blocks, render
 
-ROOT=Path(__file__).resolve().parents[2]
-DOCS=ROOT/'docs'
-BOOK=ROOT/'experiments/book-ab/starlight/src/content/docs'
-OUT=DOCS/'assets/experimentos/livros/b'
-AREAS={'produto':'01-produto','plataforma':'02-plataforma',
-       'frontend':'03-interfaces','operacao':'04-operacao',
-       'qualidade':'05-infra-qualidade'}
-ANCHORS=('estado','casos-de-uso','historias-de-usuario','requisitos',
- 'arquitetura','contratos','apis','eventos','dados','schema',
- 'dependencias','configuracao','interface','testes','operacao','wbs',
- 'registro-de-alteracoes')
+ROOT = Path(__file__).resolve().parents[2]
+DOCS = ROOT / 'docs'
+BOOK = ROOT / 'experiments/book-ab/starlight/src/content/docs'
+OUT = DOCS / 'assets/experimentos/livros/b'
+AREAS = {
+    'produto': '01-produto',
+    'plataforma': '02-plataforma',
+    'frontend': '03-interfaces',
+    'operacao': '04-operacao',
+    'qualidade': '05-infra-qualidade',
+}
+ANCHORS = (
+    'estado', 'casos-de-uso', 'historias-de-usuario', 'requisitos',
+    'arquitetura', 'contratos', 'apis', 'eventos', 'dados', 'schema',
+    'dependencias', 'configuracao', 'interface', 'testes', 'operacao',
+    'wbs', 'registro-de-alteracoes',
+)
 
 
 class ContinuousBookTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.units=json.loads((DOCS/'subprojects/index.json').read_text())['units']
+        cls.units = json.loads((DOCS / 'subprojects/index.json').read_text())['units']
 
-    def test_all_modules_are_single_anchored_pages(self):
-        self.assertEqual(57,len(self.units))
-        self.assertEqual(57,len({u['id'] for u in self.units}))
+    def test_unique_module_pages_and_anchors(self):
+        self.assertEqual(57, len(self.units))
+        self.assertEqual(57, len({unit['id'] for unit in self.units}))
         for unit in self.units:
-            area=AREAS[unit['front']]
-            uid=unit['id'].lower()
-            source=BOOK/area/(uid+'.md')
-            output=OUT/area/uid/'index.html'
-            self.assertTrue(source.is_file(),source)
-            self.assertTrue(output.is_file(),output)
-            self.assertFalse((BOOK/area/uid).exists())
-            self.assertFalse((OUT/area/uid/'apis'/'index.html').exists())
-            markdown=source.read_text()
-            html=output.read_text()
+            area = AREAS[unit['front']]
+            uid = unit['id'].lower()
+            source = BOOK / area / (uid + '.md')
+            output = OUT / area / uid / 'index.html'
+            self.assertTrue(source.is_file(), source)
+            self.assertTrue(output.is_file(), output)
+            self.assertFalse((BOOK / area / uid).exists())
+            self.assertFalse((OUT / area / uid / 'apis' / 'index.html').exists())
+            markdown = source.read_text(encoding='utf-8')
+            html = output.read_text(encoding='utf-8')
             for slug in ANCHORS:
-                self.assertIn('](#'+slug+')',markdown,unit['id'])
-                self.assertIn('id="'+slug+'"',html,unit['id'])
-            self.assertNotIn('## Documentação de origem integral',markdown)
-            self.assertIn('Espaço para alterações',markdown)
-            for _,_,filename in TOPICS:
-                chapter=(ROOT/unit['entry']).parent/'chapters'/filename
+                self.assertIn('href="#' + slug + '"', markdown, unit['id'])
+                self.assertIn('id="' + slug + '"', html, unit['id'])
+            self.assertNotIn('## Documentação de origem integral', markdown)
+            self.assertIn('class="syndes-chapter-index"', markdown)
+            self.assertEqual(1, markdown.count('class="syndes-edit-note"'), unit['id'])
+            self.assertEqual(1, markdown.count('Como propor uma alteração'), unit['id'])
+            self.assertEqual(1, html.count('class="syndes-edit-note"'), unit['id'])
+            self.assertIn('github.com/delmacy/syndes-system/edit/main/', markdown)
+            self.assertNotIn('Propor ajuste nesta seção', markdown)
+            for _, _, filename in TOPICS:
+                chapter = (ROOT / unit['entry']).parent / 'chapters' / filename
                 if chapter.is_file():
-                    marker='**Fonte completa:** ['+chapter.relative_to(ROOT).as_posix()+']'
-                    self.assertEqual(1,markdown.count(marker),str(chapter))
+                    marker = 'href="https://github.com/delmacy/syndes-system/blob/main/' + chapter.relative_to(ROOT).as_posix() + '"'
+                    self.assertIn(marker, markdown)
 
-    def test_technical_reference_is_never_truncated(self):
-        for u in self.units:
-            path=ROOT/u['technicalReference']
+    def test_technical_source_is_never_truncated(self):
+        for unit in self.units:
+            path = ROOT / unit['technicalReference']
             if path.is_file():
-                raw=path.read_text()
-                self.assertEqual(raw,''.join(v for _,v in complete_heading_blocks(raw)))
+                original = path.read_text(encoding='utf-8')
+                self.assertEqual(
+                    original,
+                    ''.join(block for _, block in complete_heading_blocks(original)),
+                )
 
-    def test_a06_has_real_content_inline(self):
-        text=(BOOK/'02-plataforma/a06.md').read_text()
-        for value in ['GET /healthz','createAccountAccessServer',
-                      'apply_tenant_account_delegation','Grant/revoke idempotente']:
-            self.assertIn(value,text)
-        self.assertIn('## APIs e endpoints',text)
-        self.assertIn('## Schemas e migrations',text)
+    def test_a06_contains_real_contracts_in_article(self):
+        text = (BOOK / '02-plataforma/a06.md').read_text(encoding='utf-8')
+        for value in (
+            'GET /healthz', 'createAccountAccessServer',
+            'apply_tenant_account_delegation', 'Grant/revoke idempotente',
+            '## APIs e endpoints', '## Schemas e migrations'
+        ):
+            self.assertIn(value, text)
 
     def test_generator_is_idempotent(self):
-        file=BOOK/'02-plataforma/a06.md'
-        before=file.read_bytes()
+        path = BOOK / '02-plataforma/a06.md'
+        original = path.read_bytes()
         render()
-        self.assertEqual(before,file.read_bytes())
+        self.assertEqual(original, path.read_bytes())
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     unittest.main()
