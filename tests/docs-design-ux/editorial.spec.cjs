@@ -114,3 +114,13 @@ test('O conteúdo longo preserva ritmo editorial e navegação por assunto', asy
   expect(result.fontSize).toBeGreaterThanOrEqual(20);
   expect(result.marginTop).toBeGreaterThanOrEqual(25);
 });
+
+test('Módulo selecionado tem rótulo legível no menu lateral', async ({ page }) => {
+  await page.goto(A06);
+  await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
+  const active = page.locator('.sidebar-content a[aria-current="page"]').first();
+  await expect(active).toHaveCount(1);
+  await expect(active).toContainText('A06');
+  const color = await active.evaluate(el => getComputedStyle(el).color);
+  expect(color, 'White text must remain visible on the Starlight accent selection').toBe('rgb(255, 255, 255)');
+});
