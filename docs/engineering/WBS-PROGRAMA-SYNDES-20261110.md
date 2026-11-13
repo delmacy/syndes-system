@@ -325,3 +325,10 @@ A capacidade de gerar **Core Host + subconjunto de módulos confiáveis por inst
 A ordem é: **CMP-01** contratos e dependências; **CMP-02** manifesto/validação; **CMP-03** composição local de dois perfis; **CMP-04** builds por perfil; **CMP-05** profile+tenant ENABLED+FGA; **CMP-06** deployment/rollback; **CMP-07** integração cross-process somente quando justificada; **CMP-08** worker ownership; **CMP-09** homologação com 2 perfis/2 tenants; **CMP-10** UI opcional pós-gate.
 
 **Priorização:** CMP-01/02 são preparação transversal; não bloquear o fluxo WhatsApp→Inbox→CRM→Service e frontends para criar uma plataforma distribuída prematura. Detalhes e evidências em [WBS-COMPOSICAO-MODULAR-CORE-20261111.md](WBS-COMPOSICAO-MODULAR-CORE-20261111.md) e [ADR-COMPOSICAO-MODULAR-CORE-20261111.md](ADR-COMPOSICAO-MODULAR-CORE-20261111.md). O gate completo de backup/restore permanece no fechamento do MVP.
+
+## I10 — checkpoint documental parcial (13/11/2026)
+
+- Fonte: `scripts/events/disposable_restore_drill.py` (Python, PostgreSQL 17 sintético, sem rede, sem portas publicadas). Não há prova de backup de produção, RPO/RTO ou homologação.
+- [STATUS](../subprojects/I10-backup-e-restore/STATUS.md), [Referência técnica](../subprojects/I10-backup-e-restore/REFERENCIA-TECNICA.md), [Operação](../subprojects/I10-backup-e-restore/OPERACAO.md) e [oito capítulos](../subprojects/I10-backup-e-restore/README.md) em revisão documental.
+- WBS `I10.DOC.01`: auditoria parcial, revisão owner e gates documentais pendentes; `I10.TEST.01`: ensaio descartável não executado nesta revisão; `I10.OPS.01`: recuperação operacional bloqueada por ausência de evidência.
+- Witness registry: sem novas entradas, pois não houve extração independente de contrato público.
