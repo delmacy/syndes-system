@@ -52,13 +52,22 @@ jobs:
       - name: Validate the repository ownership index
         run: bash tests/integrity/repository-structure.sh
 
-      - name: Validate topic-level editor parser
-        run: python -m unittest discover -s scripts/docs -p "test_*.py" -v
-
       - name: Setup Node for contextual editor tests
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      - name: Compose the Starlight book from canonical Markdown
+        run: |
+          python scripts/docs/build_starlight_continuous.py
+          npm --prefix experiments/book-ab/starlight install --no-audit --no-fund
+          npm --prefix experiments/book-ab/starlight run build
+          rm -rf docs/assets/experimentos/livros/b
+          mkdir -p docs/assets/experimentos/livros/b
+          cp -a experiments/book-ab/starlight/dist/. docs/assets/experimentos/livros/b/
+
+      - name: Validate topic-level editor and continuous book
+        run: python -m unittest discover -s scripts/docs -p "test_*.py" -v
 
       - name: Verify contextual prompt generation
         run: node --test scripts/docs/test_editor.mjs scripts/docs/test_layered_portal.mjs scripts/docs/test_projects_dashboard.mjs
