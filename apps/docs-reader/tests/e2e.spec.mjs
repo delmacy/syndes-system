@@ -24,7 +24,12 @@ test("CRM tem doze tópicos contínuos e referências depois da explicação",as
   });
   expect(data.leadBeforeSource).toBeTruthy();
   expect(data.sourceBeforeProposal).toBeTruthy();
-  await page.locator('.side-link[href="#contratos"]').click();
+  if (test.info().project.name === "mobile") {
+    await page.locator(".mobile-outline summary").click();
+    await page.locator('.mobile-outline a[href="#contratos"]').click();
+  } else {
+    await page.locator('.side-link[href="#contratos"]').click();
+  }
   await expect(page).toHaveURL(/#contratos$/);
   await expect(page.locator("#contratos")).toBeVisible();
 });
@@ -49,7 +54,7 @@ test("Menu mobile abre sem interromper a leitura",async({page,isMobile})=>{
   if(isMobile){
     const toggle=page.getByRole("button",{name:"Abrir menu"});
     await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-expanded","true");
+    await expect(page.getByRole("button",{name:"Fechar menu"})).toHaveAttribute("aria-expanded","true");
     await expect(page.getByRole("navigation",{name:"Navegação principal"})).toBeVisible();
     await expect(page.locator(".mobile-outline")).toBeVisible();
   }
