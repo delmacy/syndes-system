@@ -522,16 +522,29 @@ def main():
                 payload["fullMarkdown"]=raw
             target.with_suffix(".sections.json").write_text(json.dumps(payload,ensure_ascii=False),encoding="utf-8")
         else: shutil.copy2(source,target)
-    # A/B preview is an explicit, isolated static export; never walk other asset folders.
-    previews=DOCS/"assets/experimentos/livros"
-    if previews.is_dir():
-        approved={".html", ".js", ".css", ".json", ".woff2", ".svg", ".png", ".xml", ".txt", ".ico", ".webp"}
-        for source in previews.rglob("*"):
+    # Copy bounded, generated static frontends into the MkDocs output tree.
+    # The older book contains Pagefind-specific index files; the Next reader
+    # contains its own _next assets. Do not broaden this to arbitrary docs/ assets.
+    approved={".html", ".js", ".mjs", ".css", ".json", ".woff", ".woff2",
+              ".svg", ".png", ".jpg", ".jpeg", ".xml", ".txt", ".ico", ".webp",
+              ".avif", ".map"}
+    assets_root=DOCS/"assets"
+    for relative_root in (Path("experimentos/livros"), Path("docs-reader")):
+        exported=assets_root/relative_root
+        if not exported.is_dir():
+            continue
+        if relative_root==Path("docs-reader"):
+            if not (exported/"index.html").is_file() or not (exported/"modulos/crm/index.html").is_file():
+                raise ValueError("Incomplete Next.js reader export: "+str(exported))
+        for source in exported.rglob("*"):
             if source.is_symlink():
-                raise ValueError("Symlink forbidden in book A/B preview: "+str(source))
+                raise ValueError("Symlink forbidden in published frontend: "+str(source))
             if source.is_file():
-                if source.suffix not in approved:
-                    raise ValueError("Unexpected preview asset type: "+str(source))
+                subpath=source.relative_to(exported)
+                pagefind_index=("pagefind" in subpath.parts and source.suffix.startswith(".pf_")
+                                and relative_root==Path("experimentos/livros"))
+                if source.suffix not in approved and not pagefind_index:
+                    raise ValueError("Unexpected frontend asset type: "+str(source))
                 target=CONTENT/source.relative_to(DOCS)
                 target.parent.mkdir(parents=True,exist_ok=True)
                 shutil.copy2(source,target)
