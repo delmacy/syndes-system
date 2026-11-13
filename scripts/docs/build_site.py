@@ -498,7 +498,7 @@ def main():
     include={DOCS/"README.md",DOCS/"subprojects/README.md",DOCS/"subprojects/index.json",DOCS/"monitoramento/README.md"}
     include.update((DOCS/"blueprint").glob("*.md"))
     include.update((DOCS/"standards").glob("*.md"))
-    include.update((DOCS/"assets").glob("*"))
+    include.update(p for p in (DOCS/"assets").glob("*") if p.is_file())
     for u in units:
         include.update((DOCS/Path(u["entry"]).parent.relative_to("docs")).glob("*.md"))
         include.update((DOCS/Path(u["entry"]).parent.relative_to("docs")/"chapters").rglob("*.md"))
@@ -522,6 +522,19 @@ def main():
                 payload["fullMarkdown"]=raw
             target.with_suffix(".sections.json").write_text(json.dumps(payload,ensure_ascii=False),encoding="utf-8")
         else: shutil.copy2(source,target)
+    # A/B preview is an explicit, isolated static export; never walk other asset folders.
+    previews=DOCS/"assets/experimentos/livros"
+    if previews.is_dir():
+        approved={".html", ".js", ".css", ".json", ".woff2", ".svg", ".png", ".xml", ".txt", ".ico", ".webp"}
+        for source in previews.rglob("*"):
+            if source.is_symlink():
+                raise ValueError("Symlink forbidden in book A/B preview: "+str(source))
+            if source.is_file():
+                if source.suffix not in approved:
+                    raise ValueError("Unexpected preview asset type: "+str(source))
+                target=CONTENT/source.relative_to(DOCS)
+                target.parent.mkdir(parents=True,exist_ok=True)
+                shutil.copy2(source,target)
     embed_chapters_in_scopes(units,revision,included)
     embed_provenance(units,revision)
     embed_global_history(revision)
