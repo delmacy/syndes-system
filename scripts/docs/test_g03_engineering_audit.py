@@ -63,8 +63,8 @@ class G03EngineeringAuditTests(unittest.TestCase):
 
     def test_plan_maintains_57_units_and_7_partial_audits(self):
         plan=(ROOT/"docs/blueprint/PLANO-ATUALIZACAO-MODULOS.md").read_text()
-        self.assertIn("11 STATUS",plan)
-        self.assertIn("46 STATUS",plan)
+        self.assertIn("12 STATUS",plan)
+        self.assertIn("45 STATUS",plan)
         self.assertIn("G03 — Engenharia e Git",plan)
         self.assertIn("regras/CI e Projects inventariados; aprovação pendente",plan)
 

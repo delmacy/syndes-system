@@ -1,6 +1,6 @@
 # I04 — PostgreSQL
 
-> **Unidade do catálogo Syndes.** Esta é a entrada humana do módulo: navegue pelas seis páginas abaixo. Código e documentação técnica podem existir sem estar implantados ou homologados.
+> **PostgreSQL (I04) — auditoria técnica parcial, 13/11/2026.** Instância de desenvolvimento consultada em modo somente leitura: isolamento de CONNECT/roles no tenant observado confirmado, porém as seis migrations de módulos do Control continuam **PENDING** e o tenant canônico examinado não apresenta schemas de produto. **Sem alterações de banco ou homologação de produção.**
 
 <!-- syndes:module-id=I04;source=infra/postgres;kind=module -->
 
@@ -9,23 +9,31 @@
 | Quero descobrir | Abrir |
 |---|---|
 | **O que o módulo faz?** | [Especificação, capacidades e histórias](ESCOPO.md) |
-| **Como funciona do banco à interface?** | [Referência técnica: stack, classes e contratos](REFERENCIA-TECNICA.md) |
+| **Quais bancos, roles e schemas existem de fato?** | [Inventário SQL da instância](REFERENCIA-TECNICA.md) · [Mapas e fronteiras](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md) |
 | **O que será feito?** | [Evolução: workpackages e dependências](EVOLUCAO.md) |
 | **O que realmente mudou?** | [Histórico Git e evidências relacionadas](HISTORICO.md) |
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
 
+## Observado versus versionado {#estado-postgresql}
+
+- **PostgreSQL 17 no DevServer01:** Control, Keycloak, OpenFGA e um tenant canônico presentes, além de outro DB ainda não classificado.
+- **Isolamento básico:** `PUBLIC`, `syndes_core` e `syndes_master_api` não têm `CONNECT` ao banco de tenant observado; a role exclusiva não é superusuária.
+- **Control:** registry/membership e Manager básico presentes; **catálogo de módulos, entitlements, ledger e eventos Control ausentes** na instância examinada.
+- **Tenant:** schemas de produto e `_syndes.module_migrations` não encontrados no tenant canônico examinado.
+- **Migrador:** seis etapas **PENDING** em `--plan`; **não executamos DDL nem `--apply`**.
+
 ## Capacidades e requisitos {#capacidades}
 
-Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O conteúdo da especificação define o que é aprovado; presença de um item na documentação não comprova implementação.**
+Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **SQL no Git, CI verde, objeto SQL aplicado, acesso seguro e aceite operacional são evidências independentes.**
 
 ## Stack, contratos e persistência {#stack}
 
-A [referência técnica](REFERENCIA-TECNICA.md) lista exports de pacote, interfaces públicas, declarações internas de classes/métodos, APIs HTTP identificadas, candidatos de frontend e objetos SQL com origem verificável.
+A [referência técnica](REFERENCIA-TECNICA.md) distingue **scripts/SQL declarados** de **bancos, roles, schemas e grants existentes**. **I04 não oferece API HTTP, classes de negócio ou frontend próprios.**
 
-- **Fonte do código/artefato:** [`infra/postgres`](https://github.com/delmacy/syndes-system/tree/main/infra/postgres).
-- **Banco de tenant e Control/Manager:** [seção de persistência da referência](REFERENCIA-TECNICA.md).
-- **Contrato público vs. interno:** [referência técnica](REFERENCIA-TECNICA.md).
+- **Fonte versionada:** [`infra/postgres/`](https://github.com/delmacy/syndes-system/tree/main/infra/postgres), SQL de cada módulo e migrador Control.
+- **DBs Control/Tenant/stores:** [arquitetura e diagramas](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md).
+- **Contratos privados e gates:** [matriz de scripts](chapters/04-contratos-e-dependencias-publicas.md).
 
 
 ## Planejamento, progresso e provas {#evolucao}
