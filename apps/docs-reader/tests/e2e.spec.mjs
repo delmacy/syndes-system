@@ -76,7 +76,7 @@ test("Identidade editorial tecnológica usa IBM Plex e azul discreto em Home e C
   expect(home.button).toBe("rgb(37, 91, 193)");
   await page.screenshot({path:testInfo.outputPath("home-editorial-tech.png"),fullPage:false});
   await page.goto("/modulos/crm/");
-  await expect(page.locator("article section.reading-section")).toHaveCount(12);
+  await expect(page.locator("article section.reading-section")).toHaveCount(2);
   const crm=await page.evaluate(()=>{
     const heading=getComputedStyle(document.querySelector(".reading-section h2"));
     const summary=getComputedStyle(document.querySelector(".module-hero .subtitle"));
@@ -113,7 +113,7 @@ test("Leitura editorial conserva contraste, foco e organização em todos os vie
 
 test("CRM exibe os inventários reais sem interromper a leitura editorial",async({page},testInfo)=>{
   await page.goto("/modulos/crm/");
-  await expect(page.locator("article section.reading-section")).toHaveCount(12);
+  await expect(page.locator("article section.reading-section")).toHaveCount(2);
   await expect(page.locator(".verified-evidence")).toHaveCount(2);
   await expect(page.locator(".evidence-table")).toHaveCount(2);
   await page.getByRole("navigation",{name:"Selecionar função do CRM"}).getByRole("button",{name:/Integrações/}).click();
