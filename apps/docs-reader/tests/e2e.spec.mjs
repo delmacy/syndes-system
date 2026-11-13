@@ -112,3 +112,29 @@ test("Leitura editorial conserva contraste, foco e organização em todos os vie
     await expect(page.locator('.side-link[href="#dados"]')).toBeVisible();
   }
 });
+
+
+test("CRM exibe os inventários reais sem interromper a leitura editorial",async({page},testInfo)=>{
+  await page.goto("/modulos/crm/");
+  await expect(page.locator("article section.reading-section")).toHaveCount(12);
+  await expect(page.locator(".verified-evidence")).toHaveCount(12);
+  await expect(page.locator(".evidence-table")).toHaveCount(18);
+  const contracts=page.locator("#contratos");
+  await expect(contracts).toContainText("/v1/tenants/:tenantId/crm");
+  await expect(contracts).toContainText("crm:people");
+  const data=page.locator("#dados");
+  await expect(data).toContainText("crm_people");
+  const security=page.locator("#seguranca");
+  await expect(security).toContainText("CoreKernel.execute");
+  const position=await contracts.evaluate(el=>{
+    const evidence=el.querySelector(".verified-evidence");
+    const sources=el.querySelector(".source-footer");
+    const proposal=el.querySelector(".proposal-area");
+    return Boolean(evidence && sources && proposal &&
+      (evidence.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+      (sources.compareDocumentPosition(proposal) & Node.DOCUMENT_POSITION_FOLLOWING));
+  });
+  expect(position).toBe(true);
+  await page.locator("#contratos").scrollIntoViewIfNeeded();
+  await page.screenshot({path:testInfo.outputPath("crm-real-contracts.png"),fullPage:false});
+});
