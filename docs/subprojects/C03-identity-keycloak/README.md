@@ -4,6 +4,8 @@
 
 <!-- syndes:module-id=C03;source=infra/security-access;kind=module -->
 
+**Checkpoint de 13/11/2026:** [C03 está em auditoria técnica parcial](STATUS.md): Keycloak implantado no DevServer01 e contratos OIDC/JWT confrontados com o código; configuração real do realm, E2E e Product Gate ainda não verificados. [Fronteiras e métodos](REFERENCIA-TECNICA.md).
+
 ## Acessar a documentação {#acessos}
 
 | Quero descobrir | Abrir |

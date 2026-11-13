@@ -28,8 +28,8 @@ class AuditOrderTests(unittest.TestCase):
                 self.assertTrue((ROOT/entry["status"]).is_file())
         partial={uid for uid,entry in self.units.items()
                  if "AUDITORIA TÉCNICA PARCIAL" in (ROOT/entry["status"]).read_text()}
-        self.assertEqual(partial,{"G01","G02","G03","Q10","Q07","Q01","P14","I02","I04","C01","P01","P02","P03"})
-        self.assertIn("44 STATUS",self.text)
+        self.assertEqual(partial,{"G01","G02","G03","Q10","Q07","Q01","P14","I02","I04","C01","C03","P01","P02","P03"})
+        self.assertIn("43 STATUS",self.text)
         self.assertIn("não auditado",self.text)
 
     def test_references_are_documented_not_completion_claims(self):

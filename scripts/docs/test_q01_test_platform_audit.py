@@ -58,14 +58,14 @@ class Q01AuditTests(unittest.TestCase):
 
     def test_all_57_units_preserved_and_q10_status_not_falsified(self):
         plan=(ROOT/"docs/blueprint/PLANO-ATUALIZACAO-MODULOS.md").read_text()
-        self.assertIn("13 STATUS",plan)
-        self.assertIn("44 STATUS",plan)
+        self.assertIn("14 STATUS",plan)
+        self.assertIn("43 STATUS",plan)
         self.assertIn("CI Q07 recuperada, Product Gates pendentes",plan)
         self.assertIn("suites/ambientes identificados, CI verde por SHA; RC pendente",plan)
         units=json.loads((ROOT/"docs/subprojects/index.json").read_text())["units"]
         partial={u["id"] for u in units
                  if "AUDITORIA TÉCNICA PARCIAL" in (ROOT/u["status"]).read_text()}
-        self.assertEqual(partial,{"G01","G02","G03","Q10","Q07","Q01","P14","I02","I04","C01","P01","P02","P03"})
+        self.assertEqual(partial,{"G01","G02","G03","Q10","Q07","Q01","P14","I02","I04","C01","C03","P01","P02","P03"})
 
 if __name__=="__main__":
     unittest.main()

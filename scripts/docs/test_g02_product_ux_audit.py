@@ -68,8 +68,8 @@ class G02ProductAuditTests(unittest.TestCase):
         self.assertIn("Product Gates",status)
         self.assertIn("Não foram executados",status)
         plan=(ROOT/"docs/blueprint/PLANO-ATUALIZACAO-MODULOS.md").read_text()
-        self.assertIn("13 STATUS",plan)
-        self.assertIn("44 STATUS",plan)
+        self.assertIn("14 STATUS",plan)
+        self.assertIn("43 STATUS",plan)
         self.assertIn("G02 — Produto e UX",plan)
         self.assertIn("PRDs/UX reconciliados; Product Gates pendentes",plan)
 
