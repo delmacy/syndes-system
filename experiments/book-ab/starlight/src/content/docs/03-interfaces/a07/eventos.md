@@ -1,0 +1,48 @@
+---
+title: "A07 · Eventos e mensageria"
+description: "Seção temática experimental com referências rastreáveis"
+draft: false
+---
+
+[← Ficha do módulo](../) · [↑ Volume](../../)
+
+> **Leitura documental, não homologação.** Trechos extraídos dos documentos existentes; correspondência textual não demonstra implementação, testes ou implantação.
+
+# Eventos e mensageria
+
+## Referências verificáveis
+
+### [STATUS.md](https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/A07-front-shared/STATUS.md)
+
+*Não há trecho identificável especificamente para esta matéria neste arquivo.*
+
+### [REFERENCIA-TECNICA.md](https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/A07-front-shared/REFERENCIA-TECNICA.md)
+
+> L16: \| `.` \| `{"types": "./src/index.ts", "default": "./src/index.ts"}` \| Declaração, não garantia de consumidor instalado \|
+
+> L17: \| `./badge` \| `{"types": "./src/components/badge.tsx", "default": "./src/components/badge.tsx"}` \| Declaração, não garantia de consumidor instalado \|
+
+> L18: \| `./button` \| `{"types": "./src/components/button.tsx", "default": "./src/components/button.tsx"}` \| Declaração, não garantia de consumidor instalado \|
+
+> L19: \| `./card` \| `{"types": "./src/components/card.tsx", "default": "./src/components/card.tsx"}` \| Declaração, não garantia de consumidor instalado \|
+
+> L20: \| `./input` \| `{"types": "./src/components/input.tsx", "default": "./src/components/input.tsx"}` \| Declaração, não garantia de consumidor instalado \|
+
+> L21: \| `./separator` \| `{"types": "./src/components/separator.tsx", "default": "./src/components/separator.tsx"}` \| Declaração, não garantia de consumidor instalado \|
+
+### [OPERACAO.md](https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/A07-front-shared/OPERACAO.md)
+
+*Não há trecho identificável especificamente para esta matéria neste arquivo.*
+
+### [04-contratos-e-dependencias-publicas.md](https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/A07-front-shared/chapters/04-contratos-e-dependencias-publicas.md)
+
+> L2: - Entradas, saídas, APIs, eventos e ports: A INVENTARIAR pela fonte executável.
+
+### [05-arquitetura-banco-interface-configuracao-e-diagramas.md](https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/A07-front-shared/chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md)
+
+*Não há trecho identificável especificamente para esta matéria neste arquivo.*
+
+## Revisão e proveniência
+
+- [STATUS original](https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/A07-front-shared/STATUS.md)
+- O conteúdo apresentado é uma projeção de leitura, não uma ficha operacional atestada.

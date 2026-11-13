@@ -60,7 +60,14 @@ def build():
  (a/'docs/.vitepress/config.mjs').write_text('import { defineConfig } from "vitepress";\nexport default defineConfig('+json.dumps(vite,ensure_ascii=False,indent=2)+');\n')
  (a/'package.json').write_text(json.dumps({'private':True,'type':'module','scripts':{'build':'vitepress build docs'},'dependencies':{'vitepress':'^1.6.4'}},indent=2))
  # Astro's sidebar autogeneration preserves all 57 chapter links.
- sidebar=[{'label':name,'collapsed':front!='produto','items':[{'slug':slug+'/'+u['id'].lower()} for u in grouping[front]]} for front,(slug,name) in AREA.items()]
+ from enrich_starlight_book import SUBCHAPTERS
+ sidebar=[{'label':name,'collapsed':front!='produto','items':[
+    {'slug':slug},
+    *[{'label':u['id']+' · '+u['name'],'collapsed':True,'items':[
+      {'slug':slug+'/'+u['id'].lower()},
+      *[{'slug':slug+'/'+u['id'].lower()+'/'+key} for key,_,_,_ in SUBCHAPTERS]
+    ]} for u in grouping[front]]
+ ]} for front,(slug,name) in AREA.items()]
  (b/'astro.config.mjs').write_text('import { defineConfig } from "astro/config";\nimport starlight from "@astrojs/starlight";\nexport default defineConfig({site:"https://delmacy.github.io",base:"/syndes-system/assets/experimentos/livros/b",integrations:[starlight({title:"Syndes · Biblioteca B", description:"Acervo técnico do Syndes", locales:{root:{label:"Português",lang:"pt-BR"}}, sidebar:'+json.dumps(sidebar,ensure_ascii=False)+',tableOfContents:{minHeadingLevel:2,maxHeadingLevel:3},customCss:["./src/styles/custom.css"]})]});\n')
  (b/'src/content.config.ts').write_text('import { defineCollection } from "astro:content";\nimport { docsLoader } from "@astrojs/starlight/loaders";\nimport { docsSchema } from "@astrojs/starlight/schema";\nexport const collections = { docs: defineCollection({ loader: docsLoader(), schema: docsSchema() }) };\n')
  (b/'src/styles').mkdir(parents=True)

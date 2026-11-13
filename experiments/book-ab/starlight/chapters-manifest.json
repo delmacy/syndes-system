@@ -4,398 +4,1310 @@
     "area": "produto",
     "source": "docs/subprojects/P01-crm/README.md",
     "page": "01-produto/p01.md",
-    "topics": 0
+    "topics": 0,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 1,
+      "contratos": 7,
+      "apis": 4,
+      "eventos": 6,
+      "dados": 9,
+      "schema": 16,
+      "dependencias": 9,
+      "configuracao": 0,
+      "interface": 3,
+      "testes": 18,
+      "operacao": 4,
+      "wbs": 9
+    }
   },
   {
     "id": "P02",
     "area": "produto",
     "source": "docs/subprojects/P02-inbox/README.md",
     "page": "01-produto/p02.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 1,
+      "contratos": 6,
+      "apis": 2,
+      "eventos": 6,
+      "dados": 3,
+      "schema": 9,
+      "dependencias": 6,
+      "configuracao": 0,
+      "interface": 5,
+      "testes": 13,
+      "operacao": 7,
+      "wbs": 4
+    }
   },
   {
     "id": "P03",
     "area": "produto",
     "source": "docs/subprojects/P03-whatsapp/README.md",
     "page": "01-produto/p03.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 9,
+      "apis": 4,
+      "eventos": 14,
+      "dados": 5,
+      "schema": 20,
+      "dependencias": 6,
+      "configuracao": 0,
+      "interface": 3,
+      "testes": 16,
+      "operacao": 9,
+      "wbs": 3
+    }
   },
   {
     "id": "P04",
     "area": "produto",
     "source": "docs/subprojects/P04-organizations-workforce/README.md",
     "page": "01-produto/p04.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 3,
+      "contratos": 8,
+      "apis": 2,
+      "eventos": 1,
+      "dados": 5,
+      "schema": 13,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 4,
+      "testes": 10,
+      "operacao": 4,
+      "wbs": 3
+    }
   },
   {
     "id": "P05",
     "area": "produto",
     "source": "docs/subprojects/P05-gestao-de-atendimentos/README.md",
     "page": "01-produto/p05.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 3,
+      "dados": 2,
+      "schema": 10,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 9,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "P07",
     "area": "produto",
     "source": "docs/subprojects/P07-scheduling/README.md",
     "page": "01-produto/p07.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "P08",
     "area": "produto",
     "source": "docs/subprojects/P08-ai-assistant/README.md",
     "page": "01-produto/p08.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "P09",
     "area": "produto",
     "source": "docs/subprojects/P09-documents/README.md",
     "page": "01-produto/p09.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "P10",
     "area": "produto",
     "source": "docs/subprojects/P10-email/README.md",
     "page": "01-produto/p10.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "G02",
     "area": "produto",
     "source": "docs/subprojects/G02-produto-e-ux/README.md",
     "page": "01-produto/g02.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 2,
+      "historias-de-usuario": 1,
+      "requisitos": 6,
+      "contratos": 9,
+      "apis": 7,
+      "eventos": 5,
+      "dados": 11,
+      "schema": 9,
+      "dependencias": 9,
+      "configuracao": 1,
+      "interface": 19,
+      "testes": 32,
+      "operacao": 12,
+      "wbs": 9
+    }
   },
   {
     "id": "P14",
     "area": "plataforma",
     "source": "docs/subprojects/P14-platform-core/README.md",
     "page": "02-plataforma/p14.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 23,
+      "apis": 19,
+      "eventos": 10,
+      "dados": 7,
+      "schema": 16,
+      "dependencias": 17,
+      "configuracao": 3,
+      "interface": 7,
+      "testes": 31,
+      "operacao": 16,
+      "wbs": 11
+    }
   },
   {
     "id": "A04",
     "area": "plataforma",
     "source": "docs/subprojects/A04-core-host/README.md",
     "page": "02-plataforma/a04.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 1,
+      "historias-de-usuario": 1,
+      "requisitos": 1,
+      "contratos": 8,
+      "apis": 4,
+      "eventos": 6,
+      "dados": 5,
+      "schema": 8,
+      "dependencias": 10,
+      "configuracao": 3,
+      "interface": 3,
+      "testes": 14,
+      "operacao": 7,
+      "wbs": 10
+    }
   },
   {
     "id": "A05",
     "area": "plataforma",
     "source": "docs/subprojects/A05-manager-api/README.md",
     "page": "02-plataforma/a05.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 6,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "A06",
     "area": "plataforma",
     "source": "docs/subprojects/A06-account-access-api/README.md",
     "page": "02-plataforma/a06.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 1,
+      "historias-de-usuario": 0,
+      "requisitos": 0,
+      "contratos": 9,
+      "apis": 9,
+      "eventos": 2,
+      "dados": 4,
+      "schema": 8,
+      "dependencias": 7,
+      "configuracao": 0,
+      "interface": 2,
+      "testes": 10,
+      "operacao": 6,
+      "wbs": 7
+    }
   },
   {
     "id": "A08",
     "area": "plataforma",
     "source": "docs/subprojects/A08-core-kernel/README.md",
     "page": "02-plataforma/a08.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 4,
+      "contratos": 7,
+      "apis": 2,
+      "eventos": 4,
+      "dados": 2,
+      "schema": 7,
+      "dependencias": 9,
+      "configuracao": 1,
+      "interface": 2,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "C01",
     "area": "plataforma",
     "source": "docs/subprojects/C01-control-plane/README.md",
     "page": "02-plataforma/c01.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 12,
+      "apis": 24,
+      "eventos": 12,
+      "dados": 18,
+      "schema": 55,
+      "dependencias": 5,
+      "configuracao": 2,
+      "interface": 3,
+      "testes": 24,
+      "operacao": 13,
+      "wbs": 10
+    }
   },
   {
     "id": "C02",
     "area": "plataforma",
     "source": "docs/subprojects/C02-tenant-installer/README.md",
     "page": "02-plataforma/c02.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "C03",
     "area": "plataforma",
     "source": "docs/subprojects/C03-identity-keycloak/README.md",
     "page": "02-plataforma/c03.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 2,
+      "historias-de-usuario": 1,
+      "requisitos": 2,
+      "contratos": 14,
+      "apis": 26,
+      "eventos": 2,
+      "dados": 5,
+      "schema": 2,
+      "dependencias": 38,
+      "configuracao": 18,
+      "interface": 4,
+      "testes": 20,
+      "operacao": 14,
+      "wbs": 8
+    }
   },
   {
     "id": "C04",
     "area": "plataforma",
     "source": "docs/subprojects/C04-authorization-openfga/README.md",
     "page": "02-plataforma/c04.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 1,
+      "historias-de-usuario": 0,
+      "requisitos": 0,
+      "contratos": 7,
+      "apis": 10,
+      "eventos": 5,
+      "dados": 3,
+      "schema": 5,
+      "dependencias": 18,
+      "configuracao": 6,
+      "interface": 2,
+      "testes": 18,
+      "operacao": 9,
+      "wbs": 11
+    }
   },
   {
     "id": "C05",
     "area": "plataforma",
     "source": "docs/subprojects/C05-secrets-openbao/README.md",
     "page": "02-plataforma/c05.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 6,
+      "apis": 8,
+      "eventos": 4,
+      "dados": 7,
+      "schema": 1,
+      "dependencias": 21,
+      "configuracao": 8,
+      "interface": 3,
+      "testes": 12,
+      "operacao": 5,
+      "wbs": 7
+    }
   },
   {
     "id": "C06",
     "area": "plataforma",
     "source": "docs/subprojects/C06-event-platform/README.md",
     "page": "02-plataforma/c06.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "C07",
     "area": "plataforma",
     "source": "docs/subprojects/C07-apis-e-adapters/README.md",
     "page": "02-plataforma/c07.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "C08",
     "area": "plataforma",
     "source": "docs/subprojects/C08-audit-e-observabilidade/README.md",
     "page": "02-plataforma/c08.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 2,
+      "schema": 9,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "G01",
     "area": "plataforma",
     "source": "docs/subprojects/G01-arquitetura/README.md",
     "page": "02-plataforma/g01.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 2,
+      "historias-de-usuario": 0,
+      "requisitos": 4,
+      "contratos": 18,
+      "apis": 12,
+      "eventos": 14,
+      "dados": 11,
+      "schema": 17,
+      "dependencias": 10,
+      "configuracao": 7,
+      "interface": 9,
+      "testes": 19,
+      "operacao": 10,
+      "wbs": 9
+    }
   },
   {
     "id": "A01",
     "area": "frontend",
     "source": "docs/subprojects/A01-workspace-frontend/README.md",
     "page": "03-interfaces/a01.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "A02",
     "area": "frontend",
     "source": "docs/subprojects/A02-platform-manager-frontend/README.md",
     "page": "03-interfaces/a02.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "A03",
     "area": "frontend",
     "source": "docs/subprojects/A03-support-frontend/README.md",
     "page": "03-interfaces/a03.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "A07",
     "area": "frontend",
     "source": "docs/subprojects/A07-front-shared/README.md",
     "page": "03-interfaces/a07.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 7,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 9,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "P06",
     "area": "operacao",
     "source": "docs/subprojects/P06-syndes-support/README.md",
     "page": "04-operacao/p06.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 3,
+      "dados": 2,
+      "schema": 8,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 9,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "P11",
     "area": "operacao",
     "source": "docs/subprojects/P11-onboarding/README.md",
     "page": "04-operacao/p11.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "P12",
     "area": "operacao",
     "source": "docs/subprojects/P12-billing/README.md",
     "page": "04-operacao/p12.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "P13",
     "area": "operacao",
     "source": "docs/subprojects/P13-commercial-site/README.md",
     "page": "04-operacao/p13.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "G05",
     "area": "operacao",
     "source": "docs/subprojects/G05-operacao-e-suporte/README.md",
     "page": "04-operacao/g05.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "I01",
     "area": "qualidade",
     "source": "docs/subprojects/I01-devserver01/README.md",
     "page": "05-infra-qualidade/i01.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "I02",
     "area": "qualidade",
     "source": "docs/subprojects/I02-server02/README.md",
     "page": "05-infra-qualidade/i02.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 0,
+      "contratos": 10,
+      "apis": 13,
+      "eventos": 3,
+      "dados": 34,
+      "schema": 7,
+      "dependencias": 18,
+      "configuracao": 25,
+      "interface": 10,
+      "testes": 26,
+      "operacao": 26,
+      "wbs": 9
+    }
   },
   {
     "id": "I03",
     "area": "qualidade",
     "source": "docs/subprojects/I03-win1-server/README.md",
     "page": "05-infra-qualidade/i03.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "I04",
     "area": "qualidade",
     "source": "docs/subprojects/I04-postgresql/README.md",
     "page": "05-infra-qualidade/i04.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 0,
+      "contratos": 16,
+      "apis": 10,
+      "eventos": 12,
+      "dados": 27,
+      "schema": 57,
+      "dependencias": 9,
+      "configuracao": 6,
+      "interface": 4,
+      "testes": 25,
+      "operacao": 15,
+      "wbs": 7
+    }
   },
   {
     "id": "I05",
     "area": "qualidade",
     "source": "docs/subprojects/I05-docker-e-redes/README.md",
     "page": "05-infra-qualidade/i05.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 1,
+      "contratos": 3,
+      "apis": 4,
+      "eventos": 3,
+      "dados": 5,
+      "schema": 3,
+      "dependencias": 5,
+      "configuracao": 19,
+      "interface": 2,
+      "testes": 7,
+      "operacao": 2,
+      "wbs": 5
+    }
   },
   {
     "id": "I06",
     "area": "qualidade",
     "source": "docs/subprojects/I06-traefik-https/README.md",
     "page": "05-infra-qualidade/i06.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 1,
+      "historias-de-usuario": 0,
+      "requisitos": 1,
+      "contratos": 4,
+      "apis": 6,
+      "eventos": 3,
+      "dados": 3,
+      "schema": 3,
+      "dependencias": 3,
+      "configuracao": 16,
+      "interface": 4,
+      "testes": 12,
+      "operacao": 7,
+      "wbs": 10
+    }
   },
   {
     "id": "I07",
     "area": "qualidade",
     "source": "docs/subprojects/I07-tailnet/README.md",
     "page": "05-infra-qualidade/i07.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "I08",
     "area": "qualidade",
     "source": "docs/subprojects/I08-komodo/README.md",
     "page": "05-infra-qualidade/i08.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "I09",
     "area": "qualidade",
     "source": "docs/subprojects/I09-whatsmeow-runtime/README.md",
     "page": "05-infra-qualidade/i09.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 5,
+      "testes": 8,
+      "operacao": 5,
+      "wbs": 5
+    }
   },
   {
     "id": "I10",
     "area": "qualidade",
     "source": "docs/subprojects/I10-backup-e-restore/README.md",
     "page": "05-infra-qualidade/i10.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "I11",
     "area": "qualidade",
     "source": "docs/subprojects/I11-release-e-rollback/README.md",
     "page": "05-infra-qualidade/i11.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 6,
+      "wbs": 3
+    }
   },
   {
     "id": "I12",
     "area": "qualidade",
     "source": "docs/subprojects/I12-seguranca-de-host/README.md",
     "page": "05-infra-qualidade/i12.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "Q01",
     "area": "qualidade",
     "source": "docs/subprojects/Q01-plataforma-de-testes/README.md",
     "page": "05-infra-qualidade/q01.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 3,
+      "contratos": 8,
+      "apis": 6,
+      "eventos": 2,
+      "dados": 11,
+      "schema": 7,
+      "dependencias": 18,
+      "configuracao": 3,
+      "interface": 3,
+      "testes": 22,
+      "operacao": 7,
+      "wbs": 8
+    }
   },
   {
     "id": "Q02",
     "area": "qualidade",
     "source": "docs/subprojects/Q02-testes-unitarios/README.md",
     "page": "05-infra-qualidade/q02.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "Q03",
     "area": "qualidade",
     "source": "docs/subprojects/Q03-integracao/README.md",
     "page": "05-infra-qualidade/q03.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "Q04",
     "area": "qualidade",
     "source": "docs/subprojects/Q04-browser-e2e/README.md",
     "page": "05-infra-qualidade/q04.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "Q05",
     "area": "qualidade",
     "source": "docs/subprojects/Q05-seguranca/README.md",
     "page": "05-infra-qualidade/q05.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "Q06",
     "area": "qualidade",
     "source": "docs/subprojects/Q06-performance/README.md",
     "page": "05-infra-qualidade/q06.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "Q07",
     "area": "qualidade",
     "source": "docs/subprojects/Q07-ci-cd/README.md",
     "page": "05-infra-qualidade/q07.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 1,
+      "historias-de-usuario": 0,
+      "requisitos": 3,
+      "contratos": 10,
+      "apis": 5,
+      "eventos": 3,
+      "dados": 7,
+      "schema": 9,
+      "dependencias": 5,
+      "configuracao": 3,
+      "interface": 2,
+      "testes": 37,
+      "operacao": 7,
+      "wbs": 6
+    }
   },
   {
     "id": "Q08",
     "area": "qualidade",
     "source": "docs/subprojects/Q08-release-engineering/README.md",
     "page": "05-infra-qualidade/q08.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "Q09",
     "area": "qualidade",
     "source": "docs/subprojects/Q09-infra-tests/README.md",
     "page": "05-infra-qualidade/q09.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   },
   {
     "id": "Q10",
     "area": "qualidade",
     "source": "docs/subprojects/Q10-quality-gates/README.md",
     "page": "05-infra-qualidade/q10.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 1,
+      "historias-de-usuario": 0,
+      "requisitos": 3,
+      "contratos": 8,
+      "apis": 8,
+      "eventos": 5,
+      "dados": 5,
+      "schema": 11,
+      "dependencias": 15,
+      "configuracao": 0,
+      "interface": 3,
+      "testes": 40,
+      "operacao": 12,
+      "wbs": 10
+    }
   },
   {
     "id": "G03",
     "area": "qualidade",
     "source": "docs/subprojects/G03-engenharia-e-git/README.md",
     "page": "05-infra-qualidade/g03.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 1,
+      "historias-de-usuario": 1,
+      "requisitos": 3,
+      "contratos": 11,
+      "apis": 8,
+      "eventos": 6,
+      "dados": 4,
+      "schema": 8,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 26,
+      "operacao": 6,
+      "wbs": 18
+    }
   },
   {
     "id": "G04",
     "area": "qualidade",
     "source": "docs/subprojects/G04-privacidade/README.md",
     "page": "05-infra-qualidade/g04.md",
-    "topics": 8
+    "topics": 8,
+    "subchapters": {
+      "casos-de-uso": 0,
+      "historias-de-usuario": 0,
+      "requisitos": 2,
+      "contratos": 8,
+      "apis": 1,
+      "eventos": 1,
+      "dados": 3,
+      "schema": 7,
+      "dependencias": 5,
+      "configuracao": 1,
+      "interface": 3,
+      "testes": 8,
+      "operacao": 3,
+      "wbs": 3
+    }
   }
 ]

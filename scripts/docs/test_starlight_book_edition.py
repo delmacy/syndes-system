@@ -2,7 +2,7 @@
 import json
 import unittest
 from pathlib import Path
-from enrich_starlight_book import TOPICS
+from enrich_starlight_book import TOPICS, SUBCHAPTERS
 
 ROOT=Path(__file__).resolve().parents[2]
 DOCS=ROOT/'docs'
@@ -51,6 +51,22 @@ class BookEditionTests(unittest.TestCase):
                 total+=1
         self.assertEqual(total,sum(x['topics'] for x in self.manifest))
         self.assertGreaterEqual(total,440)
+
+    def test_independent_technical_subchapters_and_navigation(self):
+        for unit in self.units:
+            uid=unit['id']; area=AREA[unit['front']]
+            book=(BOOK/area/(uid.lower()+'.md')).read_text()
+            for slug,title,_,_ in SUBCHAPTERS:
+                source=BOOK/area/uid.lower()/(slug+'.md')
+                output=OUT/area/uid.lower()/slug/'index.html'
+                self.assertTrue(source.is_file(),source)
+                self.assertTrue(output.is_file(),output)
+                self.assertIn('./'+slug+'/',book)
+                page=source.read_text()
+                self.assertIn('Referências verificáveis',page)
+                self.assertIn('não homologação',page)
+                self.assertIn('STATUS original',page)
+        self.assertEqual(798,len(self.units)*len(SUBCHAPTERS))
 
     def test_no_claim_of_functional_homologation(self):
         for u in self.units:

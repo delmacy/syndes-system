@@ -30,6 +30,72 @@ TOPICS = [
  ('06','WBS e critérios de aceite','06-wbs-marcos-e-aceite.md'),
  ('07','Controle de escopo','07-controle-do-escopo.md'),
 ]
+# Stable editorial slots; they are not claims about implemented capabilities.
+SUBCHAPTERS = [
+ ('casos-de-uso', 'Casos de uso', (r'casos? de uso', r'\bcaso\b', r'\bfluxo\b'), ('02','03')),
+ ('historias-de-usuario', 'Histórias de usuário', (r'hist[oó]rias? de usu[aá]rio', r'como (um|uma) ', r'crit[eé]rios? de aceite'), ('02','06')),
+ ('requisitos', 'Requisitos', (r'requisitos?', r'\bregra\b', r'\bconstraint\b'), ('02','07')),
+ ('contratos', 'Contratos públicos e privados', (r'contratos?', r'\bexports?\b', r'\bprivad[oa]\b', r'\bp[uú]blic[oa]\b'), ('04',)),
+ ('apis', 'APIs e endpoints', (r'\bapi\b', r'\bhttp\b', r'\bget /', r'\bpost /', r'\bput /', r'\bpatch /', r'\bdelete /', r'\bendpoint'), ('04','05')),
+ ('eventos', 'Eventos e mensageria', (r'\beventos?\b', r'\boutbox\b', r'\bconsumidor\b', r'\bpublicad'), ('04','05')),
+ ('dados', 'Dados e persistência', (r'\bdados?\b', r'\bpersist[eê]ncia\b', r'\bpostgres', r'\btenant db'), ('04','05')),
+ ('schema', 'Schemas e migrations', (r'\bschemas?\b', r'\bmigrations?\b', r'\btabelas?\b', r'\bcolunas?\b', r'\bsql\b'), ('04','05')),
+ ('dependencias', 'Dependências e integrações', (r'depend[eê]ncias?', r'integra[cç][aã]o', r'\bkeycloak\b', r'\bopenfga\b', r'\bopenbao\b'), ('04','05')),
+ ('configuracao', 'Configuração e ambiente', (r'configura[cç][aã]o', r'\benv\b', r'\bvari[aá]veis?\b', r'\bcompose\b', r'\bporta\b'), ('05',)),
+ ('interface', 'Frontend e interfaces', (r'\bfrontend\b', r'\binterface\b', r'\bcomponentes?\b', r'\btelas?\b'), ('03','05')),
+ ('testes', 'Testes e evidências', (r'\btestes?\b', r'\bgates?\b', r'\bevid[eê]ncia', r'\bunit[aá]rios?\b'), ('06',)),
+ ('operacao', 'Operação e implantação', (r'\bopera[cç][aã]o\b', r'\bdeploy\b', r'\brollback\b', r'\bimplant'), ('05','06')),
+ ('wbs', 'WBS e evolução', (r'\bwbs\b', r'\bsprint\b', r'\bmarcos?\b', r'\bpendente\b'), ('06','07')),
+]
+
+def relevant_source_lines(path, patterns, max_lines=18):
+    """Render verbatim supporting source lines, not semantic guesses or invented specifications."""
+    if not path.is_file():
+        return []
+    raw=path.read_text(encoding='utf-8').splitlines()
+    hits=[]
+    fenced=False
+    for number,line in enumerate(raw,1):
+        stripped=line.strip()
+        if stripped.startswith(('```','~~~')):
+            fenced=not fenced
+            continue
+        if fenced or not stripped or stripped.startswith(('[', '---')):
+            continue
+        if any(re.search(pattern,stripped,re.IGNORECASE) for pattern in patterns):
+            if re.match(r'^#{1,6}\s',stripped):
+                continue
+            hits.append((number,stripped[:420].rstrip()))
+        if len(hits)>=max_lines:
+            break
+    return hits
+
+def subchapter_markdown(uid,label,slug,source_paths,patterns):
+    """Source-backed reading projection; absent concrete evidence is an explicit gap."""
+    body=frontmatter(uid+' · '+label,'Seção temática experimental com referências rastreáveis')
+    body+=f'[← Ficha do módulo](../) · [↑ Volume](../../)\n\n'
+    body+='> **Leitura documental, não homologação.** Trechos extraídos dos documentos existentes; correspondência textual não demonstra implementação, testes ou implantação.\n\n'
+    body+=f'# {label}\n\n'
+    body+='## Referências verificáveis\n\n'
+    found=0
+    for path in source_paths:
+        if not path.is_file():
+            continue
+        matches=relevant_source_lines(path,patterns)
+        body+=f'### [{path.name}]({gh(path)})\n\n'
+        if matches:
+            found+=len(matches)
+            for lineno,line in matches:
+                # markdown quote keeps source syntax readable without reinterpreting headings
+                body+=f'> L{lineno}: {line.replace(chr(124),chr(92)+chr(124))}\n\n'
+        else:
+            body+='*Não há trecho identificável especificamente para esta matéria neste arquivo.*\n\n'
+    if not found:
+        body+='## Lacuna documental\n\nNão foi localizada evidência textual específica suficiente para preencher esta matéria. É necessária auditoria do código e reconciliação na fonte canônica antes de registrar contratos ou capacidades.\n\n'
+    body+=f'## Revisão e proveniência\n\n- [STATUS original]({gh(source_paths[0])})\n'
+    body+='- O conteúdo apresentado é uma projeção de leitura, não uma ficha operacional atestada.\n'
+    return body,found
+
 PREFIX='https://github.com/delmacy/syndes-system/blob/main/'
 
 def gh(p):
@@ -65,6 +131,24 @@ def source_markdown(raw,path):
 
 def frontmatter(title,description):
     return f'---\ntitle: {yml(title)}\ndescription: {yml(description)}\ndraft: false\n---\n\n'
+
+def write_sidebar():
+    groups=[]
+    for area,(volume,title,_) in AREAS.items():
+        entries=[{'slug':volume}]
+        for u in CAT:
+            if u['front']!=area: continue
+            unit=volume+'/'+u['id'].lower()
+            children=[{'slug':unit}]
+            children.extend({'slug':unit+'/'+key} for key,_,_,_ in SUBCHAPTERS)
+            entries.append({'label':u['id']+' · '+u['name'],'collapsed':True,'items':children})
+        groups.append({'label':title,'collapsed':area!='produto','items':entries})
+    file=ROOT/'experiments/book-ab/starlight/astro.config.mjs'
+    config='import { defineConfig } from "astro/config";\nimport starlight from "@astrojs/starlight";\n'
+    config+='export default defineConfig({site:"https://delmacy.github.io",base:"/syndes-system/assets/experimentos/livros/b",integrations:[starlight({title:"Syndes · Biblioteca B",description:"Acervo técnico do Syndes",locales:{root:{label:"Português",lang:"pt-BR"}},sidebar:'
+    config+=json.dumps(groups,ensure_ascii=False)
+    config+=',tableOfContents:{minHeadingLevel:2,maxHeadingLevel:3},customCss:["./src/styles/custom.css"]})]});\n'
+    file.write_text(config,encoding='utf-8')
 
 def enrich():
     if len(CAT)!=57 or len({u['id'] for u in CAT})!=57:
@@ -119,6 +203,19 @@ def enrich():
                     full+=f'| {num} — {label} | [Abrir matéria](./{dest.stem}/) | [Fonte]({gh(original)}) |\n'
                 else:
                     full+=f'| {num} — {label} | Sem matéria versionada | **Lacuna** |\n'
+            full+='\n## Subcapítulos técnicos por área\n\n'
+            full+='As áreas abaixo são páginas independentes. Quando faltar fonte específica, mostram a lacuna explicitamente.\n\n'
+            full+='| Área | Conteúdo encontrado | Leitura |\n|---|---:|---|\n'
+            area_counts={}
+            for key,heading,patterns,nums in SUBCHAPTERS:
+                # Only versioned owners; no runtime inventory or secret reads.
+                sources=[status,tech,oper]
+                sources.extend(folder/'chapters'/name for num,_,name in TOPICS if num in nums)
+                sources=list(dict.fromkeys(sources))
+                output,hit_count=subchapter_markdown(uid,heading,key,sources,patterns)
+                (BASE/volume/slug/(key+'.md')).write_text(output,encoding='utf-8')
+                full+=f'| {heading} | {hit_count} ocorrência(s) documentais | [Abrir {heading.lower()}](./{key}/) |\n'
+                area_counts[key]=hit_count
             full+='\n## Referências operacionais e evolução\n\n'
             others=[('Plano e escopo',u.get('scope')),('Histórico',u.get('history')),('Evolução',u.get('evolution')),('Sprint',u.get('sprint'))]
             for label,p in others:
@@ -127,7 +224,7 @@ def enrich():
             full+='\n---\n*Esta edição é experimental. A documentação canônica permanece em `docs/subprojects/`.*\n'
             chapter=BASE/volume/(slug+'.md')
             chapter.write_text(full,encoding='utf-8')
-            chapter_index.append({'id':uid,'area':area,'source':str(source.relative_to(ROOT)),'page':str(chapter.relative_to(BASE)), 'topics':sum((folder/'chapters'/n).is_file() for _,_,n in TOPICS)})
+            chapter_index.append({'id':uid,'area':area,'source':str(source.relative_to(ROOT)),'page':str(chapter.relative_to(BASE)), 'topics':sum((folder/'chapters'/n).is_file() for _,_,n in TOPICS), 'subchapters':area_counts})
     # Library home, clean volume hierarchy and progress based only on catalog.
     home=frontmatter('Biblioteca Syndes','Documentação organizada em volumes, capítulos e matérias técnicas')
     home+='# Biblioteca técnica do Syndes\n\nUma coleção de livros de engenharia, não um painel de features.\n\n'
@@ -140,6 +237,7 @@ def enrich():
     home+='**Nota editorial:** a ficha documenta o estado observado, não promete entrega funcional.\n'
     (BASE/'index.md').write_text(home,encoding='utf-8')
     (ROOT/'experiments/book-ab/starlight/chapters-manifest.json').write_text(json.dumps(chapter_index,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-    print(f'B edition enriched: {len(chapter_index)} chapters, {sum(c["topics"] for c in chapter_index)} separately rendered topic pages, {len(AREAS)} volumes')
+    write_sidebar()
+    print(f'B edition enriched: {len(chapter_index)} chapters, {sum(c["topics"] for c in chapter_index)} canonical topics, {len(SUBCHAPTERS)*len(chapter_index)} technical area pages')
 
 if __name__=='__main__':enrich()

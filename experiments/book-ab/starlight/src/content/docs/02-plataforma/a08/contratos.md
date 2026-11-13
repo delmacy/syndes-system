@@ -1,0 +1,40 @@
+---
+title: "A08 · Contratos públicos e privados"
+description: "Seção temática experimental com referências rastreáveis"
+draft: false
+---
+
+[← Ficha do módulo](../) · [↑ Volume](../../)
+
+> **Leitura documental, não homologação.** Trechos extraídos dos documentos existentes; correspondência textual não demonstra implementação, testes ou implantação.
+
+# Contratos públicos e privados
+
+## Referências verificáveis
+
+### [STATUS.md](https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/A08-core-kernel/STATUS.md)
+
+> L10: - Revisar escopo e contratos do próprio módulo; aprovar primeiro incremento.
+
+> L18: - A INVENTARIAR com contratos públicos, distinguindo dependências obrigatórias e opcionais.
+
+### [REFERENCIA-TECNICA.md](https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/A08-core-kernel/REFERENCIA-TECNICA.md)
+
+> L9: - **Contrato de importação:** `@syndes/core-kernel` via `package.json#exports["."]` e `src/index.ts`.
+
+> L30: - **Contrato HTTP direto:** nenhum. A camada Host oferece as rotas.
+
+### [OPERACAO.md](https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/A08-core-kernel/OPERACAO.md)
+
+> L16: - [Contratos públicos](../../standards/CONTRATOS-PUBLICOS.md).
+
+> L32: 4. Testar com critérios apropriados: unitário, contrato, integração, E2E e CI.
+
+### [04-contratos-e-dependencias-publicas.md](https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/A08-core-kernel/chapters/04-contratos-e-dependencias-publicas.md)
+
+> L4: - Bibliotecas permitidas: consultar exports públicos e dependências existentes, sem copiar implementação privada.
+
+## Revisão e proveniência
+
+- [STATUS original](https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/A08-core-kernel/STATUS.md)
+- O conteúdo apresentado é uma projeção de leitura, não uma ficha operacional atestada.
