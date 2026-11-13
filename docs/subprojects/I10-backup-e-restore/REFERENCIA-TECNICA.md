@@ -1,38 +1,21 @@
 # I10 — Backup e Restore | Referência técnica
 
-> **INVENTÁRIO DOCUMENTAL NÃO AUDITADO.** Só descreve arquivos/declarações presentes no repositório; não representa funcionalidade implantada.
+> **Inventário estático parcial** da fonte `scripts/events/disposable_restore_drill.py` no SHA `8d17879b24fe3162f6b3e8a5776e25dd6d9cbc7b`; não representa implantação ou homologação.
 
-## Stack e ownership
+## Stack e fronteira
+Python 3, biblioteca padrão, Docker CLI e imagem declarada `postgres:17-alpine`. O script cria um PostgreSQL **descartável** com `--network none`, sem portas publicadas, usando dados sintéticos. O código exige `--disposable` e `--ack-synthetic`.
 
-- **Fonte:** [scripts/events/disposable_restore_drill.py](https://github.com/delmacy/syndes-system/tree/main/scripts/events/disposable_restore_drill.py) — arquivo.
-- **Owner:** declarado em `catalog/work-units.json`. Contratos públicos de outros owners não podem ser alterados diretamente.
-- **Stack/manifests:** não foi encontrado package.json nesta fonte; auditar o artefato antes de declarar framework.
+## Símbolos internos observados
+- `DrillError`, `safe_database`: erro e whitelist de nomes de banco.
+- `run`, `Postgres.command/sql/dump/restore`: invocação subprocess de `psql`, `pg_dump -Fc` e `pg_restore --single-transaction --exit-on-error`.
+- `sql_file`, `seed_control`, `seed_tenant`: fixtures e scripts SQL explicitamente listados.
+- `collect`, `sha`, `verified_archive`: coleta de fatos, SHA-256 e validação de permissões do arquivo.
+- `restore_drill`, `main`: ciclo de ensaio e CLI. São símbolos de implementação, **não** API pública versionada.
 
-## Backend: classes, métodos e responsabilidades
+## Contratos, dados e eventos
+O ensaio referencia schemas de Control em `infra/postgres/bootstrap/` e SQL de tenant em `modules/organizations/sql/`, `modules/core-crm/sql/`, `modules/inbox/sql/`, `modules/whatsapp/sql/` e `apps/core-host/sql/`. A presença desses caminhos no script **não** comprova aplicação de migrations fora do contêiner descartável.
 
-**A AUDITAR:** inspecionar código e testes, assinaturas, parâmetros, efeitos e erros. Não publicar API privada como contrato.
+O script compara fatos de auditoria/outbox de Control, eventos/outbox, entregas e inbox de tenant; verifica gatilho de Control após restore, ACL de leitura do ledger e replay idempotente sintético. Não foram identificados endpoints HTTP, telas de frontend ou exports públicos específicos nesse arquivo; não inferir inexistência em todo o repositório.
 
-## Contratos públicos, APIs e eventos
-
-[Índice normativo de contratos](../../standards/CONTRATOS-PUBLICOS.md). Imports, endpoints e consumers exigem evidência de export, versão e compatibilidade.
-
-## Frontend: aplicações, telas e componentes
-
-**A AUDITAR:** conferir telas em Workspace, Manager ou Support e componentes compartilhados; não inferir rota a partir do nome da unidade.
-
-## Schemas e migrations
-
-### Tenant DB
-
-Tabelas e migrações precisam de ownership e prova de aplicação; arquivo SQL presente não equivale a mudança executada.
-
-Nenhuma migration em subpasta SQL nesta fonte; isso **não** comprova ausência de persistência.
-
-### Control / Manager DB
-
-Nenhuma tabela pode ser atribuída ao Control por inferência; confirmar owner e schema. Negócio do cliente fica no Tenant DB.
-
-## Diagramas, testes e pendências
-
-- [Escopo](ESCOPO.md) · [Evolução](EVOLUCAO.md) · [Status](STATUS.md) · [Histórico](HISTORICO.md).
-- **Próximo passo:** auditar classes/exports, contratos, telas, tabelas, testes e evidências sem inventar funcionalidades.
+## Limites de evidência
+Não foi executado Docker, PostgreSQL ou SQL nesta revisão. O relatório produzido pelo script, quando executado, é explicitamente `passed_synthetic_only`, com `production_backup_verified=False`, `production_restore_approved=False` e `operational_ddl_executed=False`. A validade desses checks depende de execução futura observada, não da leitura do código.
