@@ -1,38 +1,25 @@
 # I07 — Tailnet | Referência técnica
 
-> **INVENTÁRIO DOCUMENTAL NÃO AUDITADO.** Só descreve arquivos/declarações presentes no repositório; não representa funcionalidade implantada.
+> Inventário **parcial de fonte**, não homologação. [Checkpoint GitHub-first](../../evidence/checkpoints/I07-tailnet-source-audit-20261113.md).
 
 ## Stack e ownership
+- Python 3, biblioteca padrão (`argparse`, `json`, `sys`).
+- Fonte: [`infra/master-admin/check-tailnet-route.py`](../../../infra/master-admin/check-tailnet-route.py), blob `d51f6e69f2b0a04670eaf7c7119950fa53da1452`.
+- I07 é componente documental de Tailnet subordinado a I02. O script valida configuração estruturada Tailscale Serve para o Manager; não gerencia Traefik nem substitui controles de autenticação.
 
-- **Fonte:** [infra/master-admin/check-tailnet-route.py](https://github.com/delmacy/syndes-system/tree/main/infra/master-admin/check-tailnet-route.py) — arquivo.
-- **Owner:** declarado em `catalog/work-units.json`. Contratos públicos de outros owners não podem ser alterados diretamente.
-- **Stack/manifests:** não foi encontrado package.json nesta fonte; auditar o artefato antes de declarar framework.
+## Contratos internos e CLI
+| Símbolo | Entrada | Saída e efeitos |
+|---|---|---|
+| `check(config, mode, port=9447, target="http://127.0.0.1:18085")` | Dicionário JSON Serve, `free`/`active` | Tupla `(bool, message)`; sem mutação |
+| `main()` | `--mode`, `--port`, `--target`, stdin JSON | Exit 0/2; mensagens `PASS`/`BLOCKED` |
 
-## Backend: classes, métodos e responsabilidades
+`free` reprova porta TCP/Web ocupada. `active` exige uma única rota Web correspondente, `TCP[port].HTTPS == True`, `Handlers` somente com `/`, `Proxy` exatamente `http://127.0.0.1:18085` e Funnel não habilitado para o hostname. Erros estruturais falham fechados; hostnames não são impressos.
 
-**A AUDITAR:** inspecionar código e testes, assinaturas, parâmetros, efeitos e erros. Não publicar API privada como contrato.
+## APIs, eventos, dados, frontend e dependências
+- Não há API HTTP de negócio, consumer de evento, migration SQL ou tela frontend próprios demonstrados por **esta fonte**.
+- O destino HTTP local é um serviço de outro owner; não atribuir sua implementação a I07.
+- Dependência de formato JSON de Tailscale Serve; configuração/ACL efetiva não verificada.
+- O middleware Traefik `syndes-tailnet-only@docker` citado em I06 é referência distinta; não comprova restrição ativa.
 
-## Contratos públicos, APIs e eventos
-
-[Índice normativo de contratos](../../standards/CONTRATOS-PUBLICOS.md). Imports, endpoints e consumers exigem evidência de export, versão e compatibilidade.
-
-## Frontend: aplicações, telas e componentes
-
-**A AUDITAR:** conferir telas em Workspace, Manager ou Support e componentes compartilhados; não inferir rota a partir do nome da unidade.
-
-## Schemas e migrations
-
-### Tenant DB
-
-Tabelas e migrações precisam de ownership e prova de aplicação; arquivo SQL presente não equivale a mudança executada.
-
-Nenhuma migration em subpasta SQL nesta fonte; isso **não** comprova ausência de persistência.
-
-### Control / Manager DB
-
-Nenhuma tabela pode ser atribuída ao Control por inferência; confirmar owner e schema. Negócio do cliente fica no Tenant DB.
-
-## Diagramas, testes e pendências
-
-- [Escopo](ESCOPO.md) · [Evolução](EVOLUCAO.md) · [Status](STATUS.md) · [Histórico](HISTORICO.md).
-- **Próximo passo:** auditar classes/exports, contratos, telas, tabelas, testes e evidências sem inventar funcionalidades.
+## Testes e limites
+Nenhum teste foi executado neste checkpoint. Verificar fixtures de porta livre, rota ativa válida, conflito, HTTPS ausente, target errado, Funnel e JSON inválido antes de promover maturidade. [STATUS](STATUS.md) · [OPERACAO](OPERACAO.md).
