@@ -72,3 +72,45 @@ test('Não gera erro fatal de script e permite acesso por teclado ao índice', a
   await expect(details).toHaveAttribute('open', '');
   expect(errors).toEqual([]);
 });
+
+test('Hierarquia editorial no celular evita títulos oversized e mantém área legível', async ({ page }, testInfo) => {
+  await page.goto(A06);
+  const sizes = await page.evaluate(() => {
+    const title = document.querySelector('main h1');
+    const section = document.querySelector('.sl-markdown-content h2');
+    const article = document.querySelector('.sl-markdown-content');
+    const style = (el) => parseFloat(getComputedStyle(el).fontSize);
+    return {
+      title: style(title),
+      section: style(section),
+      text: style(article),
+      viewport: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    };
+  });
+  expect(sizes.scrollWidth).toBeLessThanOrEqual(sizes.viewport + 2);
+  expect(sizes.title).toBeGreaterThan(sizes.text);
+  expect(sizes.title).toBeLessThanOrEqual(48);
+  expect(sizes.section).toBeLessThanOrEqual(34);
+  if (testInfo.project.name === 'mobile') {
+    expect(sizes.title).toBeLessThanOrEqual(36);
+    expect(sizes.section).toBeLessThanOrEqual(27);
+  }
+});
+
+test('O conteúdo longo preserva ritmo editorial e navegação por assunto', async ({ page }, testInfo) => {
+  await page.goto(A06);
+  const index = page.locator('.syndes-chapter-index');
+  await index.locator('summary').click();
+  await index.locator('a[href="#contratos"]').click();
+  await expect(page).toHaveURL(/#contratos$/);
+  const heading = page.getByRole('heading', { name: 'Contratos públicos e privados' });
+  await expect(heading).toBeVisible();
+  await heading.screenshot({ path: testInfo.outputPath('chapter-middle-heading.png') });
+  const result = await heading.evaluate(el => {
+    const style = getComputedStyle(el);
+    return { fontSize: parseFloat(style.fontSize), marginTop: parseFloat(style.marginTop) };
+  });
+  expect(result.fontSize).toBeGreaterThanOrEqual(20);
+  expect(result.marginTop).toBeGreaterThanOrEqual(25);
+});
