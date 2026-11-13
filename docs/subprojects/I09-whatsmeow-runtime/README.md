@@ -1,6 +1,6 @@
 # I09 — Whatsmeow runtime
 
-> **Componente técnico/histórico.** Esta é a entrada humana do módulo: navegue pelas seis páginas abaixo. Código e documentação técnica podem existir sem estar implantados ou homologados.
+> **Componente técnico/histórico.** Esta é a entrada humana do módulo: navegue pelas seis páginas principais e pelos oito capítulos temáticos independentes. Código e documentação técnica podem existir sem estar implantados ou homologados.
 
 <!-- syndes:module-id=I09;source=modules/whatsapp/gateway;kind=component -->
 
