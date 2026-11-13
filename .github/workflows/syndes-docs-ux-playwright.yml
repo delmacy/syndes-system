@@ -1,0 +1,53 @@
+name: Syndes Docs UX — Playwright
+
+on:
+  push:
+    branches:
+      - tests/docs-playwright-ux-20261113
+    paths:
+      - 'tests/docs-ux/**'
+      - '.github/workflows/syndes-docs-ux-playwright.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-ux:
+    name: Browser UX — desktop and mobile
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install isolated Playwright test package
+        working-directory: tests/docs-ux
+        run: npm install --no-audit --no-fund --no-package-lock
+
+      - name: Install Chromium for browser tests
+        working-directory: tests/docs-ux
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser UX tests against published GitHub Pages
+        working-directory: tests/docs-ux
+        env:
+          CI: 'true'
+          SYNDES_DOCS_URL: https://delmacy.github.io/syndes-system/assets/experimentos/livros/b/
+        run: npx playwright test --config=playwright.config.cjs
+
+      - name: Upload visual evidence, videos, traces and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: syndes-docs-ux-playwright
+          path: |
+            tests/docs-ux/playwright-report/
+            tests/docs-ux/test-results/
+          retention-days: 14
+          if-no-files-found: warn
