@@ -77,6 +77,7 @@ test("Rascunho por operação persiste e é exportável sem enviar ao servidor",
   await area.locator("input").fill("Melhorar validação de email");
   await area.locator("textarea").fill("Revisar casos de entrada inválida mantendo o contrato.");
   await page.reload();
+  await page.locator("#crm-create-person").getByRole("tab",{name:"Pendências"}).click();
   await area.locator(".proposal-trigger").click();
   await expect(area.locator("input")).toHaveValue("Melhorar validação de email");
   const download=page.waitForEvent("download");
