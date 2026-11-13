@@ -227,7 +227,7 @@ export const CRM_EVIDENCE={
         ["P01-VAL-01","JWT/FGA reais, CRUD, consulta, CSV, notas e cenários A/B"],
         ["P01-VAL-02","Revisão de identidade de canal, replay, concorrência e rollback"],
         ["P01-VAL-03","Navegação CRM no Workspace, critérios de aceite e Product Gate"]
-      ],["Tarefa candidata","Resultado esperado"],[{name:"Evolução e tarefas",href:DOC("EVOLUO.md".replace("EVOLUO","EVOLUCAO"))}])
+      ],["Tarefa candidata","Resultado esperado"],[{name:"Evolução e tarefas",href:DOC("EVOLUCAO.md")}])
     ]
   }
 };
