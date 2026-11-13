@@ -151,10 +151,10 @@ def render():
     for area,(volume,title,_) in AREAS.items():
         entries=[{'slug':volume}]
         entries.extend({'slug':volume+'/'+u['id'].lower()} for u in CAT if u['front']==area)
-        groups.append({'label':title,'collapsed':area!='produto','items':entries})
+        groups.append({'label':title,'collapsed':True,'items':entries})
     config='import { defineConfig } from "astro/config";\nimport starlight from "@astrojs/starlight";\n'
-    config+='export default defineConfig({site:"https://delmacy.github.io",base:"/syndes-system/assets/experimentos/livros/b",integrations:[starlight({title:"Syndes · Biblioteca B",description:"Acervo técnico do Syndes",locales:{root:{label:"Português",lang:"pt-BR"}},sidebar:'
-    config+=json.dumps(groups,ensure_ascii=False)+',tableOfContents:{minHeadingLevel:2,maxHeadingLevel:2},customCss:["./src/styles/custom.css"]})]});\n'
+    config+='export default defineConfig({site:"https://delmacy.github.io",base:"/syndes-system/assets/experimentos/livros/b",integrations:[starlight({title:"Syndes · Biblioteca",description:"Acervo técnico do Syndes",locales:{root:{label:"Português",lang:"pt-BR"}},sidebar:'
+    config+=json.dumps(groups,ensure_ascii=False)+',tableOfContents:false,customCss:["./src/styles/custom.css"]})]});\n'
     (ROOT/'experiments/book-ab/starlight/astro.config.mjs').write_text(config,encoding='utf-8')
     print('Composed full Markdown for',len(manifest),'modules')
 
