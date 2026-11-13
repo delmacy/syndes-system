@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { ArrowUpRight, Check, ClipboardCopy, FileCode2, ShieldCheck, TableProperties } from "lucide-react";
+import { ArrowUpRight, Check, ClipboardCopy, Download, FileCode2, ShieldCheck, TableProperties } from "lucide-react";
 import ProposalEditor from "./proposal-editor";
 
 export function agentBrief(operation) {
@@ -40,7 +40,17 @@ export default function OperationDetail({operation}) {
   const [feedback,setFeedback]=useState("");
   const copy=async()=>{
     try {await navigator.clipboard.writeText(agentBrief(operation));setFeedback("Briefing copiado para revisão por um agente.");}
-    catch {setFeedback("O navegador bloqueou a cópia. Use a exportação do rascunho ou copie manualmente.");}
+    catch {setFeedback("O navegador bloqueou a cópia. Use a exportação do briefing em Markdown.");}
+  };
+  const download=()=>{
+    const blob=new Blob([agentBrief(operation)],{type:"text/markdown;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement("a");
+    link.href=url;
+    link.download="syndes-p01-"+operation.id+"-briefing.md";
+    link.click();
+    URL.revokeObjectURL(url);
+    setFeedback("Briefing Markdown exportado para revisão.");
   };
   return <section className="operation-detail" aria-labelledby="operation-title" id={operation.id}>
     <div className="operation-head">
@@ -87,7 +97,7 @@ export default function OperationDetail({operation}) {
         <p>Esta é uma delimitação de trabalho, não uma autorização automática de implementação.</p>
         <ul className="operation-checklist">{operation.acceptance.map((criterion,i)=><li key={i}><span className="criterion-box" aria-hidden="true"/> {criterion}</li>)}</ul>
         <p><strong>Próxima ação sugerida:</strong> {operation.task}</p>
-        <button className="action-ghost" type="button" onClick={copy}><ClipboardCopy size={14} style={{display:"inline",marginRight:6}}/>Copiar briefing técnico</button>
+        <div className="proposal-actions"><button className="action-ghost" type="button" onClick={copy}><ClipboardCopy size={14} style={{display:"inline",marginRight:6}}/>Copiar briefing técnico</button><button className="action-ghost" type="button" onClick={download}><Download size={14} style={{display:"inline",marginRight:6}}/>Exportar briefing .md</button></div>
         {feedback&&<p className="proposal-feedback" role="status">{feedback}</p>}
       </div>
     </details>
