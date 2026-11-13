@@ -59,3 +59,56 @@ test("Menu mobile abre sem interromper a leitura",async({page,isMobile})=>{
     await expect(page.locator(".mobile-outline")).toBeVisible();
   }
 });
+
+
+test("Identidade editorial tecnológica usa IBM Plex e azul discreto em Home e CRM",async({page},testInfo)=>{
+  await page.goto("/");
+  await expect(page.locator("main h1")).toHaveCount(1);
+  const home=await page.evaluate(()=>{
+    const css=sel=>getComputedStyle(document.querySelector(sel));
+    const font=css(".serif-title").fontFamily;
+    const ink=css("body").color;
+    const accent=css(".hero-highlight").color;
+    const background=css("body").backgroundColor;
+    const button=css(".primary-link").backgroundColor;
+    return {font,ink,accent,background,button};
+  });
+  expect(home.font).toContain("IBM Plex Sans");
+  expect(home.font.toLowerCase()).not.toContain("georgia");
+  expect(home.ink).toBe("rgb(23, 36, 55)");
+  expect(home.accent).toBe("rgb(41, 95, 185)");
+  expect(home.button).toBe("rgb(37, 91, 193)");
+  await page.screenshot({path:testInfo.outputPath("home-editorial-tech.png"),fullPage:false});
+  await page.goto("/modulos/crm/");
+  await expect(page.locator("article section.reading-section")).toHaveCount(12);
+  const crm=await page.evaluate(()=>{
+    const heading=getComputedStyle(document.querySelector(".reading-section h2"));
+    const summary=getComputedStyle(document.querySelector(".module-hero .subtitle"));
+    const body=getComputedStyle(document.body);
+    return {headingFont:heading.fontFamily,headingWeight:heading.fontWeight,subtitleFont:summary.fontFamily,bodyFont:body.fontFamily};
+  });
+  expect(crm.headingFont).toContain("IBM Plex Sans");
+  expect(crm.subtitleFont).toContain("IBM Plex Sans");
+  expect(crm.bodyFont).toContain("IBM Plex Sans");
+  await page.screenshot({path:testInfo.outputPath("crm-editorial-tech.png"),fullPage:false});
+});
+
+test("Leitura editorial conserva contraste, foco e organização em todos os viewports",async({page,isMobile})=>{
+  await page.goto("/modulos/crm/");
+  await expect(page.locator("article .source-footer")).toHaveCount(12);
+  await expect(page.locator("article .proposal-area")).toHaveCount(12);
+  const stats=await page.evaluate(()=>{
+    const body=getComputedStyle(document.body);
+    return {clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,lineHeight:parseFloat(getComputedStyle(document.querySelector(".reading-section .copy")).lineHeight),fontSize:parseFloat(getComputedStyle(document.querySelector(".reading-section .copy")).fontSize),bodyColor:body.color};
+  });
+  expect(stats.scrollWidth).toBeLessThanOrEqual(stats.clientWidth+2);
+  expect(stats.lineHeight/stats.fontSize).toBeGreaterThan(1.6);
+  if(isMobile){
+    await expect(page.locator(".mobile-outline")).toBeVisible();
+    await page.locator(".mobile-outline summary").click();
+    await expect(page.locator('.mobile-outline a[href="#dados"]')).toBeVisible();
+  }else{
+    await expect(page.locator(".module-sidebar")).toBeVisible();
+    await expect(page.locator('.side-link[href="#dados"]')).toBeVisible();
+  }
+});
