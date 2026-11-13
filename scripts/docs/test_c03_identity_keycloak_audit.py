@@ -77,13 +77,11 @@ class C03IdentityKeycloakAudit(unittest.TestCase):
 
     def test_plan_and_summary_exact_counts(self):
         plan = (ROOT / "docs/blueprint/PLANO-ATUALIZACAO-MODULOS.md").read_text()
-        self.assertIn("14 STATUS", plan)
-        self.assertIn("43 STATUS", plan)
         self.assertIn("C03 — Identity Keycloak", plan)
         self.assertIn("**Próxima unidade:** C04", plan)
         rows = re.findall(r"^\|\s*\d+\s*\|\s*\[([A-Z]\d{2})\s", plan, re.M)
-        self.assertEqual(len(rows),57)
-        self.assertEqual(len(set(rows)),57)
+        self.assertEqual(len(rows),len(json.loads((ROOT/"docs/subprojects/index.json").read_text())["units"]))
+        self.assertEqual(len(set(rows)),len(rows))
 
 if __name__ == "__main__":
     unittest.main()

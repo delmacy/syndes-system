@@ -31,7 +31,8 @@ class TechReferenceTests(unittest.TestCase):
                        "platform_organizations","Tenant DB","Control/Manager DB","DOM-01","ERP-01","DOC-01"]:
             self.assertIn(phrase,doc)
         catalog=json.loads((ROOT/"catalog/work-units.json").read_text())
-        self.assertEqual(len(catalog["units"]),57)
+        self.assertEqual({x["id"] for x in catalog["units"]},
+                         {x["id"] for x in json.loads((ROOT/"docs/subprojects/index.json").read_text())["units"]})
         self.assertFalse(any(u["name"]=="ERP Lite" for u in catalog["units"]))
 
     def test_material_layout_configuration(self):

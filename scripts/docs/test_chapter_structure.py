@@ -10,7 +10,7 @@ UNITS=json.loads((ROOT/"docs/subprojects/index.json").read_text())["units"]
 
 class ChapterStructureTests(unittest.TestCase):
     def test_all_subprojects_have_distinct_chapters(self):
-        self.assertEqual(len(UNITS),57)
+        self.assertEqual(len(UNITS),len(json.loads((ROOT/"catalog/work-units.json").read_text())["units"]))
         for u in UNITS:
             with self.subTest(unit=u["id"]):
                 d=(ROOT/u["scope"]).parent

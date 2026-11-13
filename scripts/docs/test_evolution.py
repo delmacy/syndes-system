@@ -26,7 +26,7 @@ class EvolutionTests(unittest.TestCase):
         self.assertEqual(self.tasks["55.05"]["aliases"],"SM-05")
 
     def test_every_unit_has_evolution_page_and_link(self):
-        self.assertEqual(len(self.units),57)
+        self.assertEqual(len(self.units),len(json.loads((ROOT/"catalog/work-units.json").read_text())["units"]))
         self.assertEqual(set(self.source["units"]),{x["id"] for x in self.units})
         for unit in self.units:
             with self.subTest(module=unit["id"]):

@@ -28,6 +28,7 @@
 | A01 | `actorFromToken(token)` | Apenas decodifica `sub` para UI, **não verifica assinatura** e **não é gate de backend** |
 | A05 | `createMasterTokenVerifier({issuer,audience,clientId,jwksUrl})` | RS256/JWKS remoto, `iss` e `aud` exatos, `azp===clientId`, `sub` não vazio; lança em falha |
 | A06 | `createTokenVerifier(...)` | RS256, `iss`/`aud`/`azp`, `sub`; retorna actor `kind:user`; veta client Master |
+| A04 | `ActorVerifier.verifyToken(header,clientId?)` | Implementação **private** compartilhada por `verify` e `verifyClient`; não constitui API pública da plataforma |
 | A04 | `ActorVerifier.verifyClient(header,clientId)` | JWT assinado e client `azp` exato; recusa client Master |
 | A04 | `ActorVerifier.verify(header)` | JWT com `iss`/`aud` e veto ao Master; **não** exige azp tenant específico sem `verifyClient` |
 

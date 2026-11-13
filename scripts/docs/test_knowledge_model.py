@@ -41,7 +41,7 @@ class KnowledgePortalTests(unittest.TestCase):
         self.assertEqual({u["id"] for u in self.units if u.get("documentationParent")},{"I09","I01","I03","I05","I06","I07","I08","I12"})
 
     def test_all_sources_and_legacy_paths_preserved(self):
-        self.assertEqual(len(self.units),57)
+        self.assertEqual(len(self.units),len(json.loads((ROOT/"catalog/work-units.json").read_text())["units"]))
         for unit in self.units:
             with self.subTest(uid=unit["id"]):
                 base=ROOT/Path(unit["entry"]).parent

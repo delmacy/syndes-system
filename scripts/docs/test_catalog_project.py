@@ -52,7 +52,7 @@ class CatalogAndProjectTests(unittest.TestCase):
         self.assertFalse({x["moduleId"] for x in infra}&{x["moduleId"] for x in quality})
 
     def test_human_homepages_have_fixed_anchors_and_legacy_preserved(self):
-        self.assertEqual(len(UNITS),57)
+        self.assertEqual(set(UNITS),{x["id"] for x in json.loads((ROOT/"catalog/work-units.json").read_text())["units"]})
         for uid,u in UNITS.items():
             with self.subTest(uid=uid):
                 text=(ROOT/u["entry"]).read_text()

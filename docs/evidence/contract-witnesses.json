@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Source-level witnesses for explicitly documented contracts; no deploy/authorization inference",
+  "witnesses": [
+    {
+      "id": "C03-A04-VERIFIER",
+      "module": "C03",
+      "owner": "A04",
+      "source": "apps/core-host/src/adapters.ts",
+      "symbolKind": "method",
+      "className": "ActorVerifier",
+      "symbol": "verifyClient",
+      "document": "docs/subprojects/C03-identity-keycloak/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "C03-A04-PRIVATE",
+      "module": "C03",
+      "owner": "A04",
+      "source": "apps/core-host/src/adapters.ts",
+      "symbolKind": "method",
+      "className": "ActorVerifier",
+      "symbol": "verifyToken",
+      "visibility": "private",
+      "document": "docs/subprojects/C03-identity-keycloak/REFERENCIA-TECNICA.md",
+      "documentMarker": "verifyToken"
+    },
+    {
+      "id": "C03-A05-CLIENT",
+      "module": "C03",
+      "owner": "A05",
+      "source": "apps/master-admin-api/src/auth.mjs",
+      "symbolKind": "js-export-function",
+      "symbol": "createMasterTokenVerifier",
+      "document": "docs/subprojects/C03-identity-keycloak/REFERENCIA-TECNICA.md"
+    },
+    {
+      "id": "C03-A01-CONFIG",
+      "module": "C03",
+      "owner": "A01",
+      "source": "apps/workspace-web/src/lib/auth.ts",
+      "symbolKind": "function",
+      "symbol": "getWorkspaceConfig",
+      "document": "docs/subprojects/C03-identity-keycloak/REFERENCIA-TECNICA.md"
+    }
+  ]
+}

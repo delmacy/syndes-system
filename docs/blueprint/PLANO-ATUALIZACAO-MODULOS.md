@@ -9,6 +9,8 @@
 - O marcador `maturity` do catálogo é metadado de inventário, não sinônimo de integração/produção/homologação.
 - A [WBS do programa](https://github.com/delmacy/syndes-system/blob/main/docs/engineering/WBS-PROGRAMA-SYNDES-20261110.md) e a [ordem funcional](https://github.com/delmacy/syndes-system/blob/main/docs/product/MODULE-ORDER.md) permanecem as fontes de priorização de entrega.
 
+**Validação técnica automatizada:** [auditoria código ↔ documentação](../standards/AUDITORIA-CODIGO-DOCUMENTACAO.md) descreve extração de símbolos, vínculos auditáveis, checagem de divergências e limites de evidência.
+
 ## Procedimento padrão por unidade
 
 1. **Baseline (as-is):** conferir SHA de origem, branch, owner, arquivos, comportamento real, stack e revisão dos ambientes. Registrar o que foi observado, distinguindo código de implantação.
