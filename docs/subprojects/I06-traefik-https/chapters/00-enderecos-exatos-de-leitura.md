@@ -1,10 +1,8 @@
 ## 0. Endereços exatos de leitura
-- Catálogo: catalog/work-units.json
-- Código/artefato: docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md
-- AGENTS global: AGENTS.md
-- AGENTS local: Não existe arquivo local específico; aplicar AGENTS.md raiz
-- Package/exports: N/A; localizar configuração declarativa
-- Contratos públicos: docs/standards/CONTRATOS-PUBLICOS.md
-- Escopo: docs/subprojects/I06-traefik-https/ESCOPO.md
-- Status: docs/subprojects/I06-traefik-https/STATUS.md
-- Sprint: docs/subprojects/I06-traefik-https/SPRINT.md
+
+- Catálogo: `catalog/work-units.json` e `docs/subprojects/index.json` (I06 ligado a I02).
+- Declarações de roteamento versionadas: `modules/whatsapp/deploy/devserver01-cutover.compose.yaml`.
+- Contexto de cutover e rollback: `modules/whatsapp/deploy/README.md`.
+- Runbook histórico: `docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md`.
+- Evidência auditável: [checkpoint I06](../../../evidence/checkpoints/I06-traefik-https-github-reconciliation-20261113.md).
+- Políticas de contribuição: `AGENTS.md`; status e gates em [STATUS](../STATUS.md) e [Operação](../OPERACAO.md).

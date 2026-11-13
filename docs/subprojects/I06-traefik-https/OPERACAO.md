@@ -1,33 +1,20 @@
 # I06 — Traefik HTTPS | Operação
 
-> **ÍNDICE DE FONTES, NÃO RUNBOOK HOMOLOGADO.** Não executar migrations, alterar permissões ou ativar workers apenas com esta página.
+> **Diagnóstico somente leitura; runbook NÃO homologado.** Documentar ingress não autoriza alterar portas, labels, firewall, middlewares ou serviços.
 
-## Estado operacional e evidências
+## Estado observado
+- Checkpoint local `a393007` (2026-11-13) reportou container Traefik v3.6.25 em execução na `infra-proxy`, portas 80/443 publicadas e quatro containers com labels. Isso **não** comprova exposição Internet nem isolamento Tailnet.
+- Compose GitHub de cutover WhatsApp declara dois routers no entrypoint `web` e referencia `syndes-tailnet-only@docker`. Não foi comprovada a definição/eficácia do middleware ou TLS end-to-end.
+- Runbook `WORKSPACE-DEVSERVER01-RUNBOOK.md` lista arquivos locais em `/srv/syndes-lab` não identificados no checkpoint; revisar a validade histórica antes de qualquer operação.
 
-- [STATUS](STATUS.md): nível de validação, bloqueios, testes, ambiente e SHA.
-- [SPRINT](SPRINT.md): incremento autorizado e checkpoints, quando existentes.
-- [Evolução](EVOLUCAO.md): workpackages e dependências; nenhum item é concluído por estar planejado.
-- [Histórico](HISTORICO.md): commits de código e documentos.
-- [Workflows GitHub](../../monitoramento/README.md): resultado CI geral, não estado operacional do módulo.
+## Gates de aceite por evidência
+1. Inspecionar a configuração ativa do proxy e a procedência de entrypoints, routers e middlewares, filtrando credenciais e caminhos sensíveis.
+2. Confirmar destino das portas 80/443 e certificado/hostname/redirect por teste com validação TLS; registrar data, ambiente e resultado.
+3. Validar acesso autorizado pela Tailnet e **negação por origem não autorizada** (sem contornar firewall ou abrir portas).
+4. Conferir roteamento API `/v1/`, `/modules/` e Workspace, prioridades, códigos esperados e downstream authorization. HTTP 200 da página estática não prova autorização de dados.
+5. Revisar plano de rollback documentado para cutover, dependências e impacto nos callbacks; não executar rollback sem janela/autorização específica.
+6. Registrar evidências no STATUS e checkpoint por revisão e ambiente. Sem evidência, permanecer pendente.
 
-## Fontes e contratos
-
-- [Código/artefato do módulo](https://github.com/delmacy/syndes-system/tree/main/docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md) — `docs/engineering/WORKSPACE-DEVSERVER01-RUNBOOK.md`.
-- [Contratos públicos](../../standards/CONTRATOS-PUBLICOS.md).
-- [Regras de rastreabilidade](../../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
-- **Runbook específico:** não verificado neste inventário. Não criar comandos de ambiente por inferência.
-
-## Operações orientadas por agentes
-
-- [Projeção / Planejamento](PROJECAO.md)
-- [Implementação](IMPLEMENTACAO.md)
-- [Alteração rápida](ALTERACAO.md)
-- [Entrada de propostas](updates/README.md)
-
-## Gates para operação real
-
-1. Conferir fonte, tenant/org/workspace, ambiente, SHA e autorização explícita.
-2. Validar identity/service grants e ownership de banco.
-3. Confirmar migrations realmente aplicadas, backup/restore e rollback antes de SQL.
-4. Testar com critérios apropriados: unitário, contrato, integração, E2E e CI.
-5. Registrar resultado e evidência em STATUS, sem confundir merge com deploy ou aceite.
+## Registros
+- [STATUS](STATUS.md) · [Referência técnica](REFERENCIA-TECNICA.md) · [Checkpoint](../../evidence/checkpoints/I06-traefik-https-github-reconciliation-20261113.md) · [Plano geral](../../blueprint/PLANO-ATUALIZACAO-MODULOS.md).
+- Não usar valores de `env_file`, tokens, certificados privados ou dumps no relatório público.
