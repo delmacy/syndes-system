@@ -163,3 +163,10 @@ Registrar como contrato/proposta até aprovação de Product Gate; não afirmar 
 ## Próxima ação de auditoria
 
 **Executadas como auditoria parcial:** G01 → G02 → G03 → Q10 → Q07 → Q01 → P14 → I02 → I04 → C01 → C03 → C04 → C05 → A06 → A04. **Próxima unidade:** conferir próximo baseline no catálogo. Continuar por segurança, Core e integrações do MVP. Para o negócio, manter **P01 CRM → P02 Inbox → P03 WhatsApp → P05 Gestão de Atendimentos Basic** conforme o plano de produto. O I09 acompanha a auditoria do P03. A ordem é de **documentação**; não muda o Product Gate vigente.
+
+## Acompanhamento de I11 em revisão — 2026-11-14
+
+- O dossiê documental de **I11 — Release e Rollback** está proposto no [PR #137](https://github.com/delmacy/syndes-system/pull/137), branch `docs/i11-source-reconciliation-20261114-0315`, **não integrado** ao `main` desta revisão (`39f434e5720653eda8af2e3b2a0fa60d1a119cdd`). A comparação GitHub registrou 12 arquivos documentais alterados (STATUS, REFERENCIA-TECNICA, OPERACAO, capítulos 00–07 e este plano); isso não equivale a 12 unidades auditadas.
+- Fonte de implementação verificada no GitHub: `infra/master-admin/homolog-deploy.sh`, blob `39f85b3ec07b92a90f3e83408c3ad2541ec6fcf3`. Há preflight, apply e compensação limitada ao Manager declarados no código. **Não há prova nesta revisão** de execução bem-sucedida, homologação, deploy ou restore; não elevar os estados do catálogo.
+- Gates ainda sem evidência independente: MkDocs estrito, links internos, registry, revisão de ownership e correspondência do SHA do GitHub Pages público. Não registrar witness positivo nem integrar PR enquanto faltarem essas verificações.
+- A contagem de 57 unidades permanece a do catálogo; a enumeração de auditorias no início deste plano é um retrato histórico e **não** deve ser atualizada com I11 antes da integração e reconciliação de evidências. Os demais owners permanecem com seus estados próprios, não inferidos a partir de I11.
