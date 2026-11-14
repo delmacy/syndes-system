@@ -30,4 +30,4 @@
 - **Implantação/homologação:** não comprovadas. O retorno `PASS` do verificador, isoladamente, não prova conectividade nem posse do serviço.
 - **Riscos pendentes:** validar formatos reais de Tailscale Serve JSON e casos adversariais; conferir todos os caminhos de Funnel e configuração fora da porta; confirmar conectividade e autenticação com evidência autorizada.
 - Antecedentes documentais: PRs #111, #141 e #142, ainda sujeitos à revisão e consolidação; não tratar seus checkpoints como homologação.
-- **Gate:** NÃO INTEGRAR até MkDocs estrito, links, registry, ownership, revisão de concorrência e publicação Pages SHA comprovados.
+- **Gate pré-merge:** NÃO INTEGRAR até MkDocs estrito, links, registry, ownership, revisão de concorrência e aprovação documental comprovados. **Gate pós-merge:** somente depois de integração autorizada, conferir o SHA efetivamente publicado no GitHub Pages e registrar eventual divergência; o SHA público não pode ser pré-condição circular de um merge ainda não realizado. Nenhum deploy ou homologação operacional é inferido da publicação.
