@@ -19,6 +19,21 @@
 
 Consulte a [especificação integral](ESCOPO.md) e os [capítulos de capacidades](chapters/03-capabilities.md) e [histórias/casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md). **O conteúdo da especificação define o que é aprovado; presença de um item na documentação não comprova implementação.**
 
+## Oito capítulos temáticos independentes {#capitulos-tematicos}
+
+Os capítulos abaixo são **categorias documentais próprias**, não abas decorativas nem prova de implementação. O conteúdo dos capítulos está proposto nesta branch de reconciliação e permanece sujeito a gates e revisão; os links não comprovam homologação.
+
+| Categoria | Página |
+|---|---|
+| 00 — Endereços exatos de leitura | [Fontes e pontos de entrada](chapters/00-enderecos-exatos-de-leitura.md) |
+| 01 — Missão, objetivos e fronteiras | [Escopo e limites](chapters/01-missao-objetivos-e-fronteiras.md) |
+| 02 — Requisitos, histórias e casos de uso | [Requisitos e cenários](chapters/02-requisitos-historias-e-casos-de-uso.md) |
+| 03 — Capabilities | [Capacidades](chapters/03-capabilities.md) |
+| 04 — Contratos e dependências públicas | [Interfaces e dependências](chapters/04-contratos-e-dependencias-publicas.md) |
+| 05 — Arquitetura, banco, interface e configuração | [Arquitetura e efeitos](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md) |
+| 06 — WBS, marcos e aceite | [Pacotes e critérios](chapters/06-wbs-marcos-e-aceite.md) |
+| 07 — Controle do escopo | [Riscos, limites e mudanças](chapters/07-controle-do-escopo.md) |
+
 ## Stack, contratos e persistência {#stack}
 
 A [referência técnica](REFERENCIA-TECNICA.md) lista exports de pacote, interfaces públicas, declarações internas de classes/métodos, APIs HTTP identificadas, candidatos de frontend e objetos SQL com origem verificável.
