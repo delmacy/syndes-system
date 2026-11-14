@@ -2,6 +2,14 @@
 
 > Este guia aplica [TEMPLATE-FICHA-MODULO.md](TEMPLATE-FICHA-MODULO.md) e [TEMPLATE-FICHA-ACAO.md](TEMPLATE-FICHA-ACAO.md) **uma unidade de cada vez**, preservando a estrutura existente da Biblioteca. Não cria novo serviço, banco de dados, pipeline paralelo nem migra automaticamente as demais unidades.
 
+## Baseline congelada — v1.0.0 (14/11/2026)
+
+- **Congelamento de estrutura:** os 22 blocos da Ficha Mestre e os 10 blocos da Ficha de Ação não devem ser alterados por agentes durante o preenchimento de módulos.
+- **Conteúdo continua evoluindo:** preencher campos, corrigir evidências, registrar edge cases, histórias, diagramas e decisões em fichas concretas permanece permitido. Não confundir congelamento do modelo com congelamento do software.
+- **Evolução do padrão:** qualquer novo campo, matriz ou reorganização exige proposta, comparação com a baseline, aprovação explícita do proprietário e incremento de versão; nunca alterar silenciosamente fichas existentes.
+- **Matriz de diagramas:** manter os tipos já registrados na seção 04. Outros diagramas, como UML/BPMN, podem ser referenciados em módulos específicos, mas sua inclusão como novos campos obrigatórios é proposta futura, **não parte aprovada da v1.0.0**.
+- **Sem governança adicional:** não criar bloqueios do main, serviços ou pipelines novos em nome do congelamento.
+
 ## Princípio de projeto
 
 - **O proprietário decide:** abre função/ação, deixa observação, aprova o requisito quando estiver correto.

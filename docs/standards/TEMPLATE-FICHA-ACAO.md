@@ -1,5 +1,6 @@
 # TEMPLATE — FICHA DETALHADA DE AÇÃO / FUNÇÃO DO MÓDULO
 
+> **BASELINE CONGELADA — v1.0.0.** Estrutura e campos preservados; novas necessidades devem ser registradas nas fichas concretas ou propostas para uma versão futura aprovada.
 > **Modelo repetível e incremental, não funcionalidade executada.** Versionar a ação em `docs/subprojects/<ID>-<slug>/acoes/<action-id>.md` **somente quando fizer sentido**; alternativamente manter o bloco em um capítulo canônico existente. A [Ficha Mestre](TEMPLATE-FICHA-MODULO.md) registra o índice e os vínculos. Não duplicar contratos ou requisitos aprovados.
 >
 > **Critério de granularidade:** uma ação = um resultado reconhecível pelo usuário ou por outro componente, com fronteira, testes e decisão próprios. Pode combinar várias rotas/métodos; não criar uma ação para cada getter sem necessidade.

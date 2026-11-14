@@ -1,6 +1,7 @@
 # TEMPLATE MESTRE — FICHA COMPLETA DE MÓDULO / UNIDADE SYNDES
 
 > **MODELO REUTILIZÁVEL — NÃO É UM MÓDULO IMPLEMENTADO.** Versão do template: **1.0.0** (14/11/2026).
+> **BASELINE CONGELADA — v1.0.0.** Não acrescentar, remover ou reorganizar campos, seções ou matriz de diagramas sem nova decisão explícita do proprietário e nova versão do modelo. Completar fichas concretas não altera esta baseline.
 > Aplicável a módulos de negócio, bibliotecas, Kernel, Host, frontend, infraestrutura, conectores, serviços, integração, segurança, dados e unidades de governança. **Não instanciar nas 57+ unidades automaticamente.** Adotar módulo a módulo, por decisão do proprietário.
 >
 > **Função desta ficha:** permitir ao proprietário compreender o escopo, decidir uma mudança e fornecer a outro agente contexto suficiente para planejar ou implementar **o trecho exato**, sem relembrar a conversa anterior.
