@@ -1,38 +1,33 @@
 # I11 — Release e Rollback | Referência técnica
 
-> **INVENTÁRIO DOCUMENTAL NÃO AUDITADO.** Só descreve arquivos/declarações presentes no repositório; não representa funcionalidade implantada.
+> Auditoria estática parcial em 13/11/2026. Fonte GitHub `infra/master-admin/homolog-deploy.sh`, blob `39f85b3ec07b92a90f3e83408c3ad2541ec6fcf3`, main `3a943ea518df2239525d2f518bb1b061671bc358`. Não representa teste, deploy ou homologação.
 
-## Stack e ownership
+## Escopo e ownership
+O script Bash é um gate de deploy **isolado do Platform Manager** no DevServer01. Não é uma API de release genérica, serviço HTTP, classe TypeScript, frontend nem migration. Ownership formal continua sujeito ao `catalog/work-units.json`; nenhum contrato de outro owner é alterado aqui.
 
-- **Fonte:** [infra/master-admin/homolog-deploy.sh](https://github.com/delmacy/syndes-system/tree/main/infra/master-admin/homolog-deploy.sh) — arquivo.
-- **Owner:** declarado em `catalog/work-units.json`. Contratos públicos de outros owners não podem ser alterados diretamente.
-- **Stack/manifests:** não foi encontrado package.json nesta fonte; auditar o artefato antes de declarar framework.
+## Interface declarada
+- Modos `--preflight` (padrão) e `--apply`; outros argumentos falham.
+- Checkout permitido somente em dois caminhos explicitamente codificados para homologação/release do Manager.
+- Dependências: Docker, jq, Tailscale, Python 3, curl, Git, PostgreSQL saudável, Keycloak ativo, redes internas, OpenBao acessível.
+- Gate de Control verifica role de runtime e owner ativo via consultas de leitura. Isto não é evidência de schema aplicado.
+- Segredos: exige tmpfs em `/run`, diretório modo 700, arquivo modo 600 e UID 1000; o script não deve ser usado como fonte de credenciais.
+- Proveniência: `CI_ARTIFACT_MANIFEST.json` fornece `git_commit`; verifica SHA, commit presente no histórico, ausência de alterações rastreadas e compatibilidade entre fontes frontend e artefato.
+- Identidade e HTTPS: exige hostname `.ts.net`, issuer OIDC correspondente, porta privada 9447 livre, verificação da rota Tailscale Serve sem Funnel.
+- `--apply`: gera arquivos runtime locais, constrói imagens sem pull, inicia Compose Manager, aguarda HTTP local e configura Serve privado.
+- `rollback_on_error`: trap de saída tenta desligar a rota 9447 somente quando identificada como própria e remover o Compose Manager. Não restaura dados, credenciais, migrations ou serviços externos.
 
-## Backend: classes, métodos e responsabilidades
+## Limites dos contratos
+O script contém SQL de **verificação** e operações Docker/Tailscale, não contratos HTTP públicos do produto. Não inferir frontend, endpoints, tabelas de domínio, eventos ou migrations da presença de comandos de infraestrutura.
 
-**A AUDITAR:** inspecionar código e testes, assinaturas, parâmetros, efeitos e erros. Não publicar API privada como contrato.
+## Matriz de evidência
+| Dimensão | Observado | Não comprovado |
+|---|---|---|
+| Fonte | Shell com gates e rollback declarados | Execução bem-sucedida |
+| Testes | Condições verificadas por inspeção de código | Testes unitários, integração, CI e preflight executados |
+| Ambiente | Caminhos e serviços esperados pelo script | Estado real do DevServer01 |
+| Release | Mensagem de conclusão declarada | Deploy, smoke, login real, aceite e rollback homologados |
 
-## Contratos públicos, APIs e eventos
+## Próximas verificações
+Revisar `infra/master-admin/check-tailnet-route.py`, Compose, manifesto CI e owners, registrar linhas e resultados verificáveis, executar somente gates documentais em ambiente isolado. Qualquer preflight operacional exige autorização separada; não executar `--apply` nesta auditoria.
 
-[Índice normativo de contratos](../../standards/CONTRATOS-PUBLICOS.md). Imports, endpoints e consumers exigem evidência de export, versão e compatibilidade.
-
-## Frontend: aplicações, telas e componentes
-
-**A AUDITAR:** conferir telas em Workspace, Manager ou Support e componentes compartilhados; não inferir rota a partir do nome da unidade.
-
-## Schemas e migrations
-
-### Tenant DB
-
-Tabelas e migrações precisam de ownership e prova de aplicação; arquivo SQL presente não equivale a mudança executada.
-
-Nenhuma migration em subpasta SQL nesta fonte; isso **não** comprova ausência de persistência.
-
-### Control / Manager DB
-
-Nenhuma tabela pode ser atribuída ao Control por inferência; confirmar owner e schema. Negócio do cliente fica no Tenant DB.
-
-## Diagramas, testes e pendências
-
-- [Escopo](ESCOPO.md) · [Evolução](EVOLUCAO.md) · [Status](STATUS.md) · [Histórico](HISTORICO.md).
-- **Próximo passo:** auditar classes/exports, contratos, telas, tabelas, testes e evidências sem inventar funcionalidades.
+[STATUS](STATUS.md) · [OPERACAO](OPERACAO.md) · [ESCOPO](ESCOPO.md) · [Contratos públicos](../../standards/CONTRATOS-PUBLICOS.md)
