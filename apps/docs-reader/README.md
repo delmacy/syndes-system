@@ -4,11 +4,13 @@ Aplicação editorial **nova e independente**, criada em `apps/docs-reader`. Nã
 
 ## Arquitetura de leitura
 
-- **Home**: visão humana do Syndes baseada no Blueprint, cinco volumes explicados sem expor inventários internos desnecessariamente.
-- **/modulos/crm**: 12 assuntos contínuos, com índice lateral e âncoras; primeiro explicação, depois dados de apoio, **referências ao final**.
-- **Propostas**: uma área por assunto; rascunhos somente em `localStorage` do navegador, exportáveis em Markdown ou copiados para revisão com IA. Não são enviados ao servidor, não criam Issues automaticamente e não executam implementações.
-- **Fonte canônica**: `docs/subprojects/P01-crm/` e `docs/blueprint/`. A camada editorial é um protótipo de apresentação, não reescrita normativa.
-- **Estados**: planejado, implementado, testado, integrado, operacional e homologado são conceitos distintos. O CRM permanece em auditoria parcial.
+- **Home:** diretório inicial de cinco áreas: CRM P01, Core Platform P14/A08/A04, Blueprint Geral, WhatsApp P03 e Security C03/C04/C05.
+- **/modulos/crm:** piloto aprofundado, com funções, 18 fichas de operação, nove abas mutuamente exclusivas e Atlas Técnico com APIs, métodos, SQL e diagramas.
+- **/modulos/core-platform, /modulos/blueprint, /modulos/whatsapp, /modulos/security:** leitura estruturada por função/ação com nove abas exclusivas, diagramas conceituais, fontes e prompts de planejamento/implementação.
+- **Observações:** rascunhos locais por ação/subtópico em `localStorage`, exportáveis em Markdown; **não são aprovados ou registrados no GitHub automaticamente**.
+- **Templates canônicos:** `docs/standards/TEMPLATE-FICHA-MODULO.md` e `TEMPLATE-FICHA-ACAO.md`. A estrutura documental é preenchida **progressivamente**, sem instanciar os demais módulos.
+- **Fonte canônica:** documentos em `docs/subprojects/`, código/contratos e `docs/blueprint/`. A UI é uma forma de consulta/decisão, não fonte concorrente de aprovação.
+- **Estados:** planejamento, implementação, teste, integração, implantação, operação e aceite têm evidências independentes.
 
 ## Execução
 
@@ -31,7 +33,7 @@ O projeto Vercel independente `syndes-docs-reader` foi criado (root `apps/docs-r
 
 ## Próximos passos
 
-1. Validar a leitura visual e a interação no módulo CRM.
-2. Aprovar a organização e a redação antes de adicionar outro módulo.
-3. Definir a persistência autorizada das propostas (usuário, permissões, histórico, aprovação), integrando posteriormente GitHub Issues/PR ou serviço próprio.
-4. Mover o site para domínio/infraestrutura definidos, sem misturar as sessões do produto com as da documentação.
+1. Adotar a Ficha Mestre apenas nos cinco núcleos prioritários, começando pelo módulo escolhido pelo proprietário.
+2. Relacionar ações à decisão, aos arquivos do owner, aos testes e aos diagramas sem duplicar fontes.
+3. Definir persistência autenticada das decisões, quando autorizada; o site estático não pode gravar no repositório com segurança.
+4. Reconciliar cada alteração executada com código, requisitos, STATUS, WBS e diagramas antes de iniciar novo chat.

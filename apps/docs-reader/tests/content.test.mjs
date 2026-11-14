@@ -160,3 +160,26 @@ test("CRM oferece prompts separados de planejamento e execução sem aprovação
  assert.match(component,/Sem decisão aprovada, não implemente/);
  assert.match(component,/Planejar alteração/);
 });
+
+
+test("Template Mestre cobre esferas completas sem exigir runtime onde não se aplica",async()=>{
+  const {readFileSync,existsSync}=await import("node:fs");
+  const {resolve,dirname}=await import("node:path");
+  const {fileURLToPath}=await import("node:url");
+  const standards=resolve(dirname(fileURLToPath(import.meta.url)),"../../../docs/standards");
+  const read=name=>readFileSync(resolve(standards,name),"utf8");
+  const main=read("TEMPLATE-FICHA-MODULO.md");
+  const action=read("TEMPLATE-FICHA-ACAO.md");
+  const guide=read("GUIA-FICHA-MODULO.md");
+  assert.deepEqual([...main.matchAll(/^## (\d{2}) ·/gm)].map(x=>Number(x[1])),Array.from({length:22},(_,i)=>i));
+  assert.deepEqual([...action.matchAll(/^## ([A-J])\./gm)].map(x=>x[1]),"ABCDEFGHIJ".split(""));
+  for(const word of ["NÃO SE APLICA","PENDENTE DE VERIFICAÇÃO","código","tenant","organização","eventos","migrações","frontend","Segurança","WBS","decisão","diagramas","aceite","SHA"]){
+    assert.match(main,new RegExp(word,"i"),"Ausência no template: "+word);
+  }
+  assert.ok((main.match(/```mermaid/g)||[]).length>=2);
+  assert.ok((action.match(/```mermaid/g)||[]).length>=1);
+  assert.ok(guide.includes("sem duplicar documentação"));
+  for(const text of [main,action,guide]){
+    for(const link of text.matchAll(/\]\(([^)#]+\.md)\)/g))assert.ok(existsSync(resolve(standards,link[1])),"Link ausente "+link[1]);
+  }
+});

@@ -460,3 +460,12 @@ body {
 /* At widths where the full navigation is crowded, use the five-nucleus directory. */
 .site-nav{gap:17px}
 @media(min-width:761px) and (max-width:1150px){.site-nav>a:nth-child(n+4){display:none}}
+
+
+/* Ponto de acesso ao template documental — mantém os núcleos sem novas páginas de sistema. */
+.pilot-template-access{display:flex;align-items:center;gap:12px;margin-top:20px;padding:15px 17px;border:1px solid #d8e4f2;border-radius:12px;background:#f2f6fc;color:#31547e}
+.pilot-template-access>div{flex:1;min-width:0}
+.pilot-template-access strong{font-size:13px}
+.pilot-template-access p{font-size:12px;color:#697b92;line-height:1.55;margin:5px 0 0}
+.pilot-template-access>a{display:inline-flex;align-items:center;gap:6px;color:#245c9d;font-weight:700;font-size:12px;white-space:nowrap}
+@media(max-width:650px){.pilot-template-access{flex-wrap:wrap}.pilot-template-access>a{margin-left:27px}}

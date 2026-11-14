@@ -1,6 +1,7 @@
 # SYNDES — PROMPT DE PROJEÇÃO · [ID / NOME]
-**Unidade autorizada:** [ID] · **Foco do chat:** [tópico/ID]
-**Leitura principal:** [path do capítulo Markdown e âncora]
+**Unidade autorizada:** [ID] · **Foco do chat:** [função / ação estável / subtópico]
+**Leitura principal:** [ficha de ação ou path do capítulo Markdown e âncora]
+**Ficha do módulo:** [FICHA-MODULO.md quando existir; adotar incrementalmente conforme TEMPLATE-FICHA-MODULO.md]
 **Contexto mínimo:** [path de ESCOPO.md] · [contratos públicos próprios] · [STATUS.md quando relevante]
 **Contratos externos públicos permitidos:** [paths e IDs específicos]
 
@@ -22,3 +23,6 @@ Leia o tópico referenciado, o resumo do módulo e apenas os contratos públicos
 4. Proposta de redação para o capítulo com IDs dos requisitos afetados e critérios de aceite.
 5. Dependências públicas impactadas e encaminhamento à unidade responsável, sem solução externa.
 6. Decisões pendentes; nenhuma conclusão de implementação.
+7. Proposta de atualização dos links da ficha do módulo e ação, WBS e diagramas afetados, **sem** modificar código.
+
+**Modelo de ficha:** [módulo](TEMPLATE-FICHA-MODULO.md) · [ação](TEMPLATE-FICHA-ACAO.md) · [guia de adoção incremental](GUIA-FICHA-MODULO.md).

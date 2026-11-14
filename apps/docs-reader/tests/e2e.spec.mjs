@@ -172,3 +172,12 @@ test("Nova documentação não provoca overflow horizontal no mobile",async({pag
     await expect(page.locator(".operation-tabpanel")).toHaveCount(1);
   }
 });
+
+
+test("Biblioteca expõe o template mestre sem abrir um sexto módulo",async({page})=>{
+ await page.goto("/");
+ await expect(page.locator(".pilot-directory-grid a")).toHaveCount(5);
+ const link=page.getByRole("link",{name:/Abrir template/});
+ await expect(link).toBeVisible();
+ await expect(link).toHaveAttribute("href",/TEMPLATE-FICHA-MODULO\.md$/);
+});

@@ -1,5 +1,7 @@
 # Modelo — Referência técnica de um módulo
 
+> **Uso integrado:** esta é a referência técnica detalhada de uma unidade. A ficha de contexto e tomada de decisão fica em [TEMPLATE-FICHA-MODULO.md](TEMPLATE-FICHA-MODULO.md); o detalhamento de cada ação em [TEMPLATE-FICHA-ACAO.md](TEMPLATE-FICHA-ACAO.md). Não duplicar contratos nem gerar campos fictícios.
+
 > **TEMPLATE.** O resultado é uma página por módulo: `docs/subprojects/<ID>-<slug>/REFERENCIA-TECNICA.md`.
 > Não confundir código presente, export público, teste local, integração e operação. Não inventar assinatura, tabela ou rota. Cada registro deve citar o **arquivo-fonte exato**, com classe/método e versão/commit quando pertinente.
 

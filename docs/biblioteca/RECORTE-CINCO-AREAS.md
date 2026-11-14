@@ -94,3 +94,11 @@ flowchart LR
 - [Keycloak (C03)](../subprojects/C03-identity-keycloak/STATUS.md), [OpenFGA (C04)](../subprojects/C04-authorization-openfga/STATUS.md) e [OpenBao (C05)](../subprojects/C05-secrets-openbao/STATUS.md).
 
 As ações na interface são **pontos de leitura e de decisão**, não contratos novos ou funcionalidades já habilitadas. Cada mudança aprovada deve ser reconciliada com os documentos canônicos do respectivo owner.
+
+## Template universal para as próximas revisões
+
+- [Ficha Mestre de Módulo](../standards/TEMPLATE-FICHA-MODULO.md) — identidade, escopo, contratos, stack, dados, eventos, frontend, infraestrutura, segurança, testes, WBS e decisões.
+- [Ficha Detalhada de Ação](../standards/TEMPLATE-FICHA-ACAO.md) — subtópicos, observação, impacto, prompts de planejamento e implementação.
+- [Guia de preenchimento incremental](../standards/GUIA-FICHA-MODULO.md) — quatro passagens, aplicabilidade e critérios de encerramento.
+
+Os modelos são opcionais por dimensão: `NÃO SE APLICA` acompanhado de motivo não é lacuna; `PENDENTE DE VERIFICAÇÃO` nunca deve ser preenchido com implementação suposta.

@@ -44,3 +44,11 @@
 - Prompt específico de implementação: `docs/subprojects/[ID]-[slug]/updates/[ID]-UPD-[NNNN]/IMPLEMENTACAO.md`
 - STATUS e SPRINT: `[caminhos exatos]`
 - **Executar somente após aprovação explícita desta atualização e autorização de implementação.**
+
+## Vínculo com ficha e código
+
+- Ficha mestre: [TEMPLATE-FICHA-MODULO.md](TEMPLATE-FICHA-MODULO.md), quando adotada pela unidade.
+- Ficha da ação: [TEMPLATE-FICHA-ACAO.md](TEMPLATE-FICHA-ACAO.md) ou capítulo canônico equivalente.
+- **Entrada:** observação vinculada à função/ação/subtópico; documento e SHA consultados.
+- **Saída:** aprovação + requisitos + arquivos do owner autorizados → código/testes → atualização da ficha, diagramas, STATUS e WBS com evidências.
+- Sem aprovação, não implementar nem marcar como concluído.

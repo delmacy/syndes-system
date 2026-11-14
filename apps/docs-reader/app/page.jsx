@@ -35,6 +35,10 @@ export default function Home() {
         <div className="pilot-directory-grid">{PILOT_NAV.map((item,i)=><Link key={item.slug} href={"/modulos/"+item.slug} className="pilot-directory-card">
           <span className="eyebrow">{String(i+1).padStart(2,"0")} / {item.code}</span><strong>{item.title}</strong>
           <span>{item.subtitle}</span><span className="pilot-directory-open">Abrir documentação <ArrowRight size={14}/></span></Link>)}</div>
+        <div className="pilot-template-access"><BookOpen size={17}/>
+          <div><strong>Modelo completo de documentação</strong><p>Ficha Mestre, ficha por ação e guia de adoção incremental, para aprofundar um módulo de cada vez.</p></div>
+          <a href="https://github.com/delmacy/syndes-system/blob/main/docs/standards/TEMPLATE-FICHA-MODULO.md" target="_blank" rel="noopener noreferrer">Abrir template <ArrowUpRight size={15}/></a>
+        </div>
       </section><hr className="divider-line"/>
       <section className="section-space" id="entenda">
         <div className="intro-block">
