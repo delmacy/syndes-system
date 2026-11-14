@@ -163,3 +163,12 @@ Registrar como contrato/proposta até aprovação de Product Gate; não afirmar 
 ## Próxima ação de auditoria
 
 **Executadas como auditoria parcial:** G01 → G02 → G03 → Q10 → Q07 → Q01 → P14 → I02 → I04 → C01 → C03 → C04 → C05 → A06 → A04. **Próxima unidade:** conferir próximo baseline no catálogo. Continuar por segurança, Core e integrações do MVP. Para o negócio, manter **P01 CRM → P02 Inbox → P03 WhatsApp → P05 Gestão de Atendimentos Basic** conforme o plano de produto. O I09 acompanha a auditoria do P03. A ordem é de **documentação**; não muda o Product Gate vigente.
+
+## Checkpoint incremental I07 — Tailnet (2026-11-14)
+
+- **Escopo:** revisão documental estática de I07 após I06; a linha de baseline da tabela de 57 unidades permanece histórica, não representa a revisão corrente.
+- **Fonte inspecionada:** `infra/master-admin/check-tailnet-route.py`, blob `d51f6e69f2b0a04670eaf7c7119950fa53da1452`, em `main` `1cf48cc0a1281017ac58f7b9b9747f663109e151`.
+- **Documentação proposta:** [STATUS](../subprojects/I07-tailnet/STATUS.md), [referência técnica](../subprojects/I07-tailnet/REFERENCIA-TECNICA.md), [operação](../subprojects/I07-tailnet/OPERACAO.md) e [oito capítulos independentes](../subprojects/I07-tailnet/README.md), sob revisão no [PR #143](https://github.com/delmacy/syndes-system/pull/143).
+- **Separação de evidências:** script existente e verificações estáticas identificadas; **nenhum teste executado/aprovado, conectividade real ou homologação comprovados nesta rodada**. Não registrar witness operacional por inferência.
+- **WBS de continuidade:** I07.DOC.01 — validar formatos Serve JSON, casos adversariais, limites de Funnel, links, registry, ownership, MkDocs estrito, concorrência com PRs #111/#141/#142 e SHA público Pages; [critérios detalhados](../subprojects/I07-tailnet/chapters/06-wbs-marcos-e-aceite.md).
+- **Gate de integração:** bloqueado até evidências reproduzíveis e revisão; não alterar status das demais unidades sem inspeção individual.
