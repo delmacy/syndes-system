@@ -36,3 +36,7 @@ Nenhuma tabela pode ser atribuída ao Control por inferência; confirmar owner e
 
 - [Escopo](ESCOPO.md) · [Evolução](EVOLUCAO.md) · [Status](STATUS.md) · [Histórico](HISTORICO.md).
 - **Próximo passo:** auditar classes/exports, contratos, telas, tabelas, testes e evidências sem inventar funcionalidades.
+
+## Auditoria de símbolos — base 1cf48cc0 (2026-11-14)
+
+Fonte `infra/master-admin/check-tailnet-route.py` (blob `d51f6e69f2b0a04670eaf7c7119950fa53da1452`). `check(config, mode, port=9447, target="http://127.0.0.1:18085")` retorna tupla `(bool, mensagem)`, sem modificar configuração. `main()` lê JSON da entrada padrão, restringe modo a `free|active`, porta a 1–65535 e destino ao loopback fixo; retorna 0 para PASS e 2 para BLOCKED. `check` examina `TCP`, `Web`, `Handlers`, `Proxy` e `AllowFunnel` na estrutura recebida. Não há chamada à API Tailscale nem alteração de Serve neste arquivo. Formato real de JSON, identidade do hostname, TLS efetivo, autenticação, conectividade e implantação permanecem sem prova. Não atribuir API HTTP, tabela, migration ou interface a esta fonte Python.

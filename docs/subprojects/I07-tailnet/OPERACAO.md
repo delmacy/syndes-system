@@ -31,3 +31,7 @@
 3. Confirmar migrations realmente aplicadas, backup/restore e rollback antes de SQL.
 4. Testar com critérios apropriados: unitário, contrato, integração, E2E e CI.
 5. Registrar resultado e evidência em STATUS, sem confundir merge com deploy ou aceite.
+
+## Gate de verificação estática I07 — 2026-11-14
+
+A inspeção do código `check-tailnet-route.py` no `main` `1cf48cc0` demonstra somente a intenção de rejeitar configurações não conformes. Não foi executado comando de Tailscale, alteração de rota ou teste em ambiente. Para homologação futura, em ambiente isolado e autorizado, validar casos `free` e `active` com JSON representativo e malformado, confirmar semântica Serve da versão utilizada, verificar origem HTTPS dedicada, destino loopback, ausência de Funnel, autenticação e conectividade fim a fim. Registrar resultados, SHA, ambiente e aceite antes de promover STATUS. Nenhum PASS foi testemunhado nesta revisão.
