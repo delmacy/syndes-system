@@ -163,3 +163,9 @@ Registrar como contrato/proposta até aprovação de Product Gate; não afirmar 
 ## Próxima ação de auditoria
 
 **Executadas como auditoria parcial:** G01 → G02 → G03 → Q10 → Q07 → Q01 → P14 → I02 → I04 → C01 → C03 → C04 → C05 → A06 → A04. **Próxima unidade:** conferir próximo baseline no catálogo. Continuar por segurança, Core e integrações do MVP. Para o negócio, manter **P01 CRM → P02 Inbox → P03 WhatsApp → P05 Gestão de Atendimentos Basic** conforme o plano de produto. O I09 acompanha a auditoria do P03. A ordem é de **documentação**; não muda o Product Gate vigente.
+
+---
+
+## Checkpoint incremental I11 — 2026-11-14
+
+Auditoria estática do owner I11 baseada em `main` `39f434e5720653eda8af2e3b2a0fa60d1a119cdd`, fonte `infra/master-admin/homolog-deploy.sh` blob `39f85b3ec07b92a90f3e83408c3ad2541ec6fcf3`. O código declara preflight/apply e compensação limitada ao Manager; testes executados, homologação e publicação Pages não foram comprovados nesta auditoria. A contagem histórica de unidades auditadas acima é snapshot anterior e **não** deve ser promovida automaticamente. WBS: I11.DOC.01 fonte rastreada; I11.DOC.02 contratos documentados/revisão de owner pendente; I11.DOC.03 testes isolados pendentes; I11.DOC.04 smoke/rollback pendentes; I11.DOC.05 MkDocs, links, registry, review e Pages SHA pendentes. Não registrar witness novo sem artefato reproduzível.
