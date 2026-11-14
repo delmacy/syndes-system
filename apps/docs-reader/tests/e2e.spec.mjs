@@ -40,7 +40,7 @@ test("As nove abas da operação são exclusivas e exibem conteúdo correto",asy
   await tabs.getByRole("tab",{name:"API",exact:true}).click();
   await expect(op.getByText("POST /v1/tenants/:tenantId/crm/people")).toBeVisible();
   await expect(op.getByRole("tab",{name:"API",exact:true})).toHaveAttribute("aria-selected","true");
-  await expect(op.locator(".source-footer a")).toHaveCount(6);
+  await expect(op.locator(".source-footer a")).toHaveCount(7);
   await tabs.getByRole("tab",{name:"Pendências"}).click();
   await expect(op.getByRole("button",{name:"Exportar briefing .md"})).toBeVisible();
   await expect(op.locator(".proposal-area")).toHaveCount(1);
@@ -180,4 +180,13 @@ test("Biblioteca expõe o template mestre sem abrir um sexto módulo",async({pag
  const link=page.getByRole("link",{name:/Abrir template/});
  await expect(link).toBeVisible();
  await expect(link).toHaveAttribute("href",/TEMPLATE-FICHA-MODULO\.md$/);
+});
+
+
+test("CRM: Ficha detalhada da ação é acessível pelo leitor",async({page})=>{
+ await page.goto("/modulos/crm/#crm-create-person");
+ const link=page.locator("#crm-create-person .operation-action-dossier");
+ await expect(link).toBeVisible();
+ await expect(link).toHaveAttribute("href","https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/P01-crm/acoes/crm-create-person.md");
+ await expect(link).toHaveAttribute("target","_blank");
 });

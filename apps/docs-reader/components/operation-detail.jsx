@@ -8,6 +8,7 @@ export function agentBrief(operation) {
   const lines=[
     "# Syndes / P01 CRM — tarefa focada",
     "Operação: "+operation.title+" ("+operation.id+")",
+    "Ficha canônica: https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/P01-crm/acoes/"+operation.id+".md",
     "Situação: "+operation.state,
     "Objetivo: "+operation.objective,
     "",
@@ -42,6 +43,7 @@ export function crmWorkPrompt(operation,mode){
  return [
   "# SYNDES / CRM — "+(planning?"PLANEJAMENTO":"IMPLEMENTAÇÃO")+" FOCADA",
   "Operação: "+operation.title+" ("+operation.id+")",
+    "Ficha canônica: https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/P01-crm/acoes/"+operation.id+".md",
   "Estado documental: "+operation.state,
   "Objetivo: "+operation.objective,
   "Contrato: "+operation.contract.method,
@@ -165,6 +167,7 @@ export default function OperationDetail({operation}) {
     </div>
     <footer className="source-footer" aria-label={"Fontes da operação "+operation.title}>
       <span className="source-label">Fontes e registros originais</span>
+      <a className="operation-action-dossier" href={"https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/P01-crm/acoes/"+operation.id+".md"} target="_blank" rel="noopener noreferrer">Ficha completa da ação <ArrowUpRight size={12}/></a>
       <div className="source-links">{(operation.sources||[]).map(s=><a href={s.url} key={s.url} target="_blank" rel="noopener noreferrer">{s.label}<ArrowUpRight size={12}/></a>)}</div>
     </footer>
   </section>;

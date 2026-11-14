@@ -55,3 +55,7 @@
 ## Inventário detalhado e diagramas
 
 A referência resumida acima é complementada por [INVENTARIO-INTEGRAL.md](INVENTARIO-INTEGRAL.md) e pelos diagramas versionados em [DIAGRAMAS.md](DIAGRAMAS.md). O inventário foi reconciliado em 13/11/2026 com 30 rotas, 9 tabelas e 53 declarações de colunas; não representa homologação de runtime.
+
+## Ficha Mestre e ações — 14/11/2026
+
+A [Ficha Mestre P01](FICHA-MODULO.md) agrega contexto e ownership; a [matriz de 18 ações](MATRIZ-ACOES.md) aponta métodos, API, SQL, segurança, edge cases e testes sem criar uma segunda fonte normativa. As alterações só refletem em código mediante requisito/decisão aprovada e incremento implementado/testado.

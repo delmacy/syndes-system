@@ -183,3 +183,33 @@ test("Template Mestre cobre esferas completas sem exigir runtime onde não se ap
     for(const link of text.matchAll(/\]\(([^)#]+\.md)\)/g))assert.ok(existsSync(resolve(standards,link[1])),"Link ausente "+link[1]);
   }
 });
+
+
+test("Fichas CRM: 22 blocos, 18 ações A-J, 30 rotas e links consistentes",async()=>{
+ const {readFileSync,existsSync}=await import("node:fs");
+ const {resolve,dirname}=await import("node:path");
+ const {fileURLToPath}=await import("node:url");
+ const folder=resolve(dirname(fileURLToPath(import.meta.url)),"../../../docs/subprojects/P01-crm");
+ const read=p=>readFileSync(resolve(folder,p),"utf8");
+ const master=read("FICHA-MODULO.md"),matrix=read("MATRIZ-ACOES.md");
+ const {crmOperations}=await import("../lib/crm-operations.js");
+ const routes=JSON.parse(readFileSync(new URL("../lib/crm-api-inventory.json",import.meta.url),"utf8"));
+ assert.deepEqual([...master.matchAll(/^## ([0-9]{2}) ·/gm)].map(m=>Number(m[1])),Array.from({length:22},(_,i)=>i));
+ assert.equal(crmOperations.length,18);
+ for(const operation of crmOperations){
+   const path="acoes/"+operation.id+".md";
+   assert.ok(existsSync(resolve(folder,path)),path);
+   const doc=read(path);
+   assert.deepEqual([...doc.matchAll(/^## ([A-J])[.] /gm)].map(m=>m[1]),"ABCDEFGHIJ".split(""));
+   assert.match(doc,/edge cases/i);
+   assert.match(doc,/NÃO HOMOLOGADOS/);
+   assert.ok(matrix.includes("](acoes/"+operation.id+".md)"),path);
+   assert.ok(doc.includes("../STATUS.md") && doc.includes("../FICHA-MODULO.md"));
+
+ }
+ assert.equal(routes.length,30);
+ assert.ok(routes.every(r=>crmOperations.some(a=>a.id===r.actionId)));
+ const component=readFileSync(new URL("../components/operation-detail.jsx",import.meta.url),"utf8");
+ assert.match(component,/operation-action-dossier/);
+ assert.match(component,/Ficha canônica/);
+});

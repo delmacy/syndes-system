@@ -469,3 +469,6 @@ body {
 .pilot-template-access p{font-size:12px;color:#697b92;line-height:1.55;margin:5px 0 0}
 .pilot-template-access>a{display:inline-flex;align-items:center;gap:6px;color:#245c9d;font-weight:700;font-size:12px;white-space:nowrap}
 @media(max-width:650px){.pilot-template-access{flex-wrap:wrap}.pilot-template-access>a{margin-left:27px}}
+
+/* Acesso à ficha canônica por ação, sem sobrepor abas. */
+.operation-action-dossier{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#27649f;text-decoration:underline;text-underline-offset:3px;max-width:100%}

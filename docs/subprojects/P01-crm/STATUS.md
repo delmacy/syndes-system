@@ -2,6 +2,10 @@
 
 > **AUDITORIA TÉCNICA PARCIAL — 2026-11-12.** Evidência: worktree `b452a03e`; testes locais sem implantação. NÃO equivale a CI da SHA publicada, integração real, deploy ou Product Gate.
 
+## Checkpoint documental — 14/11/2026
+
+[**Ficha Mestre P01**](FICHA-MODULO.md), [matriz](MATRIZ-ACOES.md) e 18 fichas por ação documentam histórias descritivas, edge cases, APIs, permissões e cenários de teste **propostos**, com fontes versionadas. Não houve alteração runtime, novo teste do CRM, migration, grant, ativação de worker, deploy ou Product Gate. Permanecem válidos os 29 PASS **históricos de 12/11** da auditoria abaixo.
+
 ## Situação revalidada
 
 Código de CRM com plugin NestJS, pessoa/organização, notas, tags, canais, CSV, SQL 001–003 e UI Workspace. Não comprovada nesta auditoria uma jornada autenticada real de CRM ou ativação multi-org.

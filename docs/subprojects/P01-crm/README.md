@@ -4,6 +4,13 @@
 
 <!-- syndes:module-id=P01;source=modules/core-crm;kind=module -->
 
+## Ficha Mestre e ações detalhadas — 14/11/2026
+
+- [Ficha Mestre P01](FICHA-MODULO.md) — aplicação das 22 dimensões do modelo v1.0.0 congelado.
+- [Matriz das 18 ações](MATRIZ-ACOES.md) — contratos, APIs, diagramas e edge cases por ação.
+- [Exemplo: ficha Criar contato](acoes/crm-create-person.md).
+- Esta consolidação **não é homologação, implementação de funcionalidade nem aprovação de requisito novo**.
+
 ## Acessar a documentação {#acessos}
 
 | Quero descobrir | Abrir |
