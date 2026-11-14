@@ -37,6 +37,34 @@ export function agentBrief(operation) {
   ];
   return lines.join("\n");
 }
+export function crmWorkPrompt(operation,mode){
+ const planning=mode==="planning";
+ return [
+  "# SYNDES / CRM — "+(planning?"PLANEJAMENTO":"IMPLEMENTAÇÃO")+" FOCADA",
+  "Operação: "+operation.title+" ("+operation.id+")",
+  "Estado documental: "+operation.state,
+  "Objetivo: "+operation.objective,
+  "Contrato: "+operation.contract.method,
+  "HTTP declarado: "+operation.contract.http,
+  "Permissão: "+operation.contract.permission,
+  "Persistência: "+operation.contract.data,
+  "Fontes:",...operation.sources.map(s=>"- "+s.url),
+  "",
+  "INSTRUÇÕES",
+  "1. Verifique SHA, branch/worktree, AGENTS.md, escopo e STATUS; preserve alterações alheias.",
+  "2. Confirme código, testes e contratos reais. Não trate documentação como aceite.",
+  planning
+   ?"3. Avalie impacto, risco, mudanças em API/dados/segurança/eventos e proponha WBS e critérios de aceite SEM implementar."
+   :"3. Execute somente requisito APROVADO e critérios de aceite fornecidos pelo proprietário. Sem decisão aprovada, não implemente.",
+  planning
+   ?"4. Entregue planejamento, arquivos afetados, testes e questões para decisão."
+   :"4. Execute testes, registre evidências e atualize a documentação, diagramas, status e WBS pertinentes.",
+  "5. Não ative workers, execute migrations, grants ou deploy sem gates e autorização específica.",
+  "",
+  "OBSERVAÇÃO / DECISÃO DO PROPRIETÁRIO:",
+  "[Inserir observação exportada e, se for implementação, ID do requisito aprovado.]"
+ ].join("\n");
+}
 const TABS=[
   ["resumo","Resumo"],["fluxo","Fluxo"],["contratos","Contratos"],["dados","Dados"],
   ["api","API"],["seguranca","Segurança"],["testes","Testes"],["operacao","Operação"],["pendencias","Pendências"]
@@ -126,6 +154,12 @@ export default function OperationDetail({operation}) {
         <p>Briefing para revisão, não autorização automática para implementação, migrations ou deploy.</p>
         <div className="proposal-actions"><button className="action-ghost" type="button" onClick={copy}><ClipboardCopy size={14} style={{display:"inline",marginRight:6}}/>Copiar briefing técnico</button><button className="action-ghost" type="button" onClick={download}><Download size={14} style={{display:"inline",marginRight:6}}/>Exportar briefing .md</button></div>
         {feedback&&<p className="proposal-feedback" role="status">{feedback}</p>}
+        <div className="pilot-prompt-buttons">
+          <button type="button" className="action-ghost" onClick={async()=>{try{await navigator.clipboard.writeText(crmWorkPrompt(operation,"planning"));setFeedback("Prompt de planejamento copiado.");}catch{setFeedback("Cópia bloqueada. Use exportação Markdown.");}}}>Planejar alteração</button>
+          <button type="button" className="action-ghost" onClick={async()=>{try{await navigator.clipboard.writeText(crmWorkPrompt(operation,"implementation"));setFeedback("Prompt de implementação copiado.");}catch{setFeedback("Cópia bloqueada. Use exportação Markdown.");}}}>Implementar alteração aprovada</button>
+          <button type="button" className="action-ghost" onClick={()=>{const url=URL.createObjectURL(new Blob([crmWorkPrompt(operation,"planning")],{type:"text/markdown;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="syndes-crm-"+operation.id+"-planejamento.md";a.click();URL.revokeObjectURL(url);}}>Exportar planejamento .md</button>
+          <button type="button" className="action-ghost" onClick={()=>{const url=URL.createObjectURL(new Blob([crmWorkPrompt(operation,"implementation")],{type:"text/markdown;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="syndes-crm-"+operation.id+"-implementacao.md";a.click();URL.revokeObjectURL(url);}}>Exportar implementação .md</button>
+        </div>
         <ProposalEditor moduleId="P01" sectionId={operation.id} sectionTitle={operation.title} sourceLink={operation.sources?.[0]?.url||""}/>
       </section>}
     </div>

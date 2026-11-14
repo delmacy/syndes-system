@@ -141,3 +141,34 @@ test("Atlas técnico apresenta diagramas, 30 APIs, métodos e 9 tabelas",async({
   await page.getByRole("tab",{name:"Classes e métodos"}).click();
   await expect(page.getByRole("region",{name:"Inventário de métodos CRM"}).locator("tbody tr").first()).toBeVisible();
 });
+
+test("Cinco núcleos navegáveis e 9 abas independentes por ação",async({page})=>{
+  await page.goto("/");
+  const directory=page.locator(".pilot-directory-grid");
+  await expect(directory.locator("a")).toHaveCount(5);
+  for(const slug of ["core-platform","blueprint","whatsapp","security"]){
+    await page.goto("/modulos/"+slug+"/");
+    await expect(page.locator("main h1")).toHaveCount(1);
+    await expect(page.locator(".pilot-operation")).toHaveCount(1);
+    const t=page.locator(".pilot-operation").getByRole("tablist");
+    await expect(t.getByRole("tab")).toHaveCount(9);
+    await t.getByRole("tab",{name:"API",exact:true}).click();
+    await expect(page.locator(".pilot-operation").getByRole("tabpanel")).toHaveCount(1);
+    await t.getByRole("tab",{name:"Pendências"}).click();
+    await expect(page.getByRole("button",{name:"Copiar prompt de planejamento"})).toBeVisible();
+    await expect(page.getByRole("button",{name:"Exportar implementação .md"})).toBeVisible();
+    await expect(page.locator(".pilot-operation .proposal-area")).toHaveCount(1);
+    await page.getByRole("button",{name:"Mapa e fontes do módulo"}).click();
+    await expect(page.getByRole("img",{name:new RegExp("Mapa de fronteiras")})).toBeVisible();
+    await expect(page.locator(".pilot-operation")).toHaveCount(0);
+  }
+});
+test("Nova documentação não provoca overflow horizontal no mobile",async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  for(const slug of ["core-platform","blueprint","whatsapp","security"]){
+    await page.goto("/modulos/"+slug+"/");
+    const sizes=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));
+    expect(sizes.scroll).toBeLessThanOrEqual(sizes.width+2);
+    await expect(page.locator(".operation-tabpanel")).toHaveCount(1);
+  }
+});

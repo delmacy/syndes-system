@@ -438,3 +438,25 @@ body {
 .crm-table-detail>a{display:inline-flex;align-items:center;gap:5px;font-size:12px;margin:12px 0;color:#245ca9}
 .crm-atlas-panel a{color:#245ca9;text-decoration:underline;text-underline-offset:2px}
 @media(max-width:760px){.crm-atlas-link-wrap{justify-content:flex-start}.crm-atlas{padding-top:23px}}
+
+/* Diretório de cinco áreas e documentação modular focalizada. */
+.pilot-directory{padding:52px 0 43px}
+.pilot-directory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:28px}
+.pilot-directory-card{display:flex;flex-direction:column;gap:9px;min-width:0;min-height:170px;padding:21px;border-radius:14px;border:1px solid #d7e2ef;background:#fff;text-decoration:none;color:#223b58;transition:border-color .15s,transform .15s}
+.pilot-directory-card:hover{border-color:#7ca4d5;transform:translateY(-2px)}
+.pilot-directory-card>strong{font-size:19px;letter-spacing:-.03em}
+.pilot-directory-card>span:not(.eyebrow):not(.pilot-directory-open){font-size:12px;color:#63758c;line-height:1.5}
+.pilot-directory-open{display:flex;align-items:center;gap:6px;margin-top:auto;color:#1f559b;font-size:12px;font-weight:700}
+.pilot-operation .operation-purpose{max-width:76ch}
+.pilot-overview{padding:34px 0 40px}
+.pilot-overview h2{font-size:30px;letter-spacing:-.035em;margin:9px 0}
+.pilot-overview>p{font-size:14px;line-height:1.7;color:#5d6d81}
+.pilot-diagram-scroll{width:100%;overflow-x:auto;border:1px solid #d8e3f1;border-radius:12px;background:#fff;margin:20px 0;padding:15px}
+.pilot-diagram-scroll svg{min-width:710px}
+.pilot-prompt-buttons{display:flex;flex-wrap:wrap;gap:9px;margin:17px 0}
+.pilot-prompt-buttons button{display:inline-flex;gap:8px;align-items:center}
+@media(max-width:800px){.pilot-directory{padding:30px 0}.pilot-directory-grid{grid-template-columns:repeat(auto-fit,minmax(155px,1fr))}.pilot-directory-card{padding:16px;min-height:150px}}
+
+/* At widths where the full navigation is crowded, use the five-nucleus directory. */
+.site-nav{gap:17px}
+@media(min-width:761px) and (max-width:1150px){.site-nav>a:nth-child(n+4){display:none}}

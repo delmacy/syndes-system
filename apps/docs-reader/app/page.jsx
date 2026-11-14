@@ -3,6 +3,7 @@ import { Box, Heading, Text } from "@chakra-ui/react";
 import { ArrowRight, ArrowUpRight, Layers, BookOpen, Network, ShieldCheck } from "lucide-react";
 import SiteShell from "@/components/site-shell";
 import { domains, BLUEPRINT } from "@/lib/content";
+import { PILOT_NAV } from "@/lib/pilot-modules";
 
 export default function Home() {
   return <SiteShell>
@@ -13,7 +14,7 @@ export default function Home() {
           <Heading as="h1" id="home-title" className="serif-title">Um sistema.<br/><span className="hero-highlight">Muitas possibilidades.</span><br/>Uma visão clara.</Heading>
           <Text as="p" className="hero-lead">Uma plataforma modular para conectar atendimento, relacionamento e operação. Explore o que cada parte resolve, como se relaciona com as demais e o que ainda precisa evoluir.</Text>
           <div className="hero-links">
-            <Link href="/modulos/crm" className="primary-link">Ler o primeiro módulo <ArrowRight size={17}/></Link>
+            <Link href="/modulos/crm" className="primary-link">Explorar CRM <ArrowRight size={17}/></Link>
             <a className="secondary-link" href="#entenda">Entenda a estrutura <ArrowRight size={15}/></a>
           </div>
         </div>
@@ -27,7 +28,14 @@ export default function Home() {
           <div className="art-caption">Uma plataforma, responsabilidades claras.</div>
         </div>
       </section>
-      <hr className="divider-line"/>
+      <section className="pilot-directory" id="nucleos" aria-labelledby="pilot-directory-title">
+        <div className="intro-block"><span className="eyebrow">RECORTE ATUAL · 5 ÁREAS</span>
+          <Heading as="h2" id="pilot-directory-title" className="serif-title">Decida por área.<br/>Trabalhe por ação.</Heading>
+          <p>Os cinco núcleos estão disponíveis para leitura focada. A documentação usa as fontes reais do repositório e separa escopo, implementação e homologação. Os demais módulos permanecem no catálogo técnico, sem fichas artificiais.</p></div>
+        <div className="pilot-directory-grid">{PILOT_NAV.map((item,i)=><Link key={item.slug} href={"/modulos/"+item.slug} className="pilot-directory-card">
+          <span className="eyebrow">{String(i+1).padStart(2,"0")} / {item.code}</span><strong>{item.title}</strong>
+          <span>{item.subtitle}</span><span className="pilot-directory-open">Abrir documentação <ArrowRight size={14}/></span></Link>)}</div>
+      </section><hr className="divider-line"/>
       <section className="section-space" id="entenda">
         <div className="intro-block">
           <span className="eyebrow">01 / A PLATAFORMA</span>
@@ -65,7 +73,7 @@ export default function Home() {
         </div>
       </section>
       <section className="pilot-feature" aria-labelledby="pilot-heading">
-        <div><span className="eyebrow">PRIMEIRA EDIÇÃO · P01</span><Heading as="h2" id="pilot-heading">CRM — Relacionamentos</Heading><p>Começamos por um módulo real, com 12 assuntos, fontes verificáveis e espaço contextual para você propor melhorias. Nenhum outro módulo recebeu uma ficha fictícia.</p></div>
+        <div><span className="eyebrow">PILOTO TÉCNICO · P01</span><Heading as="h2" id="pilot-heading">CRM — Relacionamentos</Heading><p>O CRM é o piloto aprofundado, com operações e inventários técnicos; Core Platform, Blueprint, WhatsApp e Security agora possuem leitura própria por função e ação.</p></div>
         <Link className="primary-link" href="/modulos/crm">Explorar CRM <ArrowRight size={16}/></Link>
       </section>
       <div className="endnote">Alguns itens avançados do Blueprint são mantidos exclusivamente na <a href={BLUEPRINT+"/MAPA-TECNICO-POR-CAMADAS.md"} target="_blank" rel="noopener noreferrer">documentação técnica original</a>. Esta experiência não substitui os registros oficiais nem aprova funcionalidades.</div>

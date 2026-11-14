@@ -114,3 +114,49 @@ test("Nove tabelas e seus campos têm fontes SQL versionadas e diagramas",async(
   assert.equal((diagrams.match(/```mermaid/g)||[]).length,6);
   for(const t of tables)assert.ok(diagrams.includes(t.table)||t.table==="crm_audit",t.table);
 });
+
+test("Recorte de cinco áreas mantém owners, ações distintas e fontes existentes",async()=>{
+  const {PILOT_MODULES,PILOT_NAV,pilotModuleBySlug}=await import("../lib/pilot-modules.js");
+  const {existsSync}=await import("node:fs");
+  const {fileURLToPath}=await import("node:url");
+  const {resolve}=await import("node:path");
+  assert.deepEqual(PILOT_NAV.map(x=>x.slug),["crm","core-platform","blueprint","whatsapp","security"]);
+  assert.equal(PILOT_MODULES.length,4);
+  const allIds=PILOT_MODULES.flatMap(m=>m.actions.map(a=>a.id));
+  assert.equal(new Set(allIds).size,allIds.length);
+  for(const module of PILOT_MODULES){
+    assert.equal(pilotModuleBySlug(module.slug),module);
+    assert.ok(module.groups.length>=4);
+    assert.ok(module.actions.length>=5);
+    assert.equal(module.diagram.nodes.length,6);
+    assert.ok(module.diagram.edges.length>=4);
+    assert.match(module.state,/parcial|parciais|pendente|aprovado|revisão|aberto/i);
+    for(const action of module.actions){
+      assert.ok(module.groups.some(g=>g.id===action.area),action.id);
+      for(const attr of ["objective","contract","data","api","security","tests","operation","risks"])assert.ok(action[attr].trim().length>0,action.id+" "+attr);
+      assert.ok(action.sources.length>=2,action.id);
+      for(const source of action.sources){
+        assert.ok(source.url.startsWith("https://github.com/delmacy/syndes-system/blob/main/"),action.id);
+        assert.ok(existsSync(resolve(fileURLToPath(new URL("../../..",import.meta.url)),source.path)),source.path);
+      }
+    }
+  }
+});
+
+
+test("Diagramas do recorte são versionados e distinguem owners e gates",async()=>{
+ const {readFileSync}=await import("node:fs");
+ const raw=readFileSync(new URL("../../../docs/biblioteca/RECORTE-CINCO-AREAS.md",import.meta.url),"utf8");
+ assert.equal((raw.match(/```mermaid/g)||[]).length,5);
+ for(const word of ["Blueprint","Core Platform","WhatsApp","Keycloak","OpenFGA","OpenBao","aprovado"])assert.ok(raw.includes(word),word);
+});
+
+
+test("CRM oferece prompts separados de planejamento e execução sem aprovação implícita",async()=>{
+ // O React JSX é validado no build/e2e; o contrato textual deve estar presente no componente.
+ const {readFileSync}=await import("node:fs");
+ const component=readFileSync(new URL("../components/operation-detail.jsx",import.meta.url),"utf8");
+ assert.match(component,/crmWorkPrompt/);
+ assert.match(component,/Sem decisão aprovada, não implemente/);
+ assert.match(component,/Planejar alteração/);
+});
