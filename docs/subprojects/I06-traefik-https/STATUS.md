@@ -26,3 +26,9 @@
 ## Continuidade
 - Após I06, consultar catálogo e plano para próxima unidade realmente não auditada.
 - Não alterar serviços, segredos, CI, rede ou ingress para atualizar esta documentação.
+
+## Revisão de evidência 2026-11-15 (main `1cf48cc0`)
+- Auditorias novas em branches independentes: `audit/i06-runbook-test-safety-20261115-0801` e `audit/i06-live-readiness-evidence-20261115-1903`; **não integradas ao main neste checkpoint**.
+- Divergência documental I06-TEST-01: o runbook chama `npm run build` de teste seguro, embora `dist` seja servido por bind mount; build direto pode alterar artefatos visíveis. Correção editorial proposta nesta branch, sem execução.
+- Divergência I06-NEW-01: `tests/live-readiness.mjs` aceita 401 **ou 403** em Inbox anônimo e sua mensagem de sucesso excede o alcance das verificações; não comprova Inbox autenticado nem isolamento de tenants.
+- Evidência: fontes e scripts identificados; **testes não executados**, TLS/middleware efetivo, deploy atual, homologação e SHA público do Pages **não verificados**. Gates I06.SEC/TLS/OPS continuam pendentes.
