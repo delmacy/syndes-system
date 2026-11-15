@@ -7,3 +7,5 @@
 | Middleware `syndes-tailnet-only@docker` | Referência em labels | Existência e efeito não verificados |
 | HTTPS/TLS/redirect e certificados | Requer configuração Traefik ativa | Pendente de evidência |
 | Reversão do cutover | `modules/whatsapp/deploy/README.md` | Procedimento descrito; não executado neste gate |
+
+- Readiness automatizado do Workspace: **script encontrado**, sem execução validada; cobre HTTP público, negativa anônima, estado de container e OpenBao, não Inbox autenticado. Teste browser demo: **script encontrado**, sem CRUD comprovado.
