@@ -1,33 +1,16 @@
 # I10 — Backup e Restore | Operação
 
-> **ÍNDICE DE FONTES, NÃO RUNBOOK HOMOLOGADO.** Não executar migrations, alterar permissões ou ativar workers apenas com esta página.
+> **Não é runbook de produção.** Auditoria estática parcial no SHA `8d17879b24fe3162f6b3e8a5776e25dd6d9cbc7b`.
 
-## Estado operacional e evidências
+## Ensaio sintético declarado
+A fonte `scripts/events/disposable_restore_drill.py` requer flags `--disposable` e `--ack-synthetic`. Declara PostgreSQL 17 em Docker com rede `none`, contêiner aleatório, arquivos temporários com permissões restritas, `pg_dump`/ `pg_restore`, checksums SHA-256, comparação de ledgers, ACL e replay idempotente.
 
-- [STATUS](STATUS.md): nível de validação, bloqueios, testes, ambiente e SHA.
-- [SPRINT](SPRINT.md): incremento autorizado e checkpoints, quando existentes.
-- [Evolução](EVOLUCAO.md): workpackages e dependências; nenhum item é concluído por estar planejado.
-- [Histórico](HISTORICO.md): commits de código e documentos.
-- [Workflows GitHub](../../monitoramento/README.md): resultado CI geral, não estado operacional do módulo.
+**Não executar este ensaio contra infraestrutura operacional.** Não aceitar como evidência de recuperação real, RPO, RTO, retenção, criptografia ou restore de produção.
 
-## Fontes e contratos
+## Gates documentais e operacionais
+1. Revisar código, fixtures e ownership no SHA exato.
+2. Obter autorização para ambiente isolado, validar dependências e executar somente ensaio descartável; registrar logs sanitizados e resultado.
+3. Executar checagens de Markdown, links, navegação e registry sobre a branch documental.
+4. Exigir aprovação dos owners e evidência separada para qualquer processo operacional real.
 
-- [Código/artefato do módulo](https://github.com/delmacy/syndes-system/tree/main/scripts/events/disposable_restore_drill.py) — `scripts/events/disposable_restore_drill.py`.
-- [Contratos públicos](../../standards/CONTRATOS-PUBLICOS.md).
-- [Regras de rastreabilidade](../../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
-- **Runbook específico:** não verificado neste inventário. Não criar comandos de ambiente por inferência.
-
-## Operações orientadas por agentes
-
-- [Projeção / Planejamento](PROJECAO.md)
-- [Implementação](IMPLEMENTACAO.md)
-- [Alteração rápida](ALTERACAO.md)
-- [Entrada de propostas](updates/README.md)
-
-## Gates para operação real
-
-1. Conferir fonte, tenant/org/workspace, ambiente, SHA e autorização explícita.
-2. Validar identity/service grants e ownership de banco.
-3. Confirmar migrations realmente aplicadas, backup/restore e rollback antes de SQL.
-4. Testar com critérios apropriados: unitário, contrato, integração, E2E e CI.
-5. Registrar resultado e evidência em STATUS, sem confundir merge com deploy ou aceite.
+**Nesta passagem:** inspeção estática somente; nenhum teste, Docker, SQL, runtime ou deploy executado. [STATUS](STATUS.md) · [Referência técnica](REFERENCIA-TECNICA.md) · [Evolução](EVOLUCAO.md).
