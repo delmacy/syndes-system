@@ -3,3 +3,5 @@
 - **Caso documentado existente:** distinguir caminhos de API `/v1/` e `/modules/` do fallback Workspace por regras e prioridades dos routers no Compose.
 - **Critérios a validar, não aprovados:** certificado válido para hostname correto, restrição Tailnet com negativa externa, resposta esperada por rota e nenhum enfraquecimento dos controles downstream.
 - Requisitos RF/US/AC de produto para I06: **não evidenciados nem inventados**; owner deve formalizar antes de atribuir aceite.
+
+- **Critério de aceite pendente:** separar negativa anônima esperada (runbook: 401) de respostas 403 aceitas pelo probe; investigar a causa antes de considerar o resultado equivalente. Prova autenticada e isolamento tenant exigem gates independentes.
