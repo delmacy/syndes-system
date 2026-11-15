@@ -13,3 +13,5 @@ flowchart LR
 - `infra-proxy` é rede Docker externa no Compose; `web` é entrypoint declarado, **não evidência de TLS**.
 - Banco de dados, schemas, migrations e lógica de UI: não pertencem ao I06 segundo o inventário atual; frontend atendido é owner Workspace.
 - Configuração dinâmica ativa, certificados e políticas não foram inspecionados nesta reconciliação.
+
+- O teste `live-readiness.mjs` verifica sinais limitados de prontidão; não valida configuração dinâmica Traefik, certificados ou SQL. `dist` do Workspace é servido por bind mount no lab histórico: build local pode alterar conteúdo publicado sem rollout atômico.
