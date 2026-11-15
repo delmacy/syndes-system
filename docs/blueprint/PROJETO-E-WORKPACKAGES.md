@@ -38,3 +38,11 @@ Todos os sete itens acima possuem o label `syndes-docs-workpackage`, que é o fi
 - [Módulos e workpackages planejados](../subprojects/README.md).
 
 O portal de documentação é uma interface de leitura integrada; **não** é uma cópia do estado do GitHub Projects. O Project será a fonte de andamento após a sincronização autorizada.
+
+## I07 — Tailnet: workpackage de reconciliação documental (2026-11-14)
+
+| WBS | Entregável | Evidência atual | Aceite pendente |
+|---|---|---|---|
+| I07.DOC.01 | Conciliar contratos de rota Tailnet e dossiê temático | [STATUS I07](../subprojects/I07-tailnet/STATUS.md), [capítulo WBS](../subprojects/I07-tailnet/chapters/06-wbs-marcos-e-aceite.md), [PR #143](https://github.com/delmacy/syndes-system/pull/143) | Pré-merge: testes isolados reproduzíveis, MkDocs estrito, links/registry, ownership e revisão de concorrência. Pós-merge autorizado: conferir SHA público do GitHub Pages |
+
+Este workpackage é **documental e não foi confirmado como item do GitHub Project**. A existência do verificador `infra/master-admin/check-tailnet-route.py` não comprova execução, conectividade ou homologação. Não houve novo witness operacional.

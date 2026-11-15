@@ -67,3 +67,7 @@ Para criar um pacote local novo, utilize [Modelo de Workpackage](../../standards
 - [Regras para vincular evidências](../../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
 
 **Datas do roadmap:** não declaradas neste inventário. Workpackages sem data aprovada não recebem barras Gantt fictícias. Quando houver projeto e marcos confirmados, cadastrar o link explícito à fonte.
+
+## Reconciliação de planejamento I07 — 2026-11-14
+
+As tarefas WBS 10.01 e 20.08 continuam **referências históricas de planejamento**, não entregas aceitas. Novo gate documental proposto (não atribuído): verificar semântica JSON do Serve, testes adversariais do `check()`, ownership e prova operacional independente. Evidência: fonte `check-tailnet-route.py` blob `d51f6e69`; base `main` `1cf48cc0`. Não marcar WBS concluída sem revisão da fonte mestre e aceite.

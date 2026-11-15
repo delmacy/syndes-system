@@ -81,3 +81,16 @@ Não interpretar task cadastrada como tarefa concluída, nem commit como deploy.
     | [Operação](OPERACAO.md) | Status, sprint, gates, runbooks e os três prompts de agentes |
 
     **Fonte de verdade:** o catálogo define o proprietário; o Git registra as alterações; Issues/Projects cuidam da execução; Actions e evidências de ambiente comprovam testes/deploy. Não promover status por inferência.
+
+## Capítulos temáticos independentes — auditoria I07
+
+- [00 — Endereços exatos de leitura](chapters/00-enderecos-exatos-de-leitura.md)
+- [01 — Missão, objetivos e fronteiras](chapters/01-missao-objetivos-e-fronteiras.md)
+- [02 — Requisitos, histórias e casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md)
+- [03 — Capabilities](chapters/03-capabilities.md)
+- [04 — Contratos e dependências públicas](chapters/04-contratos-e-dependencias-publicas.md)
+- [05 — Arquitetura, banco, interface e configuração](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md)
+- [06 — WBS, marcos e aceite](chapters/06-wbs-marcos-e-aceite.md)
+- [07 — Controle do escopo](chapters/07-controle-do-escopo.md)
+
+A revisão de 2026-11-14 comprova apenas a existência e o comportamento legível da fonte Python, não teste, implantação ou homologação.
