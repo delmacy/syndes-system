@@ -1,4 +1,2 @@
-## 4. Contratos e dependências públicas
-- Entradas, saídas, APIs, eventos e ports: A INVENTARIAR pela fonte executável.
-- Dependências obrigatórias e opcionais: A VERIFICAR.
-- Bibliotecas permitidas: consultar exports públicos e dependências existentes, sem copiar implementação privada.
+# 04 — Contratos e dependências
+[go.mod](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/go.mod) declara Whatsmeow, pgx e protobuf. [main.go](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/main.go) implementa `GET /healthz` e `POST /v1/accounts/{accountId}/{operation}` como endpoints internos autenticados. [main_test.go](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/main_test.go) declara evento de callback `whatsapp.message.received` v1. Não classificar funções privadas Go como exports públicos nem presumir contratos de terceiros aprovados. Ver [P03](../../P03-whatsapp/REFERENCIA-TECNICA.md).
