@@ -1,0 +1,43 @@
+{
+  "kind": "offline-schema-candidate",
+  "owner": "organizations",
+  "activated": false,
+  "operationalInstaller": false,
+  "files": [
+    {
+      "migration": "001_account_hierarchy.sql",
+      "sourceSha256": "9b5546158562343abe6c33d13310e2dd04984beef06ab5bc6f23f9e6c4a000eb",
+      "candidateSha256": "8f04efd5c2e97200be5e6796ebeb2641d970c7c6ae3db6f01febae138bd9e6c3"
+    },
+    {
+      "migration": "002_legacy_single_context_gate.sql",
+      "sourceSha256": "8b75f923594efb9cd792f869800f505cb91158774fcb6e5e3817af2f939ecd5c",
+      "candidateSha256": "79c36f6db236602e65c5c0cc5d8060e8998d284a5d2e4244f997fc7777bc94b5"
+    },
+    {
+      "migration": "003_legacy_ownership.sql",
+      "sourceSha256": "0776cba703070629ce59f611292c99d30385ba3d0749b372462ef335f3774f39",
+      "candidateSha256": "2537cda0400d4a0b8f02a98f4f52a5aaab4edb02bfc1dcb368efd13f5eda631e"
+    },
+    {
+      "migration": "004_whatsapp_route_owner_guard.sql",
+      "sourceSha256": "5ae71ce3a69320ec8deb7696fcf84c645baf92ee9bc1fb890667c7616f865918",
+      "candidateSha256": "8fa7f35efd2ba87f0d24af97507bd1f52362e5218a417b220d6a84ac6430fac3"
+    },
+    {
+      "migration": "005_scoped_relationship_integrity.sql",
+      "sourceSha256": "0de135880d2e30f1d7fad918390f66d32236f894decb22778d99b7afa2ac7ad0",
+      "candidateSha256": "801f461c8f506c3375753e05f5425204d61925ec60e35d9dd29f0f4ea96c7a22"
+    },
+    {
+      "migration": "006_context_creation_audit.sql",
+      "sourceSha256": "66645436cc4c4184ce12c8af1d0c0910e791abb600d114a87fa6fbfccf8c1471",
+      "candidateSha256": "fdfe288b2c50184005d7ca8a9de7b1c85993d9430f526cf7609ee8d157ef7159"
+    },
+    {
+      "migration": "007_staff_roles_pre_release.sql",
+      "sourceSha256": "5ee89612578e36f1361032efe1466eb1f4908c9762c3e7ec18adf321022bb6f0",
+      "candidateSha256": "2d55f3eae73a8e9262585e1311c92285f8dbe8d473903d80be5fa6aa6cdfcdd8"
+    }
+  ]
+}
