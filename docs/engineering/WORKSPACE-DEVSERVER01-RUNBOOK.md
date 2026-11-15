@@ -26,15 +26,15 @@ Manifests **locais ao servidor, não versionados**:
 
 **Fonte da verdade:** Git para o código da aplicação; configuração operacional fora do Git até ser migrada para IaC com segregação de segredos. A branch de infraestrutura/Host base `feat/core-inbox-foundation` e a branch do Workspace não estão mescladas.
 
-## Testes seguros — sem alterar dados
+## Verificações de diagnóstico — revisar efeitos antes de executar
 
-Executar no DevServer01:
+**Não executar automaticamente no DevServer01.** Testes e builds exigem revisão de efeitos e ambiente isolado; os comandos seguintes são referências históricas, não autorização de execução:
 
 ```bash
 cd /srv/syndes-lab/system/apps/workspace-web
 
 npm test                  # testes unitários de HTTP/tenant e callback PKCE
-npm run build             # build; substitui arquivos em dist
+npm run build             # NÃO executar no DevServer01: altera dist servido por bind mount
 npm run lint              # verificar avisos
 npm run test:ui-anon       # Chrome headless: shell sem sessão, CRM/Inbox protegidos
 
@@ -103,3 +103,7 @@ botão Sair                    limpa o token local (não encerra sessão SSO)
 Em 2026-11-01: página Workspace `200` e TLS válido sem HTTP Basic, runtime `200`, CRM/Inbox anônimos `401`, bloqueio de acesso à rota via container não autorizado `403`; Keycloak OIDC + PKCE e páginas CRM/Inbox aprovados em Chrome; 5 testes unitários passando; CI do Workspace concluído com sucesso. Isso **não comprova** prontidão de produção, backups restauráveis, múltiplos tenants reais ou acessibilidade de todos os papéis.
 
 Referências: `docs/engineering/WORKSPACE-SHELL-ARCHITECTURE.md` e `docs/product/WORKSPACE-MVP-HANDOFF.md`.
+
+### Limites do readiness (auditoria de 15/11/2026)
+
+`tests/live-readiness.mjs` aceita 401 **ou 403** para Inbox anônimo, enquanto o contrato acima espera 401. Seu PASS comprova somente as asserções do script (HTTP público, negativa anônima e sinais limitados de serviços), não Inbox autenticado, CRUD, isolamento tenant ou homologação. `anonymous-smoke.mjs` cobre guardas de UI sem sessão e `browser-smoke.mjs` navegação demo, sem prova de CRUD. Nenhum teste foi executado nesta atualização.
