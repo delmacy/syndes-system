@@ -31,3 +31,11 @@
 3. Confirmar migrations realmente aplicadas, backup/restore e rollback antes de SQL.
 4. Testar com critérios apropriados: unitário, contrato, integração, E2E e CI.
 5. Registrar resultado e evidência em STATUS, sem confundir merge com deploy ou aceite.
+
+---
+
+## Sequência documentada, não executada — 2026-11-14
+
+O script primeiro rejeita checkout não autorizado e dependências indisponíveis; valida saúde/identidade, segredo em tmpfs, proveniência do artefato, origem HTTPS privada e disponibilidade da rota. No modo `--preflight`, sai antes da mutação. No modo `--apply`, gera configuração temporária, constrói imagens, inicia o Compose isolado, espera o frontend local, salva configuração anterior do Serve e tenta vincular a rota privada 9447. Em erro, a compensação é limitada ao stack Manager e à rota que ele próprio atribuiu.
+
+**Gates exigidos antes de homologar:** revisão de segurança e owner, sintaxe Bash, teste descartável dos ramos de falha sem segredos reais, evidência de preflight, smoke autenticado e teste de rollback com SHA e ambiente identificados. Esta revisão não executou nenhum desses comandos nem alterou ambiente.
