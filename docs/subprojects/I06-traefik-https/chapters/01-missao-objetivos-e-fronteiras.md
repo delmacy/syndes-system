@@ -4,3 +4,5 @@
 - Fronteira: I06 documenta ingress/proxy; **não** possui lógica de autenticação JWT, persistência ou eventos de CRM/Inbox/WhatsApp.
 - Dependências relacionadas: I02 hospedagem, I05 Docker/redes e I07 Tailnet. Não presumir delegação de owner nem aceite operacional.
 - Exclusões: alterações em certificados, firewall, rede, OpenFGA e deploy não integram esta atualização.
+
+- A missão de ingress não abrange certificar Inbox funcional. Readiness HTTP/containers/segredos não demonstra autorização tenant, CRUD ou entrega WhatsApp; essas responsabilidades pertencem a owners adjacentes.
