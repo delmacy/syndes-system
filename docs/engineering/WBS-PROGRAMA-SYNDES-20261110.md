@@ -325,3 +325,17 @@ A capacidade de gerar **Core Host + subconjunto de módulos confiáveis por inst
 A ordem é: **CMP-01** contratos e dependências; **CMP-02** manifesto/validação; **CMP-03** composição local de dois perfis; **CMP-04** builds por perfil; **CMP-05** profile+tenant ENABLED+FGA; **CMP-06** deployment/rollback; **CMP-07** integração cross-process somente quando justificada; **CMP-08** worker ownership; **CMP-09** homologação com 2 perfis/2 tenants; **CMP-10** UI opcional pós-gate.
 
 **Priorização:** CMP-01/02 são preparação transversal; não bloquear o fluxo WhatsApp→Inbox→CRM→Service e frontends para criar uma plataforma distribuída prematura. Detalhes e evidências em [WBS-COMPOSICAO-MODULAR-CORE-20261111.md](WBS-COMPOSICAO-MODULAR-CORE-20261111.md) e [ADR-COMPOSICAO-MODULAR-CORE-20261111.md](ADR-COMPOSICAO-MODULAR-CORE-20261111.md). O gate completo de backup/restore permanece no fechamento do MVP.
+
+## Adendo documental I09 — Whatsmeow runtime (13/11/2026)
+
+**Escopo:** reconciliação documental estática do componente técnico I09 vinculado a P03; [STATUS](../subprojects/I09-whatsmeow-runtime/STATUS.md), [referência](../subprojects/I09-whatsmeow-runtime/REFERENCIA-TECNICA.md), [operação](../subprojects/I09-whatsmeow-runtime/OPERACAO.md) e [oito capítulos temáticos](../subprojects/I09-whatsmeow-runtime/README.md#capitulos). Fonte auditada: `main` em `a1754ccc`, conforme checkpoint I09; comparar com o HEAD vigente antes de aceitar paridade. **Não é aprovação de Product Gate, execução de testes nem prova de deploy.**
+
+| Pacote | Estado documental | Gate verificável e responsável |
+|---|---|---|
+| I09.DOC.01 — contratos, fronteira P03 e oito capítulos | Auditoria estática parcial; revisão pendente | Owner P03 confere rotas, autenticação, envelopes, callbacks e diferenças contra `main` atual |
+| I09.DOC.02 — qualidade documental | PEND | Executar MkDocs estrito, links, registry/witnesses e navegação real no SHA da branch; anexar logs |
+| 40.04 / 50.05 — gateway e integração | BLOQ para aceite operacional | Testes Go e integração autorizada em ambiente descartável, incluindo isolamento entre contas |
+| 50.06 — quota e concorrência | BLOQ | Testar limite de 40 envios/minuto por conta sob concorrência, idempotência e resultado incerto |
+| 95.05 — recuperação e liberação | BLOQ | Evidências de restore, rollback, smoke em ambiente-alvo e aprovação explícita do Product Gate |
+
+Não executar SQL, alterar runtime ou converter registros descritivos em testemunhas AST. Uma branch documental não atualiza o Pages; exigir SHA integrado e execução Pages bem-sucedida para declarar publicação.

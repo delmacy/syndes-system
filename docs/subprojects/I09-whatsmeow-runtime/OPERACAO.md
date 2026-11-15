@@ -1,36 +1,19 @@
 # I09 — Whatsmeow runtime | Operação
 
-> **COMPONENTE TÉCNICO DO P03 — WHATSAPP.** Este documento histórico I09 permanece acessível para WBS, commits e links antigos. O gateway Go/Whatsmeow faz parte de [P03 — WhatsApp](../P03-whatsapp/README.md), com [Referência técnica](../P03-whatsapp/REFERENCIA-TECNICA.md) e [Operação](../P03-whatsapp/OPERACAO.md) centrais. Não representa outro módulo de produto.
+> **RUNBOOK DOCUMENTAL NÃO HOMOLOGADO.** Revisão estática de 13/11/2026, `main` a1754ccc. Não executar operações no ambiente com base apenas neste inventário.
 
+## Condições declaradas
+[README](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/README.md) declara sidecar interno, bind `127.0.0.1:19083` por padrão, store PostgreSQL separado, quatro nomes de variáveis obrigatórias e callback autenticado. Não expor publicamente.
 
-> **ÍNDICE DE FONTES, NÃO RUNBOOK HOMOLOGADO.** Não executar migrations, alterar permissões ou ativar workers apenas com esta página.
+## Sequência para homologação (não executada)
+1. Confirmar owner P03, versão Go, build, configuração sem revelar segredos e conectividade restrita.
+2. Validar PostgreSQL de sessão, backup, rollback e alterações SQL de inicialização de [main.go](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/main.go) em ambiente descartável.
+3. Executar testes Go, testes de HTTP por conta, envelope callback, idempotência, limite 40/min e concorrência; registrar SHA, logs sanitizados e resultado.
+4. Verificar autenticação entre Nest e sidecar, isolamento tenant/conta, restauração e reconciliação de envios incertos.
+5. Validar smoke real, operação, observabilidade e Product Gate com aprovação explícita do owner.
 
-## Estado operacional e evidências
+## Bloqueios
+Nenhum passo acima foi executado nesta auditoria. `GET /healthz` não é prova de conexão WhatsApp. Não promover a homologado sem evidência independente.
 
-- [STATUS](STATUS.md): nível de validação, bloqueios, testes, ambiente e SHA.
-- [SPRINT](SPRINT.md): incremento autorizado e checkpoints, quando existentes.
-- [Evolução](EVOLUCAO.md): workpackages e dependências; nenhum item é concluído por estar planejado.
-- [Histórico](HISTORICO.md): commits de código e documentos.
-- [Workflows GitHub](../../monitoramento/README.md): resultado CI geral, não estado operacional do módulo.
-
-## Fontes e contratos
-
-- [Código/artefato do módulo](https://github.com/delmacy/syndes-system/tree/main/modules/whatsapp/gateway) — `modules/whatsapp/gateway`.
-- [Contratos públicos](../../standards/CONTRATOS-PUBLICOS.md).
-- [Regras de rastreabilidade](../../standards/FONTES-DE-VERDADE-E-RASTREABILIDADE.md).
-- **Runbook específico:** não verificado neste inventário. Não criar comandos de ambiente por inferência.
-
-## Operações orientadas por agentes
-
-- [Projeção / Planejamento](PROJECAO.md)
-- [Implementação](IMPLEMENTACAO.md)
-- [Alteração rápida](ALTERACAO.md)
-- [Entrada de propostas](updates/README.md)
-
-## Gates para operação real
-
-1. Conferir fonte, tenant/org/workspace, ambiente, SHA e autorização explícita.
-2. Validar identity/service grants e ownership de banco.
-3. Confirmar migrations realmente aplicadas, backup/restore e rollback antes de SQL.
-4. Testar com critérios apropriados: unitário, contrato, integração, E2E e CI.
-5. Registrar resultado e evidência em STATUS, sem confundir merge com deploy ou aceite.
+## Fontes
+[STATUS](STATUS.md) · [Referência técnica](REFERENCIA-TECNICA.md) · [WBS](EVOLUCAO.md) · [P03](../P03-whatsapp/OPERACAO.md).

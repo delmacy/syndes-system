@@ -1,6 +1,6 @@
 # I09 — Whatsmeow runtime
 
-> **Componente técnico/histórico.** Esta é a entrada humana do módulo: navegue pelas seis páginas abaixo. Código e documentação técnica podem existir sem estar implantados ou homologados.
+> **Componente técnico/histórico.** Esta é a entrada humana do módulo: navegue pelas seis páginas principais e pelos oito capítulos temáticos independentes. Código e documentação técnica podem existir sem estar implantados ou homologados.
 
 <!-- syndes:module-id=I09;source=modules/whatsapp/gateway;kind=component -->
 
@@ -14,6 +14,12 @@
 | **O que realmente mudou?** | [Histórico Git e evidências relacionadas](HISTORICO.md) |
 | **Como testar, operar ou entregar?** | [Operação, testes, gates e runbooks](OPERACAO.md) |
 | **Como pedir uma alteração?** | [Atualizações e propostas contextualizadas](updates/README.md) |
+
+## Capítulos temáticos independentes {#capitulos}
+
+[00 — Endereços de leitura](chapters/00-enderecos-exatos-de-leitura.md) · [01 — Missão e fronteiras](chapters/01-missao-objetivos-e-fronteiras.md) · [02 — Requisitos e casos de uso](chapters/02-requisitos-historias-e-casos-de-uso.md) · [03 — Capabilities](chapters/03-capabilities.md) · [04 — Contratos públicos](chapters/04-contratos-e-dependencias-publicas.md) · [05 — Arquitetura e dados](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md) · [06 — WBS e aceite](chapters/06-wbs-marcos-e-aceite.md) · [07 — Riscos e lacunas](chapters/07-riscos-lacunas-e-proximos-passos.md).
+
+Cada capítulo é uma página própria, não uma âncora que simula uma aba. A presença de links não comprova a publicação no Pages.
 
 ## Capacidades e requisitos {#capacidades}
 
