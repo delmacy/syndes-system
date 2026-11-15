@@ -27,3 +27,9 @@ Ambos declaram `traefik.enable=true` e `traefik.docker.network=infra-proxy`; `in
 ## Evidências e limites
 - [Checkpoint GitHub-first](../../evidence/checkpoints/I06-traefik-https-github-reconciliation-20261113.md).
 - [Operação e gates](OPERACAO.md); [capítulos de contratos](chapters/04-contratos-e-dependencias-publicas.md) e [arquitetura](chapters/05-arquitetura-banco-interface-configuracao-e-diagramas.md).
+
+## Limites dos probes de readiness (auditoria de 15/11/2026)
+- `apps/workspace-web/package.json` aponta `test:live-readiness` para `tests/live-readiness.mjs`, `test:ui-anon` para `tests/anonymous-smoke.mjs` e `test:smoke` para `tests/browser-smoke.mjs`.
+- A auditoria `audit/i06-live-readiness-evidence-20261115-1903` identifica que o readiness aceita 401/403 em GET Inbox anônimo, verifica HTML/runtime 200, campos Running/Restarting do container Core Host e OpenBao `sealed === false`. A mensagem de sucesso **não** demonstra fluxo autenticado Inbox, CRUD, autorização OpenFGA, entrega WhatsApp ou homologação.
+- O runbook espera 401 para Inbox anônimo; aceitar 403 no probe é uma divergência de critério a investigar, não evidência de sucesso equivalente.
+- `anonymous-smoke.mjs` cobre guardas de UI sem sessão; `browser-smoke.mjs` cobre login demo/navegação, sem assertivas CRUD. Nenhum desses testes foi executado nesta revisão.
