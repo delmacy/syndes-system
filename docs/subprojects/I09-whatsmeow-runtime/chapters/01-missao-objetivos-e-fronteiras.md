@@ -1,5 +1,2 @@
-## 1. Missão, objetivos e fronteiras
-- Missão: A RECONCILIAR com fonte e requisitos existentes.
-- Valor e consumidores: A DEFINIR.
-- Dentro do escopo: A VALIDAR.
-- Fora do escopo: A APROVAR.
+# 01 — Missão e fronteiras
+Sidecar Go interno para sessões Whatsmeow, operações por conta e callbacks para API Nest, conforme [README](https://github.com/delmacy/syndes-system/blob/main/modules/whatsapp/gateway/whatsmeow/README.md). A aplicação de negócio pertence ao P03; I09 não cria outro módulo comercial. Não atribuir UI, grants ou migrations de Tenant DB ao adaptador sem fonte. Estado: fonte observada, não homologado.
