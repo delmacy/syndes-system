@@ -163,3 +163,10 @@ Registrar como contrato/proposta até aprovação de Product Gate; não afirmar 
 ## Próxima ação de auditoria
 
 **Executadas como auditoria parcial:** G01 → G02 → G03 → Q10 → Q07 → Q01 → P14 → I02 → I04 → C01 → C03 → C04 → C05 → A06 → A04. **Próxima unidade:** conferir próximo baseline no catálogo. Continuar por segurança, Core e integrações do MVP. Para o negócio, manter **P01 CRM → P02 Inbox → P03 WhatsApp → P05 Gestão de Atendimentos Basic** conforme o plano de produto. O I09 acompanha a auditoria do P03. A ordem é de **documentação**; não muda o Product Gate vigente.
+
+## I10 — checkpoint documental parcial (13/11/2026)
+
+- Fonte: `scripts/events/disposable_restore_drill.py` (Python, PostgreSQL 17 sintético, sem rede, sem portas publicadas). Não há prova de backup de produção, RPO/RTO ou homologação.
+- [STATUS](../subprojects/I10-backup-e-restore/STATUS.md), [Referência técnica](../subprojects/I10-backup-e-restore/REFERENCIA-TECNICA.md), [Operação](../subprojects/I10-backup-e-restore/OPERACAO.md) e [oito capítulos](../subprojects/I10-backup-e-restore/README.md) em revisão documental.
+- WBS `I10.DOC.01`: auditoria parcial, revisão owner e gates documentais pendentes; `I10.TEST.01`: ensaio descartável não executado nesta revisão; `I10.OPS.01`: recuperação operacional bloqueada por ausência de evidência.
+- Witness registry: sem novas entradas, pois não houve extração independente de contrato público.
