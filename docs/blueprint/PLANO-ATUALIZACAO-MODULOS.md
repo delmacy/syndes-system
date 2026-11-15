@@ -163,3 +163,9 @@ Registrar como contrato/proposta até aprovação de Product Gate; não afirmar 
 ## Próxima ação de auditoria
 
 **Executadas como auditoria parcial:** G01 → G02 → G03 → Q10 → Q07 → Q01 → P14 → I02 → I04 → C01 → C03 → C04 → C05 → A06 → A04. **Próxima unidade:** conferir próximo baseline no catálogo. Continuar por segurança, Core e integrações do MVP. Para o negócio, manter **P01 CRM → P02 Inbox → P03 WhatsApp → P05 Gestão de Atendimentos Basic** conforme o plano de produto. O I09 acompanha a auditoria do P03. A ordem é de **documentação**; não muda o Product Gate vigente.
+
+## Adendo de auditoria I06 — 15/11/2026 (sem promoção de maturidade)
+
+- Novas auditorias independentes `audit/i06-runbook-test-safety-20261115-0801` e `audit/i06-live-readiness-evidence-20261115-1903` identificaram **I06-TEST-01** (build listado como teste seguro apesar de alterar `dist` publicado) e **I06-NEW-01** (readiness aceita 401/403 e sua mensagem de sucesso sugere prontidão funcional não demonstrada).
+- WBS complementar: `I06.TEST.01` corrigir orientação de execução; `I06.READY.01` alinhar contrato 401/403 e texto de PASS; `I06.FUNC.01` exigir teste autenticado e isolamento tenant independente. Todos **pendentes de gates**; sem teste, deploy, homologação ou Pages SHA confirmado.
+- A contagem histórica de 20 STATUS parciais/37 baseline é snapshot de 12/11 e **não foi recalculada** como auditoria global das 57 unidades; branches concorrentes I07/I08/I09 não foram incorporadas aqui.
