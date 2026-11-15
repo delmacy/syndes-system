@@ -20,3 +20,9 @@
 - [Projeção](PROJECAO.md) · [Implementação](IMPLEMENTACAO.md) · [Alteração](ALTERACAO.md): instruções de agentes, não procedimentos aprovados de produção.
 - [STATUS](STATUS.md) · [Referência técnica](REFERENCIA-TECNICA.md) · [Checkpoint](../../evidence/checkpoints/I06-traefik-https-github-reconciliation-20261113.md) · [Plano geral](../../blueprint/PLANO-ATUALIZACAO-MODULOS.md).
 - Não usar valores de `env_file`, tokens, certificados privados ou dumps no relatório público.
+
+## Segurança de execução e leitura de resultados — 15/11/2026
+- **Não executar `npm run build` no DevServer01 como teste somente leitura.** O runbook documenta `dist` servido por bind mount; o build pode modificar os arquivos publicados de forma não atômica. Executar validação de build apenas em ambiente isolado, com artefatos descartáveis.
+- Testes unitários, lint e browser devem ter dependências/efeitos revisados e ser executados em ambiente isolado antes de declarar aprovação. `test:smoke` pode usar origem Tailnet live e senha demo local; não o executar nesta auditoria.
+- Diferenciar: acesso anônimo negado (401/403), sessão autenticada, autorização tenant, entrega de mensagens e operação homologada. `PASS` de readiness não substitui essas evidências.
+- Pendentes: configuração Traefik carregada, cadeia TLS, allowlist negativa, roteamento efetivo, rollback e gates documentais por SHA.
