@@ -66,7 +66,7 @@ Identificar ambientes, dados/tenancy, identidade, autorização, segredos e limi
 | 15 | [I05 — Docker e redes (componente de I02)](../subprojects/I05-docker-e-redes/README.md) · [STATUS](../subprojects/I05-docker-e-redes/STATUS.md) | Compose, redes, volumes e runtime observados parcialmente; isolamento efetivo pendente. | **Parcial — manifests e inventário read-only; não homologado** |
 | 16 | [I06 — Traefik HTTPS (componente de I02)](../subprojects/I06-traefik-https/README.md) · [STATUS](../subprojects/I06-traefik-https/STATUS.md) | Traefik, TLS, rotas e certificados por ambiente. | **Parcial — routers declarados; TLS/allowlist pendentes** |
 | 17 | [I07 — Tailnet (componente de I02)](../subprojects/I07-tailnet/README.md) · [STATUS](../subprojects/I07-tailnet/STATUS.md) | Tailnet e perímetro de administração privada. | Baseline; não auditado |
-| 18 | [I08 — Komodo (componente de I02)](../subprojects/I08-komodo/README.md) · [STATUS](../subprojects/I08-komodo/STATUS.md) | Komodo e operações de gestão de serviços. | Baseline; não auditado |
+| 18 | [I08 — Komodo (componente de I02)](../subprojects/I08-komodo/README.md) · [STATUS](../subprojects/I08-komodo/STATUS.md) | Komodo e operações de gestão de serviços; artefato específico ainda não localizado. | **Inventário documental preliminar — implementação e operação não verificadas; revisão pendente** |
 | 19 | [I12 — Segurança de host (componente de I02)](../subprojects/I12-seguranca-de-host/README.md) · [STATUS](../subprojects/I12-seguranca-de-host/STATUS.md) | Hardening do host, segurança e atualização. | Baseline; não auditado |
 | 20 | [G04 — Privacidade](../subprojects/G04-privacidade/README.md) · [STATUS](../subprojects/G04-privacidade/STATUS.md) | Privacidade, PII, retenção e governança de dados. | Baseline; não auditado |
 
@@ -163,3 +163,9 @@ Registrar como contrato/proposta até aprovação de Product Gate; não afirmar 
 ## Próxima ação de auditoria
 
 **Executadas como auditoria parcial:** G01 → G02 → G03 → Q10 → Q07 → Q01 → P14 → I02 → I04 → C01 → C03 → C04 → C05 → A06 → A04. **Próxima unidade:** conferir próximo baseline no catálogo. Continuar por segurança, Core e integrações do MVP. Para o negócio, manter **P01 CRM → P02 Inbox → P03 WhatsApp → P05 Gestão de Atendimentos Basic** conforme o plano de produto. O I09 acompanha a auditoria do P03. A ordem é de **documentação**; não muda o Product Gate vigente.
+
+## Checkpoint I08 — 2026-11-13 (branch documental, não publicado)
+
+- Base consultada: `891559a`; documentação I08 organizada em oito capítulos temáticos, STATUS, referência técnica e operação.
+- **Não contabilizar como auditoria funcional parcial concluída**: artefato Komodo específico, contratos, testes, runtime e homologação continuam não verificados.
+- Gates pendentes: revisão de fontes reais, testes documentais isolados, diff/CI e publicação por SHA; não atualizar totais de 20/37 até confirmação de auditoria técnica.
