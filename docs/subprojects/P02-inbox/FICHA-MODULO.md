@@ -87,7 +87,7 @@ Instalação como plugin confiável no Core Host; depende de módulos `platform`
 
 ## 13 · Testes, negativos e evidências
 
-**P02-ASSIGN-01:** foram adicionados casos PostgreSQL descartável (vínculo ativo, viewer, revogado, estrangeiro, organização/workspace arquivados, liberar, idempotência e audit) e teste específico de paralelismo/revogação com duas sessões e HTTP do Core Host com verifier/FGA de teste; resultados dessa alteração devem ser associados à SHA da CI. Não confundir com homologação externa.
+**P02-ASSIGN-01:** foram adicionados casos PostgreSQL descartável (vínculo ativo, viewer, revogado, estrangeiro, organização/workspace arquivados, liberar, idempotência e audit) e teste específico de paralelismo/revogação com duas sessões e HTTP do Core Host com verifier/FGA de teste; resultados verificados no job `Regression / inbox` do [run 43939884169](https://github.com/delmacy/syndes-system/actions/runs/43939884169), commit `8de743e`: 35 PASS unitários, 1 isolamento PG, 1 persistência PG, 1 concorrência PG e 9 HTTP do Host. **Sem homologação Keycloak/OpenFGA reais.**
 
 
 Auditoria histórica de 12/11 `b452a03e`: **34 PASS locais** em `cd modules/inbox && npm test`; não reexecutados na documentação P02. Arquivos existentes `inbox.test.mjs`, `default-context.test.mjs`, `scope-query.test.mjs`, `frontend.test.mjs`, `realtime.test.mjs`, `pg-integration.mjs`, `pg-org-scope.mjs`, `postgres-integration.sh`. Suítes browserless DOM e PostgreSQL descartável não comprovam sessão real, worker/cutover, browser com layout ou restore em alvo. Cada uma das [19 fichas](MATRIZ-ACOES.md) tem cenários Given/When/Then **propostos**.

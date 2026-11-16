@@ -95,7 +95,7 @@ Arquivos relacionados à investigação: [`test/inbox.test.mjs`](https://github.
 | CP-03 | Recurso tenant B | A tenta operar B | Rejeição completa |
 | CP-04 | atribuição de ator inexistente | Reproduz exceção | Tratamento do método documentado |
 
-**Testes adicionados ao incremento (execução pendente da CI da nova SHA):** `modules/inbox/test/pg-org-scope.mjs` (P04 memberships, A/B, workspace arquivado, revogação e auditoria), `apps/core-host/test/inbox-pg-http.integration.mjs` (HTTP 404/403) e `modules/inbox/test/scope-query.test.mjs` (SQL parametrizada) e `modules/inbox/test/pg-assignment-races.mjs` (duas atribuições concorrentes + revogação durante a operação). A suíte `pg-integration.mjs` recebeu fixtures de contexto coerentes. **Não é teste com Keycloak/OpenFGA reais**, nem afirma deploy ou Product Gate.
+**Testes executados no job `Regression / inbox` do [run 43939884169](https://github.com/delmacy/syndes-system/actions/runs/43939884169), commit `8de743e`: 35 unitários, 1 de escopo PG, 1 PG de persistência, 1 corrida/revogação e 9 Host HTTP — todos PASS.** `modules/inbox/test/pg-org-scope.mjs` (P04 memberships, A/B, workspace arquivado, revogação e auditoria), `apps/core-host/test/inbox-pg-http.integration.mjs` (HTTP 404/403) e `modules/inbox/test/scope-query.test.mjs` (SQL parametrizada) e `modules/inbox/test/pg-assignment-races.mjs` (duas atribuições concorrentes + revogação durante a operação). A suíte `pg-integration.mjs` usa fixture transacional com ROLLBACK para não contaminar o teste HTTP seguinte. **Não é teste com Keycloak/OpenFGA reais**, nem afirma deploy ou Product Gate.
 
 ## J. Decisões e handoff
 

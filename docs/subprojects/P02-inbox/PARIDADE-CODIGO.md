@@ -79,3 +79,11 @@
 O teste `apps/docs-reader/tests/content.test.mjs` agora valida **rotas ↔ catálogo ↔ 19 fichas A–J**, **recursos declarados no plugin ↔ catálogo**, **migrations multi-owner ↔ tabelas documentadas** e **diferenças CRM manual/automático**. Se alguma superfície for removida/renomeada sem atualizar a documentação, a CI deve falhar. Isso é controle de **paridade estrutural**, não validação de comportamento por execução da plataforma.
 
 **Na próxima proposta:** escolha `P02 + ação ID + problema observado`. O agente deve consultar esta paridade, a [Ficha Mestre](FICHA-MODULO.md), o [STATUS](STATUS.md) e os testes reais antes de propor código.
+
+## 7 · P02-ASSIGN-01 — implementação e evidência na CI
+
+**Código confirmado em `8de743e`:** atribuição agora resolve o destinatário no P04 na mesma instrução SQL da escrita, usando `FOR NO KEY UPDATE` na conversa e `FOR SHARE` em `platform_org_memberships`, `platform_workspace_memberships`, organização e workspace. Apenas `editor/admin` ativos na organização/workspace atuais podem receber uma conversa. `viewer`, revogado, alvo inexistente ou externo são recusados como 404 genérico; `null` libera, no-op válido não gera auditoria adicional.
+
+**Prova de teste:** [Syndes Mainline CI — run 43939884169](https://github.com/delmacy/syndes-system/actions/runs/43939884169), job `Regression / inbox` **SUCCESS** na SHA `8de743e`: `npm test` 35 PASS, escopo PG 1 PASS, persistência PG 1 PASS, corrida/revogação com duas sessões PostgreSQL 1 PASS, Host HTTP 9 PASS. A fixture `pg-integration.mjs` faz ROLLBACK antes da próxima suíte, corrigindo contaminação de defaults.
+
+**Limites:** não checa permissões OpenFGA individuais ou login real do destinatário; não repara `assigned_to` antigos inválidos; migrations/backfill P04 continuam pré-requisitos de implantação. Product Gate permanece aberto.
