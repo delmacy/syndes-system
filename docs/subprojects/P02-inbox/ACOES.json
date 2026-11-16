@@ -231,12 +231,13 @@
       "permission": "inbox:assignment/write",
       "data": "inbox_conversations; inbox_events",
       "input": "assigneeId string ou null",
-      "rules": "Validador checa formato de assigneeId até 128 caracteres; método de atribuição não consulta membership do destinatário.",
+      "rules": "P02-ASSIGN-01: somente membros ativos editor/admin da organização/workspace atuais podem receber conversa; validação na mesma instrução SQL da atribuição; null libera; registros antigos não são saneados.",
       "edges": [
-        "atribuição de ator inexistente",
-        "permissão negada",
-        "conversa de outro escopo",
-        "liberada repetidamente"
+        "principal inexistente ou viewer",
+        "membership revogada ou workspace arquivado",
+        "outro tenant/organização/workspace",
+        "concorrência revogação/transferência",
+        "no-op validado e liberação"
       ]
     },
     {

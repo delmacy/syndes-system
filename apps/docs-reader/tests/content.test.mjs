@@ -357,3 +357,19 @@ test("P02 paridade verifica migrations reais e divergência CRM manual vs consum
    assert.ok(parity.includes(path),"Missing evidence in P02 parity: "+path);
  }
 });
+
+test("P02 assignment safety remains reflected in catalog and action dossier",async()=>{
+ const {readFileSync}=await import("node:fs");
+ const read=relative=>readFileSync(new URL(relative,import.meta.url),"utf8");
+ const catalog=JSON.parse(read("../../../docs/subprojects/P02-inbox/ACOES.json"));
+ const action=catalog.actions.find(a=>a.id==="p02-assignment-set");
+ const source=read("../../../modules/inbox/src/postgres.ts");
+ const doc=read("../../../docs/subprojects/P02-inbox/acoes/p02-assignment-set.md");
+ const sql=source.split("async assign(tenantId:")[1].split("async status(")[0];
+ for(const evidence of ["platform_org_memberships","platform_workspace_memberships","FOR SHARE OF c,o,w,om,wm","om.role IN ('admin','editor')","wm.role IN ('admin','editor')","assigned_to IS DISTINCT FROM"])
+   assert.ok(sql.includes(evidence),"P02-ASSIGN-01 SQL drift: "+evidence);
+ assert.match(doc,/P02-ASSIGN-01/);
+ assert.match(doc,/não são corrigidos retroativamente/);
+ assert.match(action.rules,/editor\/admin/);
+ assert.ok(doc.includes("404 genérico")&&doc.includes("inbox:assignment/write"));
+});

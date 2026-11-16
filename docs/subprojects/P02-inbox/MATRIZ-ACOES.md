@@ -51,7 +51,7 @@ O funil, protocolo, etapas e Kanban pertencem ao P05 Gestão de Atendimentos, **
 | `inbox:messages` | `read` | listagem de mensagens |
 | `inbox:messages` | `write` | resposta local ou enfileiramento WhatsApp |
 | `inbox:notes` | `write` | nota interna |
-| `inbox:assignment` | `write` | responsável e transferência entre workspaces |
+| `inbox:assignment` | `write` | ator que atribui/transfere; P02-ASSIGN-01 também exige P04 `admin/editor` ativo para o destinatário |
 | `inbox:simulation` | `write` | mensagem simulada; não webhook público |
 | `inbox:metrics` | `read` | métricas agregadas |
 | `crm:people` | `read` | vínculo manual com pessoa CRM |
@@ -96,7 +96,7 @@ A lista é retirada de `src/service.ts`, `src/inbox.controller.ts` e `src/plugin
 
 ## 7. Próximos testes e decisões
 
-**Fontes de paridade e riscos reais:** [PARIDADE-CODIGO.md](PARIDADE-CODIGO.md). Reconciliar a substituição manual de CRM versus consumer conservador e verificar membership do destinatário antes de presumir regra implementada.
+**Fontes de paridade e riscos reais:** [PARIDADE-CODIGO.md](PARIDADE-CODIGO.md). P02-ASSIGN-01 adiciona verificação atômica de membership ativa do destinatário na org/workspace atuais, sem duplicar o diretório P04. Ainda é preciso conciliar a substituição manual CRM, os grants reais de destinatários e a migração dos ambientes.
 
 | Prioridade | Pendência | Critério de fechamento |
 |---|---|---|

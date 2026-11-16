@@ -56,3 +56,21 @@ test("a concurrent inbound dedup winner becomes visible in a second SQL snapshot
   id:"77777777-7777-4777-8777-777777777777",
   direction:"inbound",body:"Texto diferente",externalMessageId:"same"}),InboxConflictError);
 });
+
+test("assignment SQL binds target and checks active same-scope memberships in one statement",async()=>{
+ const {PgInboxRepository}=await import("../dist/postgres.js");
+ const entries=[],chat="44444444-4444-4444-8444-444444444444";
+ const db={tenantId:T,query:async(sql,params)=>{entries.push({sql,params});return {rows:[]}}};
+ const repo=new PgInboxRepository(db,scope);
+ assert.equal(await repo.assign(T,chat,"operator","recipient"),null);
+ const {sql,params}=entries[0];
+ assert.deepEqual(params,[T,chat,"recipient","operator",O,W]);
+ assert.match(sql,/WITH eligible AS MATERIALIZED/);
+ assert.match(sql,/FOR SHARE OF c,o,w,om,wm/);
+ assert.match(sql,/om\.state='active'/);
+ assert.match(sql,/wm\.state='active'/);
+ assert.match(sql,/role IN \('admin','editor'\)/);
+ assert.match(sql,/platform_current_workspace_id=\$6::uuid/);
+ assert.match(sql,/EXISTS\(SELECT 1 FROM eligible\)/);
+ assert.equal(entries.length,1);
+});

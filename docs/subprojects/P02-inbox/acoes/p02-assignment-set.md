@@ -18,11 +18,15 @@
 
 **História descritiva, não aprovada como novo requisito:** como operador ou serviço devidamente autorizado, quero **atribuir ou liberar responsável**, respeitando tenant, organização, workspace e as fronteiras de outros owners.
 
-**Regra encontrada:** ator autenticado; validador assignee com limite de 128 e caracteres permitidos.
+**Regra implementada (P02-ASSIGN-01):** ator deve possuir `inbox:assignment/write`; destinatário não nulo precisa de memberships **ativas com papel `admin` ou `editor` na mesma organização e no workspace atual da conversa**. Organização e workspace precisam estar ativos. O ID continua limitado a 128 caracteres; `null` libera o responsável. A elegibilidade é verificada pela SQL antes de gravar, sem nova concessão FGA.
 
 ## C. Fluxo e edge cases
 
-**Implementação exata:** `assigneeId` passa apenas pela validação sintática (até 128 caracteres); `PgInboxRepository.assign` atualiza o campo texto e **não consulta atividade ou membership do responsável destino**. A autorização do ator e a elegibilidade do destinatário são verificações diferentes.
+**Implementação revisada (P02-ASSIGN-01):** `InboxService.assign` mantém o gate `inbox:assignment/write`; `PgInboxRepository.assign` resolve o destinatário via `platform_org_memberships` + `platform_workspace_memberships` e verifica organização/workspace ativos da **conversa atual**, dentro da mesma instrução SQL `WITH eligible ... FOR SHARE` + `UPDATE` + `audit`. Assim, uma revogação ou transferência concorrente não deve usar uma checagem antecipada stale. Não muda nenhum schema ou tabela de P04.
+
+**Rejeições:** alvo inexistente, viewer, revogado ou de outro workspace/org => `null` no repositório / **404 genérico** pelo controller, sem notificação SSE nem auditoria. Permissão negada do **ator** => 403; ID malformado => 400. Atribuição idêntica para membro ainda elegível => retorno sem novo audit; idêntica para alvo revogado => 404; liberação por `null` não depende de elegibilidade do antigo responsável.
+
+**Limitações:** memberships `editor/admin` são proxy operacional definido para este incremento; não se verifica uma concessão OpenFGA individual do destinatário nem sua sessão Keycloak. Dados antigos em `assigned_to` não são corrigidos retroativamente. É necessário ter migrações P04 e backfill aplicados no ambiente antes de ativar a operação.
 
 [Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
 
@@ -33,10 +37,12 @@
 
 **Exceções propostas (NÃO são testes PASS):**
 
-- **EC-01** — atribuição de ator inexistente.
-- **EC-02** — permissão negada.
-- **EC-03** — conversa de outro escopo.
-- **EC-04** — liberada repetidamente.
+- **EC-01** — destinatário inexistente, viewer ou revogado (404 genérico).
+- **EC-02** — ator sem `inbox:assignment/write` (403 antes do banco).
+- **EC-03** — destinatário de outro tenant/org/workspace ou workspace arquivado.
+- **EC-04** — idempotência para mesmo destinatário e liberação repetida.
+- **EC-05** — destinatário revogado após uma atribuição anterior: não confirmar o no-op.
+- **EC-06** — transição concorrente de workspace ou revogação de membership.
 
 Consultar [diagramas](../DIAGRAMAS.md) como modelo de código, não evidência operacional.
 
@@ -47,14 +53,14 @@ Consultar [diagramas](../DIAGRAMAS.md) como modelo de código, não evidência o
 | Método e endpoint | `PATCH /v1/tenants/:tenantId/inbox/conversations/:id/assignment` |
 | Método | `InboxService.assign` |
 | Entrada | `assigneeId string ou null` |
-| Permissão/contexto | `inbox:assignment/write` |
+| Permissão/contexto | `inbox:assignment/write` para o ator; P04 org/workspace `active` + `admin/editor` para o destinatário |
 | Fonte | [`src/inbox.controller.ts`](https://github.com/delmacy/syndes-system/blob/24018b354392196899332af1581170fb3ad7cf24/modules/inbox/src/inbox.controller.ts) |
 
 O endpoint declarado não está necessariamente disponível em um Host configurado, e método interno não é automaticamente um contrato público exportado.
 
 ## E. Dados e integridade
 
-**Objetos relacionados:** `inbox_conversations; inbox_events`. [SQL 001](<https://github.com/delmacy/syndes-system/blob/24018b354392196899332af1581170fb3ad7cf24/modules/inbox/sql/001_inbox_foundation.sql>) define a base do domínio; alterações posteriores em campos de WhatsApp, organização e workspace são dependentes de outras migrations, **sem prova de aplicação**. Não atribuir tabelas CRM/WhatsApp ao Inbox. Ver [inventário](../INVENTARIO-TECNICO.md).
+**Objetos relacionados:** `inbox_conversations; inbox_events`, leitura/lock de `platform_organizations`, `platform_workspaces`, `platform_org_memberships`, `platform_workspace_memberships` (owner P04). [SQL 001](<https://github.com/delmacy/syndes-system/blob/24018b354392196899332af1581170fb3ad7cf24/modules/inbox/sql/001_inbox_foundation.sql>) define a base do domínio; alterações posteriores em campos de WhatsApp, organização e workspace são dependentes de outras migrations, **sem prova de aplicação**. Não atribuir tabelas CRM/WhatsApp ao Inbox. Ver [inventário](../INVENTARIO-TECNICO.md).
 
 ## F. Segurança e isolamento
 
@@ -63,7 +69,7 @@ O endpoint declarado não está necessariamente disponível em um Host configura
 | Ausência de JWT HTTP | 401, se existe endpoint |
 | Negação FGA/membership | 403 antes de exposição ou escrita |
 | Parâmetros inválidos | 400 quando apropriado |
-| Registro inexistente / conflito | 404 / 409 conforme método concreto |
+| Registro inexistente / destinatário não elegível | 404 genérico; não diferencia existência do destinatário |
 | Tenant DB divergente / falha | 503 ou fail-closed |
 | Tenant A/B / workspace alheio | Nunca ler, alterar ou notificar outro escopo |
 | `legacy|enforce` / multi-org | Gates e índice de backfill exigem teste real |
@@ -89,10 +95,12 @@ Arquivos relacionados à investigação: [`test/inbox.test.mjs`](https://github.
 | CP-03 | Recurso tenant B | A tenta operar B | Rejeição completa |
 | CP-04 | atribuição de ator inexistente | Reproduz exceção | Tratamento do método documentado |
 
-**`cd modules/inbox && npm test` não foi executado nesta edição.** E2E com Keycloak/OpenFGA reais, restore e Product Gate continuam pendentes.
+**Testes adicionados ao incremento (execução pendente da CI da nova SHA):** `modules/inbox/test/pg-org-scope.mjs` (P04 memberships, A/B, workspace arquivado, revogação e auditoria), `apps/core-host/test/inbox-pg-http.integration.mjs` (HTTP 404/403) e `modules/inbox/test/scope-query.test.mjs` (SQL parametrizada). A suíte `pg-integration.mjs` recebeu fixtures de contexto coerentes. **Não é teste com Keycloak/OpenFGA reais**, nem afirma deploy ou Product Gate.
 
 ## J. Decisões e handoff
 
-**Nenhuma decisão nova aprovada.** Agente deve ler [Ficha Mestre](../FICHA-MODULO.md), [Matriz](../MATRIZ-ACOES.md), [STATUS](../STATUS.md), `AGENTS.md`, contrato/código na SHA atual, e propor testes antes de alterar runtime. Só implementar após autorização com paths e critério de aceite; atualizar código, documentação, WBS e testes no mesmo incremento.
+**Decisão de implementação autorizada pelo responsável:** P02-ASSIGN-01, impedir novas atribuições para destinatários sem membership ativa `editor/admin` no workspace atual. Sem migração nova e sem mudança de permissões do ator. **Não abrange** revisão de Keycloak/FGA do alvo, limpeza de vínculos antigos nem criação de cargo especializado de atendente.
+
+Agente deve ler [Ficha Mestre](../FICHA-MODULO.md), [Matriz](../MATRIZ-ACOES.md), [STATUS](../STATUS.md), `AGENTS.md`, contrato/código na SHA atual, e propor testes antes de alterar runtime. Só implementar após autorização com paths e critério de aceite; atualizar código, documentação, WBS e testes no mesmo incremento.
 
 [Voltar às ações](../MATRIZ-ACOES.md) · [Ficha Mestre](../FICHA-MODULO.md).

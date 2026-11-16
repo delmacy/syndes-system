@@ -68,6 +68,9 @@ A migration 001 é base do **Tenant DB**: `inbox_conversations` (PK `tenant_id,i
 
 ## 09 · Segurança, identidade e isolamento
 
+**Incremento P02-ASSIGN-01:** o destinatário da atribuição agora é validado na mesma instrução SQL da escrita, exigindo `platform_org_memberships` e `platform_workspace_memberships` ativas (`admin/editor`) na organização e workspace atuais, ambos ativos; `viewer` não pode receber nova conversa. O ator mantém autorização `inbox:assignment/write`. Falha de elegibilidade retorna 404 genérico e `null` continua liberando atribuição. **Não há grant FGA ao destinatário; não há saneamento retroativo de atribuições anteriores.** Necessita migrations P04 e backfill antes de ativação.
+
+
 O Host verifica JWT Keycloak; `InboxDefaultContextGuard` valida membership de tenant + FGA `inbox:conversations/read` **antes da seleção do banco**, e resolve organização/workspace padrão ou seleção validada; `CoreKernel.execute` aplica recurso/método. Em `inboxModuleGateMode=enforce`, `executeModule` adiciona o gate ENABLED. `SYNDES_MULTI_ORG_ENABLED=true` exige seleção explícita, mas **não indica rollout aprovado**. FGA por recursos `inbox:conversations`, `messages`, `notes`, `assignment`, `simulation`, `metrics`, com grants adicionais `crm:people/read` e `whatsapp:accounts/read` quando aplicáveis. SSE isola por tenant/org/workspace. [Matriz de segurança](MATRIZ-ACOES.md); negações A/B reais ainda abertas.
 
 ## 10 · Frontend e experiência de atendimento
@@ -83,6 +86,9 @@ Instalação como plugin confiável no Core Host; depende de módulos `platform`
 [OPERACAO.md](OPERACAO.md) é índice, não runbook homologado. `GET metrics` mostra contadores do domínio; `InboxChangeBus` é invalidação efêmera, não broker distribuído. Observabilidade, logs sem PII, tracing, SLI/SLO, dashboards, backup/restore, rollback, limites de instância e alta disponibilidade: **NÃO COMPROVADOS**. Evitar habilitar réplica adicional sem estratégia SSE compartilhada e recuperar snapshot via API após reconexão.
 
 ## 13 · Testes, negativos e evidências
+
+**P02-ASSIGN-01:** foram adicionados casos PostgreSQL descartável (vínculo ativo, viewer, revogado, estrangeiro, organização/workspace arquivados, liberar, idempotência e audit) e HTTP do Core Host com verifier/FGA de teste; resultados dessa alteração devem ser associados à SHA da CI. Não confundir com homologação externa.
+
 
 Auditoria histórica de 12/11 `b452a03e`: **34 PASS locais** em `cd modules/inbox && npm test`; não reexecutados na documentação P02. Arquivos existentes `inbox.test.mjs`, `default-context.test.mjs`, `scope-query.test.mjs`, `frontend.test.mjs`, `realtime.test.mjs`, `pg-integration.mjs`, `pg-org-scope.mjs`, `postgres-integration.sh`. Suítes browserless DOM e PostgreSQL descartável não comprovam sessão real, worker/cutover, browser com layout ou restore em alvo. Cada uma das [19 fichas](MATRIZ-ACOES.md) tem cenários Given/When/Then **propostos**.
 
@@ -111,7 +117,7 @@ Modificar payload, migration, FGA, port ou contrato exige revisão de consumidor
 
 ## 17 · Decisões, riscos e pendências
 
-**Diferenças comprovadas para decisão futura:** [PARIDADE-CODIGO.md](PARIDADE-CODIGO.md). O PATCH CRM manual permite substituir Person; consumer CRM automático rejeita divergência. `markRead` não grava evento de auditoria; `favorite` grava até em repetição; atribuição valida o ID sem consultar membership do destinatário. São **comportamentos existentes e decisões pendentes**, não mudanças aprovadas.
+**Diferenças comprovadas para decisão futura:** [PARIDADE-CODIGO.md](PARIDADE-CODIGO.md). O PATCH CRM manual permite substituir Person; consumer CRM automático rejeita divergência. `markRead` não grava evento de auditoria; `favorite` grava até em repetição. **A lacuna de membership para novas atribuições foi tratada em P02-ASSIGN-01; permanecem pendentes** a definição de papel especializado, grants individuais do destinatário e a revisão de registros antigos. Não declarar Product Gate concluído.
 
 
 **Sem decisões novas aprovadas.** P0: mapear migrations 002/alterações de canais antes de ativar; resolver grant/membership e gates; provar entrega outbound WhatsApp; evitar duas projeções concorrentes do mesmo evento; controlar idempotência/duplicados; determinar fallback e broker SSE para mais de um Host. P1: fluxos de operador, responsividade e UX com dados reais; regra explícita para transferências entre workspaces; vínculo CRM com dados ambíguos. Não inferir permissões de badges de UI nem homologação de testes simulados.

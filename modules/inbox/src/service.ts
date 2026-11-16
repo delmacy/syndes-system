@@ -56,6 +56,7 @@ export class InboxService {
    const key=id(conversationId),size=limit(pageSize);
    return this.execute(ctx,"read","inbox:messages",repo=>repo.messages(ctx.tenantId,key,size));
  }
+ /** Assignment requires the P04 active admin/editor memberships of its recipient. */
  assign(ctx:InboxContext,conversationId:string,value:unknown):Promise<Conversation|null>{
    const key=id(conversationId),to=assignee(value);
    return this.execute(ctx,"write","inbox:assignment",

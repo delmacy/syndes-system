@@ -76,9 +76,12 @@ async function seedAuthorizedDefaultContexts(){
   const org=randomUUID(),ws=randomUUID();
   await pool.query("INSERT INTO platform_organizations(tenant_id,id,display_name,is_default) VALUES($1,$2,'CI Default',true)",[tenant,org]);
   await pool.query("INSERT INTO platform_workspaces(tenant_id,id,organization_id,name,slug,is_default) VALUES($1,$2,$3,'Primary','primary',true)",[tenant,ws,org]);
-  for(const principal of principals){
-   await pool.query("INSERT INTO platform_org_memberships(tenant_id,organization_id,principal_id,role) VALUES($1,$2,$3,'admin')",[tenant,org,principal]);
-   await pool.query("INSERT INTO platform_workspace_memberships(tenant_id,organization_id,workspace_id,principal_id,role) VALUES($1,$2,$3,$4,'admin')",[tenant,org,ws,principal]);
+  // Only active writable P04 members can receive a conversation.
+  const recipients=tenant===A?[...principals,"other-agent"]:[...principals];
+  for(const principal of recipients){
+   const role=principal==="other-agent"?"editor":principal==="readonly"?"viewer":"admin";
+   await pool.query("INSERT INTO platform_org_memberships(tenant_id,organization_id,principal_id,role) VALUES($1,$2,$3,$4)",[tenant,org,principal,role]);
+   await pool.query("INSERT INTO platform_workspace_memberships(tenant_id,organization_id,workspace_id,principal_id,role) VALUES($1,$2,$3,$4,$5)",[tenant,org,ws,principal,role]);
   }
   const backfill=await pool.query("SELECT * FROM platform_backfill_legacy_ownership($1::uuid,$2)",[tenant,principals[0]]);
   assert.equal(backfill.rows.length,5,"all legacy owner categories must be considered");
@@ -196,6 +199,10 @@ test("Core Host loads Inbox plugin and runs its HTTP contract against real tenan
    await call(base,A,root+"/notes",{method:"POST",body:{body:"x".repeat(5001)}},400);
    await call(base,A,root+"/simulator/inbound",{method:"POST",body:{body:"abc",externalMessageId:""}},400);
    await call(base,A,root+"/simulator/inbound",{method:"POST",body:{body:"abc",externalMessageId:"invalid space"}},400);
+   await call(base,A,root+"/assignment",{method:"PATCH",body:{assigneeId:"ghost"}},404);
+   await call(base,A,root+"/assignment",{method:"PATCH",body:{assigneeId:"readonly"}},404);
+   await call(base,A,root+"/assignment",{method:"PATCH",body:{assigneeId:"bob"}},404);
+   assert.equal((await call(base,A,root,{},200)).assignedTo,null,"Denied targets never persist");
    await call(base,A,root+"/assignment",{method:"PATCH",body:{assigneeId:"alice"}},200);
    const outbound=await call(base,A,root+"/replies",{method:"POST",body:{body:"Human reply"}},201);
    assert.equal(outbound.direction,"outbound");

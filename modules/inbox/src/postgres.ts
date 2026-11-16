@@ -119,8 +119,60 @@ export class PgInboxRepository implements InboxRepository {
   `,[tenantId,key,value,actorId,action])).rows;
   return rows[0]?conversation(rows[0]):this.get(tenantId,key);
  }
- assign(tenantId:string,key:string,actorId:string,assignee:string|null):Promise<Conversation|null>{
-  return this.change(tenantId,key,actorId,"assigned_to",assignee,"assigned");
+ /**
+  * P02-ASSIGN-01: the target is an active writable member of the conversation's
+  * CURRENT organization/workspace, not merely a syntactically valid principal ID.
+  * Lock target memberships, org/workspace and conversation in this SQL statement
+  * so a concurrent revoke or workspace transfer cannot pass a stale precheck.
+  * A null target releases the assignment without imposing target eligibility.
+  * Missing, foreign, revoked and viewer targets are indistinguishable to callers.
+  */
+ async assign(tenantId:string,key:string,actorId:string,assignee:string|null):Promise<Conversation|null>{
+  this.check(tenantId);
+  const rows=(await this.query(`
+   WITH eligible AS MATERIALIZED (
+     SELECT 1
+     FROM inbox_conversations c
+     JOIN platform_organizations o
+       ON o.tenant_id=c.tenant_id AND o.id=c.platform_organization_id
+          AND o.status='active'
+     JOIN platform_workspaces w
+       ON w.tenant_id=c.tenant_id AND w.organization_id=c.platform_organization_id
+          AND w.id=c.platform_current_workspace_id AND w.status='active'
+     JOIN platform_org_memberships om
+       ON om.tenant_id=c.tenant_id AND om.organization_id=c.platform_organization_id
+          AND om.principal_id=$3::text AND om.state='active'
+          AND om.role IN ('admin','editor')
+     JOIN platform_workspace_memberships wm
+       ON wm.tenant_id=c.tenant_id AND wm.organization_id=c.platform_organization_id
+          AND wm.workspace_id=c.platform_current_workspace_id
+          AND wm.principal_id=om.principal_id AND wm.state='active'
+          AND wm.role IN ('admin','editor')
+     WHERE c.tenant_id=$1::uuid AND c.id=$2::uuid
+       /*SCOPE:AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@*/
+     FOR SHARE OF c,o,w,om,wm
+   ), changed AS (
+     UPDATE inbox_conversations c
+     SET assigned_to=$3::text,updated_at=clock_timestamp()
+     WHERE c.tenant_id=$1::uuid AND c.id=$2::uuid
+       AND c.assigned_to IS DISTINCT FROM $3::text
+       /*SCOPE:AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@*/
+       AND ($3::text IS NULL OR EXISTS(SELECT 1 FROM eligible))
+     RETURNING c.*
+   ), audit AS (
+     INSERT INTO inbox_events(tenant_id,conversation_id,actor_id,action,detail)
+     SELECT tenant_id,id,$4::text,'assigned',jsonb_build_object('value',$3::text)
+     FROM changed RETURNING id
+   )
+   SELECT changed.* FROM changed CROSS JOIN audit
+   UNION ALL
+   SELECT c.* FROM inbox_conversations c
+   WHERE c.tenant_id=$1::uuid AND c.id=$2::uuid
+     AND c.assigned_to IS NOT DISTINCT FROM $3::text
+     /*SCOPE:AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@*/
+     AND ($3::text IS NULL OR EXISTS(SELECT 1 FROM eligible))
+  `,[tenantId,key,assignee,actorId])).rows;
+  return rows[0]?conversation(rows[0]):null;
  }
  status(tenantId:string,key:string,actorId:string,status:ConversationStatus):Promise<Conversation|null>{
   return this.change(tenantId,key,actorId,"status",status,status==="open"?"reopened":status);
