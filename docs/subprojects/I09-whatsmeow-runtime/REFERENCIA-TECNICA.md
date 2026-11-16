@@ -39,3 +39,9 @@ Nenhuma tabela pode ser atribuída ao Control por inferência; confirmar owner e
 
 - [Escopo](ESCOPO.md) · [Evolução](EVOLUCAO.md) · [Status](STATUS.md) · [Histórico](HISTORICO.md).
 - **Próximo passo:** auditar classes/exports, contratos, telas, tabelas, testes e evidências sem inventar funcionalidades.
+
+## Evidência incremental — receiver inbound (15/11/2026)
+- [Auditoria I09-DOC-01](https://github.com/delmacy/syndes-system/blob/audit/i09-callback-doc-drift-20261115-2055/docs/audits/I09-CALLBACK-DOCUMENTATION-DRIFT-20261115-2055.md): `modules/whatsapp/src/inbound-http.ts` declara `POST /api/v1/internal/whatsapp/events/:tenantId`, com bearer e validação de envelope, tenant e conta. `src/plugin.ts` importa o módulo e `apps/core-host/config/modules.json` lista o plugin. O README de 02/11 que afirma ausência é um retrato histórico, não uma descrição atual.
+- O serviço Nest inspecionado instancia o store sem o bridge transacional opcional: não atribuir ao receiver ativo as garantias do caminho com bridge sem teste. O worker de despacho só inicia timer com `WHATSAPP_DISPATCH_ENABLED=true`; valor de ambiente não verificado.
+- O `go.mod` está em `modules/whatsapp/gateway/whatsmeow/go.mod`; migrations tenant 001–008 são declaradas pelo plugin, **não** comprovadamente aplicadas. HTTP 401/400/404/503 são respostas declaradas, não smoke operacional.
+- **Limites:** auditoria parcial de fontes, sem Go/Node/CI executados nesta rodada, sem evidência de receiver registrado, compatibilidade ponta a ponta, implantação, homologação ou SHA de Pages. P03 é o owner documental do produto; I09 permanece componente técnico subordinado.
