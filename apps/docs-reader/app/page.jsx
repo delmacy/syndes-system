@@ -29,9 +29,9 @@ export default function Home() {
         </div>
       </section>
       <section className="pilot-directory" id="nucleos" aria-labelledby="pilot-directory-title">
-        <div className="intro-block"><span className="eyebrow">RECORTE ATUAL · 5 ÁREAS</span>
+        <div className="intro-block"><span className="eyebrow">RECORTE ATUAL · 6 ÁREAS</span>
           <Heading as="h2" id="pilot-directory-title" className="serif-title">Decida por área.<br/>Trabalhe por ação.</Heading>
-          <p>Os cinco núcleos estão disponíveis para leitura focada. A documentação usa as fontes reais do repositório e separa escopo, implementação e homologação. Os demais módulos permanecem no catálogo técnico, sem fichas artificiais.</p></div>
+          <p>Os seis núcleos estão disponíveis para leitura focada. A documentação usa as fontes reais do repositório e separa escopo, implementação e homologação. CRM e Gestão de Atendimentos também apresentam Fichas Mestres por 22 seções, sem sobrecarregar a leitura. Os demais módulos permanecem no catálogo técnico, sem fichas artificiais.</p></div>
         <div className="pilot-directory-grid">{PILOT_NAV.map((item,i)=><Link key={item.slug} href={"/modulos/"+item.slug} className="pilot-directory-card">
           <span className="eyebrow">{String(i+1).padStart(2,"0")} / {item.code}</span><strong>{item.title}</strong>
           <span>{item.subtitle}</span><span className="pilot-directory-open">Abrir documentação <ArrowRight size={14}/></span></Link>)}</div>
@@ -58,7 +58,7 @@ export default function Home() {
       <div className="page-container principle-inner">
         <div><span className="eyebrow" style={{color:"#A7C8FA"}}>02 / UMA REGRA EDITORIAL</span><Heading as="h2">Primeiro entender.<br/>Depois verificar.</Heading></div>
         <div>
-          <p>Cada módulo responde, nesta ordem: o que faz, como funciona e qual é sua situação real. Explicações e exemplos vêm primeiro. Links de referência aparecem ao final de cada assunto, sem interromper a leitura.</p>
+          <p>Cada módulo responde, nesta ordem: o que faz, como funciona e qual é sua situação real. As Fichas Mestres organizam 22 seções em cinco grupos. Explicações e exemplos vêm primeiro. Links de referência aparecem ao final de cada assunto, sem interromper a leitura.</p>
           <p>O que foi planejado, implementado, testado ou homologado permanece distinguível. Ter um arquivo no GitHub não significa que o serviço está ativo.</p>
           <a href={BLUEPRINT+"/MAPA-TECNICO-POR-CAMADAS.md"} target="_blank" rel="noopener noreferrer">Consultar o Blueprint técnico <ArrowUpRight size={13} style={{display:"inline"}}/></a>
         </div>
@@ -77,7 +77,7 @@ export default function Home() {
         </div>
       </section>
       <section className="pilot-feature" aria-labelledby="pilot-heading">
-        <div><span className="eyebrow">PILOTO TÉCNICO · P01</span><Heading as="h2" id="pilot-heading">CRM — Relacionamentos</Heading><p>O CRM é o piloto aprofundado, com operações e inventários técnicos; Core Platform, Blueprint, WhatsApp e Security agora possuem leitura própria por função e ação.</p></div>
+        <div><span className="eyebrow">PILOTO TÉCNICO · P01</span><Heading as="h2" id="pilot-heading">CRM — Relacionamentos</Heading><p>O CRM mantém suas 18 fichas de ação e agora exibe a Ficha Mestre em 22 seções no portal; P05 Gestão de Atendimentos é o segundo teste da mesma estrutura. Core Platform, Blueprint, WhatsApp e Security conservam sua navegação por ação.</p></div>
         <Link className="primary-link" href="/modulos/crm">Explorar CRM <ArrowRight size={16}/></Link>
       </section>
       <div className="endnote">Alguns itens avançados do Blueprint são mantidos exclusivamente na <a href={BLUEPRINT+"/MAPA-TECNICO-POR-CAMADAS.md"} target="_blank" rel="noopener noreferrer">documentação técnica original</a>. Esta experiência não substitui os registros oficiais nem aprova funcionalidades.</div>

@@ -4,6 +4,13 @@
 
 <!-- syndes:module-id=P05;source=modules/service-management;kind=module -->
 
+## Ficha Mestre na Biblioteca — teste P05
+
+- [Ficha Mestre P05](FICHA-MODULO.md): 22 seções do template v1.0.0 congelado.
+- [Matriz de 12 ações](MATRIZ-ACOES.md): rotas do controller e métodos no serviço.
+- Portal: `/modulos/atendimentos/` (prévia do DevServer01).
+- **A apresentação não homologa código nem cria requisitos aprovados.**
+
 ## Acessar a documentação {#acessos}
 
 | Quero descobrir | Abrir |

@@ -142,10 +142,10 @@ test("Atlas técnico apresenta diagramas, 30 APIs, métodos e 9 tabelas",async({
   await expect(page.getByRole("region",{name:"Inventário de métodos CRM"}).locator("tbody tr").first()).toBeVisible();
 });
 
-test("Cinco núcleos navegáveis e 9 abas independentes por ação",async({page})=>{
+test("Seis núcleos acessíveis e 9 abas independentes por ação",async({page})=>{
   await page.goto("/");
   const directory=page.locator(".pilot-directory-grid");
-  await expect(directory.locator("a")).toHaveCount(5);
+  await expect(directory.locator("a")).toHaveCount(6);
   for(const slug of ["core-platform","blueprint","whatsapp","security"]){
     await page.goto("/modulos/"+slug+"/");
     await expect(page.locator("main h1")).toHaveCount(1);
@@ -174,9 +174,9 @@ test("Nova documentação não provoca overflow horizontal no mobile",async({pag
 });
 
 
-test("Biblioteca expõe o template mestre sem abrir um sexto módulo",async({page})=>{
+test("Biblioteca expõe template e módulo de atendimentos",async({page})=>{
  await page.goto("/");
- await expect(page.locator(".pilot-directory-grid a")).toHaveCount(5);
+ await expect(page.locator(".pilot-directory-grid a")).toHaveCount(6);
  const link=page.getByRole("link",{name:/Abrir template/});
  await expect(link).toBeVisible();
  await expect(link).toHaveAttribute("href",/TEMPLATE-FICHA-MODULO\.md$/);
@@ -189,4 +189,43 @@ test("CRM: Ficha detalhada da ação é acessível pelo leitor",async({page})=>{
  await expect(link).toBeVisible();
  await expect(link).toHaveAttribute("href","https://github.com/delmacy/syndes-system/blob/main/docs/subprojects/P01-crm/acoes/crm-create-person.md");
  await expect(link).toHaveAttribute("target","_blank");
+});
+
+
+test("CRM: Ficha Mestre tem navegação exclusiva por grupo e seção",async({page})=>{
+ await page.goto("/modulos/crm/ficha/");
+ await expect(page.locator(".master-page h1")).toContainText("CRM");
+ await expect(page.getByRole("tablist",{name:"Grupos da Ficha Mestre"}).getByRole("tab")).toHaveCount(5);
+ await expect(page.locator(".master-index-item")).toHaveCount(4);
+ await expect(page.locator(".master-detail h2")).toHaveCount(1);
+ await page.getByRole("tab",{name:/Arquitetura e contratos/}).click();
+ await expect(page.locator(".master-index-item")).toHaveCount(5);
+ await expect(page.locator(".master-detail h2")).toContainText(/Arquitetura/i);
+ await page.locator(".master-index-item").nth(3).click();
+ await expect(page.locator(".master-detail-head")).toContainText("07 / 21");
+ await expect(page.locator(".master-prose")).toContainText("crm_people");
+ await page.getByRole("searchbox",{name:"Buscar nas 22 seções"}).fill("CPF/CNPJ");
+ await expect(page.locator(".master-index-item").first()).toBeVisible();
+ await expect(page.locator(".master-detail h2")).toHaveCount(1);
+});
+
+test("P05: módulo novo usa a mesma ficha com métodos e fontes versionadas",async({page})=>{
+ await page.goto("/modulos/atendimentos/");
+ await expect(page.locator(".master-page h1")).toContainText("Gestão de Atendimentos");
+ await expect(page.locator(".master-group-tab")).toHaveCount(5);
+ await page.locator(".master-index-item").nth(3).click();
+ await expect(page.locator(".master-prose")).toContainText("publishSimpleFunnel");
+ await expect(page.locator(".master-prose")).toContainText("transferTeam");
+ await expect(page.locator(".master-prose table")).toHaveCount(1);
+ await expect(page.getByRole("link",{name:/Conferir conteúdo versionado/})).toHaveAttribute("href",/P05-gestao-de-atendimentos\/FICHA-MODULO[.]md$/);
+});
+
+test("Leitores de Ficha Mestre não criam overflow no mobile",async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ for(const path of ["/modulos/crm/ficha/","/modulos/atendimentos/"]){
+  await page.goto(path);
+  const sizes=await page.evaluate(()=>({viewport:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));
+  expect(sizes.scroll).toBeLessThanOrEqual(sizes.viewport+2);
+  await expect(page.locator(".master-detail h2")).toHaveCount(1);
+ }
 });

@@ -61,6 +61,7 @@ export default function CrmPage(){
       <aside className="module-sidebar" aria-label="Funções do CRM">
         <div className="side-top">EXPLORAR O CRM</div>
         <Link href="/" className="sidebar-home"><ArrowLeft size={14}/> Visão da plataforma</Link>
+        <Link href="/modulos/crm/ficha" className="master-entry-link"><BookOpenText size={16}/> Ficha Mestre <span>22 seções</span><ChevronRight size={15}/></Link>
         <nav aria-label="Funções do CRM" className="function-side-nav">
           {crmFunctions.map(item=><button type="button" key={item.id} className={"function-side-button"+(group.id===item.id?" active":"")} aria-current={group.id===item.id?"page":undefined} onClick={()=>switchGroup(item.id)}>
             <span>{item.title}</span><small>{operationsByGroup(item.id).length||item.sections.length} {operationsByGroup(item.id).length?"operações":"assuntos"}</small>
@@ -78,14 +79,14 @@ export default function CrmPage(){
           <Heading as="h1" className="serif-title">CRM.</Heading>
           <p className="subtitle">Relacionamentos organizados, contexto preservado.</p>
           <Text as="p" className="module-summary">Escolha uma função e depois uma operação. Cada ficha apresenta o comportamento, as regras e as evidências necessárias para compreender ou encaminhar um trabalho específico.</Text>
-          <div className="module-status"><span className="status-pill">Auditoria técnica parcial</span><span>Revisão documental: 12 nov. 2026</span><span>6 funções · {crmOperations.length} operações documentadas</span></div>
+          <div className="module-status"><span className="status-pill">Auditoria técnica parcial</span><span>Ficha Mestre e ações: 16 nov. 2026</span><span>6 funções · {crmOperations.length} operações documentadas</span></div>
         </header>
         <nav className="function-tabs" aria-label="Selecionar função do CRM">
           {crmFunctions.map(item=><button type="button" key={item.id} className={"function-tab"+(group.id===item.id?" active":"")} onClick={()=>switchGroup(item.id)} aria-current={group.id===item.id?"page":undefined}>
             {item.title}<span className="function-tab-count">{operationsByGroup(item.id).length||item.sections.length}</span>
           </button>)}
         </nav>
-        <div className="crm-atlas-link-wrap"><button type="button" className="reference-mode-button" onClick={()=>navigate({groupId:group.id,mode:"atlas",id:"crm-atlas"},"crm-atlas-anchor")}><FileCode2 size={16}/> Atlas técnico, inventários e diagramas</button></div>
+        <div className="crm-atlas-link-wrap"><Link className="reference-mode-button master-mode-link" href="/modulos/crm/ficha"><BookOpenText size={16}/> Consultar Ficha Mestre · 22 seções</Link><button type="button" className="reference-mode-button" onClick={()=>navigate({groupId:group.id,mode:"atlas",id:"crm-atlas"},"crm-atlas-anchor")}><FileCode2 size={16}/> Atlas técnico, inventários e diagramas</button></div>
         {reader.mode!=="atlas"&&<section className="function-intro" aria-labelledby="selected-function-heading">
           <span className="eyebrow">FUNÇÃO DO MÓDULO</span>
           <Heading as="h2" id="selected-function-heading">{group.title}</Heading>

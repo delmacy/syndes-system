@@ -4,7 +4,7 @@ Aplicação editorial **nova e independente**, criada em `apps/docs-reader`. Nã
 
 ## Arquitetura de leitura
 
-- **Home:** diretório inicial de cinco áreas: CRM P01, Core Platform P14/A08/A04, Blueprint Geral, WhatsApp P03 e Security C03/C04/C05.
+- **Home:** diretório inicial de seis áreas: CRM P01, Core Platform P14/A08/A04, Blueprint Geral, WhatsApp P03 e Security C03/C04/C05.
 - **/modulos/crm:** piloto aprofundado, com funções, 18 fichas de operação, nove abas mutuamente exclusivas e Atlas Técnico com APIs, métodos, SQL e diagramas.
 - **/modulos/core-platform, /modulos/blueprint, /modulos/whatsapp, /modulos/security:** leitura estruturada por função/ação com nove abas exclusivas, diagramas conceituais, fontes e prompts de planejamento/implementação.
 - **Observações:** rascunhos locais por ação/subtópico em `localStorage`, exportáveis em Markdown; **não são aprovados ou registrados no GitHub automaticamente**.
@@ -33,7 +33,14 @@ O projeto Vercel independente `syndes-docs-reader` foi criado (root `apps/docs-r
 
 ## Próximos passos
 
-1. Adotar a Ficha Mestre apenas nos cinco núcleos prioritários, começando pelo módulo escolhido pelo proprietário.
+1. Adotar a Ficha Mestre apenas nos seis núcleos prioritários, começando pelo módulo escolhido pelo proprietário.
 2. Relacionar ações à decisão, aos arquivos do owner, aos testes e aos diagramas sem duplicar fontes.
 3. Definir persistência autenticada das decisões, quando autorizada; o site estático não pode gravar no repositório com segurança.
 4. Reconciliar cada alteração executada com código, requisitos, STATUS, WBS e diagramas antes de iniciar novo chat.
+
+## Leitor da Ficha Mestre v1.0.0 (CRM e P05)
+
+- O portal carrega os documentos reais `docs/subprojects/P01-crm/FICHA-MODULO.md` e `docs/subprojects/P05-gestao-de-atendimentos/FICHA-MODULO.md` durante o build Next.js, por `lib/master-dossiers.js`.
+- Apresentação em `components/master-dossier-reader.jsx`: 22 seções em 5 grupos, uma seção por vez, busca e tabelas Markdown. Links relativos são resolvidos para arquivos canônicos do GitHub.
+- Rotas: `/modulos/crm/ficha` e `/modulos/atendimentos`. O CRM preserva suas seis funções e 18 ações; P05 é **piloto de Ficha Mestre**, sem alegar 12 fichas A–J ou Product Gate.
+- **O portal reflete um snapshot de build**, não sincronização live. Commit novo exige novo build e deploy.

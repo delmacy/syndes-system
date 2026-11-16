@@ -120,7 +120,7 @@ test("Recorte de cinco áreas mantém owners, ações distintas e fontes existen
   const {existsSync}=await import("node:fs");
   const {fileURLToPath}=await import("node:url");
   const {resolve}=await import("node:path");
-  assert.deepEqual(PILOT_NAV.map(x=>x.slug),["crm","core-platform","blueprint","whatsapp","security"]);
+  assert.deepEqual(PILOT_NAV.map(x=>x.slug),["crm","core-platform","blueprint","whatsapp","security","atendimentos"]);
   assert.equal(PILOT_MODULES.length,4);
   const allIds=PILOT_MODULES.flatMap(m=>m.actions.map(a=>a.id));
   assert.equal(new Set(allIds).size,allIds.length);
@@ -212,4 +212,36 @@ test("Fichas CRM: 22 blocos, 18 ações A-J, 30 rotas e links consistentes",asyn
  const component=readFileSync(new URL("../components/operation-detail.jsx",import.meta.url),"utf8");
  assert.match(component,/operation-action-dossier/);
  assert.match(component,/Ficha canônica/);
+});
+
+
+test("Ficha Mestre: CRM e P05 mantêm 22 blocos reais e cinco grupos independentes",async()=>{
+ const {loadMasterDossier,MASTER_GROUPS,parseMasterMarkdown}=await import("../lib/master-dossiers.js");
+ assert.equal(MASTER_GROUPS.length,5);
+ assert.deepEqual(MASTER_GROUPS.flatMap(g=>g.numbers),Array.from({length:22},(_,i)=>String(i).padStart(2,"0")));
+ for(const slug of ["crm","atendimentos"]){
+  const doc=loadMasterDossier(slug);
+  assert.equal(doc.sections.length,22,slug);
+  assert.equal(doc.sections[0].number,"00");
+  assert.equal(doc.sections.at(-1).number,"21");
+  assert.ok(doc.sections.every(s=>s.body.length>75),slug);
+  assert.match(doc.documentPath,/FICHA-MODULO[.]md$/);
+ }
+ assert.throws(()=>parseMasterMarkdown("## 00 · Incompleta"),/22 blocos/);
+ assert.throws(()=>loadMasterDossier("modulo-inventado"),/fora do recorte/);
+});
+
+test("P05: matriz de 12 rotas vinculada ao controller sem homologação presumida",async()=>{
+ const {readFileSync}=await import("node:fs");
+ const {loadMasterDossier}=await import("../lib/master-dossiers.js");
+ const doc=loadMasterDossier("atendimentos");
+ const matrix=readFileSync(new URL("../../../docs/subprojects/P05-gestao-de-atendimentos/MATRIZ-ACOES.md",import.meta.url),"utf8");
+ const code=readFileSync(new URL("../../../modules/service-management/src/controller.ts",import.meta.url),"utf8");
+ const endpoints=[...code.matchAll(/@(Get|Post|Patch)\("([^"]+)"\)/g)].map(m=>m[1].toUpperCase()+" "+m[2]);
+ assert.equal(endpoints.length,12);
+ assert.equal(matrix.split("\n").filter(line=>line.startsWith("| `p05-")).length,12);
+ for(const path of endpoints)assert.ok(matrix.includes("`"+path+"`"),path);
+ assert.match(doc.sections[0].body,/NÃO HOMOLOGADOS/);
+ assert.match(matrix,/PENDENTE/);
+ assert.ok(!doc.sections.some(s=>s.body.includes("Product Gate aprovado")));
 });
