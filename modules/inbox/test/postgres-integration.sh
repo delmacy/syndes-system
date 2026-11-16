@@ -63,5 +63,7 @@ SYNDES_INBOX_SCOPE_TEST_PG_URL=postgres://postgres:ci-inbox-only@127.0.0.1:54339
 SYNDES_INBOX_SCOPE_TEST_PG_URL=postgres://postgres:ci-inbox-only@127.0.0.1:54339/postgres \
  node --test modules/whatsapp/test/pg-org-scope.mjs
 node modules/inbox/test/pg-integration.mjs
+SYNDES_INBOX_SCOPE_TEST_PG_URL=postgres://postgres:ci-inbox-only@127.0.0.1:54339/postgres \
+ node --test modules/inbox/test/pg-assignment-races.mjs
 node --test apps/core-host/test/inbox-pg-http.integration.mjs
 echo "Inbox PostgreSQL + installed Core Host HTTP contract: PASS"

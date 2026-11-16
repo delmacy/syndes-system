@@ -20,7 +20,7 @@ Criadas a [Ficha Mestre P02](FICHA-MODULO.md) com 22 seções, a [matriz de 19 a
 
 **Aprovação:** solicitação explícita do proprietário para implementar elegibilidade de destinatário. **Mudanças de código:** `InboxService.assign` preserva o gate do ator; `PgInboxRepository.assign` exige dentro da mesma instrução SQL P04 memberships ativas `admin/editor` na organização/workspace atuais, organização e workspace ativos; recusa visitante, revogado, desconhecido ou outro escopo. `null` libera atribuição. Não adiciona migration nem permissão, não cria cadastro duplicado de operador.
 
-**Testes escritos:** PG17 descartável `pg-org-scope.mjs` e `pg-integration.mjs`, HTTP Host com verifier/FGA de teste e teste unitário SQL; **execução e contagem de PASS aguardam a CI da SHA deste incremento**. Não substituir a evidência histórica abaixo. **Não foi realizado deploy no DevServer01 ou homologação Keycloak/OpenFGA reais.**
+**Testes escritos:** PG17 descartável `pg-org-scope.mjs` e `pg-integration.mjs`, teste concorrente `pg-assignment-races.mjs`, HTTP Host com verifier/FGA de teste e teste unitário SQL; **execução e contagem de PASS aguardam a CI da SHA deste incremento**. Não substituir a evidência histórica abaixo. **Não foi realizado deploy no DevServer01 ou homologação Keycloak/OpenFGA reais.**
 
 **Trade-offs registrados:** invalid recipient retorna 404 genérico; role elegível é `editor/admin` de P04 (não valida grants individuais FGA do destinatário); atribuições antigas inválidas não são saneadas; migrations P04 de escopo/ownership e backfill são pré-requisitos. [Ficha da ação](acoes/p02-assignment-set.md) e [paridade](PARIDADE-CODIGO.md).
 

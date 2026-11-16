@@ -366,7 +366,7 @@ test("P02 assignment safety remains reflected in catalog and action dossier",asy
  const source=read("../../../modules/inbox/src/postgres.ts");
  const doc=read("../../../docs/subprojects/P02-inbox/acoes/p02-assignment-set.md");
  const sql=source.split("async assign(tenantId:")[1].split("async status(")[0];
- for(const evidence of ["platform_org_memberships","platform_workspace_memberships","FOR SHARE OF c,o,w,om,wm","om.role IN ('admin','editor')","wm.role IN ('admin','editor')","assigned_to IS DISTINCT FROM"])
+ for(const evidence of ["platform_org_memberships","platform_workspace_memberships","FOR NO KEY UPDATE OF c FOR SHARE OF o,w,om,wm","om.role IN ('admin','editor')","wm.role IN ('admin','editor')","assigned_to IS DISTINCT FROM"])
    assert.ok(sql.includes(evidence),"P02-ASSIGN-01 SQL drift: "+evidence);
  assert.match(doc,/P02-ASSIGN-01/);
  assert.match(doc,/não são corrigidos retroativamente/);

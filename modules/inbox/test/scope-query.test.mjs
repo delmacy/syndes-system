@@ -66,7 +66,7 @@ test("assignment SQL binds target and checks active same-scope memberships in on
  const {sql,params}=entries[0];
  assert.deepEqual(params,[T,chat,"recipient","operator",O,W]);
  assert.match(sql,/WITH eligible AS MATERIALIZED/);
- assert.match(sql,/FOR SHARE OF c,o,w,om,wm/);
+ assert.match(sql,/FOR NO KEY UPDATE OF c FOR SHARE OF o,w,om,wm/);
  assert.match(sql,/om\.state='active'/);
  assert.match(sql,/wm\.state='active'/);
  assert.match(sql,/role IN \('admin','editor'\)/);

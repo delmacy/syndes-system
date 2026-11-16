@@ -150,7 +150,7 @@ export class PgInboxRepository implements InboxRepository {
           AND wm.role IN ('admin','editor')
      WHERE c.tenant_id=$1::uuid AND c.id=$2::uuid
        /*SCOPE:AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@*/
-     FOR SHARE OF c,o,w,om,wm
+     FOR NO KEY UPDATE OF c FOR SHARE OF o,w,om,wm
    ), changed AS (
      UPDATE inbox_conversations c
      SET assigned_to=$3::text,updated_at=clock_timestamp()

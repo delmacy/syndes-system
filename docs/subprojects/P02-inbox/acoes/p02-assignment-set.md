@@ -95,7 +95,7 @@ Arquivos relacionados à investigação: [`test/inbox.test.mjs`](https://github.
 | CP-03 | Recurso tenant B | A tenta operar B | Rejeição completa |
 | CP-04 | atribuição de ator inexistente | Reproduz exceção | Tratamento do método documentado |
 
-**Testes adicionados ao incremento (execução pendente da CI da nova SHA):** `modules/inbox/test/pg-org-scope.mjs` (P04 memberships, A/B, workspace arquivado, revogação e auditoria), `apps/core-host/test/inbox-pg-http.integration.mjs` (HTTP 404/403) e `modules/inbox/test/scope-query.test.mjs` (SQL parametrizada). A suíte `pg-integration.mjs` recebeu fixtures de contexto coerentes. **Não é teste com Keycloak/OpenFGA reais**, nem afirma deploy ou Product Gate.
+**Testes adicionados ao incremento (execução pendente da CI da nova SHA):** `modules/inbox/test/pg-org-scope.mjs` (P04 memberships, A/B, workspace arquivado, revogação e auditoria), `apps/core-host/test/inbox-pg-http.integration.mjs` (HTTP 404/403) e `modules/inbox/test/scope-query.test.mjs` (SQL parametrizada) e `modules/inbox/test/pg-assignment-races.mjs` (duas atribuições concorrentes + revogação durante a operação). A suíte `pg-integration.mjs` recebeu fixtures de contexto coerentes. **Não é teste com Keycloak/OpenFGA reais**, nem afirma deploy ou Product Gate.
 
 ## J. Decisões e handoff
 

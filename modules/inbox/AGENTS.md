@@ -66,3 +66,9 @@ Ver docs/engineering/FC-02-02-INBOX-MODULE-GATE-SSE-20261111.md. A worktree raiz
 ## Consumidores de Platform Events (2026-11-11)
 
 `whatsapp-event-consumer.ts` é o owner de gravações de conversas e mensagens, utilizando portas de leitura/comando WhatsApp e publicando `inbox.participant.observed.v1`. `crm-link-event-consumer.ts` revalida a decisão CRM e o escopo antes de escrever `crm_person_id`, jamais sobrescreve vínculo divergente. Efeito e `consumer_inbox` estão na mesma transação. Funcionamento comprovado somente em PG17 descartável com adapters injetados; sem worker registrado/ativado no Host operacional. Sem frontend novo ou duplicado.
+
+## P02-ASSIGN-01 — regra de atribuição (2026-11-16)
+
+O ator mantém `inbox:assignment/write`. Atribuição para `assigneeId` não nulo só ocorre quando `platform_org_memberships` **e** `platform_workspace_memberships` de P04 estão ativas e têm `admin|editor` no **workspace atual** da conversa, com organização/workspace ativos. `viewer`, revogado, ausente e outro escopo geram resultado nulo / 404 genérico, sem escrita ou notificação; `null` libera.
+
+A operação usa um CTE com `FOR NO KEY UPDATE` na conversa (serializa atribuições e transferências) e `FOR SHARE` nas memberships (protege contra revogação durante o update), na mesma instrução SQL que grava e audita. Testar com `pg-org-scope.mjs`, `pg-assignment-races.mjs`, `pg-integration.mjs` e HTTP Host. Não criar tabela duplicada de funcionários, não supor novos FGA grants, não sanear o histórico automaticamente e não ativar em ambiente sem migrations/backfill P04. A autenticação e grants individuais Keycloak/OpenFGA do **destinatário** não são validados neste incremento.
