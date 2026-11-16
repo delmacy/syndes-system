@@ -54,6 +54,20 @@ Os estados da tabela são **os registrados no documento de origem**, que pode es
 
 **Critérios de aceite e evidências originais:** consultar a seção **WBS 95** em `docs/engineering/WBS-PROGRAMA-SYNDES-20261110.md`; localizar os IDs acima. Confirmar decisões na SHA atual antes de iniciar.
 
+## Gates de reconciliação documental I09/P03 (auditoria de 15/11/2026)
+
+> **Acompanhamento de evidências, não workpackages aprovados nem tarefas implementadas.** Fonte: [auditoria I09-DOC-01](https://github.com/delmacy/syndes-system/blob/audit/i09-callback-doc-drift-20261115-2055/docs/audits/I09-CALLBACK-DOCUMENTATION-DRIFT-20261115-2055.md), baseada na main `1cf48cc0`. Conferir SHA e auditorias posteriores antes de promover estados.
+
+| Gate documental | Constatação sustentada | Estado de comprovação | Próxima evidência necessária |
+|---|---|---|---|
+| I09.DOC.CALLBACK | `src/inbound-http.ts` declara `POST /api/v1/internal/whatsapp/events/:tenantId`; o README P03 de 02/11 relata ausência histórica | Declaração de fonte auditada; README P03 ainda requer delimitação temporal | Reconciliar README com proprietário P03 sem apagar o histórico |
+| I09.TEST.CALLBACK | Import do módulo no plugin não prova rota ativa; compatibilidade do envelope Go/TS não foi testada nesta auditoria | Teste atual não comprovado | Executar testes isolados Node/Go, incluindo auth e rejeição entre tenants, com SHA |
+| I09.OP.DISPATCH | `WHATSAPP_DISPATCH_ENABLED === "true"` condiciona o timer; valor operacional não consultado | Configuração e execução não verificadas | Evidência autorizada de configuração e execução, sem expor segredos |
+| I09.DATA.BRIDGE | Caminho transacional depende de bridge injetado; composição Nest inspecionada não o injeta | Garantia transacional não comprovada no receiver inspecionado | Teste de integração e composição efetiva |
+| I09.ACCEPT.01 | Migrações declaradas e testes históricos não demonstram deploy, integração ou aceite | Homologação não comprovada | CI por SHA, evidência de ambiente e aceite explícito |
+
+Estes IDs são **marcadores de acompanhamento documental**, não substituem a WBS mestre 50.05/50.06, nem autorizam código, migrations ou deploy. I09 é componente técnico de P03; a reconciliação do README pertence ao respectivo owner documental.
+
 ## Backlog local e novos workpackages
 
 Use esta seção apenas para **planejamentos explicitamente aprovados e vinculados a requisitos do módulo**. A estrutura abaixo é um modelo vazio, não um pacote de trabalho iniciado.
