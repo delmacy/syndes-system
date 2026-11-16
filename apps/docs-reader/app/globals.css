@@ -569,3 +569,15 @@ body {
 .master-mobile-hint{display:none}
 @media(max-width:770px){.master-mobile-hint{display:flex;justify-content:space-between;gap:9px;font-size:12px;color:#617c9f;font-weight:600;margin:18px 0 -12px}.master-prose{font-size:15px}.master-index-item,.master-step-actions button{min-height:44px}.master-search input{font-size:16px}}
 @media(max-width:350px){.brand-sub{display:none}.master-step-actions{gap:6px}.master-step-actions button{padding:10px 9px;font-size:11px}}
+
+/* Mobile test regression 320px: size hero typography instead of clipping content. */
+@media(max-width:760px){
+ .home-hero{min-width:0}
+ .home-hero>div{min-width:0}
+ .home-hero h1{font-size:clamp(1.92rem,9vw,3.9rem);overflow-wrap:anywhere}
+}
+/* Readable contrast for small structural labels, on light backgrounds. */
+.master-detail-head,.master-index>p,.master-index-item span,
+.master-sources p,.master-detail-footer,.master-index-footer,
+.master-group-tab small,.master-topline{color:#51627a}
+.master-group-tab small{color:#596b81}

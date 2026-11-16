@@ -9,13 +9,13 @@ export default function SiteShell({ children }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
   return <Box minH="100vh" bg="var(--surface)" color="var(--ink)">
-    <header className="site-header">
+    <header className="site-header" onKeyDown={e=>{if(e.key==="Escape"&&open){setOpen(false);e.currentTarget.querySelector(".mobile-toggle")?.focus();}}}>
       <div className="site-header-inner">
         <Link href="/" className="site-brand" onClick={() => setOpen(false)} aria-label="Biblioteca Syndes, início">
           <span className="brand-symbol"><BookOpen size={19} strokeWidth={2} /></span>
           <span className="brand-name">SYNDES <span className="brand-sub">/ biblioteca</span></span>
         </Link>
-        <nav id="site-navigation" className={open ? "site-nav site-nav-open" : "site-nav"} aria-label="Navegação principal" onKeyDown={e=>{if(e.key==="Escape"){setOpen(false);e.currentTarget.parentElement?.querySelector(".mobile-toggle")?.focus();}}}>
+        <nav id="site-navigation" className={open ? "site-nav site-nav-open" : "site-nav"} aria-label="Navegação principal">
           <Link onClick={() => setOpen(false)} className={path === "/" ? "nav-current" : ""} href="/">Visão geral</Link>
           <Link onClick={() => setOpen(false)} className={(path==="/modulos/crm"||path.startsWith("/modulos/crm/")) ? "nav-current" : ""} href="/modulos/crm">Módulo CRM <span className="nav-mini">P01</span></Link>
           <Link onClick={() => setOpen(false)} href="/#nucleos">Seis núcleos</Link>
