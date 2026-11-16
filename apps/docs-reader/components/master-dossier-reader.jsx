@@ -104,8 +104,9 @@ export default function MasterDossierReader({dossier}){
      <div><span className="eyebrow">FICHA MESTRE · TEMPLATE v1.0.0</span><h1>{dossier.name}<span> / documentação</span></h1><p>{dossier.subtitle}. As 22 seções aparecem individualmente, preservando o conteúdo do Markdown no GitHub.</p></div>
      <div className="master-header-aside"><span className="master-caution">{dossier.state}</span><span>{sections.length} seções · 5 grupos de leitura</span><a href={sourceUrl} target="_blank" rel="noopener noreferrer">Ver ficha original <ArrowUpRight size={14}/></a></div>
    </header>
+   <p className="master-mobile-hint">Deslize para ver os grupos da ficha <span aria-hidden="true">→</span></p>
    <div className="master-group-tabs" role="tablist" aria-label="Grupos da Ficha Mestre">
-     {groups.map((g,i)=><button role="tab" type="button" key={g.id} aria-selected={g.id===selectedGroup.id&&!search} className={"master-group-tab"+(g.id===selectedGroup.id&&!search?" active":"")} onClick={()=>{setSearch("");select(g.numbers[0]);}}>
+     {groups.map((g,i)=><button role="tab" type="button" key={g.id} id={"master-group-"+g.id} aria-controls="master-section-view" aria-selected={g.id===selectedGroup.id} className={"master-group-tab"+(g.id===selectedGroup.id&&!search?" active":"")} onClick={()=>{setSearch("");select(g.numbers[0]);}}>
        <small>{String(i+1).padStart(2,"0")}</small><span>{g.title}</span>
      </button>)}
    </div>
@@ -116,7 +117,7 @@ export default function MasterDossierReader({dossier}){
        <div className="master-index-items">{selectedInGroup.map(s=><button key={s.number} type="button" aria-current={s.number===selected?"true":undefined} className={"master-index-item"+(s.number===selected?" active":"")} onClick={()=>select(s.number)}><span>{s.number}</span><strong>{s.title}</strong><ChevronRight size={14}/></button>)}{selectedInGroup.length===0&&<p>Nenhuma seção corresponde à busca.</p>}</div>
        <div className="master-index-footer"><BookOpen size={15}/>Uma seção por vez. O código e os testes permanecem nas fontes vinculadas.</div>
      </aside>
-     <article className="master-detail" role="tabpanel" aria-label={"Seção "+active.number+" "+active.title}>
+     <article className="master-detail" role="tabpanel" id="master-section-view" aria-labelledby={"master-group-"+selectedGroup.id} aria-label={"Seção "+active.number+" "+active.title}>
        <div className="master-detail-head" id="master-content-heading"><span>SEÇÃO {active.number} / 21</span><span>{selectedGroup.title}</span></div>
        <h2>{active.title}</h2>
        <RichMarkdown body={active.body} base={base}/>

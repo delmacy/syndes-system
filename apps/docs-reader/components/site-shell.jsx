@@ -15,9 +15,9 @@ export default function SiteShell({ children }) {
           <span className="brand-symbol"><BookOpen size={19} strokeWidth={2} /></span>
           <span className="brand-name">SYNDES <span className="brand-sub">/ biblioteca</span></span>
         </Link>
-        <nav className={open ? "site-nav site-nav-open" : "site-nav"} aria-label="Navegação principal">
+        <nav id="site-navigation" className={open ? "site-nav site-nav-open" : "site-nav"} aria-label="Navegação principal" onKeyDown={e=>{if(e.key==="Escape"){setOpen(false);e.currentTarget.parentElement?.querySelector(".mobile-toggle")?.focus();}}}>
           <Link onClick={() => setOpen(false)} className={path === "/" ? "nav-current" : ""} href="/">Visão geral</Link>
-          <Link onClick={() => setOpen(false)} className={path.startsWith("/modulos/") ? "nav-current" : ""} href="/modulos/crm">Módulo CRM <span className="nav-mini">P01</span></Link>
+          <Link onClick={() => setOpen(false)} className={(path==="/modulos/crm"||path.startsWith("/modulos/crm/")) ? "nav-current" : ""} href="/modulos/crm">Módulo CRM <span className="nav-mini">P01</span></Link>
           <Link onClick={() => setOpen(false)} href="/#nucleos">Seis núcleos</Link>
           <Link onClick={() => setOpen(false)} className={path === "/modulos/core-platform" ? "nav-current" : ""} href="/modulos/core-platform">Core Platform</Link>
           <Link onClick={() => setOpen(false)} className={path === "/modulos/blueprint" ? "nav-current" : ""} href="/modulos/blueprint">Blueprint</Link>
@@ -25,7 +25,7 @@ export default function SiteShell({ children }) {
           <Link onClick={() => setOpen(false)} className={path === "/modulos/security" ? "nav-current" : ""} href="/modulos/security">Security</Link>
           <Link onClick={() => setOpen(false)} className={path.startsWith("/modulos/atendimentos") ? "nav-current" : ""} href="/modulos/atendimentos">Atendimentos <span className="nav-mini">P05</span></Link>
         </nav>
-        <button className="mobile-toggle" type="button" aria-expanded={open} aria-label={open ? "Fechar menu" : "Abrir menu"} onClick={() => setOpen(v => !v)}>{open ? <X size={21}/> : <Menu size={21}/>}</button>
+        <button className="mobile-toggle" type="button" aria-expanded={open} aria-controls="site-navigation" aria-label={open ? "Fechar menu" : "Abrir menu"} onClick={() => setOpen(v => !v)}>{open ? <X size={21}/> : <Menu size={21}/>}</button>
       </div>
     </header>
     <Box as="main" id="main-content">{children}</Box>

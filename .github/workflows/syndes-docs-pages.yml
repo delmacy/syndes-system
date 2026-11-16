@@ -114,6 +114,28 @@ jobs:
           test -s apps/docs-reader/out/modulos/crm/ficha/index.html
           test -s apps/docs-reader/out/modulos/atendimentos/index.html
 
+      - name: Audit Next.js mobile UX/UI against GitHub Pages static export
+        env:
+          MOBILE_PREVIEW_BASE: http://127.0.0.1:8766/syndes-system/
+        run: |
+          mkdir -p .mobile-preview/syndes-system
+          cp -a apps/docs-reader/out/. .mobile-preview/syndes-system/
+          python3 -m http.server 8766 --bind 127.0.0.1 --directory .mobile-preview >/tmp/syndes-mobile-ux.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" || true' EXIT
+          (cd apps/docs-reader && npx playwright install chromium && npx playwright test --config=playwright.mobile.config.mjs)
+
+      - name: Upload Next.js mobile UX/UI screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: syndes-next-mobile-ux
+          path: |
+            apps/docs-reader/playwright-mobile-report/
+            apps/docs-reader/test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
       - name: Prepare selected documentation
         run: python scripts/docs/build_site.py
 
