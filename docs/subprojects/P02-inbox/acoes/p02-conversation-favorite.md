@@ -25,6 +25,10 @@
 
 ## C. Fluxo, variações e exceções
 
+**Implementação exata:** `favorite` atualiza `is_favorite` e grava `favorite_changed` em `inbox_events` sem filtro `IS DISTINCT FROM`; repetir o mesmo valor pode gerar auditoria repetida.
+
+[Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
+
 1. Resolver a identidade e o escopo por fonte confiável no Host antes da operação.
 2. Aplicar o contrato de permissão e validação: `inbox:conversations/write`.
 3. Executar `InboxService.favorite` ou rejeitar com falha segura.

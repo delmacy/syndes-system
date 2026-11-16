@@ -25,6 +25,10 @@
 
 ## C. Fluxo, variações e exceções
 
+**Implementação exata:** nota interna usa o mesmo `append` local; requer conversa não resolvida, handoff `human` e atribuída ao ator. Nota não sai no WhatsApp. A operação pode retornar `null` e o controller responde 404.
+
+[Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
+
 1. Resolver a identidade e o escopo por fonte confiável no Host antes da operação.
 2. Aplicar o contrato de permissão e validação: `inbox:notes/write`.
 3. Executar `InboxService.note` ou rejeitar com falha segura.

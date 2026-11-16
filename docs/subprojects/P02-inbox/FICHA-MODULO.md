@@ -57,6 +57,9 @@ TypeScript 5.9, Node, NestJS (peer dependency), PostgreSQL no Tenant DB e Core K
 
 ## 07 · Dados, tabelas, migrations e integridade
 
+**Paridade verificada nos arquivos:** [migrations por owner e campos](PARIDADE-CODIGO.md); P02 SQL 001, P04 SQL 002/003 e P03 SQL 005. O Host pode exigir também stages posteriores de ownership e outbox. **A ordem de deploy e a aplicação real continuam pendentes.**
+
+
 A migration 001 é base do **Tenant DB**: `inbox_conversations` (PK `tenant_id,id`, FK qualificada para `crm_people`), `inbox_messages` (FK qualificada para `inbox_conversations`) e `inbox_events` (auditoria de mutações). Índices base de fila, dedup de external thread/message e histórico. Extensões como `platform_organization_id`, `platform_origin_workspace_id`, `platform_current_workspace_id`, `unread_count`, `is_group`, `is_favorite`, `source`, `bot_eligible`, `provider_message_id` aparecem nas queries atuais, **mas não na SQL 001**. É necessária rastreabilidade e verificação dos upgrades de outros owners e SQL 002; não afirmar migrations aplicadas. Nenhuma tabela própria do Inbox no Control DB.
 
 ## 08 · Eventos, outbox e realtime
@@ -108,6 +111,9 @@ Modificar payload, migration, FGA, port ou contrato exige revisão de consumidor
 
 ## 17 · Decisões, riscos e pendências
 
+**Diferenças comprovadas para decisão futura:** [PARIDADE-CODIGO.md](PARIDADE-CODIGO.md). O PATCH CRM manual permite substituir Person; consumer CRM automático rejeita divergência. `markRead` não grava evento de auditoria; `favorite` grava até em repetição; atribuição valida o ID sem consultar membership do destinatário. São **comportamentos existentes e decisões pendentes**, não mudanças aprovadas.
+
+
 **Sem decisões novas aprovadas.** P0: mapear migrations 002/alterações de canais antes de ativar; resolver grant/membership e gates; provar entrega outbound WhatsApp; evitar duas projeções concorrentes do mesmo evento; controlar idempotência/duplicados; determinar fallback e broker SSE para mais de um Host. P1: fluxos de operador, responsividade e UX com dados reais; regra explícita para transferências entre workspaces; vínculo CRM com dados ambíguos. Não inferir permissões de badges de UI nem homologação de testes simulados.
 
 ## 18 · Handoff ao agente e prompts
@@ -128,6 +134,9 @@ Entrada recomendada: `P02 + actionId + decisão/observação + SHA`. Ler a [aç�
 **Conversa ≠ protocolo P05.** Inbox controla conversas `open|pending|resolved`, `handoff=human|bot`, fila por operador, marcação de leitura/favoritos, mensagens `inbound|outbound|internal`, canal simulation/whatsapp e vínculo opcional CRM. Eventos de plataforma versionados não são streaming SSE. `fromMe`, grupo e origem `history` afetam `bot_eligible` e contador de não lidas. Mensagem WhatsApp enfileirada não significa entregue; não representar outbound como sucesso do provider. A transferência entre workspaces tem regra mais restritiva do que mero PATCH.
 
 ## 21 · Histórico, atualização e checkpoint
+
+[Paridade de código](PARIDADE-CODIGO.md) distingue declaração de código, teste, integração, deploy e aceite. CI 16/11, commit `54bbc6c`: regressão Host/PostgreSQL **9 PASS**, separada dos 34 testes históricos. **Homologação operacional aberta**.
+
 
 | Data | Registro | Limite |
 |---|---|---|

@@ -18,9 +18,13 @@
 
 **História descritiva, não aprovada como novo requisito:** como operador ou serviço devidamente autorizado, quero **transferir conversa entre workspaces**, respeitando tenant, organização, workspace e as fronteiras de outros owners.
 
-**Regra encontrada:** mesma organização, autorização origem/destino, guard de escopo; notifica ambas as filas. **Fora do escopo:** criar novos fluxos ou ativar migration/worker/service grant por inferência.
+**Regra encontrada:** mesma organização, autorização origem/destino, guard de escopo; notifica ambas as filas.
 
 ## C. Fluxo e edge cases
+
+**Implementação exata:** roles ativas `admin|editor` nos workspaces origem e destino, mesma organização e recurso `inbox:assignment/write`; alvo igual ao atual retorna `null`. Transferência de workspace não muda o campo `assigned_to`.
+
+[Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
 
 1. Conferir identidade e contexto confiáveis antes de executar o método HTTP.
 2. Validar entrada e autorização segundo o código e contratos versionados.

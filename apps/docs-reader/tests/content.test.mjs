@@ -284,3 +284,76 @@ test("P02: 22 seções, sete funções, 19 fichas A-J e 17 rotas idênticas ao c
  const status=readFileSync(resolve(base,"STATUS.md"),"utf8");
  assert.ok(status.includes("34 PASS")&&status.includes("não reexecutados"));
 });
+
+
+test("P02 reflete contratos HTTP, handlers, recursos FGA e exports do owner",async()=>{
+ const {readFileSync}=await import("node:fs");
+ const read=relative=>readFileSync(new URL(relative,import.meta.url),"utf8");
+ const catalog=JSON.parse(read("../../../docs/subprojects/P02-inbox/ACOES.json"));
+ const controller=read("../../../modules/inbox/src/inbox.controller.ts");
+ const plugin=read("../../../modules/inbox/src/plugin.ts");
+ const manifest=JSON.parse(read("../../../modules/inbox/package.json"));
+ const rows=[...controller.matchAll(/@(Get|Post|Patch)\("([^"]+)"\)\s*(?:async\s+)?([A-Za-z_]\w*)\s*\(/g)]
+   .map(m=>({verb:m[1].toUpperCase(),route:m[2],handler:m[3]}))
+   .sort((a,b)=>(a.verb+a.route).localeCompare(b.verb+b.route));
+ const docs=catalog.actions.filter(a=>a.verb)
+   .map(a=>({verb:a.verb,route:a.route,handler:a.controller}))
+   .sort((a,b)=>(a.verb+a.route).localeCompare(b.verb+b.route));
+ assert.deepEqual(docs,rows,"Endpoints ou handlers alterados: reconciliar fichas e catálogo");
+ assert.equal(rows.length,17);
+ assert.deepEqual(Object.keys(manifest.exports).sort(),[".","./plugin"]);
+ const perms=[...plugin.matchAll(/\{resource:"([^"]+)",actions:\[([^\]]+)\]\}/g)].flatMap(m=>
+   [...m[2].matchAll(/"([^"]+)"/g)].map(action=>m[1]+"/"+action[1]));
+ const resources=new Set(perms);
+ for(const a of catalog.actions.filter(a=>a.verb)){
+   const used=[...a.permission.matchAll(/([a-z]+:[a-z]+)\/(read|write)/g)].map(m=>m[1]+"/"+m[2]);
+   assert.ok(used.length,a.id+" permission unspecified");
+   for(const resource of used){
+     if(resource.startsWith("inbox:"))assert.ok(resources.has(resource),a.id+": "+resource+" not declared by plugin");
+     else assert.ok(["crm:people/read","whatsapp:accounts/read"].includes(resource),a.id+": unexpected cross-owner grant");
+   }
+ }
+ const master=read("../../../docs/subprojects/P02-inbox/FICHA-MODULO.md");
+ assert.equal([...master.matchAll(/^## ([0-9]{2}) ·/gm)].length,22);
+ assert.equal(catalog.actions.length,19);
+ assert.equal(catalog.actions.filter(a=>!a.verb).length,2);
+});
+
+test("P02 paridade verifica migrations reais e divergência CRM manual vs consumer",async()=>{
+ const {readFileSync}=await import("node:fs");
+ const read=relative=>readFileSync(new URL(relative,import.meta.url),"utf8");
+ const base=read("../../../modules/inbox/sql/001_inbox_foundation.sql");
+ assert.deepEqual([...base.matchAll(/CREATE TABLE IF NOT EXISTS (inbox_\w+)/g)].map(m=>m[1]).sort(),
+   ["inbox_conversations","inbox_events","inbox_messages"]);
+ const org2=read("../../../modules/organizations/sql/002_legacy_single_context_gate.sql");
+ const org3=read("../../../modules/organizations/sql/003_legacy_ownership.sql");
+ const wa5=read("../../../modules/whatsapp/sql/005_whatsapp_history.sql");
+ const repo=read("../../../modules/inbox/src/postgres.ts");
+ const consumer=read("../../../modules/inbox/src/crm-link-event-consumer.ts");
+ const plugin=read("../../../modules/inbox/src/plugin.ts");
+ const parity=read("../../../docs/subprojects/P02-inbox/PARIDADE-CODIGO.md");
+ for(const col of ["platform_organization_id","platform_origin_workspace_id","platform_current_workspace_id"])
+   assert.ok(org3.includes("ALTER TABLE inbox_conversations ADD COLUMN IF NOT EXISTS "+col),col);
+ for(const col of ["is_group","unread_count","is_favorite","is_archived","history_sync_at"])
+   assert.ok(wa5.includes("ADD COLUMN IF NOT EXISTS "+col),col);
+ for(const col of ["source","bot_eligible","provider_message_id","provider_sender_id"])
+   assert.ok(wa5.includes("ADD COLUMN IF NOT EXISTS "+col),col);
+ for(const index of ["platform_legacy_single_organization","platform_legacy_single_workspace"])
+   assert.ok(org2.includes(index),index);
+ assert.ok(plugin.includes('id:"001_inbox_foundation"'));
+ assert.ok(!plugin.includes('id:"005_whatsapp_history"'));
+ const manual=repo.split("async linkContact(")[1].split("async append(")[0];
+ assert.match(manual,/SET crm_person_id=\$3::uuid/);
+ assert.ok(!manual.includes("crm_person_id IS NULL"),"manual link became conservative; update parity doc");
+ assert.match(consumer,/FOR UPDATE/);
+ assert.match(consumer,/crm_person_id IS NULL/);
+ const readOp=repo.split("async markRead(")[1].split("async linkContact(")[0];
+ assert.ok(!readOp.includes("inbox_events"),"read audit added: update parity doc");
+ const favorite=repo.split("async favorite(")[1].split("async markRead(")[0];
+ assert.match(favorite,/favorite_changed/);
+ assert.ok(!favorite.includes("IS DISTINCT FROM"),"favorite no-op filter changed");
+ for(const path of ["002_legacy_single_context_gate.sql","003_legacy_ownership.sql","005_whatsapp_history.sql",
+  "crm_person_id IS NULL","markRead","favorite","43930160944"]){
+   assert.ok(parity.includes(path),"Missing evidence in P02 parity: "+path);
+ }
+});

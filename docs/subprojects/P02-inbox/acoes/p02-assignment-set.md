@@ -18,9 +18,13 @@
 
 **História descritiva, não aprovada como novo requisito:** como operador ou serviço devidamente autorizado, quero **atribuir ou liberar responsável**, respeitando tenant, organização, workspace e as fronteiras de outros owners.
 
-**Regra encontrada:** ator autenticado; validador assignee com limite de 128 e caracteres permitidos. **Fora do escopo:** criar novos fluxos ou ativar migration/worker/service grant por inferência.
+**Regra encontrada:** ator autenticado; validador assignee com limite de 128 e caracteres permitidos.
 
 ## C. Fluxo e edge cases
+
+**Implementação exata:** `assigneeId` passa apenas pela validação sintática (até 128 caracteres); `PgInboxRepository.assign` atualiza o campo texto e **não consulta atividade ou membership do responsável destino**. A autorização do ator e a elegibilidade do destinatário são verificações diferentes.
+
+[Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
 
 1. Conferir identidade e contexto confiáveis antes de executar o método HTTP.
 2. Validar entrada e autorização segundo o código e contratos versionados.

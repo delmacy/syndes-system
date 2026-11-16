@@ -18,9 +18,13 @@
 
 **História descritiva, não aprovada como novo requisito:** como operador ou serviço devidamente autorizado, quero **consumir resolução de pessoa crm**, respeitando tenant, organização, workspace e as fronteiras de outros owners.
 
-**Regra encontrada:** consulta bloqueada FOR UPDATE e política CRM revalidada; não sobrescreve vínculo divergente. **Fora do escopo:** criar novos fluxos ou ativar migration/worker/service grant por inferência.
+**Regra encontrada:** consulta bloqueada FOR UPDATE e política CRM revalidada; não sobrescreve vínculo divergente.
 
 ## C. Fluxo e edge cases
+
+**Implementação exata:** o consumer usa `FOR UPDATE`, aceita ligação já feita à mesma Person como no-op, rejeita uma Person diferente e exige `identity.validateLink` antes de atualizar uma FK nula. A política **não é a mesma do PATCH manual**.
+
+[Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
 
 1. Conferir identidade e contexto confiáveis antes de consumir o evento transacional.
 2. Validar entrada e autorização segundo o código e contratos versionados.

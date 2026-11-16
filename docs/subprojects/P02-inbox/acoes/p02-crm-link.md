@@ -18,9 +18,13 @@
 
 **História descritiva, não aprovada como novo requisito:** como operador ou serviço devidamente autorizado, quero **vincular conversa à pessoa crm**, respeitando tenant, organização, workspace e as fronteiras de outros owners.
 
-**Regra encontrada:** pessoa precisa ser não arquivada e do tenant/organização autorizados; vínculo não é merge. **Fora do escopo:** criar novos fluxos ou ativar migration/worker/service grant por inferência.
+**Regra encontrada:** pessoa precisa ser não arquivada e do tenant/organização autorizados; vínculo não é merge.
 
 ## C. Fluxo e edge cases
+
+**Implementação exata:** `PgInboxRepository.linkContact` usa `UPDATE ... SET crm_person_id=$3` após validar a Person e o scope, **sem condição `crm_person_id IS NULL` ou igualdade com vínculo atual**. Assim, a operação manual pode substituir um vínculo existente; o consumer automático é mais restritivo. É uma decisão de produto pendente, não uma correção já feita.
+
+[Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
 
 1. Conferir identidade e contexto confiáveis antes de executar o método HTTP.
 2. Validar entrada e autorização segundo o código e contratos versionados.

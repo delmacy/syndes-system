@@ -25,6 +25,10 @@
 
 ## C. Fluxo, variações e exceções
 
+**Implementação exata:** `PgInboxRepository.change` contém `IS DISTINCT FROM`, logo uma atualização idêntica não cria auditoria; o controller publica SSE `changed` também após um no-op. Não contar notificação como mutação de banco.
+
+[Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
+
 1. Resolver a identidade e o escopo por fonte confiável no Host antes da operação.
 2. Aplicar o contrato de permissão e validação: `inbox:conversations/write`.
 3. Executar `InboxService.status` ou rejeitar com falha segura.

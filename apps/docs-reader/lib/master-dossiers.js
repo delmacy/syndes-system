@@ -14,7 +14,7 @@ const CONFIG={
     folder:"P02-inbox",back:"/",backLabel:"Voltar à Biblioteca",
     state:"Documentação reconciliada · operação e Product Gate NÃO HOMOLOGADOS",
     actionIndex:"/modulos/inbox/acoes",
-    paths:["MATRIZ-ACOES.md","INVENTARIO-TECNICO.md","DIAGRAMAS.md","STATUS.md"]
+    paths:["MATRIZ-ACOES.md","INVENTARIO-TECNICO.md","PARIDADE-CODIGO.md","DIAGRAMAS.md","STATUS.md"]
   },
   atendimentos:{
     id:"P05",name:"Gestão de Atendimentos",subtitle:"Funis, protocolos e operação de atendimentos",

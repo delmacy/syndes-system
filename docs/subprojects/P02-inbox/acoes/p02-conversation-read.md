@@ -25,6 +25,10 @@
 
 ## C. Fluxo, variações e exceções
 
+**Implementação exata:** `markRead` atualiza `unread_count=0` em conversa WhatsApp, mas **não insere em `inbox_events`**; o controller emite SSE `changed` após o resultado. Não afirmar auditoria persistida desta leitura.
+
+[Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
+
 1. Resolver a identidade e o escopo por fonte confiável no Host antes da operação.
 2. Aplicar o contrato de permissão e validação: `inbox:conversations/write`.
 3. Executar `InboxService.markRead` ou rejeitar com falha segura.

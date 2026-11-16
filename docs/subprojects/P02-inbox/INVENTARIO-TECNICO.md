@@ -119,6 +119,9 @@ Evidência histórica: [STATUS](STATUS.md) registra **34 PASS locais em 12/11**.
 
 ## 8. Lacunas para agente / marco seguinte
 
+A [paridade de código](PARIDADE-CODIGO.md) apresenta os caminhos exatos de P04 SQL 002/003 e P03 SQL 005, além das divergências manuais/assíncronas do CRM, marcação de lida, favorito e elegibilidade de responsável. **Não provisionar apenas com P02 SQL 001.**
+
+
 | Lacuna | Owner principal | Critério de fechamento |
 |---|---|---|
 | Relação completa SQL 001 → org/workspace 002 → WA fields | P02 + P04/P03, conforme owner do schema | migration aplicável, ordem, checksum, restore, testes |

@@ -117,7 +117,7 @@
       "permission": "inbox:conversations/write",
       "data": "inbox_conversations; inbox_events",
       "input": "status: open | pending | resolved",
-      "rules": "mudança registra auditoria; nova entrada pode reabrir conversa resolvida conforme origem",
+      "rules": "UPDATE usa IS DISTINCT FROM (no-op não gera audit); controller pode publicar SSE changed mesmo em repetição.",
       "edges": [
         "status inválido",
         "falta de grant",
@@ -136,7 +136,7 @@
       "permission": "inbox:conversations/write",
       "data": "inbox_conversations; inbox_events",
       "input": "favorite boolean",
-      "rules": "o repositório restringe a operação a conversas channel=whatsapp",
+      "rules": "Atualiza is_favorite e grava favorite_changed inclusive em repetição do mesmo valor; publica SSE.",
       "edges": [
         "conversa simulation",
         "valor não booleano",
@@ -154,7 +154,7 @@
       "permission": "inbox:conversations/write",
       "data": "inbox_conversations",
       "input": "conversationId UUID",
-      "rules": "zera unread_count em conversa WhatsApp no escopo autorizado",
+      "rules": "Zera unread_count em conversa WhatsApp e publica SSE no controller; repositório NÃO grava inbox_events para read.",
       "edges": [
         "conversa simulation",
         "operador sem permissão",
@@ -192,7 +192,7 @@
       "permission": "inbox:messages/write",
       "data": "inbox_messages para canal local; outbox WhatsApp sob owner P03",
       "input": "body texto até 5000",
-      "rules": "resposta simulation é local; WhatsApp usa port opcional/queue com gate, não entrega imediata confirmada",
+      "rules": "Resposta local exige status não resolvido, handoff human e assigned_to=actor.id; WhatsApp usa enqueue via port, sem prova de entrega.",
       "edges": [
         "WhatsApp adapter ausente 503",
         "conversa resolvida ou bot",
@@ -231,7 +231,7 @@
       "permission": "inbox:assignment/write",
       "data": "inbox_conversations; inbox_events",
       "input": "assigneeId string ou null",
-      "rules": "ator autenticado; validador assignee com limite de 128 e caracteres permitidos",
+      "rules": "Validador checa formato de assigneeId até 128 caracteres; método de atribuição não consulta membership do destinatário.",
       "edges": [
         "atribuição de ator inexistente",
         "permissão negada",
@@ -268,7 +268,7 @@
       "permission": "inbox:assignment/write",
       "data": "inbox_conversations; inbox_events; memberships P04",
       "input": "workspaceId UUID",
-      "rules": "mesma organização, autorização origem/destino, guard de escopo; notifica ambas as filas",
+      "rules": "Exige admin/editor em origem e destino, mesma organização; destino igual devolve null.",
       "edges": [
         "destino de outra organização",
         "workspace inativo",
@@ -288,7 +288,7 @@
       "permission": "crm:people/read + inbox:conversations/write",
       "data": "inbox_conversations; crm_people",
       "input": "personId UUID",
-      "rules": "pessoa precisa ser não arquivada e do tenant/organização autorizados; vínculo não é merge",
+      "rules": "Pessoa CRM não arquivada e do escopo autorizado; PATCH manual altera crm_person_id mesmo se havia vínculo diferente (sem guard de conflito). Política a decidir.",
       "edges": [
         "CRM Person arquivada",
         "UUID inválido",
@@ -326,7 +326,7 @@
       "permission": "inbox:simulation/write",
       "data": "inbox_messages; inbox_conversations",
       "input": "body, externalMessageId estável",
-      "rules": "somente canal simulation no adapter; repetição idempotente ou conflito de payload",
+      "rules": "Adapter apenas simulation, externalMessageId obrigatório e dedup; payload divergente com ID igual gera conflito.",
       "edges": [
         "externalMessageId ausente",
         "replay com payload divergente",
@@ -345,7 +345,7 @@
       "permission": "inbox:conversations/read",
       "data": "nenhuma persistência própria; invalidação SSE em memória",
       "input": "Bearer JWT; escopo confiável",
-      "rules": "changed sem PII; até 60 listeners; stream 60s; recheck periódico no modo enforce; fallback HTTP",
+      "rules": "SSE changed sem PII, um Host, expira em 60s, heartbeat 15s, recheck 5s somente em enforce.",
       "edges": [
         "61ª conexão 429",
         "token revogado",
@@ -384,7 +384,7 @@
       "permission": "service principal / contrato versionado, NÃO HTTP",
       "data": "inbox_conversations; inbox_events; crm_people",
       "input": "crm.person.resolved.v1",
-      "rules": "consulta bloqueada FOR UPDATE e política CRM revalidada; não sobrescreve vínculo divergente",
+      "rules": "Consumer versionado usa FOR UPDATE, valida política e recusa substituir Person divergente (idêntica = no-op), diferente do PATCH manual.",
       "edges": [
         "vínculo já diferente",
         "identidade mudou",

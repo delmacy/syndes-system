@@ -8,6 +8,14 @@ Criadas a [Ficha Mestre P02](FICHA-MODULO.md) com 22 seções, a [matriz de 19 a
 
 **Os 34 PASS são históricos de 12/11, checkout `b452a03e`, não reexecutados nesta atualização documental.** Não alteramos comportamento, grants, migrations, workers ou servidores. **Product Gate e E2E Keycloak/OpenFGA/tenant A/B continuam abertos.** Risco de paridade SQL: a migration 001 base não contém todos os campos usados pelo código atual, o que exige rastrear 002/migrations de outros owners antes de qualquer deploy.
 
+## Evidência de paridade — 16/11/2026
+
+[PARIDADE-CODIGO.md](PARIDADE-CODIGO.md) confronta o código com as fichas, identifica as migrations dos seus respectivos owners e registra as diferenças de CRM manual/consumer, responsável, favoritos, marcar lida e SSE. **Nenhuma melhoria de comportamento foi implementada ou aprovada.**
+
+**CI mais recente e separada da auditoria histórica:** [Mainline run 43930160944](https://github.com/delmacy/syndes-system/actions/runs/43930160944), SHA `54bbc6c`, job **Regression / inbox** concluído com sucesso: logs mostram **9 testes PASS, 0 FAIL** no contrato Host + PostgreSQL de teste. Não é homologação de Keycloak/OpenFGA reais nem provider WhatsApp. [Docs run 43930160900](https://github.com/delmacy/syndes-system/actions/runs/43930160900): 18 testes de conteúdo, 12 mobile, deploy aprovado — não avalia runtime Inbox.
+
+**Propriedade SQL confirmada no repositório:** `002_legacy_single_context_gate.sql` e `003_legacy_ownership.sql` pertencem a **P04 Organizations**; `005_whatsapp_history.sql` pertence a **P03 WhatsApp**; o plugin P02 declara só `001_inbox_foundation`. Aplicação/ordem/backfill/restore **não verificados em ambiente**.
+
 ## Situação revalidada
 
 Plugin NestJS, fila, responsável, handoff, notas, mensagens, SSE e consumidores opt-in de evento WhatsApp/CRM. A operação autenticada e o layout real ainda exigem homologação.
@@ -22,14 +30,14 @@ Plugin NestJS, fila, responsável, handoff, notas, mensagens, SSE e consumidores
 | `modules/inbox/src/crm-link-event-consumer.ts` | Artefato presente no checkout; não implica runtime habilitado |
 | `apps/workspace-web/src/features/inbox.tsx` | Artefato presente no checkout; não implica runtime habilitado |
 
-**Testes executados nesta revisão:** cd modules/inbox && npm test — 34 PASS, 0 FAIL.
+**Testes históricos na auditoria de 12/11 (checkout `b452a03e`):** `cd modules/inbox && npm test` — 34 PASS, 0 FAIL. **Não reexecutados manualmente na reconciliação documental de 16/11**; CI mais recente de escopo distinto registrada acima.
 
 ## Bloqueios e limitações
 
 - WBS 50.03: testar fila/handoff/resposta em browser com JWT Keycloak, FGA e tenant/workspace reais.
 - WBS 50.04: reproduzir identificação de contato e layout compacto em navegador antes de marcar correção concluída.
 - SSE em memória não é barramento replicado; consumers de eventos opt-in não garantem que o worker esteja rodando.
-- SQL 002 continua ativo; transferências e paths tenant-only legados exigem novo gate.
+- O índice-gate SQL 002 existe como migration em P04, mas a sua **aplicação em ambiente não foi verificada**; transferências e paths tenant-only legados exigem gate auditado.
 
 ## Próximo marco candidato (não comprometido)
 

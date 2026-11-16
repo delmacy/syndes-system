@@ -18,9 +18,13 @@
 
 **História descritiva, não aprovada como novo requisito:** como operador ou serviço devidamente autorizado, quero **acompanhar alterações por sse**, respeitando tenant, organização, workspace e as fronteiras de outros owners.
 
-**Regra encontrada:** changed sem PII; até 60 listeners; stream 60s; recheck periódico no modo enforce; fallback HTTP. **Fora do escopo:** criar novos fluxos ou ativar migration/worker/service grant por inferência.
+**Regra encontrada:** changed sem PII; até 60 listeners; stream 60s; recheck periódico no modo enforce; fallback HTTP.
 
 ## C. Fluxo e edge cases
+
+**Implementação exata:** SSE usa listeners em memória de um Host; evento `changed` não transporta PII, expiração em 60s, heartbeat a cada 15s e revalidação periódica apenas no modo `enforce`. Não equivale a Event Bus persistido.
+
+[Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
 
 1. Conferir identidade e contexto confiáveis antes de executar o método HTTP.
 2. Validar entrada e autorização segundo o código e contratos versionados.

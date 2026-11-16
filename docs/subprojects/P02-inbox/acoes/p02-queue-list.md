@@ -25,6 +25,10 @@
 
 ## C. Fluxo, variações e exceções
 
+**Implementação exata:** `list` aplica filtros de tenant/org/workspace no SQL, paginação 1..100, `offset` até 100000, `q` até 80 e `queue=mine` usa `ctx.actor.id`. Pesquisar por telefone depende de `whatsapp_conversation_routes` e não é pesquisa global CRM.
+
+[Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
+
 1. Resolver a identidade e o escopo por fonte confiável no Host antes da operação.
 2. Aplicar o contrato de permissão e validação: `inbox:conversations/read`.
 3. Executar `InboxHost.list → InboxService.list` ou rejeitar com falha segura.

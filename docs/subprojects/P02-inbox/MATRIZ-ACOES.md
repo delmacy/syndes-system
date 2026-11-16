@@ -96,6 +96,8 @@ A lista é retirada de `src/service.ts`, `src/inbox.controller.ts` e `src/plugin
 
 ## 7. Próximos testes e decisões
 
+**Fontes de paridade e riscos reais:** [PARIDADE-CODIGO.md](PARIDADE-CODIGO.md). Reconciliar a substituição manual de CRM versus consumer conservador e verificar membership do destinatário antes de presumir regra implementada.
+
 | Prioridade | Pendência | Critério de fechamento |
 |---|---|---|
 | P0 | Reconciliar 001 + migrations de escopo e WhatsApp | SHA de cada migration, pré-requisitos, execução descartável/restore |

@@ -18,9 +18,13 @@
 
 **História descritiva, não aprovada como novo requisito:** como operador ou serviço devidamente autorizado, quero **simular mensagem de entrada**, respeitando tenant, organização, workspace e as fronteiras de outros owners.
 
-**Regra encontrada:** somente canal simulation no adapter; repetição idempotente ou conflito de payload. **Fora do escopo:** criar novos fluxos ou ativar migration/worker/service grant por inferência.
+**Regra encontrada:** somente canal simulation no adapter; repetição idempotente ou conflito de payload.
 
 ## C. Fluxo e edge cases
+
+**Implementação exata:** `externalMessageId` é obrigatório em `InboxService.simulate`; reentrega idempotente para mesma conversa e payload, 409 em conflito de conteúdo. Adapter não é webhook público.
+
+[Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
 
 1. Conferir identidade e contexto confiáveis antes de executar o método HTTP.
 2. Validar entrada e autorização segundo o código e contratos versionados.

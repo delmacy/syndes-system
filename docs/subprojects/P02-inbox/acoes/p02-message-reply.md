@@ -25,6 +25,10 @@
 
 ## C. Fluxo, variações e exceções
 
+**Implementação exata:** para canal local, SQL de `append` exige conversa não resolvida, handoff `human` e `assigned_to=actor.id`. Resposta WhatsApp usa port opcional de enfileiramento no Host; entrega real pelo provider pertence ao P03, não está comprovada.
+
+[Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
+
 1. Resolver a identidade e o escopo por fonte confiável no Host antes da operação.
 2. Aplicar o contrato de permissão e validação: `inbox:messages/write`.
 3. Executar `InboxHost.reply → InboxService.reply ou WhatsAppReply.enqueue` ou rejeitar com falha segura.
