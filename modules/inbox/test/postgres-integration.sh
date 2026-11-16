@@ -1,7 +1,28 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-docker run -d --name syndes-inbox-ci-pg -p 127.0.0.1:54339:5432 -e POSTGRES_PASSWORD=ci-inbox-only postgres:17-bookworm >/dev/null
-trap 'docker rm -f syndes-inbox-ci-pg >/dev/null 2>&1 || true' EXIT
+# All fixtures stay inside Actions and bind localhost; never use an operator's server.
+for name in syndes-inbox-ci-pg syndes-inbox-preflight-fga; do
+ if docker container inspect "$name" >/dev/null 2>&1; then
+  echo "Refusing to reuse an existing fixture: $name" >&2;exit 3
+ fi
+done
+cleanup_inbox_fixtures() {
+ for descriptor in "syndes-inbox-preflight-fga:inbox-assignment-preflight:openfga/openfga:v1.22.1" "syndes-inbox-ci-pg:inbox-pg17-ci:postgres:17-bookworm";do
+  name="${descriptor%%:*}"
+  remainder="${descriptor#*:}"
+  label="${remainder%%:*}"
+  image="${remainder#*:}"
+  if docker container inspect "$name" >/dev/null 2>&1; then
+   if [[ "$(docker inspect -f '{{index .Config.Labels "syndes.disposable"}}' "$name")" == "$label" && "$(docker inspect -f '{{.Config.Image}}' "$name")" == "$image" ]];then
+    docker rm -f "$name" >/dev/null 2>&1 || true
+   else
+    echo "Refusing to stop an unrecognized container: $name" >&2
+   fi
+  fi
+ done
+}
+trap cleanup_inbox_fixtures EXIT
+docker run -d --name syndes-inbox-ci-pg --label syndes.disposable=inbox-pg17-ci -p 127.0.0.1:54339:5432 -e POSTGRES_PASSWORD=ci-inbox-only postgres:17-bookworm >/dev/null
 for attempt in $(seq 1 40);do
  if docker exec syndes-inbox-ci-pg pg_isready -U postgres -d postgres >/dev/null 2>&1;then break;fi
  if [[ "$attempt" == 40 ]];then echo "Inbox DB not ready" >&2;exit 1;fi
@@ -66,4 +87,25 @@ node modules/inbox/test/pg-integration.mjs
 SYNDES_INBOX_SCOPE_TEST_PG_URL=postgres://postgres:ci-inbox-only@127.0.0.1:54339/postgres \
  node --test modules/inbox/test/pg-assignment-races.mjs
 node --test apps/core-host/test/inbox-pg-http.integration.mjs
-echo "Inbox PostgreSQL + installed Core Host HTTP contract: PASS"
+# Pre-deployment rehearsal: analyze historical assignments in a disposable
+# transaction only. The diagnostic SQL never repairs or discloses real users.
+SYNDES_INBOX_SCOPE_TEST_PG_URL=postgres://postgres:ci-inbox-only@127.0.0.1:54339/postgres \
+ node --test modules/inbox/test/pg-assignment-preflight.mjs
+
+# Real OpenFGA model and revocation exercise on a throwaway, memory-only store.
+# The fixture has no production tokens, persistent volume or public listener.
+docker run --rm -d --name syndes-inbox-preflight-fga \
+ --label syndes.disposable=inbox-assignment-preflight \
+ --memory 512m --pids-limit 128 -p 127.0.0.1:18091:8080 \
+ openfga/openfga:v1.22.1 run --datastore-engine memory \
+ --authn-method none --playground-enabled=false --metrics-enabled=false >/dev/null
+ready=false
+for attempt in $(seq 1 35); do
+ if curl -fsS --max-time 2 http://127.0.0.1:18091/healthz >/dev/null 2>&1; then ready=true;break;fi
+ sleep 1
+done
+if [[ "$ready" != true ]];then echo "Disposable Inbox OpenFGA unavailable" >&2;exit 5;fi
+SYNDES_INBOX_FGA_PREFLIGHT=DISPOSABLE_ONLY \
+ SYNDES_INBOX_FGA_URL=http://127.0.0.1:18091 \
+ node --test modules/inbox/test/fga-assignment-preflight.mjs
+echo "P02-ASSIGN pre-deployment PG/FGA test only: PASS; NO production IAM, rollout or data migration"

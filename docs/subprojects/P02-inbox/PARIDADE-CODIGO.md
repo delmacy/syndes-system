@@ -87,3 +87,7 @@ O teste `apps/docs-reader/tests/content.test.mjs` agora valida **rotas ↔ catá
 **Prova de teste:** [Syndes Mainline CI — run 43939884169](https://github.com/delmacy/syndes-system/actions/runs/43939884169), job `Regression / inbox` **SUCCESS** na SHA `8de743e`: `npm test` 35 PASS, escopo PG 1 PASS, persistência PG 1 PASS, corrida/revogação com duas sessões PostgreSQL 1 PASS, Host HTTP 9 PASS. A fixture `pg-integration.mjs` faz ROLLBACK antes da próxima suíte, corrigindo contaminação de defaults.
 
 **Limites:** não checa permissões OpenFGA individuais ou login real do destinatário; não repara `assigned_to` antigos inválidos; migrations/backfill P04 continuam pré-requisitos de implantação. Product Gate permanece aberto.
+
+## 8 · Pré-homologação P02-ASSIGN-02
+
+[Plano de testes PG/FGA](PRE-HOMOLOGACAO-ASSIGN.md): auditoria somente leitura dos responsáveis legados (sem reparar dados), migration gates 002/003/backfill e OpenFGA real mas descartável. **Gap preservado:** a implementação P02-ASSIGN-01 não consulta grant individual OpenFGA do destinatário. Não declarar essa lacuna fechada em razão de teste isolado do modelo.

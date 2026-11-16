@@ -24,6 +24,12 @@ Criadas a [Ficha Mestre P02](FICHA-MODULO.md) com 22 seções, a [matriz de 19 a
 
 **Trade-offs registrados:** invalid recipient retorna 404 genérico; role elegível é `editor/admin` de P04 (não valida grants individuais FGA do destinatário); atribuições antigas inválidas não são saneadas; migrations P04 de escopo/ownership e backfill são pré-requisitos. [Ficha da ação](acoes/p02-assignment-set.md) e [paridade](PARIDADE-CODIGO.md).
 
+## P02-ASSIGN-02 — pré-homologação por GitHub Actions (16/11/2026)
+
+**Escopo:** testes sintéticos sem servidor, **sem alteração do runtime do Inbox**. [Plano/evidências](PRE-HOMOLOGACAO-ASSIGN.md): ensaio read-only de assigned_to legados por categoria; gates SQL P04 (002/003 e recibo); OpenFGA **real mas descartável** com grants sintéticos e escopo A/B. Testes incorporados à `Regression / inbox`. **Não** é Keycloak real, FGA do destinatário ligado ao P02, revisão de dados existentes do cliente nem aplicação de migrations em produção.
+
+**Execução:** pendente de confirmação pelo run GitHub Actions da SHA deste incremento; preencher SHA, PASS/FAIL e links após a CI. Uma falha deve impedir declarar pré-homologação concluída.
+
 ## Situação revalidada
 
 Plugin NestJS, fila, responsável, handoff, notas, mensagens, SSE e consumidores opt-in de evento WhatsApp/CRM. A operação autenticada e o layout real ainda exigem homologação.

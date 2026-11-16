@@ -74,3 +74,7 @@ O ator mantém `inbox:assignment/write`. Atribuição para `assigneeId` não nul
 A operação usa um CTE com `FOR NO KEY UPDATE` na conversa (serializa atribuições e transferências) e `FOR SHARE` nas memberships (protege contra revogação durante o update), na mesma instrução SQL que grava e audita. Testar com `pg-org-scope.mjs`, `pg-assignment-races.mjs`, `pg-integration.mjs` e HTTP Host. Não criar tabela duplicada de funcionários, não supor novos FGA grants, não sanear o histórico automaticamente e não ativar em ambiente sem migrations/backfill P04. A autenticação e grants individuais Keycloak/OpenFGA do **destinatário** não são validados neste incremento.
 
 **Evidência automatizada:** [run 43939884169](https://github.com/delmacy/syndes-system/actions/runs/43939884169), SHA `8de743e`, job Inbox success: 35 unitários, 1 PG scope, 1 PG persistência, 1 PG concorrência, 9 Host HTTP, sem identity provider de produção. Não promover o módulo a homologado por esse resultado.
+
+## P02-ASSIGN-02 — pré-homologação sem ambiente operacional
+
+Enquanto DevServer01 estiver indisponível, executar apenas a suíte `Regression / inbox` no GitHub Actions com PostgreSQL e OpenFGA descartáveis. `pg-assignment-preflight.mjs` deve reportar apenas contagens agregadas em transação com rollback; `fga-assignment-preflight.mjs` deve testar o modelo real em store efêmero. Sem limpar `assigned_to` históricos, criar grants em produção, alterar o modelo FGA ou simular validação Keycloak inexistente. Consulte `docs/subprojects/P02-inbox/PRE-HOMOLOGACAO-ASSIGN.md`.

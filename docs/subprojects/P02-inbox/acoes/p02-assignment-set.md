@@ -86,6 +86,9 @@ Rotas dependem de Host, Kernel, FGA, Tenant DB e, quando pertinente, ports CRM e
 
 ## I. Testes e casos Given/When/Then
 
+**Ensaio pré-homologação:** [P02-ASSIGN-02](../PRE-HOMOLOGACAO-ASSIGN.md) adiciona teste real OpenFGA em memória e diagnóstico agregado read-only em PG17 descartável. **Importante:** o `InboxService.assign` não consulta um grant individual do destinatário e nenhum teste autoriza essa implementação automaticamente. Keycloak real, dados históricos de clientes, restore e Product Gate permanecem pendentes.
+
+
 Arquivos relacionados à investigação: [`test/inbox.test.mjs`](https://github.com/delmacy/syndes-system/blob/24018b354392196899332af1581170fb3ad7cf24/modules/inbox/test/inbox.test.mjs) · [`test/default-context.test.mjs`](https://github.com/delmacy/syndes-system/blob/24018b354392196899332af1581170fb3ad7cf24/modules/inbox/test/default-context.test.mjs) · [`test/frontend.test.mjs`](https://github.com/delmacy/syndes-system/blob/24018b354392196899332af1581170fb3ad7cf24/modules/inbox/test/frontend.test.mjs). **A presença não comprova cobertura individual.**
 
 | Proposta | Dado | Quando | Então a verificar |
