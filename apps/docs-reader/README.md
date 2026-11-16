@@ -44,3 +44,11 @@ O projeto Vercel independente `syndes-docs-reader` foi criado (root `apps/docs-r
 - Apresentação em `components/master-dossier-reader.jsx`: 22 seções em 5 grupos, uma seção por vez, busca e tabelas Markdown. Links relativos são resolvidos para arquivos canônicos do GitHub.
 - Rotas: `/modulos/crm/ficha` e `/modulos/atendimentos`. O CRM preserva suas seis funções e 18 ações; P05 é **piloto de Ficha Mestre**, sem alegar 12 fichas A–J ou Product Gate.
 - **O portal reflete um snapshot de build**, não sincronização live. Commit novo exige novo build e deploy.
+
+## GitHub Pages — Next.js como portal principal
+
+- A raiz pública `https://delmacy.github.io/syndes-system/` publica o HTML exportado pelo Next.js, com `NEXT_PUBLIC_READER_BASEPATH=/syndes-system`.
+- O MkDocs continua gerando referências técnicas para `/subprojects/*`, `/standards/*` e demais rotas históricas. A antiga página inicial permanece em `/legado/`.
+- URLs antigas do leitor Next em `/assets/docs-reader/*` são redirecionadas para as rotas novas. Não manter uma segunda cópia dos bundles Next.
+- O script `scripts/docs/publish_next_root.py` compõe o artefato somente **após** o build MkDocs e gera `.nojekyll`, preservando `_next`.
+- Esta é uma **exportação estática**, não uma aplicação Node.js em execução no Pages. Funções que precisam de servidor, gravação ou sincronização em tempo real devem usar backend próprio em ambiente autorizado.

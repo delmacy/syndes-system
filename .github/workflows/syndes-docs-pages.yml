@@ -98,25 +98,40 @@ jobs:
       - name: Verify contextual prompt generation
         run: node --test scripts/docs/test_editor.mjs scripts/docs/test_layered_portal.mjs scripts/docs/test_projects_dashboard.mjs
 
-      - name: Export Next.js and Chakra docs reader to isolated Pages path
+      - name: Export Next.js and Chakra portal for GitHub Pages root
         env:
-          NEXT_PUBLIC_READER_BASEPATH: /syndes-system/assets/docs-reader
+          NEXT_PUBLIC_READER_BASEPATH: /syndes-system
           NEXT_TELEMETRY_DISABLED: "1"
         run: |
           npm --prefix apps/docs-reader install --no-audit --no-fund
           npm --prefix apps/docs-reader test
           npm --prefix apps/docs-reader run build
+          # The Next output is staged separately until MkDocs has generated
+          # historical references. It will become the artifact root afterwards.
           rm -rf docs/assets/docs-reader
-          mkdir -p docs/assets/docs-reader
-          cp -a apps/docs-reader/out/. docs/assets/docs-reader/
-          test -s docs/assets/docs-reader/index.html
-          test -s docs/assets/docs-reader/modulos/crm/index.html
+          test -s apps/docs-reader/out/index.html
+          test -s apps/docs-reader/out/modulos/crm/index.html
+          test -s apps/docs-reader/out/modulos/crm/ficha/index.html
+          test -s apps/docs-reader/out/modulos/atendimentos/index.html
 
       - name: Prepare selected documentation
         run: python scripts/docs/build_site.py
 
-      - name: Build the static website
+      - name: Build legacy MkDocs reference pages
         run: mkdocs build --config-file .docs-site/mkdocs.yml --clean
+
+      - name: Promote Next.js to root and preserve historical documentation
+        run: |
+          python scripts/docs/publish_next_root.py \
+            --legacy-site .docs-site/site \
+            --next-export apps/docs-reader/out \
+            --pages-base /syndes-system
+          test -s .docs-site/site/index.html
+          test -s .docs-site/site/modulos/crm/ficha/index.html
+          test -s .docs-site/site/modulos/atendimentos/index.html
+          test -s .docs-site/site/legado/index.html
+          test -s .docs-site/site/subprojects/P01-crm/index.html
+          test -s .docs-site/site/assets/docs-reader/modulos/crm/index.html
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
