@@ -543,7 +543,7 @@ def main():
                 subpath=source.relative_to(exported)
                 pagefind_index=("pagefind" in subpath.parts
                                 and (source.suffix.startswith(".pf_")
-                                     or source.name=="wasm.unknown.pagefind")
+                                     or (source.name.startswith("wasm.") and source.suffix==".pagefind"))
                                 and relative_root==Path("experimentos/livros"))
                 if source.suffix not in approved and not pagefind_index:
                     raise ValueError("Unexpected frontend asset type: "+str(source))
