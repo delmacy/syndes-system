@@ -581,3 +581,13 @@ body {
 .master-sources p,.master-detail-footer,.master-index-footer,
 .master-group-tab small,.master-topline{color:#51627a}
 .master-group-tab small{color:#596b81}
+
+/* The CRM feature heading and pilot badge must not widen a 320px handset. */
+@media(max-width:760px){
+ .pilot-feature{min-width:0;max-width:100%}
+ .pilot-feature>div{min-width:0;max-width:100%}
+ .pilot-feature h2{font-size:clamp(1.5rem,7vw,2.35rem);line-height:1.22;overflow-wrap:anywhere}
+ .pilot-feature p{overflow-wrap:anywhere}
+ .domain-row h3{overflow-wrap:anywhere}
+ .domain-row .tag-ready{max-width:100%;white-space:normal}
+}

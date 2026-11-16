@@ -17,10 +17,12 @@ const issue=(page)=>page.evaluate(()=>{
  const offenders=[...document.querySelectorAll("body *")].filter(node=>{
    const rect=node.getBoundingClientRect(),style=getComputedStyle(node);
    return rect.width>0 && style.position!=="fixed" &&
-     (rect.left < -5 || rect.right > width+5) &&
+     (rect.left < -0.5 || rect.right > width+0.5) &&
      style.overflowX!=="auto" && style.overflowX!=="scroll";
- }).slice(0,8).map(node=>({tag:node.tagName,cls:typeof node.className==="string"?node.className.slice(0,110):"",
-                       right:Math.round(node.getBoundingClientRect().right)}));
+ }).slice(0,24).map(node=>({tag:node.tagName,cls:typeof node.className==="string"?node.className.slice(0,90):"",
+                       right:Math.round(node.getBoundingClientRect().right),
+                       overflow:getComputedStyle(node).overflowX,
+                       text:node.textContent?.trim().slice(0,50)}));
  return {viewport:width,scroll:root.scrollWidth,offenders};
 });
 async function noGlobalOverflow(page,label){
