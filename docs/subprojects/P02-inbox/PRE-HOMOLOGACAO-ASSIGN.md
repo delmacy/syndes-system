@@ -1,6 +1,10 @@
 # P02-ASSIGN-02 — Ensaio pré-homologação via GitHub Actions
 
-> **16/11/2026 · código de base `1666f86`.** Escopo **exclusivamente de testes e documentação**, sem acesso ao DevServer01, sem migração ou saneamento de dados produtivos e sem ativar grants no ambiente real. Resultado da execução ainda deve ser apurado pelo run da nova SHA.
+> **16/11/2026 · código de base `1666f86`.** Escopo **exclusivamente de testes e documentação**, sem acesso ao DevServer01, sem migração ou saneamento de dados produtivos e sem ativar grants no ambiente real. Resultado do ensaio registrado abaixo na SHA `df6424c`, sem desbloqueio automático de rollout.
+
+## Evidência positiva — GitHub Actions
+
+**Evidência da execução:** [Mainline run 43968388949](https://github.com/delmacy/syndes-system/actions/runs/43968388949), commit `df6424c`, job **Regression / inbox: SUCCESS**. Logs: `npm test` 35 PASS; PostgreSQL `pg-org-scope` 1 PASS, `pg-integration` 1 PASS, `pg-assignment-races` 1 PASS, Host HTTP 9 PASS; novo `pg-assignment-preflight` 1 PASS (fixture: 5 linhas, 1 elegível, 4 inválidas, rollback); novo `fga-assignment-preflight` **5 PASS / 0 FAIL** (modelo OpenFGA real, memória, grants sintéticos e revogação). **Não é evidência de instalação em servidor, Keycloak real no Inbox, FGA individual do destinatário integrado ao P02 ou execução em dados de clientes.**
 
 ## Objetivo e decisões que faltam
 
@@ -41,7 +45,7 @@ O diagnóstico gera apenas motivos agregados, não exporta nomes, IDs de pessoas
 | G1 · SQL/migrations/backfill | Testes sintéticos existentes; ambientes não verificados | Migrations/receipts e restore por Tenant DB, sem bypass de 002 |
 | G2 · IAM por destinatário | **LACUNA REAL**; P02 checa membership, não FGA individual | Contrato de recurso/grant aprovado com C04, usuário ativo e negativos Keycloak/OpenFGA |
 | G3 · Atribuições legadas | **SEM INVENTÁRIO EM AMBIENTE** | Contagem por categoria em execução autorizada somente leitura, decisão de migração |
-| G4 · Regressões SQL/HTTP/concorrência | P02-ASSIGN-01 já passou em CI anterior | Novas suítes pré-homologação em GitHub Actions, SHA e logs |
+| G4 · Regressões SQL/HTTP/concorrência | **APROVADO somente em CI descartável**, run `43968388949` | Reexecutar em alterações de contrato ou código; preservar SHA/logs |
 | G5 · Deploy/homologação | **BLOQUEADO enquanto servidor indisponível** | Quando voltar, validar autenticação real, dados A/B, rollback e Product Gate |
 
 A aprovação de G4 **não promove** G1/G2/G3/G5. A implementação completa deve manter a separação de owners: P04 guarda memberships, C04 OpenFGA, C03 identidade e P02 atribuição.

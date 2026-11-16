@@ -28,7 +28,7 @@ Criadas a [Ficha Mestre P02](FICHA-MODULO.md) com 22 seções, a [matriz de 19 a
 
 **Escopo:** testes sintéticos sem servidor, **sem alteração do runtime do Inbox**. [Plano/evidências](PRE-HOMOLOGACAO-ASSIGN.md): ensaio read-only de assigned_to legados por categoria; gates SQL P04 (002/003 e recibo); OpenFGA **real mas descartável** com grants sintéticos e escopo A/B. Testes incorporados à `Regression / inbox`. **Não** é Keycloak real, FGA do destinatário ligado ao P02, revisão de dados existentes do cliente nem aplicação de migrations em produção.
 
-**Execução:** pendente de confirmação pelo run GitHub Actions da SHA deste incremento; preencher SHA, PASS/FAIL e links após a CI. Uma falha deve impedir declarar pré-homologação concluída.
+**Execução confirmada:** **Evidência da execução:** [Mainline run 43968388949](https://github.com/delmacy/syndes-system/actions/runs/43968388949), commit `df6424c`, job **Regression / inbox: SUCCESS**. Logs: `npm test` 35 PASS; PostgreSQL `pg-org-scope` 1 PASS, `pg-integration` 1 PASS, `pg-assignment-races` 1 PASS, Host HTTP 9 PASS; novo `pg-assignment-preflight` 1 PASS (fixture: 5 linhas, 1 elegível, 4 inválidas, rollback); novo `fga-assignment-preflight` **5 PASS / 0 FAIL** (modelo OpenFGA real, memória, grants sintéticos e revogação). **Não é evidência de instalação em servidor, Keycloak real no Inbox, FGA individual do destinatário integrado ao P02 ou execução em dados de clientes.**
 
 ## Situação revalidada
 

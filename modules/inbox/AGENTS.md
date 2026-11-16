@@ -78,3 +78,5 @@ A operação usa um CTE com `FOR NO KEY UPDATE` na conversa (serializa atribuiç
 ## P02-ASSIGN-02 — pré-homologação sem ambiente operacional
 
 Enquanto DevServer01 estiver indisponível, executar apenas a suíte `Regression / inbox` no GitHub Actions com PostgreSQL e OpenFGA descartáveis. `pg-assignment-preflight.mjs` deve reportar apenas contagens agregadas em transação com rollback; `fga-assignment-preflight.mjs` deve testar o modelo real em store efêmero. Sem limpar `assigned_to` históricos, criar grants em produção, alterar o modelo FGA ou simular validação Keycloak inexistente. Consulte `docs/subprojects/P02-inbox/PRE-HOMOLOGACAO-ASSIGN.md`.
+
+**Prova do ensaio CI:** job `Regression / inbox` do [run 43968388949](https://github.com/delmacy/syndes-system/actions/runs/43968388949), SHA `df6424c`: preflight PG 1 PASS, OpenFGA descartável 5 PASS, 35 testes do módulo e 9 Host HTTP. Nenhum gate de IAM real, backfill real, reparo histórico ou servidor foi liberado.

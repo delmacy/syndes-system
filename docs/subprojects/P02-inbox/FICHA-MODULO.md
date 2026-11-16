@@ -87,7 +87,7 @@ Instalação como plugin confiável no Core Host; depende de módulos `platform`
 
 ## 13 · Testes, negativos e evidências
 
-**Pré-homologação P02-ASSIGN-02:** [plano e cenários](PRE-HOMOLOGACAO-ASSIGN.md). CI com PG17 descartável para classificar assigned_to legados e validar migrações/recibo P04, além de OpenFGA em memória real para checar grant individual separado da membership. **Os testes não aplicam a verificação individual FGA no P02**, nem corrigem atribuições antigas, nem testam Keycloak real. Resultados desta nova SHA devem ser confirmados após a CI.
+**Pré-homologação P02-ASSIGN-02:** [plano e cenários](PRE-HOMOLOGACAO-ASSIGN.md). CI com PG17 descartável para classificar assigned_to legados e validar migrações/recibo P04, além de OpenFGA em memória real para checar grant individual separado da membership. **Os testes não aplicam a verificação individual FGA no P02**, nem corrigem atribuições antigas, nem testam Keycloak real. O [Actions run 43968388949](https://github.com/delmacy/syndes-system/actions/runs/43968388949), SHA `df6424c`, confirmou preflight PG 1 PASS e OpenFGA descartável 5 PASS, sem provar IAM/tenant reais.
 
 
 **P02-ASSIGN-01:** foram adicionados casos PostgreSQL descartável (vínculo ativo, viewer, revogado, estrangeiro, organização/workspace arquivados, liberar, idempotência e audit) e teste específico de paralelismo/revogação com duas sessões e HTTP do Core Host com verifier/FGA de teste; resultados verificados no job `Regression / inbox` do [run 43939884169](https://github.com/delmacy/syndes-system/actions/runs/43939884169), commit `8de743e`: 35 PASS unitários, 1 isolamento PG, 1 persistência PG, 1 concorrência PG e 9 HTTP do Host. **Sem homologação Keycloak/OpenFGA reais.**
