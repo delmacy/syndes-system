@@ -1,5 +1,9 @@
 # @syndes/core-inbox
 
+> **Reconciliação de leitura (16/11/2026).** Este README conserva instruções históricas da fundação e etapas C2b. Para o inventário atual da main, consulte [Ficha Mestre P02](../../docs/subprojects/P02-inbox/FICHA-MODULO.md), [17 rotas e 19 ações](../../docs/subprojects/P02-inbox/MATRIZ-ACOES.md), [inventário](../../docs/subprojects/P02-inbox/INVENTARIO-TECNICO.md) e [STATUS](../../docs/subprojects/P02-inbox/STATUS.md). Declaração do código ≠ funcionalidade instalada/homologada; os 34 PASS são históricos de 12/11.
+
+
+
 Inbox module, installed as a **trusted compiled package** inside the Core Host. No separate container, WhatsApp library, QR-code handler, or tenant-selected database.
 
 ## Usage
@@ -8,14 +12,18 @@ The Core Host loads `@syndes/core-inbox/plugin` from `apps/core-host/config/modu
 
 The HTTP base path is `/v1/tenants/:tenantId/inbox`; all operations require Keycloak access token and both tenant membership and OpenFGA policy. The browser UI is at `/inbox`. Configure Keycloak public OIDC client `syndes-inbox-ui` with authorization-code + PKCE S256, web origin, and exact redirect URI `https://<syndes-host>/inbox`. This is an operator onboarding step, not automatically provisioned by the module.
 
-Routes: `GET/POST /conversations`, `GET /conversations/:id`, `GET /conversations/:id/messages`, `PATCH /conversations/:id/{assignment,status,handoff}`, `POST /conversations/:id/{replies,notes}`, `POST /conversations/:id/simulator/inbound`, and `GET /metrics`.
+**Histórico da fundação:** o conjunto inicial incluía `GET/POST /conversations`, `GET /conversations/:id`, `GET /conversations/:id/messages`, `PATCH /conversations/:id/{assignment,status,handoff}`, `POST /conversations/:id/{replies,notes}`, `POST /conversations/:id/simulator/inbound` e `GET /metrics`. **Versão atual do controller:** 17 rotas, com `events`, `favorite`, `read`, `contact`, `workspace` e `history` adicionais; ver matriz P02.
 
-## Authorization resources
+## Authorization resources (conferidos contra o `src/plugin.ts` atual)
 
-- `inbox:conversations`: `read`, `write`, `assign`
-- `inbox:messages`: `read`, `reply`, `simulate`
+- `inbox:conversations`: `read`, `write`
+- `inbox:messages`: `read`, `write`
 - `inbox:notes`: `write`
+- `inbox:assignment`: `write`
+- `inbox:simulation`: `write`
 - `inbox:metrics`: `read`
+
+Vínculo CRM exige adicionalmente `crm:people/read`; solicitação de histórico WhatsApp requer `whatsapp:accounts/read`. Consumidores de eventos dependem de service principal e contratos versionados, não de grant de UI. Nenhuma permissão é automaticamente provisionada.
 
 Permission descriptors **do not create OpenFGA tuples**. Provision minimal grants to tenant roles independently; no platform-admin bypass. Denials and policy outages fail closed before database selection.
 
@@ -29,7 +37,7 @@ The GitHub Actions workflow additionally runs the SQL migration twice in disposa
 
 ## Scope boundaries
 
-The provider simulator is intentionally not a public unauthenticated webhook. WhatsApp and Scheduling belong in later PRs. There is no real channel delivery, push WebSocket transport or attachment store in this foundation; media upload and push notifications require separate security/integration acceptance before production.
+The provider simulator is intentionally not a public unauthenticated webhook. WhatsApp and Scheduling belong in later PRs. **This foundation originally had no real channel delivery.** The current code introduces an optional WhatsApp reply port and opt-in inbound/CRM consumers, subject to their own gates; it does not demonstrate that provider delivery is operating. There is still no guaranteed distributed WebSocket transport or attachment store in this base module; media requires separate acceptance.
 
 ## Channel boundary
 

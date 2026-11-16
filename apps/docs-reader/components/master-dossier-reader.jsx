@@ -10,10 +10,9 @@ function LinkOrText({text,base}){
     if(piece.startsWith("`")&&piece.endsWith("`"))return <code key={i}>{piece.slice(1,-1)}</code>;
     const match=piece.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if(match){
-      let href=match[2];
-      if(!/^(https?:|#|mailto:)/i.test(href)){
-        href=new URL(href,base).href;
-      }
+      let href=match[2].replace(/^<|>$/g,"");
+      if(!/^(https?:|#|mailto:)/i.test(href))href=new URL(href,base).href;
+      if(!/^(https?:|#|mailto:)/i.test(href))return match[1];
       return <a key={i} href={href} target="_blank" rel="noopener noreferrer">{match[1]}<ArrowUpRight size={12}/></a>;
     }
     return piece;
@@ -63,7 +62,7 @@ function contentBlocks(body){
  }
  return blocks;
 }
-function RichMarkdown({body,base}){
+export function RichMarkdown({body,base}){
  const blocks=useMemo(()=>contentBlocks(body),[body]);
  return <div className="master-prose">
  {blocks.map((b,i)=>{
@@ -102,7 +101,7 @@ export default function MasterDossierReader({dossier}){
    <div className="master-topline"><Link href={dossier.back}><ArrowLeft size={15}/>{dossier.backLabel}</Link><span>SYNDES · BIBLIOTECA / {dossier.id}</span></div>
    <header className="master-header">
      <div><span className="eyebrow">FICHA MESTRE · TEMPLATE v1.0.0</span><h1>{dossier.name}<span> / documentação</span></h1><p>{dossier.subtitle}. As 22 seções aparecem individualmente, preservando o conteúdo do Markdown no GitHub.</p></div>
-     <div className="master-header-aside"><span className="master-caution">{dossier.state}</span><span>{sections.length} seções · 5 grupos de leitura</span><a href={sourceUrl} target="_blank" rel="noopener noreferrer">Ver ficha original <ArrowUpRight size={14}/></a></div>
+     <div className="master-header-aside"><span className="master-caution">{dossier.state}</span><span>{sections.length} seções · 5 grupos de leitura</span><a href={sourceUrl} target="_blank" rel="noopener noreferrer">Ver ficha original <ArrowUpRight size={14}/></a>{dossier.actionIndex&&<Link className="master-action-index-link" href={dossier.actionIndex}>Explorar ações do módulo <ChevronRight size={14}/></Link>}</div>
    </header>
    <p className="master-mobile-hint">Deslize para ver os grupos da ficha <span aria-hidden="true">→</span></p>
    <div className="master-group-tabs" role="tablist" aria-label="Grupos da Ficha Mestre">

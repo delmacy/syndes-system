@@ -29,9 +29,9 @@ export default function Home() {
         </div>
       </section>
       <section className="pilot-directory" id="nucleos" aria-labelledby="pilot-directory-title">
-        <div className="intro-block"><span className="eyebrow">RECORTE ATUAL · 6 ÁREAS</span>
+        <div className="intro-block"><span className="eyebrow">RECORTE ATUAL · 7 ÁREAS</span>
           <Heading as="h2" id="pilot-directory-title" className="serif-title">Decida por área.<br/>Trabalhe por ação.</Heading>
-          <p>Os seis núcleos estão disponíveis para leitura focada. A documentação usa as fontes reais do repositório e separa escopo, implementação e homologação. CRM e Gestão de Atendimentos também apresentam Fichas Mestres por 22 seções, sem sobrecarregar a leitura. Os demais módulos permanecem no catálogo técnico, sem fichas artificiais.</p></div>
+          <p>Os sete núcleos estão disponíveis para leitura focada. A documentação usa as fontes reais do repositório e separa escopo, implementação e homologação. CRM, Inbox e Gestão de Atendimentos apresentam Fichas Mestres por 22 seções, sem sobrecarregar a leitura. Os demais módulos permanecem no catálogo técnico, sem fichas artificiais.</p></div>
         <div className="pilot-directory-grid">{PILOT_NAV.map((item,i)=><Link key={item.slug} href={"/modulos/"+item.slug} className="pilot-directory-card">
           <span className="eyebrow">{String(i+1).padStart(2,"0")} / {item.code}</span><strong>{item.title}</strong>
           <span>{item.subtitle}</span><span className="pilot-directory-open">Abrir documentação <ArrowRight size={14}/></span></Link>)}</div>
@@ -77,7 +77,7 @@ export default function Home() {
         </div>
       </section>
       <section className="pilot-feature" aria-labelledby="pilot-heading">
-        <div><span className="eyebrow">PILOTO TÉCNICO · P01</span><Heading as="h2" id="pilot-heading">CRM — Relacionamentos</Heading><p>O CRM mantém suas 18 fichas de ação e agora exibe a Ficha Mestre em 22 seções no portal; P05 Gestão de Atendimentos é o segundo teste da mesma estrutura. Core Platform, Blueprint, WhatsApp e Security conservam sua navegação por ação.</p></div>
+        <div><span className="eyebrow">PILOTO TÉCNICO · P01</span><Heading as="h2" id="pilot-heading">CRM — Relacionamentos</Heading><p>CRM mantém 18 ações; Inbox apresenta 19 ações e sua Ficha Mestre reconciliada; P05 Gestão de Atendimentos conserva a mesma estrutura. Core Platform, Blueprint, WhatsApp e Security conservam sua navegação por ação.</p></div>
         <Link className="primary-link" href="/modulos/crm">Explorar CRM <ArrowRight size={16}/></Link>
       </section>
       <div className="endnote">Alguns itens avançados do Blueprint são mantidos exclusivamente na <a href={BLUEPRINT+"/MAPA-TECNICO-POR-CAMADAS.md"} target="_blank" rel="noopener noreferrer">documentação técnica original</a>. Esta experiência não substitui os registros oficiais nem aprova funcionalidades.</div>

@@ -120,7 +120,7 @@ test("Recorte de cinco áreas mantém owners, ações distintas e fontes existen
   const {existsSync}=await import("node:fs");
   const {fileURLToPath}=await import("node:url");
   const {resolve}=await import("node:path");
-  assert.deepEqual(PILOT_NAV.map(x=>x.slug),["crm","core-platform","blueprint","whatsapp","security","atendimentos"]);
+  assert.deepEqual(PILOT_NAV.map(x=>x.slug),["crm","core-platform","blueprint","whatsapp","security","inbox","atendimentos"]);
   assert.equal(PILOT_MODULES.length,4);
   const allIds=PILOT_MODULES.flatMap(m=>m.actions.map(a=>a.id));
   assert.equal(new Set(allIds).size,allIds.length);
@@ -244,4 +244,43 @@ test("P05: matriz de 12 rotas vinculada ao controller sem homologação presumid
  assert.match(doc.sections[0].body,/NÃO HOMOLOGADOS/);
  assert.match(matrix,/PENDENTE/);
  assert.ok(!doc.sections.some(s=>s.body.includes("Product Gate aprovado")));
+});
+
+
+test("P02: 22 seções, sete funções, 19 fichas A-J e 17 rotas idênticas ao controller",async()=>{
+ const {readFileSync,existsSync}=await import("node:fs");
+ const {resolve}=await import("node:path");
+ const {loadMasterDossier}=await import("../lib/master-dossiers.js");
+ const {inboxActionCatalog,loadInboxAction,parseActionDossier}=await import("../lib/inbox-dossier.js");
+ const base=resolve(new URL("../../../docs/subprojects/P02-inbox/",import.meta.url).pathname);
+ const doc=loadMasterDossier("inbox");
+ const catalog=inboxActionCatalog();
+ assert.equal(doc.sections.length,22);
+ assert.deepEqual(doc.sections.map(s=>s.number),Array.from({length:22},(_,i)=>String(i).padStart(2,"0")));
+ assert.equal(catalog.groups.length,7);
+ assert.equal(catalog.actions.length,19);
+ assert.equal(new Set(catalog.actions.map(a=>a.id)).size,19);
+ assert.equal(catalog.actions.filter(a=>a.verb).length,17);
+ assert.equal(catalog.actions.filter(a=>!a.verb).length,2);
+ const controller=readFileSync(resolve(base,"../../../modules/inbox/src/inbox.controller.ts"),"utf8");
+ const found=[...controller.matchAll(/@(Get|Post|Patch)\("([^"]+)"\)/g)].map(m=>m[1].toUpperCase()+" "+m[2]).sort();
+ const declared=catalog.actions.filter(a=>a.verb).map(a=>a.verb+" "+a.route).sort();
+ assert.deepEqual(declared,found);
+ const matrix=readFileSync(resolve(base,"MATRIZ-ACOES.md"),"utf8");
+ for(const action of catalog.actions){
+  const target=resolve(base,"acoes",action.id+".md");
+  assert.ok(existsSync(target),target);
+  const dossier=loadInboxAction(action.id);
+  assert.deepEqual(dossier.sections.map(s=>s.letter),"ABCDEFGHIJ".split(""));
+  assert.match(dossier.sections[2].body,/EC-01/);
+  assert.match(dossier.sections[8].body,/CP-01/);
+  assert.match(dossier.sections[0].body,/NÃO HOMOLOGADOS/);
+  assert.ok(matrix.includes("](acoes/"+action.id+".md)"),action.id);
+ }
+ assert.throws(()=>parseActionDossier("## A. Apenas uma seção"),/A-J/);
+ assert.throws(()=>loadInboxAction("p02-../../README"),/Invalid/);
+ const refer=readFileSync(resolve(base,"REFERENCIA-TECNICA.md"),"utf8");
+ assert.ok(refer.includes("17 rotas"));
+ const status=readFileSync(resolve(base,"STATUS.md"),"utf8");
+ assert.ok(status.includes("34 PASS")&&status.includes("não reexecutados"));
 });

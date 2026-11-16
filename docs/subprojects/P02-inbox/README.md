@@ -4,6 +4,15 @@
 
 <!-- syndes:module-id=P02;source=modules/inbox;kind=module -->
 
+## Ficha Mestre e ações completas — reconciliação 16/11/2026
+
+- [**Ficha Mestre P02**](FICHA-MODULO.md): 22 seções do template universal congelado v1.0.0.
+- [**Matriz de 19 ações**](MATRIZ-ACOES.md): 17 HTTP + 2 consumers por sete funções; permissões e links a fichas A–J.
+- [**Inventário técnico**](INVENTARIO-TECNICO.md): contrato HTTP, métodos, exports, entidades, SQL e gaps.
+- [**Diagramas versionados**](DIAGRAMAS.md): arquitetura, fluxo, eventos, ERD base e segurança.
+- [**Portal Next.js**](https://delmacy.github.io/syndes-system/modulos/inbox/): navegação por grupos/seções, função e ação detalhada.
+- **Aviso:** a especificação P02 continua rascunho; nenhum código de negócio, grant, migration, worker ou ambiente foi ativado nesta consolidação.
+
 ## Acessar a documentação {#acessos}
 
 | Quero descobrir | Abrir |

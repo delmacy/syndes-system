@@ -142,10 +142,10 @@ test("Atlas técnico apresenta diagramas, 30 APIs, métodos e 9 tabelas",async({
   await expect(page.getByRole("region",{name:"Inventário de métodos CRM"}).locator("tbody tr").first()).toBeVisible();
 });
 
-test("Seis núcleos acessíveis e 9 abas independentes por ação",async({page})=>{
+test("Sete núcleos acessíveis e 9 abas independentes por ação",async({page})=>{
   await page.goto("/");
   const directory=page.locator(".pilot-directory-grid");
-  await expect(directory.locator("a")).toHaveCount(6);
+  await expect(directory.locator("a")).toHaveCount(7);
   for(const slug of ["core-platform","blueprint","whatsapp","security"]){
     await page.goto("/modulos/"+slug+"/");
     await expect(page.locator("main h1")).toHaveCount(1);
@@ -176,7 +176,7 @@ test("Nova documentação não provoca overflow horizontal no mobile",async({pag
 
 test("Biblioteca expõe template e módulo de atendimentos",async({page})=>{
  await page.goto("/");
- await expect(page.locator(".pilot-directory-grid a")).toHaveCount(6);
+ await expect(page.locator(".pilot-directory-grid a")).toHaveCount(7);
  const link=page.getByRole("link",{name:/Abrir template/});
  await expect(link).toBeVisible();
  await expect(link).toHaveAttribute("href",/TEMPLATE-FICHA-MODULO\.md$/);
@@ -228,4 +228,39 @@ test("Leitores de Ficha Mestre não criam overflow no mobile",async({page})=>{
   expect(sizes.scroll).toBeLessThanOrEqual(sizes.viewport+2);
   await expect(page.locator(".master-detail h2")).toHaveCount(1);
  }
+});
+
+
+test("P02 Inbox: Ficha Mestre apresenta 22 seções e acesso às 19 ações",async({page})=>{
+ await page.goto("/modulos/inbox/");
+ await expect(page.locator(".master-header h1")).toContainText("Inbox");
+ await expect(page.locator(".master-group-tab")).toHaveCount(5);
+ await expect(page.locator(".master-detail h2")).toHaveCount(1);
+ const link=page.getByRole("link",{name:/Explorar ações do módulo/});
+ await expect(link).toBeVisible();
+ await link.click();
+ await expect(page).toHaveURL(/\/modulos\/inbox\/acoes\/$/);
+ await expect(page.getByRole("tablist",{name:"Funções do Inbox"}).getByRole("tab")).toHaveCount(7);
+ await expect(page.locator(".inbox-action-card")).toHaveCount(2);
+ await page.getByRole("tab",{name:/Mensagens e notas/}).click();
+ await expect(page.locator(".inbox-action-card")).toHaveCount(3);
+ await expect(page.locator(".inbox-action-card").first()).toContainText("Consultar mensagens");
+ await page.getByRole("searchbox",{name:"Buscar ações do Inbox"}).fill("whatsapp");
+ await expect(page.locator(".inbox-action-card").first()).toBeVisible();
+});
+
+test("P02 Inbox: ficha de ação separa dez seções A-J, dados e contratos sem ancoragem contínua",async({page})=>{
+ await page.goto("/modulos/inbox/acoes/p02-message-reply/");
+ await expect(page.locator(".inbox-action-detail h1")).toContainText("Responder");
+ await expect(page.locator(".master-index-item")).toHaveCount(10);
+ await expect(page.locator(".master-detail h2")).toHaveCount(1);
+ await expect(page.locator(".master-detail-head")).toContainText("A / J");
+ await page.locator(".master-index-item").nth(3).click();
+ await expect(page.locator(".master-detail-head")).toContainText("D / J");
+ await expect(page.locator(".master-prose")).toContainText("POST");
+ await expect(page.locator(".master-prose")).toContainText("replies");
+ await page.locator(".master-index-item").nth(8).click();
+ await expect(page.locator(".master-prose")).toContainText("CP-01");
+ await expect(page.locator(".master-detail h2")).toHaveCount(1);
+ await expect(page.getByRole("link",{name:/Ver Markdown original/})).toHaveAttribute("href",/p02-message-reply[.]md$/);
 });

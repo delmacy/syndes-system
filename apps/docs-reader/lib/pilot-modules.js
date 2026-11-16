@@ -153,4 +153,4 @@ export const PILOT_MODULES=[
  }
 ];
 export const pilotModuleBySlug=(slug)=>PILOT_MODULES.find(m=>m.slug===slug);
-export const PILOT_NAV=[{slug:"crm",title:"CRM",code:"P01",subtitle:"Relacionamento e cadastro"},...PILOT_MODULES.map(({slug,title,code,subtitle})=>({slug,title,code,subtitle})),{slug:"atendimentos",title:"Gestão de Atendimentos",code:"P05",subtitle:"Funis, protocolos e equipes"}];
+export const PILOT_NAV=[{slug:"crm",title:"CRM",code:"P01",subtitle:"Relacionamento e cadastro"},...PILOT_MODULES.map(({slug,title,code,subtitle})=>({slug,title,code,subtitle})),{slug:"inbox",title:"Inbox",code:"P02",subtitle:"Fila, conversas, mensagens e operadores"},{slug:"atendimentos",title:"Gestão de Atendimentos",code:"P05",subtitle:"Funis, protocolos e equipes"}];

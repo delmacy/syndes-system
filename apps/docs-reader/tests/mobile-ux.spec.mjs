@@ -7,6 +7,9 @@ const mainRoutes=[
  ["CRM","modulos/crm/"],
  ["Ficha CRM","modulos/crm/ficha/"],
  ["P05","modulos/atendimentos/"],
+ ["Inbox","modulos/inbox/"],
+ ["Ações Inbox","modulos/inbox/acoes/"],
+ ["Ação Inbox","modulos/inbox/acoes/p02-message-reply/"],
  ["Core","modulos/core-platform/"],
  ["WhatsApp","modulos/whatsapp/"],
  ["Security","modulos/security/"],
@@ -67,7 +70,7 @@ test("menu móvel funciona em telefone e tablet sem esconder módulos",async({pa
    const nav=page.getByRole("navigation",{name:"Navegação principal"});
    await expect(nav).toBeVisible();
    await expect(page.getByRole("button",{name:"Fechar menu"})).toHaveAttribute("aria-expanded","true");
-   for(const name of ["Core Platform","Blueprint","WhatsApp","Security","Atendimentos"]){
+   for(const name of ["Core Platform","Blueprint","WhatsApp","Security","Atendimentos","Inbox"]){
      await expect(nav.getByRole("link",{name:new RegExp(name)})).toBeVisible();
    }
    await noGlobalOverflow(page,"menu open "+width);
@@ -85,7 +88,7 @@ test("menu móvel funciona em telefone e tablet sem esconder módulos",async({pa
 
 test("CRM e P05: grupos, seções, busca, navegação e histórico operam por toque",async({page})=>{
  await page.setViewportSize({width:390,height:844});
- for(const path of ["modulos/crm/ficha/","modulos/atendimentos/"]){
+ for(const path of ["modulos/crm/ficha/","modulos/atendimentos/","modulos/inbox/"]){
    await page.goto(address(path));
    const groups=page.getByRole("tablist",{name:"Grupos da Ficha Mestre"});
    await expect(groups.getByRole("tab")).toHaveCount(5);
@@ -139,4 +142,23 @@ test("CRM: abas e comandos permanecem selecionáveis em 320px",async({page})=>{
  await noGlobalOverflow(page,"CRM action tabs 320");
  await tabs.getByRole("tab",{name:"Pendências"}).click();
  await expect(page.locator("#crm-create-person .proposal-area")).toBeVisible();
+});
+
+
+test("P02 Inbox: navegação mobile por função e ação sem rolagem global",async({page})=>{
+ await page.setViewportSize({width:320,height:780});
+ await page.goto(address("modulos/inbox/"));
+ await noGlobalOverflow(page,"P02 master 320");
+ await page.getByRole("link",{name:/Explorar ações do módulo/}).click();
+ await expect(page.locator(".inbox-function-tab")).toHaveCount(7);
+ await noGlobalOverflow(page,"P02 functions 320");
+ await page.getByRole("tab",{name:/Mensagens e notas/}).click();
+ await expect(page.locator(".inbox-action-card")).toHaveCount(3);
+ await tapTarget(page,".inbox-function-tab","função P02");
+ await page.locator(".inbox-action-card").filter({hasText:"Responder à conversa"}).click();
+ await expect(page.locator(".master-index-item")).toHaveCount(10);
+ await tapTarget(page,".master-index-item","seção da ação P02");
+ await page.locator(".master-index-item").nth(5).click();
+ await expect(page.locator(".master-detail-head")).toContainText("F / J");
+ await noGlobalOverflow(page,"P02 action 320");
 });

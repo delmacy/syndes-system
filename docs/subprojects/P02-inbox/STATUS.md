@@ -2,6 +2,12 @@
 
 > **AUDITORIA TÉCNICA PARCIAL — 2026-11-12.** Evidência: worktree `b452a03e`; testes locais sem implantação. NÃO equivale a CI da SHA publicada, integração real, deploy ou Product Gate.
 
+## Checkpoint da Ficha Mestre e reconciliação — 16/11/2026
+
+Criadas a [Ficha Mestre P02](FICHA-MODULO.md) com 22 seções, a [matriz de 19 ações](MATRIZ-ACOES.md) (17 HTTP + 2 eventos), [inventário técnico](INVENTARIO-TECNICO.md), [diagramas](DIAGRAMAS.md) e 19 fichas A–J com edge cases e testes **propostos**. Código de referência `24018b354392196899332af1581170fb3ad7cf24`.
+
+**Os 34 PASS são históricos de 12/11, checkout `b452a03e`, não reexecutados nesta atualização documental.** Não alteramos comportamento, grants, migrations, workers ou servidores. **Product Gate e E2E Keycloak/OpenFGA/tenant A/B continuam abertos.** Risco de paridade SQL: a migration 001 base não contém todos os campos usados pelo código atual, o que exige rastrear 002/migrations de outros owners antes de qualquer deploy.
+
 ## Situação revalidada
 
 Plugin NestJS, fila, responsável, handoff, notas, mensagens, SSE e consumidores opt-in de evento WhatsApp/CRM. A operação autenticada e o layout real ainda exigem homologação.

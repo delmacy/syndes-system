@@ -591,3 +591,43 @@ body {
  .domain-row h3{overflow-wrap:anywhere}
  .domain-row .tag-ready{max-width:100%;white-space:normal}
 }
+
+/* P02 Inbox: seven distinct function tabs and static action dossier pages. */
+.master-action-index-link{display:inline-flex;align-items:center;gap:7px;padding:10px 12px;border:1px solid #a9c2e0;border-radius:9px;background:#e9f2ff;color:#234f86;font-size:12px;line-height:1.35;font-weight:750;text-decoration:none!important;min-height:44px}
+.inbox-actions-tools{display:flex;justify-content:space-between;gap:14px;align-items:center;margin:28px 0 17px}
+.inbox-actions-search{width:min(100%,470px)}
+.inbox-actions-tools>span{color:#70829c;font-size:12px;white-space:nowrap}
+.inbox-function-tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:#91a9cd transparent;padding-bottom:9px;margin-bottom:30px}
+.inbox-function-tab{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;white-space:nowrap;min-height:44px;border:1px solid #d7e1ec;border-radius:9px;background:#fff;padding:9px 12px;color:#5d7090;font-size:12px;font-weight:700}
+.inbox-function-tab.active{background:#e9f2ff;color:#245583;border-color:#7ca2ce}
+.inbox-function-tab small{background:#ecf1f8;border-radius:20px;padding:2px 7px;color:#627da2}
+.inbox-function-tab:focus-visible,.inbox-action-card:focus-visible{outline:3px solid #7ca7e3;outline-offset:2px}
+.inbox-action-results-head{display:flex;justify-content:space-between;align-items:center;gap:15px;margin:10px 0 20px}
+.inbox-action-results-head h2{font-size:24px;letter-spacing:-.025em;font-weight:650}
+.inbox-action-results-head>span{font-size:11px;color:#7b8da6}
+.inbox-action-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,265px),1fr));gap:12px}
+.inbox-action-card{display:flex;flex-direction:column;gap:10px;min-width:0;border-radius:12px;border:1px solid #dfe6ef;background:#fff;padding:18px 18px 15px;text-decoration:none;transition:border-color .15s,box-shadow .15s;min-height:232px}
+.inbox-action-card:hover{border-color:#8caad1;box-shadow:0 8px 20px #23456914}
+.inbox-action-kicker{font-size:10px;letter-spacing:.035em;font-weight:750;text-transform:uppercase;color:#8394ad;overflow-wrap:anywhere}
+.inbox-action-card strong{font-size:16px;line-height:1.4;color:#274e7a}
+.inbox-action-description{font-size:12px;line-height:1.6;color:#65758a;flex:1}
+.inbox-action-contract{font-family:var(--mono);font-size:11px;padding:9px;background:#edf3fa;border-radius:6px;color:#3a648d;overflow-wrap:anywhere}
+.inbox-action-open{font-size:12px;font-weight:750;color:#245a92;display:inline-flex;align-items:center;gap:6px}
+.inbox-doc-notes{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:15px;border-top:1px solid #dce5ef;margin-top:35px;padding-top:19px;font-size:12px;line-height:1.7;color:#667893}
+.inbox-doc-notes p{max-width:750px}
+.inbox-doc-notes a{display:inline-flex;align-items:center;gap:6px;color:#245d98;font-weight:700}
+.inbox-action-detail .master-header h1{font-size:clamp(29px,3.4vw,49px);overflow-wrap:anywhere}
+.inbox-action-detail .master-header-aside>span:not(.master-caution){overflow-wrap:anywhere}
+.inbox-action-detail .master-index-item{min-height:44px}
+.inbox-action-detail .master-detail{min-height:600px}
+.inbox-action-workspace .master-sources>a{min-height:35px;display:inline-flex;align-items:center}
+@media(max-width:770px){
+ .inbox-actions-tools{flex-direction:column;align-items:stretch}
+ .inbox-actions-tools>span{text-align:left}
+ .inbox-function-tabs{margin-right:-16px;padding-right:16px}
+ .inbox-action-results-head{align-items:flex-start;flex-direction:column}
+ .inbox-action-grid{grid-template-columns:1fr}
+ .inbox-action-card{min-height:0}
+ .inbox-action-detail .master-detail{min-height:0}
+ .inbox-action-detail .master-header h1{font-size:clamp(27px,8vw,42px)}
+}

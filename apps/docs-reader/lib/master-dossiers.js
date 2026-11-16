@@ -9,6 +9,13 @@ const CONFIG={
     state:"Auditoria técnica parcial · não homologado",
     paths:["MATRIZ-ACOES.md","INVENTARIO-INTEGRAL.md","DIAGRAMAS.md","STATUS.md"]
   },
+  inbox:{
+    id:"P02",name:"Inbox",subtitle:"Fila, mensagens, operadores e integração por eventos",
+    folder:"P02-inbox",back:"/",backLabel:"Voltar à Biblioteca",
+    state:"Documentação reconciliada · operação e Product Gate NÃO HOMOLOGADOS",
+    actionIndex:"/modulos/inbox/acoes",
+    paths:["MATRIZ-ACOES.md","INVENTARIO-TECNICO.md","DIAGRAMAS.md","STATUS.md"]
+  },
   atendimentos:{
     id:"P05",name:"Gestão de Atendimentos",subtitle:"Funis, protocolos e operação de atendimentos",
     folder:"P05-gestao-de-atendimentos",back:"/",backLabel:"Voltar à Biblioteca",

@@ -1,6 +1,6 @@
 # P02 — Inbox | Referência técnica
 
-> **INVENTÁRIO DOCUMENTAL NÃO AUDITADO.** Só descreve arquivos/declarações presentes no repositório; não representa funcionalidade implantada.
+> **RECONCILIAÇÃO TÉCNICA PARCIAL · 16/11/2026, código `24018b354392`.** Esta página permanece um índice: [Ficha Mestre](FICHA-MODULO.md), [17 APIs e 19 ações](MATRIZ-ACOES.md), [inventário técnico](INVENTARIO-TECNICO.md) e [diagramas](DIAGRAMAS.md) são os documentos detalhados. O código foi inspecionado, mas **não houve teste de negócio, deploy, worker, migration nem homologação nesta edição**.
 
 ## Stack e ownership
 
@@ -27,15 +27,15 @@
 
 ## Backend: classes, métodos e responsabilidades
 
-**A AUDITAR:** inspecionar código e testes, assinaturas, parâmetros, efeitos e erros. Não publicar API privada como contrato.
+**DECLARADO NO CÓDIGO:** `InboxService`, `InboxHost`, `InboxController`, `PgInboxRepository`, `InboxDefaultContextGuard`, `InboxChangeBus` e 2 consumers de eventos. Assinaturas, ownership, limites e contratos nas 19 [fichas de ação](MATRIZ-ACOES.md) e no [inventário](INVENTARIO-TECNICO.md). Classes internas não são imports públicos.
 
 ## Contratos públicos, APIs e eventos
 
-[Índice normativo de contratos](../../standards/CONTRATOS-PUBLICOS.md). Imports, endpoints e consumers exigem evidência de export, versão e compatibilidade.
+[Índice normativo de contratos](../../standards/CONTRATOS-PUBLICOS.md). O [inventário técnico](INVENTARIO-TECNICO.md) registra as 17 rotas declaradas do controller, recursos FGA por operação e os contratos `whatsapp.message.received.v2`, `inbox.participant.observed.v1`, `crm.person.resolved.v1`. Essas declarações não atestam worker/Host ativos.
 
 ## Frontend: aplicações, telas e componentes
 
-**A AUDITAR:** conferir telas em Workspace, Manager ou Support e componentes compartilhados; não inferir rota a partir do nome da unidade.
+**CÓDIGO IDENTIFICADO:** `apps/workspace-web/src/features/inbox.tsx` (fila, busca, contatos, composer, mensagens, atribuição, favoritos e Inspector P05) e assets legados `modules/inbox/public`. **PENDENTE** validar browser autenticado, dados reais, CSS/UX mobile e compatibilidade por ambiente.
 
 ## Schemas e migrations
 
@@ -45,7 +45,7 @@ Tabelas e migrações precisam de ownership e prova de aplicação; arquivo SQL 
 
 | Arquivo SQL encontrado | Banco/owner e estado |
 |---|---|
-| [001_inbox_foundation.sql](https://github.com/delmacy/syndes-system/blob/main/modules/inbox/sql/001_inbox_foundation.sql) | A confirmar com o manifesto de migração |
+| [001_inbox_foundation.sql](https://github.com/delmacy/syndes-system/blob/main/modules/inbox/sql/001_inbox_foundation.sql) | Declarado no `src/plugin.ts` para Tenant DB; possui `inbox_conversations`, `inbox_messages`, `inbox_events` e FK tenant-qualified a CRM. Aplicação real **NÃO COMPROVADA**; colunas operacionais de versões posteriores exigem reconciliação de migrations externas. |
 
 ### Control / Manager DB
 
@@ -55,3 +55,10 @@ Nenhuma tabela pode ser atribuída ao Control por inferência; confirmar owner e
 
 - [Escopo](ESCOPO.md) · [Evolução](EVOLUCAO.md) · [Status](STATUS.md) · [Histórico](HISTORICO.md).
 - **Próximo passo:** auditar classes/exports, contratos, telas, tabelas, testes e evidências sem inventar funcionalidades.
+
+## Reconciliação de estado e defasagens — 16/11/2026
+
+- [Ficha Mestre](FICHA-MODULO.md) e [matriz](MATRIZ-ACOES.md) representam **17 rotas HTTP + 2 consumers** identificados na SHA `24018b354392`.
+- O README base do pacote descreve uma fundação anterior: os recursos atuais são `inbox:conversations`, `inbox:messages`, `inbox:notes`, `inbox:assignment`, `inbox:simulation` e `inbox:metrics`. Não assumir `inbox:conversations/assign` ou `inbox:messages/reply` como permissões provisionadas.
+- A SQL 001 não contém todas as colunas de WA/organização/workspace usadas pelas queries atuais; [inventário](INVENTARIO-TECNICO.md) aponta a lacuna, sem alegar migrations executadas.
+- O [STATUS](STATUS.md) distingue 34 testes históricos e os bloqueios de Product Gate, sem confundir compilação do portal com validação operacional P02.

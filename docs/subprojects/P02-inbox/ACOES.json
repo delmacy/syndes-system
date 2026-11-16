@@ -1,0 +1,397 @@
+{
+  "head": "24018b354392196899332af1581170fb3ad7cf24",
+  "groups": [
+    {
+      "id": "fila",
+      "title": "Fila e indicadores"
+    },
+    {
+      "id": "conversas",
+      "title": "Conversas"
+    },
+    {
+      "id": "mensagens",
+      "title": "Mensagens e notas"
+    },
+    {
+      "id": "atendimento",
+      "title": "Operação do atendimento"
+    },
+    {
+      "id": "crm",
+      "title": "Vínculo CRM"
+    },
+    {
+      "id": "integracoes",
+      "title": "Canais e eventos"
+    },
+    {
+      "id": "observabilidade",
+      "title": "Tempo real"
+    }
+  ],
+  "actions": [
+    {
+      "id": "p02-queue-list",
+      "title": "Filtrar fila e pesquisar conversas",
+      "group": "fila",
+      "verb": "GET",
+      "route": "conversations",
+      "controller": "list",
+      "method": "InboxHost.list → InboxService.list",
+      "permission": "inbox:conversations/read",
+      "data": "inbox_conversations; whatsapp_chat_routes quando presente",
+      "input": "status, queue, scope, limit, offset, q",
+      "rules": "tenant e workspace; queue=mine deriva actor.id; limit 1..100; offset 0..100000; q até 80",
+      "edges": [
+        "status inválido",
+        "queue ou scope fora do enum",
+        "tenant sem membership",
+        "filtro de busca com dados de outro escopo"
+      ]
+    },
+    {
+      "id": "p02-queue-metrics",
+      "title": "Consultar indicadores da fila",
+      "group": "fila",
+      "verb": "GET",
+      "route": "metrics",
+      "controller": "metrics",
+      "method": "InboxService.metrics",
+      "permission": "inbox:metrics/read",
+      "data": "inbox_conversations",
+      "input": "não recebe body",
+      "rules": "contadores open, pending, resolved, unassigned filtrados pelo escopo autorizado",
+      "edges": [
+        "FGA de métricas negado",
+        "tenant A/B",
+        "consulta em ambiente sem índices e backfill"
+      ]
+    },
+    {
+      "id": "p02-conversation-create",
+      "title": "Criar conversa de demonstração",
+      "group": "conversas",
+      "verb": "POST",
+      "route": "conversations",
+      "controller": "create",
+      "method": "InboxService.create",
+      "permission": "inbox:conversations/write",
+      "data": "inbox_conversations; inbox_events",
+      "input": "subject, crmPersonId?, externalThreadId?",
+      "rules": "subject até 160; CRM Person opcional e qualificada por tenant; origem simulation no fluxo base",
+      "edges": [
+        "subject vazio",
+        "externalThreadId duplicado",
+        "pessoa de outro tenant",
+        "tentativa sem grant de escrita"
+      ]
+    },
+    {
+      "id": "p02-conversation-get",
+      "title": "Consultar conversa",
+      "group": "conversas",
+      "verb": "GET",
+      "route": "conversations/:id",
+      "controller": "get",
+      "method": "InboxHost.get → InboxService.get",
+      "permission": "inbox:conversations/read",
+      "data": "inbox_conversations",
+      "input": "conversationId UUID",
+      "rules": "404 se não encontrada; consulta usa tenant e escopo verificados antes de retornar dados",
+      "edges": [
+        "UUID inválido",
+        "conversa de outro workspace",
+        "ausência",
+        "banco incorreto"
+      ]
+    },
+    {
+      "id": "p02-conversation-status",
+      "title": "Alterar estado da conversa",
+      "group": "conversas",
+      "verb": "PATCH",
+      "route": "conversations/:id/status",
+      "controller": "status",
+      "method": "InboxService.status",
+      "permission": "inbox:conversations/write",
+      "data": "inbox_conversations; inbox_events",
+      "input": "status: open | pending | resolved",
+      "rules": "mudança registra auditoria; nova entrada pode reabrir conversa resolvida conforme origem",
+      "edges": [
+        "status inválido",
+        "falta de grant",
+        "conflito de mudanças",
+        "conversa fora do escopo"
+      ]
+    },
+    {
+      "id": "p02-conversation-favorite",
+      "title": "Marcar ou desmarcar favorito",
+      "group": "conversas",
+      "verb": "PATCH",
+      "route": "conversations/:id/favorite",
+      "controller": "favorite",
+      "method": "InboxService.favorite",
+      "permission": "inbox:conversations/write",
+      "data": "inbox_conversations; inbox_events",
+      "input": "favorite boolean",
+      "rules": "o repositório restringe a operação a conversas channel=whatsapp",
+      "edges": [
+        "conversa simulation",
+        "valor não booleano",
+        "leitura permitida mas escrita negada"
+      ]
+    },
+    {
+      "id": "p02-conversation-read",
+      "title": "Marcar conversa como lida",
+      "group": "conversas",
+      "verb": "PATCH",
+      "route": "conversations/:id/read",
+      "controller": "read",
+      "method": "InboxService.markRead",
+      "permission": "inbox:conversations/write",
+      "data": "inbox_conversations",
+      "input": "conversationId UUID",
+      "rules": "zera unread_count em conversa WhatsApp no escopo autorizado",
+      "edges": [
+        "conversa simulation",
+        "operador sem permissão",
+        "tenant diferente",
+        "repetição"
+      ]
+    },
+    {
+      "id": "p02-message-list",
+      "title": "Consultar mensagens",
+      "group": "mensagens",
+      "verb": "GET",
+      "route": "conversations/:id/messages",
+      "controller": "messages",
+      "method": "InboxHost.messages → InboxService.messages",
+      "permission": "inbox:messages/read",
+      "data": "inbox_messages; inbox_conversations",
+      "input": "conversationId; limit até 100",
+      "rules": "decoração WhatsApp depende de port opcional; mensagens podem ter source local/live/history",
+      "edges": [
+        "limit inválido",
+        "conversa inexistente",
+        "mensagem de outro workspace",
+        "decoração indisponível"
+      ]
+    },
+    {
+      "id": "p02-message-reply",
+      "title": "Responder à conversa",
+      "group": "mensagens",
+      "verb": "POST",
+      "route": "conversations/:id/replies",
+      "controller": "reply",
+      "method": "InboxHost.reply → InboxService.reply ou WhatsAppReply.enqueue",
+      "permission": "inbox:messages/write",
+      "data": "inbox_messages para canal local; outbox WhatsApp sob owner P03",
+      "input": "body texto até 5000",
+      "rules": "resposta simulation é local; WhatsApp usa port opcional/queue com gate, não entrega imediata confirmada",
+      "edges": [
+        "WhatsApp adapter ausente 503",
+        "conversa resolvida ou bot",
+        "não atribuído",
+        "provider offline",
+        "grant negado"
+      ]
+    },
+    {
+      "id": "p02-message-note",
+      "title": "Registrar nota interna",
+      "group": "mensagens",
+      "verb": "POST",
+      "route": "conversations/:id/notes",
+      "controller": "note",
+      "method": "InboxService.note",
+      "permission": "inbox:notes/write",
+      "data": "inbox_messages direção internal; inbox_events",
+      "input": "body até 5000",
+      "rules": "nota não é mensagem enviada ao WhatsApp; requer regra de atribuição no repositório",
+      "edges": [
+        "nota vazia",
+        "sem responsável",
+        "conversa resolvida",
+        "workspace alheio"
+      ]
+    },
+    {
+      "id": "p02-assignment-set",
+      "title": "Atribuir ou liberar responsável",
+      "group": "atendimento",
+      "verb": "PATCH",
+      "route": "conversations/:id/assignment",
+      "controller": "assign",
+      "method": "InboxService.assign",
+      "permission": "inbox:assignment/write",
+      "data": "inbox_conversations; inbox_events",
+      "input": "assigneeId string ou null",
+      "rules": "ator autenticado; validador assignee com limite de 128 e caracteres permitidos",
+      "edges": [
+        "atribuição de ator inexistente",
+        "permissão negada",
+        "conversa de outro escopo",
+        "liberada repetidamente"
+      ]
+    },
+    {
+      "id": "p02-handoff-set",
+      "title": "Alternar atendimento humano ou bot",
+      "group": "atendimento",
+      "verb": "PATCH",
+      "route": "conversations/:id/handoff",
+      "controller": "handoff",
+      "method": "InboxService.handoff",
+      "permission": "inbox:conversations/write",
+      "data": "inbox_conversations; inbox_events",
+      "input": "mode human | bot",
+      "rules": "altera modo da conversa sem criar funil/protocolo P05",
+      "edges": [
+        "mode inválido",
+        "tentativa de resposta humana em handoff bot",
+        "tenant A/B"
+      ]
+    },
+    {
+      "id": "p02-workspace-transfer",
+      "title": "Transferir conversa entre workspaces",
+      "group": "atendimento",
+      "verb": "PATCH",
+      "route": "conversations/:id/workspace",
+      "controller": "transferWorkspace",
+      "method": "InboxService.transferWorkspace",
+      "permission": "inbox:assignment/write",
+      "data": "inbox_conversations; inbox_events; memberships P04",
+      "input": "workspaceId UUID",
+      "rules": "mesma organização, autorização origem/destino, guard de escopo; notifica ambas as filas",
+      "edges": [
+        "destino de outra organização",
+        "workspace inativo",
+        "ator fora da equipe",
+        "legado tenant-only",
+        "grant FGA insuficiente"
+      ]
+    },
+    {
+      "id": "p02-crm-link",
+      "title": "Vincular conversa à pessoa CRM",
+      "group": "crm",
+      "verb": "PATCH",
+      "route": "conversations/:id/contact",
+      "controller": "contact",
+      "method": "InboxService.linkContact",
+      "permission": "crm:people/read + inbox:conversations/write",
+      "data": "inbox_conversations; crm_people",
+      "input": "personId UUID",
+      "rules": "pessoa precisa ser não arquivada e do tenant/organização autorizados; vínculo não é merge",
+      "edges": [
+        "CRM Person arquivada",
+        "UUID inválido",
+        "canal não whatsapp",
+        "falta de grant CRM",
+        "conflito de vínculo"
+      ]
+    },
+    {
+      "id": "p02-whatsapp-history",
+      "title": "Solicitar histórico WhatsApp",
+      "group": "integracoes",
+      "verb": "POST",
+      "route": "conversations/:id/history",
+      "controller": "requestHistory",
+      "method": "InboxHost.history → WhatsAppReply.requestHistory",
+      "permission": "inbox:conversations/read + whatsapp:accounts/read",
+      "data": "inbox_conversations; provider P03",
+      "input": "conversationId UUID",
+      "rules": "somente conversa WhatsApp; requer port de integração opcional; não garante sincronização concluída",
+      "edges": [
+        "canal simulation 404",
+        "integração indisponível 503",
+        "grant WhatsApp ausente"
+      ]
+    },
+    {
+      "id": "p02-simulation-inbound",
+      "title": "Simular mensagem de entrada",
+      "group": "integracoes",
+      "verb": "POST",
+      "route": "conversations/:id/simulator/inbound",
+      "controller": "simulate",
+      "method": "SimulatedChannelAdapter.receive → InboxService.simulate",
+      "permission": "inbox:simulation/write",
+      "data": "inbox_messages; inbox_conversations",
+      "input": "body, externalMessageId estável",
+      "rules": "somente canal simulation no adapter; repetição idempotente ou conflito de payload",
+      "edges": [
+        "externalMessageId ausente",
+        "replay com payload divergente",
+        "tentativa webhook anônimo",
+        "escrita sem grant"
+      ]
+    },
+    {
+      "id": "p02-realtime-events",
+      "title": "Acompanhar alterações por SSE",
+      "group": "observabilidade",
+      "verb": "GET",
+      "route": "events",
+      "controller": "eventsStream",
+      "method": "InboxHost.revalidateStream → InboxChangeBus.connect",
+      "permission": "inbox:conversations/read",
+      "data": "nenhuma persistência própria; invalidação SSE em memória",
+      "input": "Bearer JWT; escopo confiável",
+      "rules": "changed sem PII; até 60 listeners; stream 60s; recheck periódico no modo enforce; fallback HTTP",
+      "edges": [
+        "61ª conexão 429",
+        "token revogado",
+        "membership removida",
+        "múltiplos Hosts sem broker"
+      ]
+    },
+    {
+      "id": "p02-whatsapp-ingest-event",
+      "title": "Consumir evento WhatsApp recebido",
+      "group": "integracoes",
+      "verb": "",
+      "route": "",
+      "controller": "handle",
+      "method": "InboxWhatsAppReceivedConsumer.handle",
+      "permission": "service principal / contrato versionado, NÃO HTTP",
+      "data": "inbox_conversations; inbox_messages; rotas P03",
+      "input": "whatsapp.message.received.v2",
+      "rules": "transação no mesmo tenant; idempotência por hashes e externalMessageId; publica inbox.participant.observed.v1",
+      "edges": [
+        "evento sem workspace",
+        "conta/chat cruzados",
+        "reentrega",
+        "fonte historical ou group",
+        "consumer não ativado"
+      ]
+    },
+    {
+      "id": "p02-crm-resolved-event",
+      "title": "Consumir resolução de pessoa CRM",
+      "group": "crm",
+      "verb": "",
+      "route": "",
+      "controller": "handle",
+      "method": "InboxCrmPersonResolvedConsumer.handle",
+      "permission": "service principal / contrato versionado, NÃO HTTP",
+      "data": "inbox_conversations; inbox_events; crm_people",
+      "input": "crm.person.resolved.v1",
+      "rules": "consulta bloqueada FOR UPDATE e política CRM revalidada; não sobrescreve vínculo divergente",
+      "edges": [
+        "vínculo já diferente",
+        "identidade mudou",
+        "resolução de grupo",
+        "tenant/workspace diferente",
+        "consumer não ativado"
+      ]
+    }
+  ]
+}
