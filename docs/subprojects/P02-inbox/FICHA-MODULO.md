@@ -157,3 +157,8 @@ Entrada recomendada: `P02 + actionId + decisão/observação + SHA`. Ler a [aç�
 | 16/11/2026 | Ficha Mestre, matriz, inventário e 19 fichas A–J | **Somente documentação**; sem SQL/deploy/worker |
 
 **Próximo checkpoint candidato:** P02-VAL-01 — validar Host, Keycloak, OpenFGA, PostgreSQL e tenant A/B com evidência reproduzível. Não aprovar automaticamente.
+
+
+## Adendo de execução · P02-ASSIGN-03 (candidato 17/11/2026)
+
+A autorização do destinatário foi conectada ao Kernel/C04 em `InboxService.assign`: recurso `inbox:conversations`/ação `read` e recurso `inbox:messages`/ação `write`, com membership de tenant independente. O ator segue exigindo `inbox:assignment`/`write`. O SQL P04 continua dono do filtro atômico por organização e workspace; negar destinatário retorna `null` (HTTP 404), erro de infraestrutura falha em 503, `null` libera sem grant. **Integração nesta branch, CI e homologação operacional ainda não comprovadas.** Limite: sem transação atômica entre OpenFGA externo e PostgreSQL; conferir grants/Keycloak e revogação em jornada real antes do Product Gate.
