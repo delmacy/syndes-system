@@ -11,6 +11,7 @@
 - [**Inventário técnico**](INVENTARIO-TECNICO.md): contrato HTTP, métodos, exports, entidades, SQL e gaps.
 - [**Paridade código × documentação**](PARIDADE-CODIGO.md): migrations por owner, comportamento exato, evidências e propostas futuras não aprovadas.
 - [**Pré-homologação de atribuições**](PRE-HOMOLOGACAO-ASSIGN.md): testes GitHub Actions com PG/FGA descartáveis, relatório read-only e gates para rollout.
+- [**Deploy DevServer01 de 17/11/2026**](IMPLANTACAO-DEVSERVER01-20261117.md): imagem ativa, smoke real, snapshot SQL, rollback e limites ainda abertos.
 - [**Diagramas versionados**](DIAGRAMAS.md): arquitetura, fluxo, eventos, ERD base e segurança.
 - [**Portal Next.js**](https://delmacy.github.io/syndes-system/modulos/inbox/): navegação por grupos/seções, função e ação detalhada.
 - **Aviso:** a especificação P02 continua rascunho; nenhum código de negócio, grant, migration, worker ou ambiente foi ativado nesta consolidação.

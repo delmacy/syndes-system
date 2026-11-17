@@ -53,3 +53,7 @@ A aprovação de G4 **não promove** G1/G2/G3/G5. A implementação completa dev
 ## Como propor a próxima melhoria
 
 Após os testes, a decisão principal é escolher o **contrato de permissão individual do destinatário**. Não criar uma relação OpenFGA improvisada por conversa, nem autorizar `admin/editor` como substituto permanente de acesso efetivo. Definir autorização por recurso e escopo com os owners e integrar o check no fluxo de atribuição com política de revogação e tratamento de indisponibilidade.
+
+## Checkpoint posterior — deploy de desenvolvimento 17/11/2026
+
+A imagem `syndes/core-host:inbox-assign-4126665` foi implantada no DevServer01 depois de canário privado e teste real de contexto/FGA do responsável atual. [Evidências completas](IMPLANTACAO-DEVSERVER01-20261117.md). **O teste sintético P02-ASSIGN-02 continua distinto da verificação real**; IAM individual dos futuros destinatários e aceite do Product Gate não foram implementados.

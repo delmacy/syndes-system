@@ -102,6 +102,8 @@ Arquivos relacionados à investigação: [`test/inbox.test.mjs`](https://github.
 
 ## J. Decisões e handoff
 
+**Deploy verificado 17/11/2026:** P02-ASSIGN-01 incluído na imagem ativa do DevServer01 (`syndes/core-host:inbox-assign-4126665`), código `4126665`. Readiness PASS, fonte SQL de atribuição presente, FGA real para o responsável já vinculado PASS, único histórico atribuído elegível por P04. [Registro do deploy](../IMPLANTACAO-DEVSERVER01-20261117.md). **Não** equivale a grant por destinatário no endpoint, teste Keycloak HTTP autenticado nem homologação final.
+
 **Decisão de implementação autorizada pelo responsável:** P02-ASSIGN-01, impedir novas atribuições para destinatários sem membership ativa `editor/admin` no workspace atual. Sem migração nova e sem mudança de permissões do ator. **Não abrange** revisão de Keycloak/FGA do alvo, limpeza de vínculos antigos nem criação de cargo especializado de atendente.
 
 Agente deve ler [Ficha Mestre](../FICHA-MODULO.md), [Matriz](../MATRIZ-ACOES.md), [STATUS](../STATUS.md), `AGENTS.md`, contrato/código na SHA atual, e propor testes antes de alterar runtime. Só implementar após autorização com paths e critério de aceite; atualizar código, documentação, WBS e testes no mesmo incremento.

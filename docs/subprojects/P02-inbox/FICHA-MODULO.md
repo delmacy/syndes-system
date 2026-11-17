@@ -144,6 +144,9 @@ Entrada recomendada: `P02 + actionId + decisão/observação + SHA`. Ler a [aç�
 
 ## 21 · Histórico, atualização e checkpoint
 
+**17/11/2026 — DevServer01 atualizado:** Core Host image `syndes/core-host:inbox-assign-4126665`, baseado na SHA `4126665`, readiness e Kernel/FGA reais aprovados, 98 conversas preservadas, uma atribuição P04 elegível, `SYNDES_MULTI_ORG_ENABLED=false`, dispatch WA verdadeiro. [Relatório do deploy e rollback](IMPLANTACAO-DEVSERVER01-20261117.md). **Sem promoção de Product Gate:** JWT Keycloak navegador, FGA individual do futuro destinatário e ensaio de reversão continuam pendentes.
+
+
 [Paridade de código](PARIDADE-CODIGO.md) distingue declaração de código, teste, integração, deploy e aceite. CI 16/11, commit `54bbc6c`: regressão Host/PostgreSQL **9 PASS**, separada dos 34 testes históricos. **Homologação operacional aberta**.
 
 

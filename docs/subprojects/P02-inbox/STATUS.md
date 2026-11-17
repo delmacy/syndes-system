@@ -1,5 +1,12 @@
 # P02 — Inbox | STATUS
 
+## Deploy de desenvolvimento verificado — 17/11/2026
+
+**DevServer01, commit `4126665` → imagem `syndes/core-host:inbox-assign-4126665`: IMPLANTADO E SMOKE PASS.** [Relatório com evidências e rollback](IMPLANTACAO-DEVSERVER01-20261117.md). Serviço de API ativo, `readyz=200`, rotas anônimas 401, P04 índices 2/2, Kernel/FGA real validado para ator e responsável atual, 98 conversas e 1 atribuição elegível; gateway/frontend preservados e dispatch WA manteve `true`.
+
+**Limite: NÃO HOMOLOGADO.** Não há grant OpenFGA individual do futuro destinatário integrado ao método de atribuição, E2E de JWT Keycloak/browser ou ensaio real do script de rollback. Não houve alteração de schema, dados ou grants durante o deploy.
+
+
 > **AUDITORIA TÉCNICA PARCIAL — 2026-11-12.** Evidência: worktree `b452a03e`; testes locais sem implantação. NÃO equivale a CI da SHA publicada, integração real, deploy ou Product Gate.
 
 ## Checkpoint da Ficha Mestre e reconciliação — 16/11/2026
