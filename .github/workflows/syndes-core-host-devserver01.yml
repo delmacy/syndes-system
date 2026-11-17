@@ -14,8 +14,7 @@ concurrency:
 
 jobs:
   tailnet-preflight:
-    # Validates OIDC, peer reachability and read-only Tailscale SSH authorization.
-    # Never builds images, starts services, or deploys to DevServer01.
+    # Read-only when deploy is disabled: OIDC, Tailscale SSH and pinned Compose.
     if: >-
       ${{ vars.SYNDES_DEV_CORE_HOST_CD_ENABLED != 'true' &&
           github.event.workflow_run.conclusion == 'success' &&
@@ -29,6 +28,10 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
       - name: Validate OIDC Client ID, Audience and Tailscale tag
         shell: bash
         env:
@@ -38,56 +41,44 @@ jobs:
         run: |
           set -Eeuo pipefail
           [[ -n "$OIDC_CLIENT_ID" && -n "$OIDC_AUDIENCE" ]]
-          [[ "$TAILSCALE_TAG" =~ ^tag:[a-z0-9_-]+$ ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-core-host.sh
           echo 'TAILNET_OIDC_CONFIG_PRESENT'
-      - name: Verify GitHub OIDC login to Tailnet (ephemeral, no SSH)
+      - name: Verify GitHub OIDC login to Tailnet
         uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
           tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
-      - name: Verify runner joined Tailnet without touching any server
+      - name: Verify runner joined Tailnet
         shell: bash
         run: |
           set -Eeuo pipefail
           tailscale status >/dev/null
           [[ -n "$(tailscale ip -4)" ]]
           echo 'TAILNET_OIDC_AUTH_VERIFIED'
-      - name: Check DevServer01 Tailnet peer when target is configured (no SSH)
+      - name: Verify DevServer01 peer and noninteractive Tailscale SSH
         shell: bash
         env:
           DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
         run: |
           set -Eeuo pipefail
-          if [[ -z "$DEPLOY_HOST" ]]; then
-            echo 'DEVSERVER01_HOST_NOT_CONFIGURED: set SYNDES_DEV_SSH_HOST in devserver01 Environment'
-            exit 0
-          fi
-          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9_.-]+\.ts\.net$ ]]
-          # Network peer discovery only: not a Tailscale SSH permission or port 22 test.
+          [[ "$DEPLOY_HOST" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
           tailscale ping --c=2 --until-direct=false --timeout=8s "$DEPLOY_HOST" >/dev/null
           echo 'DEVSERVER01_TAILNET_PEER_REACHABLE'
-      - name: Verify tagged Tailscale SSH with read-only identity check
+          remote_identity="$(timeout 25s tailscale ssh "delmacy@$DEPLOY_HOST" 'printf "SYNDES_USER="; id -un; printf "SYNDES_HOST="; hostname -s')"
+          [[ "$remote_identity" == *'SYNDES_USER=delmacy'* && "$remote_identity" == *'SYNDES_HOST=DevServer01'* ]]
+          echo 'DEVSERVER01_TAILSCALE_SSH_READONLY_PASS'
+      - name: Verify locked four-file Compose contract remotely without writes
         shell: bash
         env:
           DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
-          SSH_LOGIN_USER: delmacy
         run: |
           set -Eeuo pipefail
-          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9_.-]+\.ts\.net$ ]]
-          [[ "$SSH_LOGIN_USER" == "delmacy" ]]
-          # This only reads the account and host name; never runs a deploy script.
-          remote_identity="$(timeout 25s tailscale ssh "$SSH_LOGIN_USER@$DEPLOY_HOST" 'printf "SYNDES_USER="; id -un; printf "SYNDES_HOST="; hostname -s')"
-          [[ "$remote_identity" == *"SYNDES_USER=delmacy"* ]]
-          [[ "$remote_identity" == *"SYNDES_HOST=DevServer01"* ]]
-          echo 'DEVSERVER01_TAILSCALE_SSH_READONLY_PASS'
+          timeout 45s tailscale ssh "delmacy@$DEPLOY_HOST" 'bash -s -- preflight' < scripts/deploy/devserver01-core-host.sh
 
   deploy:
-    permissions:
-      contents: read
-      id-token: write # Tailscale OIDC short-lived GitHub identity token
-    # Inactive unless the owner enables the explicit release switch.
-    # Never promote a PR, fork, failed CI, or an older SHA to the server.
+    # Release requires explicit repository-level switch. Preflight alone cannot deploy.
     if: >-
       ${{ vars.SYNDES_DEV_CORE_HOST_CD_ENABLED == 'true' &&
           github.event.workflow_run.conclusion == 'success' &&
@@ -97,86 +88,60 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
     env:
       SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
       DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
-      DEPLOY_USER: ${{ vars.SYNDES_DEV_SSH_USER }}
-      DEPLOY_PORT: ${{ vars.SYNDES_DEV_SSH_PORT }}
-      COMPOSE_DIR: ${{ vars.SYNDES_DEV_CORE_HOST_COMPOSE_DIR }}
-      COMPOSE_FILE: ${{ vars.SYNDES_DEV_CORE_HOST_COMPOSE_FILE }}
-      COMPOSE_PROJECT: ${{ vars.SYNDES_DEV_CORE_HOST_COMPOSE_PROJECT }}
-      COMPOSE_SERVICE: ${{ vars.SYNDES_DEV_CORE_HOST_COMPOSE_SERVICE }}
-      COMPOSE_SHA256: ${{ vars.SYNDES_DEV_CORE_HOST_COMPOSE_SHA256 }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
-      - name: Validate source SHA, environment and rollout script
+      - name: Validate immutable release source, identity and script
         shell: bash
         env:
-          TAILSCALE_OIDC_CLIENT_ID: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
-          TAILSCALE_OIDC_AUDIENCE: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
-          SSH_PRIVATE_KEY: ${{ secrets.SYNDES_DEV_SSH_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.SYNDES_DEV_SSH_KNOWN_HOSTS }}
+          OIDC_CLIENT_ID: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          OIDC_AUDIENCE: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
           TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
         run: |
           set -Eeuo pipefail
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
-          # Do not deploy an older main after a newer push.
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
-          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9_.-]+$ && "$DEPLOY_HOST" == *.ts.net ]]
-          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ && "$DEPLOY_USER" != "root" ]]
-          [[ "$DEPLOY_PORT" =~ ^[0-9]{1,5}$ ]]
-          (( DEPLOY_PORT >= 1 && DEPLOY_PORT <= 65535 ))
-          [[ "$TAILSCALE_TAG" =~ ^tag:[a-z0-9_-]+$ ]]
-          [[ "$COMPOSE_DIR" =~ ^/[a-zA-Z0-9_./-]+$ ]]
-          [[ "$COMPOSE_FILE" =~ ^[a-zA-Z0-9_./-]+$ ]]
-          [[ "$COMPOSE_PROJECT" =~ ^[a-z][a-z0-9_-]{1,63}$ ]]
-          [[ "$COMPOSE_SERVICE" =~ ^[a-z][a-z0-9_-]{1,63}$ ]]
-          [[ "$COMPOSE_SHA256" =~ ^[a-f0-9]{64}$ ]]
-          [[ -n "$TAILSCALE_OIDC_CLIENT_ID" && -n "$TAILSCALE_OIDC_AUDIENCE" ]]
-          [[ -n "$SSH_PRIVATE_KEY" && -n "$SSH_KNOWN_HOSTS" ]]
+          [[ "$DEPLOY_HOST" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          [[ -n "$OIDC_CLIENT_ID" && -n "$OIDC_AUDIENCE" ]]
           bash -n scripts/deploy/devserver01-core-host.sh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/syndes-dev-key"
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/syndes-dev-known-hosts"
-          chmod 600 "$RUNNER_TEMP/syndes-dev-key" "$RUNNER_TEMP/syndes-dev-known-hosts"
-      - name: Build SHA-pinned Core Host image in GitHub Actions
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          docker build --file apps/core-host/Dockerfile --tag "syndes/core-host:git-$SOURCE_SHA" .
-      - name: Join the deployment Tailnet (ephemeral runner)
+      - name: Join deployment Tailnet using ephemeral GitHub OIDC
         uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
           tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
           ping: ${{ vars.SYNDES_DEV_SSH_HOST }}
-      - name: Transfer image from GitHub runner without a registry credential
+      - name: Verify four historical Compose manifests before building
         shell: bash
         run: |
           set -Eeuo pipefail
-          sshopts=(-i "$RUNNER_TEMP/syndes-dev-key"
-            -o "UserKnownHostsFile=$RUNNER_TEMP/syndes-dev-known-hosts"
-            -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20
-            -p "$DEPLOY_PORT" -T)
+          timeout 45s tailscale ssh "delmacy@$DEPLOY_HOST" 'bash -s -- preflight' < scripts/deploy/devserver01-core-host.sh
+      - name: Build SHA-pinned Core Host image in GitHub Actions
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          docker build --file apps/core-host/Dockerfile --tag "syndes/core-host:git-$SOURCE_SHA" .
+      - name: Transfer image through Tailscale SSH without SSH keys or registry
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
           docker save "syndes/core-host:git-$SOURCE_SHA" | gzip -1 |
-            ssh "${sshopts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" 'gzip -dc | docker load'
-      - name: Deploy only the existing Core Host service; smoke and rollback
+            timeout 600s tailscale ssh "delmacy@$DEPLOY_HOST" 'gzip -dc | docker load'
+      - name: Deploy ONLY Core Host, verify readiness and rollback on failure
         shell: bash
         run: |
           set -Eeuo pipefail
-          sshopts=(-i "$RUNNER_TEMP/syndes-dev-key"
-            -o "UserKnownHostsFile=$RUNNER_TEMP/syndes-dev-known-hosts"
-            -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20
-            -p "$DEPLOY_PORT" -T)
-          ssh "${sshopts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
-            bash -s -- "syndes/core-host:git-$SOURCE_SHA" "$COMPOSE_PROJECT" \
-            "$COMPOSE_DIR" "$COMPOSE_FILE" "$COMPOSE_SERVICE" "$COMPOSE_SHA256" \
-            < scripts/deploy/devserver01-core-host.sh
-      - name: Remove temporary SSH credentials
-        if: always()
-        shell: bash
-        run: rm -f "$RUNNER_TEMP/syndes-dev-key" "$RUNNER_TEMP/syndes-dev-known-hosts"
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          timeout 180s tailscale ssh "delmacy@$DEPLOY_HOST" "bash -s -- deploy syndes/core-host:git-$SOURCE_SHA" < scripts/deploy/devserver01-core-host.sh

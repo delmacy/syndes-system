@@ -1,66 +1,60 @@
-# Core Host → DevServer01 via GitHub Actions (candidato de CD)
+# Syndes Core Host → DevServer01 via GitHub Actions
 
-**Estado: deploy DESATIVADO; OIDC e alcance do peer comprovados no GitHub Actions; autorização SSH e Compose ainda não homologados.** Este documento não afirma que houve deploy e não substitui o Product Gate do P02.
+**Estado em 17/11/2026: adaptação versionada, deploy DESATIVADO.** A autenticação OIDC, conexão à Tailnet e SSH de leitura foram comprovados pelo [GitHub Actions, run 44129310863, tentativa 4](https://github.com/delmacy/syndes-system/actions/runs/44129310863). Isso não comprova uma publicação nem um rollback real.
 
-## Contrato de entrega
+## Política de publicação
 
-A origem de release é exclusivamente o workflow **Syndes Mainline CI**, acionado por push em main, concluído com SUCCESS. O workflow downstream está em .github/workflows/syndes-core-host-devserver01.yml e não aceita PR, fork nem SHA antigo. O SHA exato do commit em main é reconstruído como imagem Docker syndes/core-host:git-(sha40) com apps/core-host/Dockerfile. Não há execução manual de comandos no DevServer01 por este chat: transferência e ativação somente como job auditável GitHub Actions.
+O único mecanismo autorizado para ativar o Core Host no DevServer01 é `.github/workflows/syndes-core-host-devserver01.yml`. O workflow escuta `workflow_run` de `Syndes Mainline CI` concluído com sucesso, originado de push em `main` do próprio repositório. Confere que o SHA de origem ainda é a ponta atual do `main`; não promove PR, fork ou commit obsoleto. Exige a variável de **repositório** `SYNDES_DEV_CORE_HOST_CD_ENABLED=true`. **Mantenha essa variável ausente ou false até o ensaio operacional autorizado.**
 
-O runner ingressa efemeramente na Tailnet via identidade federada Tailscale OIDC (token de curta duração do GitHub, sem Client Secret) e tag restrita, usa SSH com host key pinada e chave provisionada em Secrets. A imagem trafega em stream criptografado docker save | gzip | ssh | docker load, sem senha de registry no servidor. O script remoto scripts/deploy/devserver01-core-host.sh valida imagem SHA, manifesto Compose por SHA256, serviço existente, preserva dispatch WhatsApp e multi-org, executa apenas compose up -d --no-deps para o serviço aprovado, verifica readiness 200, Inbox anônimo 401 e tenta rollback da imagem anterior quando o smoke falha. Não executa migration, backfill, grant nem atualização do gateway/Workspace.
+## Conectividade e variáveis
 
-## Habilitação no GitHub
+A conexão de deploy é GitHub Actions → OIDC Tailscale → `tag:syndes-ci` → Tailscale SSH → `tag:syndes-devserver01`. A autenticação SSH e identidade do host são verificadas pelo Tailscale. Não requer segredo de chave SSH, known_hosts, Client Secret OAuth ou credencial de registry. A regra Tailscale SSH para o CI precisa permitir usuário Linux `delmacy`, `accept` sem confirmação interativa, junto a grant TCP 22 de rede. A identidade OIDC observada é `repo:delmacy@26817160/syndes-system@1433806501:environment:devserver01`.
 
-Criar **GitHub Environment devserver01** com política de branch main, controle de acesso e credenciais mínimas. Até a verificação dos dados abaixo, deixar a variável de REPOSITÓRIO SYNDES_DEV_CORE_HOST_CD_ENABLED ausente ou false (não usar somente Environment Variable, pois a condição job.if é avaliada antes do job entrar no environment). A conexão GitHub disponível nesta sessão não concede acesso a Secrets/Variables e não confirma acesso ao servidor pela Tailnet.
+| Escopo | Nome | Configuração |
+| --- | --- | --- |
+| GitHub Repository Variable | `SYNDES_DEV_CORE_HOST_CD_ENABLED` | **false ou ausente** até autorização explícita |
+| Environment `devserver01` Variable | `SYNDES_DEV_TAILSCALE_TAG` | `tag:syndes-ci` |
+| Environment `devserver01` Variable | `SYNDES_DEV_SSH_HOST` | `delmacy-desktoppc.tayra-delta.ts.net` |
+| Environment `devserver01` Secret | `SYNDES_TAILSCALE_OAUTH_CLIENT_ID` | OIDC Client ID (nome legado) |
+| Environment `devserver01` Secret | `SYNDES_TAILSCALE_OIDC_AUDIENCE` | OIDC Audience |
 
-**GitHub Variables** — valores reais fornecidos pelo operador, não inferidos de outros servidores:
+As variáveis legadas de Compose (`SYNDES_DEV_CORE_HOST_COMPOSE_*`), porta, usuário e os segredos `SYNDES_DEV_SSH_KEY` e `SYNDES_DEV_SSH_KNOWN_HOSTS` **não são consumidos pelo CD atualizado**. Não excluir os segredos sem verificar outros consumidores.
 
-| Variable | Exigência |
-| --- | --- |
-| SYNDES_DEV_CORE_HOST_CD_ENABLED | true apenas depois de todos os pré-gates |
-| SYNDES_DEV_TAILSCALE_TAG | Tag limitada ao servidor-alvo, como tag:ci |
-| SYNDES_DEV_SSH_HOST | FQDN Tailnet EXATO do DevServer01, terminando em .ts.net |
-| SYNDES_DEV_SSH_USER | Usuário SSH não root com acesso Docker |
-| SYNDES_DEV_SSH_PORT | Porta SSH numérica, por exemplo 22 |
-| SYNDES_DEV_CORE_HOST_COMPOSE_DIR | Diretório real da composição operacional, absoluto |
-| SYNDES_DEV_CORE_HOST_COMPOSE_FILE | Arquivo Compose exato relativo ao diretório |
-| SYNDES_DEV_CORE_HOST_COMPOSE_PROJECT | Nome Docker Compose existente e aprovado |
-| SYNDES_DEV_CORE_HOST_COMPOSE_SERVICE | Nome exato do serviço Core Host |
-| SYNDES_DEV_CORE_HOST_COMPOSE_SHA256 | SHA256 verificado do manifesto no servidor |
+## Contrato Compose real, bloqueado por SHA256
 
-**GitHub Environment Secrets (`devserver01`)**: `SYNDES_TAILSCALE_OAUTH_CLIENT_ID` (nome legado mantido por compatibilidade, mas deve conter o **Client ID OIDC**, não OAuth); `SYNDES_TAILSCALE_OIDC_AUDIENCE` (Audience da credencial OIDC), `SYNDES_DEV_SSH_KEY`, `SYNDES_DEV_SSH_KNOWN_HOSTS`. **Não cadastrar Client Secret OAuth.** O job solicita `id-token: write` somente para o deploy. Não publicar valores no chat, Issues ou documentação. A chave de host deve vir de canal confiável independente; o workflow não usa ssh-keyscan nem relaxa host key checking. A tag OIDC deve ter ACL Tailnet limitada ao SSH do DevServer01.
+O projeto operacional é `syndes-whatsapp-cutover`; o serviço único de deploy é `core-host-whatsapp`. O outro serviço, `workspace-whatsapp`, não pode ser recriado. O diretório principal é `/home/delmacy/syndes-system/modules/whatsapp/deploy`.
 
-O Subject OIDC realmente recebido pelo Tailscale foi `repo:delmacy@26817160/syndes-system@1433806501:environment:devserver01`, corrigido pelo operador;  o Environment `devserver01` precisa existir no GitHub. A credencial também deve autorizar a tag configurada em `SYNDES_DEV_TAILSCALE_TAG`.
+O script `scripts/deploy/devserver01-core-host.sh` trava **a ordem e o SHA256** dos quatro arquivos históricos:
 
-## Pré-validação automática de Tailnet (sem deploy)
+| Ordem | Manifesto | SHA256 |
+| --- | --- | --- |
+| 1 | `/home/delmacy/syndes-system/modules/whatsapp/deploy/devserver01-cutover.compose.yaml` | `b0d1a94dcf00de7129aeb118b027dd161fb6047c22516affa2031b8c53e2220f` |
+| 2 | `/home/delmacy/syndes-releases/inbox-receipts-scroll-20261104/core-r2.override.yaml` | `62fae023cfb0db70e64243588b9139cadf1b662f1912c82f059feb861714d6b9` |
+| 3 | `/home/delmacy/syndes-releases/org-scope-8e2fb5d-20261109/release-override.compose.yaml` | `b003f8f0fb57d4d2d2df895bf1fcf13bf07b200f5fdc7f0eae7dfa1ab35b0e9c` |
+| 4 | `/home/delmacy/syndes-releases/inbox-assignment-4126665/release-override.compose.yaml` | `abe594ab53d3bd7947a15386f915d005313a13ccd4d0477256cbfb91c6908955` |
 
-Enquanto `SYNDES_DEV_CORE_HOST_CD_ENABLED` estiver ausente ou diferente de `true`, o workflow downstream executará somente o job `tailnet-preflight` após um **Syndes Mainline CI** bem-sucedido originado de push na `main`. O job solicita OIDC ao GitHub no Environment `devserver01`, valida que os dois Secrets e a tag têm conteúdo, ingressa efemeramente na Tailnet e confirma endereço IPv4 Tailscale. O preflight também tenta um login Tailscale SSH estritamente de leitura (`id -un` e `hostname -s`) com limite de 25 segundos. Não executa Docker, sudo, transferência de imagem nem altera o DevServer01. Ele continuará rodando após pushes futuros enquanto CD estiver desativado; ao habilitar o CD completo, esse preflight isolado é desativado e o job `deploy` terá sua própria conexão Tailscale.
+Esses manifests usam imagem literal, e **não** `SYNDES_CORE_HOST_IMAGE`. O CD preserva os quatro originais e passa a criar um **quinto arquivo persistente**, gerenciado exclusivamente pelo GitHub Actions:
 
-Um `TAILNET_OIDC_AUTH_VERIFIED` nos logs comprova somente a autenticação e ingresso do runner na Tailnet. Após `DEVSERVER01_TAILSCALE_SSH_READONLY_PASS`, comprova o login SSH não interativo somente para o usuário verificado, mas **não** o acesso Docker, o hash Compose, o rollback nem o deploy. Se falhar, revisar primeiro Client ID, Audience, OIDC subject efetivamente recebido (`repo:delmacy@26817160/syndes-system@1433806501:environment:devserver01`), escopo `auth_keys:write`, tag e configuração do Environment GitHub. Não publicar segredos em logs.
+`/home/delmacy/syndes-system/modules/whatsapp/deploy/.syndes-core-host-cd.override.yaml`
 
-## Inventário operacional e decisão SSH (somente leitura em 17/11/2026)
+O único conteúdo permitido é:
 
-A inspeção autorizada, somente leitura, encontrou no DevServer01 Tailscale ativo, usuário Linux não-root com acesso a Docker, SSH na porta 22 e `RunSSH=true`. Originalmente o nó usava identidade de usuário; agora foi alterado pelo operador e a inspeção local confirmou a tag **tag:syndes-devserver01**. O runner GitHub entra como **tag:syndes-ci**. De acordo com as restrições atuais do Tailscale, uma identidade tag não pode usar **Tailscale SSH** para acessar uma identidade de usuário. Além disso, quando Tailscale SSH está ativo ele intercepta a porta 22 via rede Tailscale, portanto configurar chaves OpenSSH por si só não resolve o acesso do runner.
+```yaml
+services:
+  core-host-whatsapp:
+    image: syndes/core-host:git-<SHA40>
+```
 
-**O operador já atribuiu a tag ao DevServer01.** A inspeção somente leitura comprovou Tailscale online, `RunSSH=true`, TCP 22 em escuta, Core Host `running` com zero restarts e DC online. Tailscale ping não comprova permissão SSH. O CD ainda usa SSH tradicional por chave privada e um manifesto Compose, então **não está pronto para executar**. A autorização administrativa humana não foi testada e deve ser preservada; não mudar a política nem o runtime durante o preflight.
+A ativação utiliza `docker compose --project-name syndes-whatsapp-cutover -f <1> -f <2> -f <3> -f <4> -f <override> up -d --no-deps --force-recreate core-host-whatsapp`. **Após o primeiro deploy, qualquer operação futura de Compose que pretenda manter a imagem de release também deve incluir o quinto arquivo.** Executar manualmente `up` só com os quatro históricos pode trazer de volta uma imagem antiga. O pipeline verifica que um override anterior corresponde exatamente à imagem do contêiner atual e recusa alterações inesperadas.
 
-O contêiner real do Core Host pertence a um projeto Compose que usa **quatro arquivos combinados**, inclusive overrides históricos. O script CD atual recebe um único manifesto, com um único hash, e uma variável de imagem. Este contrato **não pode ser considerado validado para o serviço real**; antes do deploy será necessário reconciliar o Compose multi-arquivo, fixar os manifests, a imagem e testar rollback. Manter a variável de ativação de CD desativada.
+## Etapas e proteção contra falhas
 
-O job não invasivo `tailnet-preflight` também verifica, quando a Environment Variable `SYNDES_DEV_SSH_HOST` estiver preenchida, se o runner alcança o peer pela Tailnet com `tailscale ping`. O resultado `DEVSERVER01_TAILNET_PEER_REACHABLE` **não significa que Tailscale SSH ou a porta TCP 22 foi autorizada**. O hostname do servidor deve permanecer em GitHub Environment Variable, não em código versionado.
+1. **Preflight somente leitura:** login `delmacy` no `DevServer01`, quatro hashes, serviço e contêiner existente, imagem anterior disponível para rollback, Compose válido e multi-org desativado. Nenhum arquivo é criado, nem Docker reiniciado.
+2. **Build no GitHub:** reconstruir `syndes/core-host:git-<SHA>` e confirmar SHA no `main`.
+3. **Transferência:** `docker save | gzip | tailscale ssh ... 'gzip -dc | docker load'`. Nenhuma imagem é construída no servidor.
+4. **Cutover restrito:** quinto override atômico, apenas `core-host-whatsapp`, `--no-deps --force-recreate`. Compara também os IDs dos outros contêineres antes e depois.
+5. **Smoke e rollback:** compara image ID efetivo, preserva `WHATSAPP_DISPATCH_ENABLED` e `SYNDES_MULTI_ORG_ENABLED`, verifica `/readyz` HTTP 200 e negação Inbox anônima HTTP 401. Falha tenta restaurar imagem anterior no mesmo override e recriar **somente** Core Host. Logs distinguem `ROLLBACK_CORE_HOST_RESTORED`, `ROLLBACK_UNVERIFIED` e `ROLLBACK_FAILED`.
 
-## Pré-gates
+O preflight é executado automaticamente após CI verde enquanto a chave de deploy estiver desligada. O Product Gate P02 permanece **OPEN** até homologação E2E Keycloak/OpenFGA e validação de backup/restore.
 
-1. Confirmar no DevServer01 **sem alterar runtime** o Compose real, nome de projeto/serviço, variável SYNDES_CORE_HOST_IMAGE e a imagem anterior syndes/core-host:*. O relatório P02 de 17/11 identificou o serviço syndes-core-host-whatsapp-v2, mas NÃO identifica neste Git o manifesto operacional e seu hash. Não presumir que apps/core-host/compose.yaml corresponde ao Compose em operação.
-2. A main deve conter P02-ASSIGN-03 com Mainline CI Gate verde no SHA exato; CI isolada de PR não é release.
-3. Validar subject/audience/Client ID OIDC e tag Tailscale, ACL SSH, fingerprint de host, usuário com Docker e recuperação da imagem anterior. O script de rollback não está ensaiado no ambiente real.
-4. Realizar primeiro ensaio controlado e verificar que somente o Core Host é recriado e que WHATSAPP_DISPATCH_ENABLED e SYNDES_MULTI_ORG_ENABLED não mudam.
-5. Manter Product Gate aberto até E2E com JWT Keycloak, autorização/revogação real do destinatário, tenants A/B, atribuições legadas e backup/restore.
-
-## Estados do Actions
-
-- **Skipped:** switch ausente/desativado. Nenhum deploy.
-- **Falha antes de transferir:** credencial, SHA, Tailnet, host key ou build reprovados. Nenhum serviço atualizado.
-- **Falha após transferir:** imagem pode permanecer em Docker remoto, mas cutover depende do hash do manifesto e dos preflights.
-- **Falha após cutover:** script tenta rollback apenas da imagem anterior do Core Host. Se o rollback falhar, intervenção operacional é necessária.
-- **CUTOVER_VERIFIED:** imagem SHA, readiness 200, Inbox anônimo 401 e toggles preservados. Não equivale a identidade autenticada ou Product Gate.
-
-Deploy direto por Desktop Commander, terminal remoto ou atualização manual fica fora do procedimento autorizado neste incremento.
+**Antes de ativar o switch:** conferir no novo preflight GitHub a marca `DEVSERVER01_COMPOSE_READONLY_PREFLIGHT_PASS`, revisar se nenhuma das quatro hashes derivou, validar que a imagem é compatível com dados atuais, planejar ensaio de rollback no ambiente autorizado e discutir uma conta operacional restrita: `delmacy` tem acesso a Docker, equivalente a privilégios elevados sobre o host. Testes com Docker simulado não substituem execução real.
