@@ -14,8 +14,8 @@ concurrency:
 
 jobs:
   tailnet-preflight:
-    # Validates only the three Tailscale OIDC settings while deployment remains disabled.
-    # Never opens SSH, builds a Docker image or changes the DevServer01.
+    # Validates OIDC, peer reachability and read-only Tailscale SSH authorization.
+    # Never builds images, starts services, or deploys to DevServer01.
     if: >-
       ${{ vars.SYNDES_DEV_CORE_HOST_CD_ENABLED != 'true' &&
           github.event.workflow_run.conclusion == 'success' &&
@@ -67,6 +67,20 @@ jobs:
           # Network peer discovery only: not a Tailscale SSH permission or port 22 test.
           tailscale ping --c=2 --until-direct=false --timeout=8s "$DEPLOY_HOST" >/dev/null
           echo 'DEVSERVER01_TAILNET_PEER_REACHABLE'
+      - name: Verify tagged Tailscale SSH with read-only identity check
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
+          SSH_LOGIN_USER: delmacy
+        run: |
+          set -Eeuo pipefail
+          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9_.-]+\.ts\.net$ ]]
+          [[ "$SSH_LOGIN_USER" == "delmacy" ]]
+          # This only reads the account and host name; never runs a deploy script.
+          remote_identity="$(timeout 25s tailscale ssh "$SSH_LOGIN_USER@$DEPLOY_HOST" 'printf "SYNDES_USER="; id -un; printf "SYNDES_HOST="; hostname -s')"
+          [[ "$remote_identity" == *"SYNDES_USER=delmacy"* ]]
+          [[ "$remote_identity" == *"SYNDES_HOST=DevServer01"* ]]
+          echo 'DEVSERVER01_TAILSCALE_SSH_READONLY_PASS'
 
   deploy:
     permissions:
