@@ -84,3 +84,8 @@ Enquanto DevServer01 estiver indisponível, executar apenas a suíte `Regression
 ## Deploy DevServer01 — 17/11/2026
 
 Imagem `syndes/core-host:inbox-assign-4126665`, source commit `4126665`, implantada no stack de WhatsApp sem mudar gateway/frontend/dados/grants; canário isolado e smoke real Kernel/OpenFGA com responsável atual PASS, índice 002 preservado. Ver `docs/subprojects/P02-inbox/IMPLANTACAO-DEVSERVER01-20261117.md` para rollback, riscos e evidência. **A implementação P02-ASSIGN-01 NÃO valida grants FGA do futuro destinatário por operação**, e Product Gate segue aberto.
+
+
+### P02-ASSIGN-03 — destinatário no OpenFGA (incremento 17/11/2026)
+
+A autorização do ator para `inbox:assignment/write` **não** autoriza implicitamente o destinatário. No `InboxService.assign`, validar o alvo não nulo com o Kernel (tenancy + `inbox:conversations/read` + `inbox:messages/write`) e manter o gate transacional P04 no SQL. Sem criar grant implícito, nem permitir em outage FGA; `null` preserva unassign. A checagem externa não é transação distribuída com PostgreSQL; não descrever revogação OpenFGA como atômica. Executar testes unitários, Host HTTP/PG e OpenFGA real descartável. Não elevar Product Gate sem E2E Keycloak/FGA e rollback reais.
