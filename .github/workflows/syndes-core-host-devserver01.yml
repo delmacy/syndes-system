@@ -117,7 +117,7 @@ jobs:
           TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
           RELEASE_APPROVED_SHA: ${{ vars.SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA }}
           RECOVERY_APPROVED: ${{ vars.SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED }}
-          PROTOTYPE_RELEASE: ${{ startsWith(github.event.workflow_run.head_commit.message, 'ci(cd): prototype DevServer01 Core Host release 2026-11-17') }}
+          PROTOTYPE_RELEASE: "${{ startsWith(github.event.workflow_run.head_commit.message, 'ci(cd): prototype DevServer01 Core Host release 2026-11-17') }}"
         run: |
           set -Eeuo pipefail
           if [[ "$PROTOTYPE_RELEASE" == 'true' ]]; then
