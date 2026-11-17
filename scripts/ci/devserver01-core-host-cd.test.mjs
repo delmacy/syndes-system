@@ -110,7 +110,7 @@ function fixture(){
  const override=join(root,'.syndes-core-host-cd.override.yaml'),state=join(root,'state');writeFileSync(state,'old');
  const d=join(bin,'docker');writeFileSync(d,mockDocker);chmodSync(d,0o755);
  for(const [cmd,value] of [['id','delmacy'],['hostname','DevServer01']]){
-  const p=join(bin,cmd);writeFileSync(p,'#!/bin/sh\nprintf '+value+'\\n');chmodSync(p,0o755);
+  const p=join(bin,cmd);writeFileSync(p,'#!/bin/sh\necho '+value+'\n');chmodSync(p,0o755);
  }
  return {files,state,override,
   run(args,more={}){return spawnSync('bash',[sh,...args],{encoding:'utf8',timeout:15000,env:{...process.env,PATH:bin+':'+process.env.PATH,MOCK_STATE:state,MOCK_OVERRIDE:override,...more}})},
