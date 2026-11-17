@@ -79,6 +79,14 @@ jobs:
         run: |
           set -Eeuo pipefail
           timeout 45s tailscale ssh "delmacy@$DEPLOY_HOST" 'bash -s -- preflight' < scripts/deploy/devserver01-core-host.sh
+      - name: Probe deployed Keycloak JWKS and OpenFGA health with strict anonymous denial
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
+        run: |
+          set -Eeuo pipefail
+          bash -n scripts/ci/devserver01-core-host-auth-readonly.sh
+          timeout 70s tailscale ssh "delmacy@$DEPLOY_HOST" 'bash -s' < scripts/ci/devserver01-core-host-auth-readonly.sh
 
   deploy:
     # Release requires all of: repository switch, approved *exact* SHA, and
