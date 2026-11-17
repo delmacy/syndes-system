@@ -1,5 +1,14 @@
 # P02 — Inbox | STATUS
 
+## Candidato P02-ASSIGN-03 — verificação OpenFGA do destinatário (17/11/2026)
+
+**Implementado na branch `feat/p02-assign-03-recipient-fga-20261117`; CI/merge/deploy pendentes nesta ficha.** O `InboxService.assign` autoriza o ator em `inbox:assignment/write` e, para um destinatário não nulo, verifica no Core Kernel/C04 a membership de tenant e os recursos existentes `inbox:conversations/read` + `inbox:messages/write`. Resultado de negação retorna o mesmo 404 genérico do alvo inválido; indisponibilidade/erro de autorização propaga e resulta em 503. Após checagem externa, SQL P04 continua serializando e validando o vínculo de organização/workspace para impedir alteração concorrente de membership; `null` permite liberação sem consultar autorização do destinatário. **Sem novo modelo, grant, migration ou ativação multi-org.**
+
+**Limitação intencional:** OpenFGA e PostgreSQL não participam de uma transação distribuída: uma revogação de grant OpenFGA entre a consulta e o UPDATE pode ter janela de corrida; a autorização de uso posterior continua obrigatória. Isto não substitui E2E Keycloak, política histórica, teste de restore nem Product Gate. As verificações FGA para esse contrato são por recurso existente **no tenant**; a delimitação org/workspace continua no P04 SQL. Consulta por ator nunca vira permissão do alvo.
+
+**CI proposta:** teste unitário de falta de tenant/grant, leitura sem escrita, revogação e queda do provider; integração HTTP/PG com destinatários P04 ativos sem grant; OpenFGA real descartável com `FgaPermission` e hashing efetivo `fgaResourceObject`. Não declarar PASS antes do Actions do commit efetivo.
+
+
 ## Deploy de desenvolvimento verificado — 17/11/2026
 
 **DevServer01, commit `4126665` → imagem `syndes/core-host:inbox-assign-4126665`: IMPLANTADO E SMOKE PASS.** [Relatório com evidências e rollback](IMPLANTACAO-DEVSERVER01-20261117.md). Serviço de API ativo, `readyz=200`, rotas anônimas 401, P04 índices 2/2, Kernel/FGA real validado para ator e responsável atual, 98 conversas e 1 atribuição elegível; gateway/frontend preservados e dispatch WA manteve `true`.
