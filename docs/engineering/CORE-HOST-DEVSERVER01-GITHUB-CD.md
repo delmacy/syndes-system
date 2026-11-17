@@ -10,7 +10,7 @@ O runner ingressa efemeramente na Tailnet via Tailscale OAuth e tag restrita, us
 
 ## Habilitação no GitHub
 
-Criar **GitHub Environment devserver01** com política de branch main, controle de acesso e credenciais mínimas. Até a verificação dos dados abaixo, deixar SYNDES_DEV_CORE_HOST_CD_ENABLED ausente ou false. A conexão GitHub disponível nesta sessão não concede acesso a Secrets/Variables e não confirma acesso ao servidor pela Tailnet.
+Criar **GitHub Environment devserver01** com política de branch main, controle de acesso e credenciais mínimas. Até a verificação dos dados abaixo, deixar a variável de REPOSITÓRIO SYNDES_DEV_CORE_HOST_CD_ENABLED ausente ou false (não usar somente Environment Variable, pois a condição job.if é avaliada antes do job entrar no environment). A conexão GitHub disponível nesta sessão não concede acesso a Secrets/Variables e não confirma acesso ao servidor pela Tailnet.
 
 **GitHub Variables** — valores reais fornecidos pelo operador, não inferidos de outros servidores:
 
