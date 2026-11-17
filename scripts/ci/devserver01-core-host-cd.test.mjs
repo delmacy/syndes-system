@@ -187,3 +187,18 @@ test('Preflight refuses deployment when Docker partition has insufficient headro
   assert.equal(existsSync(f.override),false);
  }finally{f.clean()}
 });
+
+test('Owner-authorized prototype exception is commit-subject-bound, not a global switch',()=>{
+ const marker='ci(cd): prototype DevServer01 Core Host release 2026-11-17';
+ assert.equal(workflow.split('startsWith(github.event.workflow_run.head_commit.message,').length-1,3);
+ assert.ok(workflow.includes("startsWith(github.event.workflow_run.head_commit.message, '"+marker+"')"));
+ assert.ok(workflow.includes('[[ "$(git log -1 --format=%s)" == \''+marker+'\' ]]'));
+ assert.ok(workflow.includes('DEVSERVER01_PROTOTYPE_RELEASE_OWNER_AUTHORIZED'));
+ assert.match(workflow,/github\.event\.workflow_run\.event == 'push'/);
+ assert.match(workflow,/github\.event\.workflow_run\.head_branch == 'main'/);
+ assert.match(workflow,/git ls-remote origin refs\/heads\/main/);
+ assert.doesNotMatch(workflow,/workflow_dispatch:/);
+ // Normal production releases still require per-SHA and recovery approval.
+ assert.ok(workflow.includes("vars.SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED == 'true'"));
+ assert.ok(workflow.includes('vars.SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA == github.event.workflow_run.head_sha'));
+});
