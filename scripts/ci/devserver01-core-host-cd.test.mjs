@@ -21,6 +21,11 @@ test("Core Host CD is gated behind mainline success, main push, repository ident
   "git ls-remote origin refs/heads/main"
  ])assert.ok(workflow.includes(required),required);
  assert.match(workflow,/tailscale\/github-action@v4/);
+ assert.match(workflow,/id-token: write/);
+ assert.match(workflow,/environment: devserver01/);
+ assert.match(workflow,/audience: \$\{\{ secrets\.SYNDES_TAILSCALE_OIDC_AUDIENCE \}\}/);
+ assert.match(workflow,/oauth-client-id: \$\{\{ secrets\.SYNDES_TAILSCALE_OAUTH_CLIENT_ID \}\}/);
+ assert.doesNotMatch(workflow,/SYNDES_TAILSCALE_OAUTH_SECRET|oauth-secret:/);
  assert.match(workflow,/StrictHostKeyChecking=yes/);
  assert.match(workflow,/UserKnownHostsFile=/);
  assert.match(workflow,/persist-credentials: false/);
