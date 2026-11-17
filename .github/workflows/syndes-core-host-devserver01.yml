@@ -100,9 +100,9 @@ jobs:
             -o "UserKnownHostsFile=$RUNNER_TEMP/syndes-dev-known-hosts"
             -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20
             -p "$DEPLOY_PORT" -T)
-          ssh "${sshopts[@]}" "$DEPLOY_USER@$DEPLOY_HOST"
-            bash -s -- "syndes/core-host:git-$SOURCE_SHA" "$COMPOSE_PROJECT"
-            "$COMPOSE_DIR" "$COMPOSE_FILE" "$COMPOSE_SERVICE" "$COMPOSE_SHA256"
+          ssh "${sshopts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+            bash -s -- "syndes/core-host:git-$SOURCE_SHA" "$COMPOSE_PROJECT" \
+            "$COMPOSE_DIR" "$COMPOSE_FILE" "$COMPOSE_SERVICE" "$COMPOSE_SHA256" \
             < scripts/deploy/devserver01-core-host.sh
       - name: Remove temporary SSH credentials
         if: always()
