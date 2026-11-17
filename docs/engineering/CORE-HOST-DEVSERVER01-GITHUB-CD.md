@@ -1,12 +1,12 @@
 # Core Host → DevServer01 via GitHub Actions (candidato de CD)
 
-**Estado: workflow versionado, DESATIVADO por padrão; sem credenciais nem acesso operacional comprovados.** Este documento não afirma que houve deploy e não substitui o Product Gate do P02.
+**Estado: workflow versionado, DESATIVADO por padrão; os nomes e valores das credenciais do GitHub Environment não são verificáveis por esta conexão; sem acesso operacional comprovado.** Este documento não afirma que houve deploy e não substitui o Product Gate do P02.
 
 ## Contrato de entrega
 
 A origem de release é exclusivamente o workflow **Syndes Mainline CI**, acionado por push em main, concluído com SUCCESS. O workflow downstream está em .github/workflows/syndes-core-host-devserver01.yml e não aceita PR, fork nem SHA antigo. O SHA exato do commit em main é reconstruído como imagem Docker syndes/core-host:git-(sha40) com apps/core-host/Dockerfile. Não há execução manual de comandos no DevServer01 por este chat: transferência e ativação somente como job auditável GitHub Actions.
 
-O runner ingressa efemeramente na Tailnet via Tailscale OAuth e tag restrita, usa SSH com host key pinada e chave provisionada em Secrets. A imagem trafega em stream criptografado docker save | gzip | ssh | docker load, sem senha de registry no servidor. O script remoto scripts/deploy/devserver01-core-host.sh valida imagem SHA, manifesto Compose por SHA256, serviço existente, preserva dispatch WhatsApp e multi-org, executa apenas compose up -d --no-deps para o serviço aprovado, verifica readiness 200, Inbox anônimo 401 e tenta rollback da imagem anterior quando o smoke falha. Não executa migration, backfill, grant nem atualização do gateway/Workspace.
+O runner ingressa efemeramente na Tailnet via identidade federada Tailscale OIDC (token de curta duração do GitHub, sem Client Secret) e tag restrita, usa SSH com host key pinada e chave provisionada em Secrets. A imagem trafega em stream criptografado docker save | gzip | ssh | docker load, sem senha de registry no servidor. O script remoto scripts/deploy/devserver01-core-host.sh valida imagem SHA, manifesto Compose por SHA256, serviço existente, preserva dispatch WhatsApp e multi-org, executa apenas compose up -d --no-deps para o serviço aprovado, verifica readiness 200, Inbox anônimo 401 e tenta rollback da imagem anterior quando o smoke falha. Não executa migration, backfill, grant nem atualização do gateway/Workspace.
 
 ## Habilitação no GitHub
 
@@ -27,13 +27,15 @@ Criar **GitHub Environment devserver01** com política de branch main, controle 
 | SYNDES_DEV_CORE_HOST_COMPOSE_SERVICE | Nome exato do serviço Core Host |
 | SYNDES_DEV_CORE_HOST_COMPOSE_SHA256 | SHA256 verificado do manifesto no servidor |
 
-**GitHub Secrets**: SYNDES_TAILSCALE_OAUTH_CLIENT_ID, SYNDES_TAILSCALE_OAUTH_SECRET, SYNDES_DEV_SSH_KEY, SYNDES_DEV_SSH_KNOWN_HOSTS. Não publicar valores no chat, Issues ou documentação. A chave de host deve vir de canal confiável independente; o workflow não usa ssh-keyscan nem relaxa host key checking. A tag OAuth deve ter ACL Tailnet limitada ao SSH do DevServer01.
+**GitHub Environment Secrets (`devserver01`)**: `SYNDES_TAILSCALE_OAUTH_CLIENT_ID` (nome legado mantido por compatibilidade, mas deve conter o **Client ID OIDC**, não OAuth); `SYNDES_TAILSCALE_OIDC_AUDIENCE` (Audience da credencial OIDC), `SYNDES_DEV_SSH_KEY`, `SYNDES_DEV_SSH_KNOWN_HOSTS`. **Não cadastrar Client Secret OAuth.** O job solicita `id-token: write` somente para o deploy. Não publicar valores no chat, Issues ou documentação. A chave de host deve vir de canal confiável independente; o workflow não usa ssh-keyscan nem relaxa host key checking. A tag OIDC deve ter ACL Tailnet limitada ao SSH do DevServer01.
+
+A identidade OIDC do GitHub deve apresentar subject `repo:delmacy/syndes-system:environment:devserver01` (verificar esse subject na credencial Tailscale); o Environment `devserver01` precisa existir no GitHub. A credencial também deve autorizar a tag configurada em `SYNDES_DEV_TAILSCALE_TAG`.
 
 ## Pré-gates
 
 1. Confirmar no DevServer01 **sem alterar runtime** o Compose real, nome de projeto/serviço, variável SYNDES_CORE_HOST_IMAGE e a imagem anterior syndes/core-host:*. O relatório P02 de 17/11 identificou o serviço syndes-core-host-whatsapp-v2, mas NÃO identifica neste Git o manifesto operacional e seu hash. Não presumir que apps/core-host/compose.yaml corresponde ao Compose em operação.
 2. A main deve conter P02-ASSIGN-03 com Mainline CI Gate verde no SHA exato; CI isolada de PR não é release.
-3. Validar tag OAuth/Tailscale, ACL SSH, fingerprint de host, usuário com Docker e recuperação da imagem anterior. O script de rollback não está ensaiado no ambiente real.
+3. Validar subject/audience/Client ID OIDC e tag Tailscale, ACL SSH, fingerprint de host, usuário com Docker e recuperação da imagem anterior. O script de rollback não está ensaiado no ambiente real.
 4. Realizar primeiro ensaio controlado e verificar que somente o Core Host é recriado e que WHATSAPP_DISPATCH_ENABLED e SYNDES_MULTI_ORG_ENABLED não mudam.
 5. Manter Product Gate aberto até E2E com JWT Keycloak, autorização/revogação real do destinatário, tenants A/B, atribuições legadas e backup/restore.
 
