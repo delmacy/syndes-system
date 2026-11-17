@@ -118,6 +118,9 @@ function fixture(){
  const sh=join(root,'script.sh');writeFileSync(sh,script);
  const override=join(root,'.syndes-core-host-cd.override.yaml'),state=join(root,'state');writeFileSync(state,'old');
  const d=join(bin,'docker');writeFileSync(d,mockDocker);chmodSync(d,0o755);
+ const df=join(bin,'df');
+ writeFileSync(df,'#!/bin/sh\necho "Filesystem 1024-blocks Used Available Use% Mounted on"\nif [ "$MOCK_LOW_DISK" = "1" ]; then echo "/dev/mock 4194304 4194304 0 100% /"; else echo "/dev/mock 4194304 1048576 3145728 25% /"; fi\n');
+ chmodSync(df,0o755);
  for(const [cmd,value] of [['id','delmacy'],['hostname','DevServer01']]){
   const p=join(bin,cmd);writeFileSync(p,'#!/bin/sh\necho '+value+'\n');chmodSync(p,0o755);
  }
@@ -169,6 +172,17 @@ test('Rollback tag drift blocks a release before writing any override',()=>{
   const r=f.run(['deploy',releaseImage],{MOCK_PREV_TAG_DRIFT:'1'});
   assert.notEqual(r.status,0);
   assert.match(r.stderr,/Rollback image tag no longer identifies/);
+  assert.equal(readFileSync(f.state,'utf8'),'old');
+  assert.equal(existsSync(f.override),false);
+ }finally{f.clean()}
+});
+
+test('Preflight refuses deployment when Docker partition has insufficient headroom',()=>{
+ const f=fixture();
+ try{
+  const r=f.run(['preflight'],{MOCK_LOW_DISK:'1'});
+  assert.notEqual(r.status,0);
+  assert.match(r.stderr,/Insufficient free disk/);
   assert.equal(readFileSync(f.state,'utf8'),'old');
   assert.equal(existsSync(f.override),false);
  }finally{f.clean()}
