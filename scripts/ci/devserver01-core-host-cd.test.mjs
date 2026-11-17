@@ -45,7 +45,9 @@ test("Tailnet OIDC preflight runs before deploy enablement, limited to ephemeral
   "environment: devserver01","id-token: write",
   "SYNDES_TAILSCALE_OIDC_AUDIENCE","SYNDES_TAILSCALE_OAUTH_CLIENT_ID",
   "SYNDES_DEV_TAILSCALE_TAG","tailscale/github-action@v4",
-  "tailscale ip -4","TAILNET_OIDC_AUTH_VERIFIED"
+  "tailscale ip -4","TAILNET_OIDC_AUTH_VERIFIED",
+  "SYNDES_DEV_SSH_HOST","tailscale ping --c=2",
+  "DEVSERVER01_TAILNET_PEER_REACHABLE"
  ])assert.ok(preflight.includes(critical),"preflight missing "+critical);
  assert.doesNotMatch(preflight,/SYNDES_DEV_SSH_|COMPOSE_|SYNDES_CORE_HOST_IMAGE|docker (?:build|save|load|compose)|ssh \"|workflow_dispatch:/i);
  const deployment=workflow.split("\n  deploy:\n")[1];
