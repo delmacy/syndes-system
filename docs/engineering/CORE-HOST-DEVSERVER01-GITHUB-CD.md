@@ -23,6 +23,28 @@ A PR [#154](https://github.com/delmacy/syndes-system/pull/154) introduziu uma ex
 
 **Limite:** o smoke não substitui teste autenticado com Keycloak nem valida grants OpenFGA em operação. O Product Gate permanece OPEN. O rollback da imagem anterior não restaura bancos de dados alterados.
 
+## Homologação operacional de identidade — verificação não mutante
+
+Depois do primeiro deploy, o preflight do GitHub Actions executa `scripts/ci/devserver01-core-host-auth-readonly.sh` no DevServer01 por Tailscale SSH. Usa **apenas** `docker ps`, `docker inspect` e `docker exec` com Node para fazer consultas de leitura **dentro do contêiner Core Host em execução**. Não imprime variáveis de ambiente, JWTs, segredos, membership nem dados de negócio, não cria usuários ou grants e não altera outros serviços.
+
+O script identifica o serviço por `com.docker.compose.project=syndes-whatsapp-cutover` + `com.docker.compose.service=core-host-whatsapp`, exige imagem `syndes/core-host:git-<SHA40>` e confere:
+
+1. `/healthz` e `/readyz` HTTP 200.
+2. Configurações OIDC de `/modules/inbox/config` e `/modules/crm/config`, incluindo issuer e client IDs previstos.
+3. Acesso do contêiner às chaves públicas RSA do JWKS do Keycloak operacional, sem registrar o corpo.
+4. `/healthz` do OpenFGA, com status `SERVING`.
+5. HTTP 401 para `/authorize`, CRM e Inbox sem autenticação ou com um Bearer deliberadamente inválido.
+
+**Classificação:** essas verificações são pré-requisitos de infraestrutura e **testes negativos de autenticação**. A marca `DEVSERVER01_IDENTITY_READONLY_PROBE_PASS` **NÃO** significa que um JWT assinado de usuário autorizado passou nem que um grant OpenFGA foi efetivamente avaliado.
+
+### Para concluir o Product Gate com identidade real
+
+É necessária uma identidade de teste operacional explicitamente aprovada, obtida pelo fluxo normal Keycloak Authorization Code + PKCE, com `sub` imutável identificado fora dos logs. Deve ser provisionado um tenant de teste ativo e um `tenant_memberships` ativo para essa identidade. Um administrador autorizado deve conceder **somente** o recurso aprovado no OpenFGA existente, sem grant geral, e registrar evidências de revogação. Nenhum desses dados, senhas ou tokens deve ser colado em issues, Actions ou respostas do agente.
+
+Matriz de aceitação pendente: token real válido + membership + `can_read` → autorização permitida; token real sem membership → negado; outro tenant → negado; token `syndes-master-admin` → 401; permissão de escrita ausente → negado; após revogação da tuple → negado. Para cada caso registrar somente categoria de teste e status, **não** JWT, `sub`, tenant ID, dados CRM ou FGA tuple.
+
+A implementação de testes positivos contra Keycloak/PostgreSQL/OpenFGA descartáveis no CI não substitui essa prova no DevServer01 com identidade operacional real. Nenhuma migração, inscrição de novo tenant, cliente OIDC ou grant operacional é autorizada pelo preflight de leitura.
+
 ## Conectividade e variáveis
 
 A conexão de deploy é GitHub Actions → OIDC Tailscale → `tag:syndes-ci` → Tailscale SSH → `tag:syndes-devserver01`. A autenticação SSH e identidade do host são verificadas pelo Tailscale. Não requer segredo de chave SSH, known_hosts, Client Secret OAuth ou credencial de registry. A regra Tailscale SSH para o CI precisa permitir usuário Linux `delmacy`, `accept` sem confirmação interativa, junto a grant TCP 22 de rede. A identidade OIDC observada é `repo:delmacy@26817160/syndes-system@1433806501:environment:devserver01`.
