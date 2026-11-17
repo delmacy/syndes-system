@@ -13,6 +13,47 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  tailnet-preflight:
+    # Validates only the three Tailscale OIDC settings while deployment remains disabled.
+    # Never opens SSH, builds a Docker image or changes the DevServer01.
+    if: >-
+      ${{ vars.SYNDES_DEV_CORE_HOST_CD_ENABLED != 'true' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Validate OIDC Client ID, Audience and Tailscale tag
+        shell: bash
+        env:
+          OIDC_CLIENT_ID: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          OIDC_AUDIENCE: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+        run: |
+          set -Eeuo pipefail
+          [[ -n "$OIDC_CLIENT_ID" && -n "$OIDC_AUDIENCE" ]]
+          [[ "$TAILSCALE_TAG" =~ ^tag:[a-z0-9_-]+$ ]]
+          echo 'TAILNET_OIDC_CONFIG_PRESENT'
+      - name: Verify GitHub OIDC login to Tailnet (ephemeral, no SSH)
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Verify runner joined Tailnet without touching any server
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale status >/dev/null
+          [[ -n "$(tailscale ip -4)" ]]
+          echo 'TAILNET_OIDC_AUTH_VERIFIED'
+
   deploy:
     permissions:
       contents: read
