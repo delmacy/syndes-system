@@ -37,6 +37,16 @@ Enquanto `SYNDES_DEV_CORE_HOST_CD_ENABLED` estiver ausente ou diferente de `true
 
 Um `TAILNET_OIDC_AUTH_VERIFIED` nos logs comprova somente a autenticação e ingresso do runner na Tailnet. **Não comprova conectividade SSH ao DevServer01**, política de acesso ao serviço, hash Compose, nem deploy. Se falhar, revisar primeiro Client ID, Audience, OIDC subject (`repo:delmacy/syndes-system:environment:devserver01`), escopo `auth_keys:write`, tag e configuração do Environment GitHub. Não publicar segredos em logs.
 
+## Inventário operacional e decisão SSH (somente leitura em 17/11/2026)
+
+A inspeção autorizada, somente leitura, encontrou no DevServer01 Tailscale ativo, usuário Linux não-root com acesso a Docker, SSH na porta 22 e `RunSSH=true`. O nó Tailscale está autenticado por **usuário** (sem tags), enquanto o runner GitHub entra como **tag:syndes-ci**. De acordo com as restrições atuais do Tailscale, uma identidade tag não pode usar **Tailscale SSH** para acessar uma identidade de usuário. Além disso, quando Tailscale SSH está ativo ele intercepta a porta 22 via rede Tailscale, portanto configurar chaves OpenSSH por si só não resolve o acesso do runner.
+
+**Não atribuir tag ao DevServer01 nem desativar Tailscale SSH automaticamente**: uma tag muda a identidade do nó e pode revogar o acesso que funciona hoje. A próxima decisão operacional deve escolher entre (a) migrar de modo controlado o servidor para tag exclusiva, adicionar policy grants + regra Tailscale SSH que preserve acesso humano e adaptar o CD para `tailscale ssh`, sem chave privada; ou (b) manter a identidade atual e configurar um acesso OpenSSH separado com sua própria porta e chaves, sem interferir no Tailscale SSH. Nenhuma dessas mudanças foi aplicada.
+
+O contêiner real do Core Host pertence a um projeto Compose que usa **quatro arquivos combinados**, inclusive overrides históricos. O script CD atual recebe um único manifesto, com um único hash, e uma variável de imagem. Este contrato **não pode ser considerado validado para o serviço real**; antes do deploy será necessário reconciliar o Compose multi-arquivo, fixar os manifests, a imagem e testar rollback. Manter a variável de ativação de CD desativada.
+
+O job não invasivo `tailnet-preflight` também verifica, quando a Environment Variable `SYNDES_DEV_SSH_HOST` estiver preenchida, se o runner alcança o peer pela Tailnet com `tailscale ping`. O resultado `DEVSERVER01_TAILNET_PEER_REACHABLE` **não significa que Tailscale SSH ou a porta TCP 22 foi autorizada**. O hostname do servidor deve permanecer em GitHub Environment Variable, não em código versionado.
+
 ## Pré-gates
 
 1. Confirmar no DevServer01 **sem alterar runtime** o Compose real, nome de projeto/serviço, variável SYNDES_CORE_HOST_IMAGE e a imagem anterior syndes/core-host:*. O relatório P02 de 17/11 identificou o serviço syndes-core-host-whatsapp-v2, mas NÃO identifica neste Git o manifesto operacional e seu hash. Não presumir que apps/core-host/compose.yaml corresponde ao Compose em operação.
