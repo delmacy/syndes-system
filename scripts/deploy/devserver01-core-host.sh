@@ -48,8 +48,9 @@ rollback_on_failure(){
  exit "$result"
 }
 trap rollback_on_failure EXIT
-SYNDES_CORE_HOST_IMAGE="$image" compose up -d --no-deps "$service"
+# Set rollback intent BEFORE the command: Docker may partially switch then fail.
 switched=true
+SYNDES_CORE_HOST_IMAGE="$image" compose up -d --no-deps "$service"
 new_cid="$(compose ps -q "$service")"
 [[ -n "$new_cid" ]] || { echo "No Core Host container after cutover" >&2; exit 4; }
 actual_image="$(docker inspect --format '{{.Config.Image}}' "$new_cid")"
