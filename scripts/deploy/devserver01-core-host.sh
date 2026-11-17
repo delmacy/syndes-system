@@ -32,9 +32,27 @@ fi
 [[ "$(id -un)" == delmacy && "$(hostname -s)" == DevServer01 ]] || {
   echo 'Unexpected remote identity: refuse release' >&2; exit 2;
 }
-for program in docker sha256sum mktemp; do command -v "$program" >/dev/null || exit 2; done
+for program in docker sha256sum mktemp df; do command -v "$program" >/dev/null || exit 2; done
 [[ ${#manifest_files[@]} -eq 4 && ${#manifest_files[@]} -eq ${#manifest_sha256[@]} ]] || exit 2
-[[ -d "$compose_dir" && ! -L "$compose_dir" ]] || exit 3
+[[ -d "$compose_dir" && ! -L "$compose_dir" && -w "$compose_dir" ]] || {
+  echo 'Managed override directory is unavailable or not writable' >&2; exit 3;
+}
+# Read-only storage check: avoid loading an additional image onto an exhausted host.
+# Minimum 2 GiB free in the Docker data-root and 128 MiB in the override directory.
+docker_root="$(docker info --format '{{.DockerRootDir}}')"
+[[ "$docker_root" == /* && -d "$docker_root" ]] || { echo 'Docker root cannot be verified' >&2; exit 3; }
+available_kib() {
+  local size
+  size="$(df -Pk "$1" | awk 'NR==2 {print $4}')"
+  [[ "$size" =~ ^[0-9]+$ ]] || return 1
+  printf '%s\n' "$size"
+}
+docker_free_kib="$(available_kib "$docker_root")" || { echo 'Docker free space unavailable' >&2; exit 3; }
+override_free_kib="$(available_kib "$compose_dir")" || { echo 'Compose free space unavailable' >&2; exit 3; }
+printf 'DEVSERVER01_DOCKER_FREE_MIB=%s\n' "$((docker_free_kib / 1024))"
+(( docker_free_kib >= 2097152 && override_free_kib >= 131072 )) || {
+  echo 'Insufficient free disk for safe Core Host image cutover' >&2; exit 3;
+}
 cd "$compose_dir"
 compose_args=(--project-name "$project")
 for index in "${!manifest_files[@]}"; do
@@ -57,6 +75,12 @@ previous="$(docker inspect --format '{{.Config.Image}}' "$old_cid")"
 [[ "$previous" == syndes/core-host:* ]] || { echo 'Unexpected existing image' >&2; exit 3; }
 [[ "$(docker inspect --format '{{.State.Running}}' "$old_cid")" == true ]] || { echo 'Core Host must already be running' >&2; exit 3; }
 docker image inspect "$previous" >/dev/null || { echo 'Previous image unavailable for safe rollback' >&2; exit 3; }
+# A tag that was retargeted to another image cannot faithfully restore the live container.
+current_image_id="$(docker inspect --format '{{.Image}}' "$old_cid")"
+previous_tag_image_id="$(docker image inspect --format '{{.Id}}' "$previous")"
+[[ -n "$current_image_id" && "$current_image_id" == "$previous_tag_image_id" ]] || {
+  echo 'Rollback image tag no longer identifies the running image' >&2; exit 3;
+}
 [[ "$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$old_cid")" == "$project" ]] || exit 3
 [[ "$(docker inspect --format '{{index .Config.Labels "com.docker.compose.service"}}' "$old_cid")" == "$service" ]] || exit 3
 
@@ -85,7 +109,7 @@ fi
 
 docker image inspect "$image" >/dev/null || { echo 'Approved image missing after transfer' >&2; exit 3; }
 new_image_id="$(docker image inspect --format '{{.Id}}' "$image")"
-old_image_id="$(docker inspect --format '{{.Image}}' "$old_cid")"
+old_image_id="$current_image_id"
 [[ -n "$new_image_id" && -n "$old_image_id" ]] || exit 3
 
 # --no-deps must preserve the container IDs of all other services.

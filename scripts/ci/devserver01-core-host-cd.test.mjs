@@ -19,7 +19,10 @@ test('Core Host CD is gated by main SHA, mainline CI, repository and owner enabl
   "github.event.workflow_run.head_branch == 'main'",
   'github.event.workflow_run.head_repository.full_name == github.repository',
   "vars.SYNDES_DEV_CORE_HOST_CD_ENABLED == 'true'",
-  "vars.SYNDES_DEV_CORE_HOST_CD_ENABLED != 'true'",
+  'vars.SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA == github.event.workflow_run.head_sha',
+  "vars.SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED == 'true'",
+  '!(vars.SYNDES_DEV_CORE_HOST_CD_ENABLED',
+  '[[ "$RELEASE_APPROVED_SHA" == "$SOURCE_SHA" && "$RECOVERY_APPROVED" == \'true\' ]]',
   'git ls-remote origin refs/heads/main','id-token: write',
   'environment: devserver01','persist-credentials: false',
   'tailscale/github-action@v4',
@@ -55,7 +58,12 @@ test('Deployer pins four manifests and only rewrites its own image override with
   'rollback_on_failure()', 'trap rollback_on_failure EXIT',
   'write_override "$previous"','WHATSAPP_DISPATCH_ENABLED','SYNDES_MULTI_ORG_ENABLED',
   'status===200','status===401','CUTOVER_VERIFIED','Product Gate remains OPEN',
-  'DEVSERVER01_COMPOSE_READONLY_PREFLIGHT_PASS'
+  'DEVSERVER01_COMPOSE_READONLY_PREFLIGHT_PASS',
+  'Rollback image tag no longer identifies the running image',
+  '[[ -n "$current_image_id" && "$current_image_id" == "$previous_tag_image_id" ]]',
+  'DEVSERVER01_DOCKER_FREE_MIB=',
+  'docker_free_kib >= 2097152',
+  'override_free_kib >= 131072'
  ])assert.ok(deploy.includes(must),must);
  assert.doesNotMatch(deploy,/docker compose down|docker volume rm|docker system prune|pg_dump|\bpsql\b|\bmigrate\b|\bsudo\b/);
 });
@@ -76,7 +84,8 @@ const mockDocker=[
  ' if(cmd==="ps")out(a.at(-1)==="workspace-whatsapp"?"workspace-old":state()==="new"?"core-new":"core-old");',
  ' if(cmd==="up"){fs.writeFileSync(file,image()===old?"old":"new");process.exit(0)}',
  '}',
- 'if(a[0]==="image"&&a[1]==="inspect"){if(a.includes("--format"))out(a.at(-1)===old?"sha256:OLD":"sha256:NEW");process.exit(0)}',
+ 'if(a[0]==="info"&&a.includes("--format"))out("/tmp");',
+ 'if(a[0]==="image"&&a[1]==="inspect"){if(a.includes("--format"))out(a.at(-1)===old?(process.env.MOCK_PREV_TAG_DRIFT==="1"?"sha256:SWAPPED":"sha256:OLD"):"sha256:NEW");process.exit(0)}',
  'if(a[0]==="inspect"){',
  ' const f=a[2]||"",newCid=a.at(-1)==="core-new";',
  ' if(f.includes("com.docker.compose.project"))out("syndes-whatsapp-cutover");',
@@ -109,6 +118,9 @@ function fixture(){
  const sh=join(root,'script.sh');writeFileSync(sh,script);
  const override=join(root,'.syndes-core-host-cd.override.yaml'),state=join(root,'state');writeFileSync(state,'old');
  const d=join(bin,'docker');writeFileSync(d,mockDocker);chmodSync(d,0o755);
+ const df=join(bin,'df');
+ writeFileSync(df,'#!/bin/sh\necho "Filesystem 1024-blocks Used Available Use% Mounted on"\nif [ "$MOCK_LOW_DISK" = "1" ]; then echo "/dev/mock 4194304 4194304 0 100% /"; else echo "/dev/mock 4194304 1048576 3145728 25% /"; fi\n');
+ chmodSync(df,0o755);
  for(const [cmd,value] of [['id','delmacy'],['hostname','DevServer01']]){
   const p=join(bin,cmd);writeFileSync(p,'#!/bin/sh\necho '+value+'\n');chmodSync(p,0o755);
  }
@@ -151,5 +163,27 @@ test('Failed Inbox check rolls back only Core Host and persists previous image',
   assert.match(r.stderr,/ROLLBACK_CORE_HOST_RESTORED/);
   assert.equal(readFileSync(f.state,'utf8'),'old');
   assert.match(readFileSync(f.override,'utf8'),/image: syndes\/core-host:inbox-assign-4126665/);
+ }finally{f.clean()}
+});
+
+test('Rollback tag drift blocks a release before writing any override',()=>{
+ const f=fixture();
+ try{
+  const r=f.run(['deploy',releaseImage],{MOCK_PREV_TAG_DRIFT:'1'});
+  assert.notEqual(r.status,0);
+  assert.match(r.stderr,/Rollback image tag no longer identifies/);
+  assert.equal(readFileSync(f.state,'utf8'),'old');
+  assert.equal(existsSync(f.override),false);
+ }finally{f.clean()}
+});
+
+test('Preflight refuses deployment when Docker partition has insufficient headroom',()=>{
+ const f=fixture();
+ try{
+  const r=f.run(['preflight'],{MOCK_LOW_DISK:'1'});
+  assert.notEqual(r.status,0);
+  assert.match(r.stderr,/Insufficient free disk/);
+  assert.equal(readFileSync(f.state,'utf8'),'old');
+  assert.equal(existsSync(f.override),false);
  }finally{f.clean()}
 });

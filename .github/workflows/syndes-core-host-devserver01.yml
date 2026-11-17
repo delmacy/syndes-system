@@ -14,9 +14,12 @@ concurrency:
 
 jobs:
   tailnet-preflight:
-    # Read-only when deploy is disabled: OIDC, Tailscale SSH and pinned Compose.
+    # Read-only unless all three independent gates match this exact main SHA:
+    # release switch, SHA-specific release approval, and recovery attestation.
     if: >-
-      ${{ vars.SYNDES_DEV_CORE_HOST_CD_ENABLED != 'true' &&
+      ${{ !(vars.SYNDES_DEV_CORE_HOST_CD_ENABLED == 'true' &&
+             vars.SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA == github.event.workflow_run.head_sha &&
+             vars.SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED == 'true') &&
           github.event.workflow_run.conclusion == 'success' &&
           github.event.workflow_run.event == 'push' &&
           github.event.workflow_run.head_branch == 'main' &&
@@ -78,9 +81,12 @@ jobs:
           timeout 45s tailscale ssh "delmacy@$DEPLOY_HOST" 'bash -s -- preflight' < scripts/deploy/devserver01-core-host.sh
 
   deploy:
-    # Release requires explicit repository-level switch. Preflight alone cannot deploy.
+    # Release requires all of: repository switch, approved *exact* SHA, and
+    # operator-attested backup/restore. A future main push cannot auto-promote.
     if: >-
       ${{ vars.SYNDES_DEV_CORE_HOST_CD_ENABLED == 'true' &&
+          vars.SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA == github.event.workflow_run.head_sha &&
+          vars.SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED == 'true' &&
           github.event.workflow_run.conclusion == 'success' &&
           github.event.workflow_run.event == 'push' &&
           github.event.workflow_run.head_branch == 'main' &&
@@ -105,8 +111,11 @@ jobs:
           OIDC_CLIENT_ID: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
           OIDC_AUDIENCE: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
           TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+          RELEASE_APPROVED_SHA: ${{ vars.SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA }}
+          RECOVERY_APPROVED: ${{ vars.SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED }}
         run: |
           set -Eeuo pipefail
+          [[ "$RELEASE_APPROVED_SHA" == "$SOURCE_SHA" && "$RECOVERY_APPROVED" == 'true' ]]
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
