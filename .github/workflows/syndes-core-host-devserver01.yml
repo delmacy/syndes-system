@@ -53,6 +53,20 @@ jobs:
           tailscale status >/dev/null
           [[ -n "$(tailscale ip -4)" ]]
           echo 'TAILNET_OIDC_AUTH_VERIFIED'
+      - name: Check DevServer01 Tailnet peer when target is configured (no SSH)
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
+        run: |
+          set -Eeuo pipefail
+          if [[ -z "$DEPLOY_HOST" ]]; then
+            echo 'DEVSERVER01_HOST_NOT_CONFIGURED: set SYNDES_DEV_SSH_HOST in devserver01 Environment'
+            exit 0
+          fi
+          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9_.-]+\.ts\.net$ ]]
+          # Network peer discovery only: not a Tailscale SSH permission or port 22 test.
+          tailscale ping --c=2 --until-direct=false --timeout=8s "$DEPLOY_HOST" >/dev/null
+          echo 'DEVSERVER01_TAILNET_PEER_REACHABLE'
 
   deploy:
     permissions:
