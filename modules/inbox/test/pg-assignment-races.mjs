@@ -40,6 +40,10 @@ test("P02-ASSIGN-01 serializes parallel assignments and a concurrent membership 
   assert.equal(two.assignedTo,"agent-b");
   let rows=(await setup.query("SELECT action FROM inbox_events WHERE tenant_id=$1 AND conversation_id=$2 AND action='assigned'",[tenant,chat])).rows;
   assert.equal(rows.length,2,"Two different successful assignments produce two audits");
+  // Competing calls are concurrent: completion order does not determine commit order.
+  // Preserve the actual committed assignee as the baseline for the denied call below.
+  const prior=(await setup.query("SELECT assigned_to FROM inbox_conversations WHERE tenant_id=$1 AND id=$2",[tenant,chat])).rows[0].assigned_to;
+  assert.ok(["agent-a","agent-b"].includes(prior),"Both successful racing targets are eligible");
 
   // Revocation obtains an exclusive lock first. The second connection
   // must await it, then re-evaluate the state instead of authorizing from
@@ -56,7 +60,7 @@ test("P02-ASSIGN-01 serializes parallel assignments and a concurrent membership 
   inTransaction=false;
   assert.equal(await pending,null,"Revoked target cannot be reassigned or acknowledged as a valid no-op");
   const current=await setup.query("SELECT assigned_to FROM inbox_conversations WHERE tenant_id=$1 AND id=$2",[tenant,chat]);
-  assert.equal(current.rows[0].assigned_to,"agent-b","Denied call must not mutate the previous assignment");
+  assert.equal(current.rows[0].assigned_to,prior,"Denied call must not mutate the previous assignment");
   rows=(await setup.query("SELECT action FROM inbox_events WHERE tenant_id=$1 AND conversation_id=$2 AND action='assigned'",[tenant,chat])).rows;
   assert.equal(rows.length,2,"Denied call cannot add audit");
 
