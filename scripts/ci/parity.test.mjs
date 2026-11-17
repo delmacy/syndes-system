@@ -14,6 +14,7 @@ const expectedWorkflows=[
  "platform-manager.yml",
  "support-browser-e2e.yml",
  "syndes-ci.yml",
+ "syndes-core-host-devserver01.yml",
  "syndes-docs-pages.yml",
  "syndes-docs-project-sync.yml",
 ];
@@ -49,6 +50,15 @@ test("only the central mainline owns PR and merge-group regression; Docs push is
    "actions/deploy-pages@v4"
  ],"scoped documentation publisher");
  assert.doesNotMatch(pages,/^  (?:pull_request|merge_group):/m);
+ const deployment=await read(".github/workflows/syndes-core-host-devserver01.yml");
+ assert.deepEqual(mainlineEvents(deployment),[],"Core Host CD must not independently run PR/push/merge regressions");
+ must(deployment,[
+  "workflow_run:","workflows: [\"Syndes Mainline CI\"]",
+  "github.event.workflow_run.conclusion == 'success'",
+  "github.event.workflow_run.event == 'push'",
+  "github.event.workflow_run.head_branch == 'main'",
+  "vars.SYNDES_DEV_CORE_HOST_CD_ENABLED == 'true'",
+ ],"release-only workflow");
  const project=await read(".github/workflows/syndes-docs-project-sync.yml");
  assert.deepEqual(mainlineEvents(project),[],"GitHub Projects sync must not trigger mainline regression");
  must(project,["workflow_dispatch:","  issues:","SYNDES_PROJECT_URL","SYNDES_PROJECTS_PAT"],
