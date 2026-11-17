@@ -31,6 +31,12 @@ Criar **GitHub Environment devserver01** com política de branch main, controle 
 
 A identidade OIDC do GitHub deve apresentar subject `repo:delmacy/syndes-system:environment:devserver01` (verificar esse subject na credencial Tailscale); o Environment `devserver01` precisa existir no GitHub. A credencial também deve autorizar a tag configurada em `SYNDES_DEV_TAILSCALE_TAG`.
 
+## Pré-validação automática de Tailnet (sem deploy)
+
+Enquanto `SYNDES_DEV_CORE_HOST_CD_ENABLED` estiver ausente ou diferente de `true`, o workflow downstream executará somente o job `tailnet-preflight` após um **Syndes Mainline CI** bem-sucedido originado de push na `main`. O job solicita OIDC ao GitHub no Environment `devserver01`, valida que os dois Secrets e a tag têm conteúdo, ingressa efemeramente na Tailnet e confirma endereço IPv4 Tailscale. Não executa SSH, Docker, transferência de imagem nem altera o DevServer01. Ele continuará rodando após pushes futuros enquanto CD estiver desativado; ao habilitar o CD completo, esse preflight isolado é desativado e o job `deploy` terá sua própria conexão Tailscale.
+
+Um `TAILNET_OIDC_AUTH_VERIFIED` nos logs comprova somente a autenticação e ingresso do runner na Tailnet. **Não comprova conectividade SSH ao DevServer01**, política de acesso ao serviço, hash Compose, nem deploy. Se falhar, revisar primeiro Client ID, Audience, OIDC subject (`repo:delmacy/syndes-system:environment:devserver01`), escopo `auth_keys:write`, tag e configuração do Environment GitHub. Não publicar segredos em logs.
+
 ## Pré-gates
 
 1. Confirmar no DevServer01 **sem alterar runtime** o Compose real, nome de projeto/serviço, variável SYNDES_CORE_HOST_IMAGE e a imagem anterior syndes/core-host:*. O relatório P02 de 17/11 identificou o serviço syndes-core-host-whatsapp-v2, mas NÃO identifica neste Git o manifesto operacional e seu hash. Não presumir que apps/core-host/compose.yaml corresponde ao Compose em operação.
