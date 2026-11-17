@@ -24,12 +24,12 @@ test("operational probe verifies Keycloak/OIDC, FGA health and fail-closed HTTP 
   "ANONYMOUS_AUTHORIZE_DENIED","INVALID_JWT_AUTHORIZE_DENIED",
   "ANONYMOUS_CRM_DENIED","INVALID_JWT_CRM_DENIED",
   "ANONYMOUS_INBOX_DENIED","INVALID_JWT_INBOX_DENIED",
-  "OIDC_MODULE_INBOX","OIDC_MODULE_CRM",
+  "syndes-inbox-ui","syndes-crm-ui","OIDC_MODULE_",
   "DEVSERVER01_IDENTITY_READONLY_PROBE_PASS",
   "AUTH_POSITIVE_MEMBERSHIP_FGA_NOT_TESTED",
   'cache:"no-store"','redirect:"error"'
  ])assert.ok(probe.includes(marker),marker);
- assert.doesNotMatch(probe,/grant_type|client_secret|password=|/admin/realms|/stores/.+/write/);
+ assert.doesNotMatch(probe,new RegExp("grant_type|client_secret|password=|/admin/realms|/stores/.+/write"));
 });
 test("live probe runs only after read-only SSH and Compose gates, never inside a deployment job",()=>{
  const preflight=workflow.split("  tailnet-preflight:\n")[1]?.split("\n  deploy:\n")[0];
