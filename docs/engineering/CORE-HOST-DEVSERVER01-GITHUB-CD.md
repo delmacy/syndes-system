@@ -1,24 +1,27 @@
 # Syndes Core Host → DevServer01 via GitHub Actions
 
-**Estado em 17/11/2026: comunicação e Compose homologados apenas em modo leitura; deploy DESATIVADO. Backups reais e restore operacional NÃO comprovados.** A autenticação OIDC, conexão à Tailnet e SSH de leitura foram comprovados pelo [GitHub Actions, run 44129310863, tentativa 4](https://github.com/delmacy/syndes-system/actions/runs/44129310863). Isso não comprova uma publicação nem um rollback real.
+**Estado em 17/11/2026: primeiro deploy de protótipo EXECUTADO COM SUCESSO pelo GitHub Actions; exceção de release consumida e removida.** Imagem implantada: `syndes/core-host:git-41bfc3cd8b4c52f23fbfe20414b4ee664000fb1f`. Evidência: [GitHub Actions run 44144966110](https://github.com/delmacy/syndes-system/actions/runs/44144966110), com `CUTOVER_VERIFIED`. Readiness HTTP 200, Inbox anônimo HTTP 401, flags de runtime e contêineres dos demais serviços preservados. O rollback **não foi acionado** e portanto não foi ensaiado em ambiente real. O backup/restore operacional **não foi homologado**.
 
 ## Política de publicação
 
 O único mecanismo autorizado para ativar o Core Host no DevServer01 é `.github/workflows/syndes-core-host-devserver01.yml`. O workflow escuta `workflow_run` de `Syndes Mainline CI` concluído com sucesso, originado de push em `main` do próprio repositório. Confere que o SHA de origem ainda é a ponta atual do `main`; não promove PR, fork ou commit obsoleto. Exige TRÊS condições simultâneas em **variáveis de repositório**: `SYNDES_DEV_CORE_HOST_CD_ENABLED=true`, `SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA=<SHA exato do commit de main>` e `SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED=true`. O terceiro campo é uma declaração **manual de aprovação**, não uma prova técnica de backup: só configurar depois de evidência real de restore recuperável, sob custódia e aprovação do operador. As três condições protegem contra deploy de todo novo push indiscriminadamente. Caso qualquer condição falte, executa somente o preflight de leitura. **Mantenha o switch ausente ou false enquanto a recuperação operacional não estiver homologada.**
 
-## Exceção pontual aprovada para protótipo (17/11/2026)
+## Histórico do primeiro release de protótipo (17/11/2026)
 
-O proprietário autorizou explicitamente realizar **o primeiro deploy do Core Host em DevServer01 sem exigir restore operacional dos dados**, por este ser um ambiente de prototipação. Essa decisão aceita o risco de perda de dados do protótipo em caso de falha, e **não** equivale a ter backup/restore comprovado.
+O proprietário autorizou expressamente publicar no ambiente de prototipação **sem exigir o backup/restore operacional**. O risco foi aceito para essa única implantação; não foi atribuído o valor falso `SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED=true`.
 
-A exceção é ativada **somente** pelo commit de `main` cujo assunto exato seja:
+A PR [#154](https://github.com/delmacy/syndes-system/pull/154) introduziu uma exceção de curta duração, ligada ao assunto exato do commit de `main` `ci(cd): prototype DevServer01 Core Host release 2026-11-17`, SHA `41bfc3cd8b4c52f23fbfe20414b4ee664000fb1f`. A [Mainline CI run 44144367475](https://github.com/delmacy/syndes-system/actions/runs/44144367475) passou, e a [execução de CD 44144966110](https://github.com/delmacy/syndes-system/actions/runs/44144966110) confirmou:
 
-`ci(cd): prototype DevServer01 Core Host release 2026-11-17`
+- `DEVSERVER01_PROTOTYPE_RELEASE_OWNER_AUTHORIZED`;
+- validação dos quatro manifests Compose e da imagem de rollback antes do build;
+- carregamento da imagem `syndes/core-host:git-41bfc3cd8b4c52f23fbfe20414b4ee664000fb1f`;
+- `CUTOVER_VERIFIED` após `/readyz` HTTP 200 e negação anônima Inbox HTTP 401;
+- valores de `WHATSAPP_DISPATCH_ENABLED` e `SYNDES_MULTI_ORG_ENABLED` preservados;
+- nenhuma alteração dos IDs de contêineres de outros serviços do mesmo projeto Compose.
 
-O workflow consulta o assunto do commit da execução `workflow_run` e confirma novamente com `git log -1 --format=%s` antes do build. Permanecem obrigatórios CI da `main` verde, repositório e branch corretos, SHA atual, Tailscale OIDC, os quatro hashes do Compose, identidade remota, imagem de rollback e capacidade de disco. O serviço alvo continua exclusivamente `core-host-whatsapp`. O pipeline não executa migrações SQL, DDL, backfill nem alterações de outros contêineres.
+**Rebloqueio:** a exceção consumida foi removida na atualização posterior do workflow. As três condições normais de aprovação por SHA, switch de repositório e recuperação operacional voltaram a ser exigidas para futuras implantações. O commit de rebloqueio não modifica o servidor e deve executar apenas o preflight.
 
-**Não declarar `SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED=true`:** essa variável continua representando atestação de recuperação real, que ainda não ocorreu. A exceção de protótipo é separada e deve ser eliminada do workflow após a execução para não se tornar via permanente de deploy.
-
-Uma liberação de Core Host sem migrações pode, mesmo assim, encontrar incompatibilidade com o banco e exigir rollback de contêiner. Restaurar a imagem anterior **não recupera dados perdidos ou alterados**.
+**Limite:** o smoke não substitui teste autenticado com Keycloak nem valida grants OpenFGA em operação. O Product Gate permanece OPEN. O rollback da imagem anterior não restaura bancos de dados alterados.
 
 ## Conectividade e variáveis
 

@@ -14,14 +14,12 @@ concurrency:
 
 jobs:
   tailnet-preflight:
-    # Read-only unless all three normal gates match OR a specifically titled,
-    # owner-authorized prototype release commit passes mainline CI.
-    # Prototype marker is a single exact commit title, not a global deploy switch.
+    # Read-only unless all three independent gates match this exact main SHA:
+    # release switch, SHA-specific release approval, and recovery attestation.
     if: >-
-      ${{ !( (vars.SYNDES_DEV_CORE_HOST_CD_ENABLED == 'true' &&
-               vars.SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA == github.event.workflow_run.head_sha &&
-               vars.SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED == 'true') ||
-              startsWith(github.event.workflow_run.head_commit.message, 'ci(cd): prototype DevServer01 Core Host release 2026-11-17') ) &&
+      ${{ !(vars.SYNDES_DEV_CORE_HOST_CD_ENABLED == 'true' &&
+             vars.SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA == github.event.workflow_run.head_sha &&
+             vars.SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED == 'true') &&
           github.event.workflow_run.conclusion == 'success' &&
           github.event.workflow_run.event == 'push' &&
           github.event.workflow_run.head_branch == 'main' &&
@@ -83,14 +81,12 @@ jobs:
           timeout 45s tailscale ssh "delmacy@$DEPLOY_HOST" 'bash -s -- preflight' < scripts/deploy/devserver01-core-host.sh
 
   deploy:
-    # Normal release retains all recovery/SHA gates. Exception: explicitly
-    # owner-authorized prototype only when the EXACT head commit title matches
-    # the named one-shot release. Future main pushes cannot auto-promote.
+    # Release requires all of: repository switch, approved *exact* SHA, and
+    # operator-attested backup/restore. A future main push cannot auto-promote.
     if: >-
-      ${{ ( (vars.SYNDES_DEV_CORE_HOST_CD_ENABLED == 'true' &&
-               vars.SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA == github.event.workflow_run.head_sha &&
-               vars.SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED == 'true') ||
-              startsWith(github.event.workflow_run.head_commit.message, 'ci(cd): prototype DevServer01 Core Host release 2026-11-17') ) &&
+      ${{ vars.SYNDES_DEV_CORE_HOST_CD_ENABLED == 'true' &&
+          vars.SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA == github.event.workflow_run.head_sha &&
+          vars.SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED == 'true' &&
           github.event.workflow_run.conclusion == 'success' &&
           github.event.workflow_run.event == 'push' &&
           github.event.workflow_run.head_branch == 'main' &&
@@ -117,17 +113,9 @@ jobs:
           TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
           RELEASE_APPROVED_SHA: ${{ vars.SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA }}
           RECOVERY_APPROVED: ${{ vars.SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED }}
-          PROTOTYPE_RELEASE: "${{ startsWith(github.event.workflow_run.head_commit.message, 'ci(cd): prototype DevServer01 Core Host release 2026-11-17') }}"
         run: |
           set -Eeuo pipefail
-          if [[ "$PROTOTYPE_RELEASE" == 'true' ]]; then
-            # One-shot prototype exception explicitly approved by the owner.
-            # No claim that operational backup/restore was tested.
-            [[ "$(git log -1 --format=%s)" == 'ci(cd): prototype DevServer01 Core Host release 2026-11-17' ]]
-            echo 'DEVSERVER01_PROTOTYPE_RELEASE_OWNER_AUTHORIZED'
-          else
-            [[ "$RELEASE_APPROVED_SHA" == "$SOURCE_SHA" && "$RECOVERY_APPROVED" == 'true' ]]
-          fi
+          [[ "$RELEASE_APPROVED_SHA" == "$SOURCE_SHA" && "$RECOVERY_APPROVED" == 'true' ]]
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
