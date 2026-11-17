@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import {randomUUID} from "node:crypto";
 import {readFile} from "node:fs/promises";
 import {execFileSync} from "node:child_process";
+import {CoreKernel} from "@syndes/core-kernel";
+import {InboxService,inboxModule} from "../dist/index.js";
+import {FgaPermission,fgaResourceObject} from "../../../apps/core-host/dist/adapters.js";
 
 const BASE="http://127.0.0.1:18091";
 const CONTAINER="syndes-inbox-preflight-fga";
@@ -67,8 +70,46 @@ test("P02 preflight: real disposable OpenFGA proves recipient permissions are se
    method:"POST",signal:AbortSignal.timeout(800)
   }));
  });
+ // P02-ASSIGN-03 uses the exact resource-hash and real FgaPermission
+ // adapter from the Core Host. The database writer here is a spy; SQL locks,
+ // P04 memberships and HTTP routing are independently exercised in PG/HTTP CI.
+ await t.test("runtime Inbox assignment checks exact tenant-hashed recipient grants against real OpenFGA",async()=>{
+  const runtimeTenant=randomUUID(),recipient="eligible-runtime-recipient",assigner="runtime-supervisor";
+  const object=resource=>fgaResourceObject(runtimeTenant,resource);
+  const tuple=(user,relation,resource)=>({user:"user:"+user,relation,object:object(resource)});
+  const actorGrant=tuple(assigner,"editor","inbox:assignment");
+  const readGrant=tuple(recipient,"viewer","inbox:conversations");
+  const writeGrant=tuple(recipient,"editor","inbox:messages");
+  await api("POST","/stores/"+store+"/write",{writes:{tuple_keys:[actorGrant]}});
+  const fga=new FgaPermission(BASE,store,"disposable-ci-only");
+  const kernel=new CoreKernel({
+   modules:[{id:"platform",version:"0.1.0"},{id:"crm",version:"0.1.0",dependencies:["platform"]},inboxModule],
+   tenancy:{canAccessTenant:async({actor,tenantId})=>tenantId===runtimeTenant&&[assigner,recipient].includes(actor.id)},
+   authorization:fga
+  });
+  await kernel.start();
+  let writes=0,assigned=null;
+  const service=new InboxService(kernel,async()=>({
+   assign:async(_tenant,_conversation,_actor,target)=>{writes++;assigned=target;return {assignedTo:target}}
+  }));
+  const ctx={tenantId:runtimeTenant,actor:{id:assigner,kind:"user"}};
+  const chat=randomUUID();
+  assert.equal(await service.assign(ctx,chat,recipient),null,"P04 membership alone cannot authorize recipient");
+  await api("POST","/stores/"+store+"/write",{writes:{tuple_keys:[readGrant]}});
+  assert.equal(await service.assign(ctx,chat,recipient),null,"Conversation/read alone cannot authorize replies");
+  await api("POST","/stores/"+store+"/write",{writes:{tuple_keys:[writeGrant]}});
+  assert.equal((await service.assign(ctx,chat,recipient)).assignedTo,recipient);
+  assert.equal(writes,1);
+  assert.equal(await fga.canAccess({actor:{id:recipient,kind:"user"},tenantId:randomUUID(),action:"write",resource:"inbox:messages"}),false,
+   "Tenant-derived hash cannot transfer grants to another tenant");
+  await api("POST","/stores/"+store+"/write",{deletes:{tuple_keys:[writeGrant]}});
+  assert.equal(await service.assign(ctx,chat,recipient),null,"Revocation denies even idempotent reassignment");
+  assert.equal(writes,1,"Revoked grant cannot add assignment writes");
+  assert.equal((await service.assign(ctx,chat,null)).assignedTo,null,"Release does not require recipient grant");
+  assert.equal(writes,2);
+ });
  console.log("INBOX_FGA_PREFLIGHT",JSON.stringify({
   targetGrantChecked:"real OpenFGA disposable",testResources:"synthetic",
-  integratedInInboxAssignment:false,productionIamVerified:false
+  integratedInInboxAssignment:true,productionIamVerified:false
  }));
 });

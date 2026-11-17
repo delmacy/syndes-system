@@ -27,10 +27,10 @@ const auth={
  outsider:"Bearer ci-outsider",
  invalid:"Bearer invalid"
 };
-const memberships={alice:A,bob:B,readonly:A};
+const memberships={alice:A,bob:B,readonly:A,"other-agent":A,"fga-denied":A,"fga-readonly":A};
 const tenantDatabaseResolutions=[];
 // Deterministic fault injection, reset in each test and never used in production.
-const faults={fga:false,resolve:false,mismatchedLease:false,query:false};
+const faults={fga:false,recipientFga:false,resolve:false,mismatchedLease:false,query:false};
 async function startHost(){
  const installed=await loadInstalledPlugins();
  assert.deepEqual(installed.map(p=>p.definition.id),["crm","inbox","whatsapp","organizations","support"],
@@ -39,7 +39,10 @@ async function startHost(){
   modules:[{id:"platform",version:"0.1.0"},...installed.map(p=>p.definition)],
   tenancy:{canAccessTenant:async({actor,tenantId})=>memberships[actor.id]===tenantId},
   authorization:{canAccess:async({actor,resource,action})=>{
-   if(faults.fga)throw Error("Injected OpenFGA connectivity failure: private details");
+   if(faults.fga||faults.recipientFga&&actor.id==="other-agent")
+    throw Error("Injected OpenFGA connectivity failure: private details");
+   if(actor.id==="fga-denied")return false;
+   if(actor.id==="fga-readonly"&&resource==="inbox:messages"&&action==="write")return false;
    return resource.startsWith("inbox:")&&(actor.id!=="readonly"||action==="read");
   }}
  });
@@ -77,7 +80,7 @@ async function seedAuthorizedDefaultContexts(){
   await pool.query("INSERT INTO platform_organizations(tenant_id,id,display_name,is_default) VALUES($1,$2,'CI Default',true)",[tenant,org]);
   await pool.query("INSERT INTO platform_workspaces(tenant_id,id,organization_id,name,slug,is_default) VALUES($1,$2,$3,'Primary','primary',true)",[tenant,ws,org]);
   // Only active writable P04 members can receive a conversation.
-  const recipients=tenant===A?[...principals,"other-agent"]:[...principals];
+  const recipients=tenant===A?[...principals,"other-agent","fga-denied","fga-readonly"]:[...principals];
   for(const principal of recipients){
    const role=principal==="other-agent"?"editor":principal==="readonly"?"viewer":"admin";
    await pool.query("INSERT INTO platform_org_memberships(tenant_id,organization_id,principal_id,role) VALUES($1,$2,$3,$4)",[tenant,org,principal,role]);
@@ -202,6 +205,8 @@ test("Core Host loads Inbox plugin and runs its HTTP contract against real tenan
    await call(base,A,root+"/assignment",{method:"PATCH",body:{assigneeId:"ghost"}},404);
    await call(base,A,root+"/assignment",{method:"PATCH",body:{assigneeId:"readonly"}},404);
    await call(base,A,root+"/assignment",{method:"PATCH",body:{assigneeId:"bob"}},404);
+   await call(base,A,root+"/assignment",{method:"PATCH",body:{assigneeId:"fga-denied"}},404);
+   await call(base,A,root+"/assignment",{method:"PATCH",body:{assigneeId:"fga-readonly"}},404);
    assert.equal((await call(base,A,root,{},200)).assignedTo,null,"Denied targets never persist");
    await call(base,A,root+"/assignment",{method:"PATCH",body:{assigneeId:"alice"}},200);
    const outbound=await call(base,A,root+"/replies",{method:"POST",body:{body:"Human reply"}},201);
@@ -229,6 +234,12 @@ test("Core Host loads Inbox plugin and runs its HTTP contract against real tenan
    await call(base,A,root+"/handoff",{method:"PATCH",body:{mode:"bot"}},200);
    await call(base,A,root+"/replies",{method:"POST",body:{body:"Handoff denies reply"}},404);
    await call(base,A,root+"/handoff",{method:"PATCH",body:{mode:"human"}},200);
+   try{
+    faults.recipientFga=true;
+    await call(base,A,root+"/assignment",{method:"PATCH",body:{assigneeId:"other-agent"}},503);
+   }finally{faults.recipientFga=false;}
+   assert.equal((await call(base,A,root,{},200)).assignedTo,"alice",
+    "Recipient OpenFGA outage cannot change the existing assignment");
    await call(base,A,root+"/assignment",{method:"PATCH",body:{assigneeId:"other-agent"}},200);
    await call(base,A,root+"/replies",{method:"POST",body:{body:"Not owner anymore"}},404);
    const audit=await pool.query(

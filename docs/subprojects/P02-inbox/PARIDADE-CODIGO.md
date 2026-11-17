@@ -91,3 +91,12 @@ O teste `apps/docs-reader/tests/content.test.mjs` agora valida **rotas ↔ catá
 ## 8 · Pré-homologação P02-ASSIGN-02
 
 [Plano de testes PG/FGA](PRE-HOMOLOGACAO-ASSIGN.md): auditoria somente leitura dos responsáveis legados (sem reparar dados), migration gates 002/003/backfill e OpenFGA real mas descartável. **Gap preservado:** a implementação P02-ASSIGN-01 não consulta grant individual OpenFGA do destinatário. Não declarar essa lacuna fechada em razão de teste isolado do modelo.
+
+
+## P02-ASSIGN-03 · Paridade de autorização por destinatário (candidato 17/11/2026)
+
+- `modules/inbox/src/service.ts#assign`: ator passa `inbox:assignment/write` via Kernel. Destinatário não nulo é tratado como `user:<principal>` verificado pelo `CoreKernel.execute` duas vezes: tenancy Control e OpenFGA `inbox:conversations/read`, depois `inbox:messages/write`. As chaves de recurso continuam no formato padrão de C04, com hash SHA-256 tenant+recurso.
+- `modules/inbox/src/postgres.ts#assign`: mantém gate P04 `admin/editor` ativo na organização e workspace da conversa, sob lock SQL. Nenhum novo SQL/DDL foi introduzido.
+- Resultado de FGA `allowed=false` ou membership Control ausente: `AccessDeniedError` do destinatário vira `null`/HTTP 404 genérico, sem atualização nem evento. Falha do provedor OpenFGA: exceção propagada/503, não permitir por omissão. O `null` para liberar ignora checagem do alvo inexistente.
+- Validação: `modules/inbox/test/inbox.test.mjs`, `apps/core-host/test/inbox-pg-http.integration.mjs` e `modules/inbox/test/fga-assignment-preflight.mjs`, com repositórios e store OpenFGA descartáveis. **Resultados da CI da branch ainda pendentes**.
+- Segurança residual: revogação de membership P04 é sincronizada no SQL, mas a autorização remota FGA não está sob a mesma transação do `UPDATE`; não prometer atomicidade entre sistemas. Testes reais de Keycloak, concessão/revogação operacional, canário e rollback permanecem gates abertos.

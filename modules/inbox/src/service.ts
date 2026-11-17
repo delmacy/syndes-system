@@ -56,11 +56,36 @@ export class InboxService {
    const key=id(conversationId),size=limit(pageSize);
    return this.execute(ctx,"read","inbox:messages",repo=>repo.messages(ctx.tenantId,key,size));
  }
- /** Assignment requires the P04 active admin/editor memberships of its recipient. */
+ /** P02-ASSIGN-03: the caller needs assignment/write; the recipient must
+  * independently retain tenant membership and effective OpenFGA permissions
+  * to read conversations and write replies. PostgreSQL still owns the atomic
+  * P04 organization/workspace membership and revocation gate.
+  *
+  * No OpenFGA exception is interpreted as allow: an explicit deny returns
+  * the same generic unavailable target as a revoked/missing P04 membership,
+  * whereas a provider outage propagates (HTTP 503). Null release is exempt.
+  */
  assign(ctx:InboxContext,conversationId:string,value:unknown):Promise<Conversation|null>{
    const key=id(conversationId),to=assignee(value);
-   return this.execute(ctx,"write","inbox:assignment",
-     repo=>repo.assign(ctx.tenantId,key,ctx.actor.id,to));
+   return this.execute(ctx,"write","inbox:assignment",async repo=>{
+     if(to!==null){
+       const recipient={id:to,kind:"user" as const};
+       for(const permission of [
+         {action:"read",resource:"inbox:conversations"},
+         {action:"write",resource:"inbox:messages"}
+       ] as const){
+         try{
+           await this.kernel.execute({
+             actor:recipient,tenantId:ctx.tenantId,...permission
+           },async()=>{});
+         }catch(error){
+           if(error instanceof AccessDeniedError)return null;
+           throw error;
+         }
+       }
+     }
+     return repo.assign(ctx.tenantId,key,ctx.actor.id,to);
+   });
  }
  status(ctx:InboxContext,conversationId:string,value:ConversationStatus):Promise<Conversation|null>{
    const key=id(conversationId);

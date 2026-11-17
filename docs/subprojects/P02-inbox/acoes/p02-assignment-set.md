@@ -109,3 +109,10 @@ Arquivos relacionados à investigação: [`test/inbox.test.mjs`](https://github.
 Agente deve ler [Ficha Mestre](../FICHA-MODULO.md), [Matriz](../MATRIZ-ACOES.md), [STATUS](../STATUS.md), `AGENTS.md`, contrato/código na SHA atual, e propor testes antes de alterar runtime. Só implementar após autorização com paths e critério de aceite; atualizar código, documentação, WBS e testes no mesmo incremento.
 
 [Voltar às ações](../MATRIZ-ACOES.md) · [Ficha Mestre](../FICHA-MODULO.md).
+
+
+## Atualização de implementação · P02-ASSIGN-03 (17/11/2026, candidata)
+
+**Pré-condição adicional do destinatário:** além do P04 `admin/editor` ativo da organização/workspace da conversa sob lock PostgreSQL, o Core Kernel executa `canAccessTenant` e C04 OpenFGA para `inbox:conversations/read` e `inbox:messages/write` com identidade `user:${assigneeId}`. A autorização do ator `inbox:assignment/write` não substitui essas checagens. Os recursos OpenFGA são tenant-hashed como os demais recursos do Host; não foi criado um modelo de autorização por conversa.
+
+**Sem concessão automática:** não criar grants na atribuição; um destino sem permissão efetiva é rejeitado como recurso indisponível (HTTP 404 sem revelar a causa). Falha OpenFGA = 503 e nenhuma mutação. `assigneeId:null` remove atribuição sem conferir o ex-destinatário. Requisição idempotente com grant revogado também deve ser rejeitada. E2E real com Keycloak e FGA, janela de revogação remota, legado, restore e aceitação operacional ainda estão pendentes. Código/testes escritos na branch; **CI e deploy não declarados aprovados**.

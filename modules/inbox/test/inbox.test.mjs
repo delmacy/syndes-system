@@ -41,7 +41,7 @@ async function setup(deny=null){
  let selected=0;
  const stores=new Map([[A,new MemoryStore()],[B,new MemoryStore()]]);
  const kernel=new CoreKernel({modules:[{id:"platform",version:"0.1.0"},{id:"crm",version:"0.1.0",dependencies:["platform"]},inboxModule],
-  tenancy:{canAccessTenant:async({actor,tenantId})=>actor.id==="alice"?tenantId===A:actor.id==="bob"&&tenantId===B},
+  tenancy:{canAccessTenant:async({actor,tenantId})=>actor.id==="alice"||actor.id==="other-agent"?tenantId===A:actor.id==="bob"&&tenantId===B},
   authorization:{canAccess:async q=>deny!==q.action&&deny!=="outage"}});
  await kernel.start();
  const inbox=new InboxService(kernel,async tenantId=>{selected++;return stores.get(tenantId)});
@@ -74,6 +74,49 @@ test("human journey: receive, assign, reply, note, pending, resolve, reopen, han
  assert.equal(await inbox.reply(alice,c.id,"Somente responsável"),null);
  assert.equal((await inbox.list(alice,"open")).length,1);
 });
+test("P02-ASSIGN-03: recipient needs tenant membership, conversation read and message write grants",async()=>{
+ const seen=[];
+ let targetCanWrite=false,providerOutage=false,dbWrites=0;
+ const store=new MemoryStore();
+ const kernel=new CoreKernel({
+  modules:[{id:"platform",version:"0.1.0"},{id:"crm",version:"0.1.0",dependencies:["platform"]},inboxModule],
+  tenancy:{canAccessTenant:async({actor,tenantId})=>tenantId===A&&["alice","target"].includes(actor.id)},
+  authorization:{canAccess:async({actor,tenantId,action,resource})=>{
+   seen.push({actor:actor.id,tenantId,action,resource});
+   if(actor.id!=="target")return true;
+   if(providerOutage)throw Error("OpenFGA recipient unavailable");
+   return resource==="inbox:messages"&&action==="write"?targetCanWrite:true;
+  }}
+ });
+ await kernel.start();
+ // A concrete bound store avoids the object-spread loss of prototype methods.
+ const service=new InboxService(kernel,async()=>new Proxy(store,{
+  get(obj,prop){if(prop==="assign")return async(...args)=>{dbWrites++;return obj.assign(...args)};return Reflect.get(obj,prop)}
+ }));
+ const conversation=await service.create(alice,{subject:"Recipient grant contract"});
+ assert.equal(await service.assign(alice,conversation.id,"target"),null,"P04 membership is insufficient without message/write FGA");
+ assert.equal(dbWrites,0,"Denied recipients must never reach the assignment writer");
+ assert.deepEqual(seen.filter(q=>q.actor==="target").map(q=>[q.action,q.resource]),[
+  ["read","inbox:conversations"],["write","inbox:messages"]
+ ]);
+ assert.equal(await service.assign(alice,conversation.id,"foreign"),null,"Missing tenant membership denies the target");
+ assert.equal(dbWrites,0);
+ providerOutage=true;
+ await assert.rejects(service.assign(alice,conversation.id,"target"),/OpenFGA recipient unavailable/);
+ assert.equal(dbWrites,0,"OpenFGA outage must not persist an assignment");
+ providerOutage=false;targetCanWrite=true;
+ assert.equal((await service.assign(alice,conversation.id,"target")).assignedTo,"target");
+ assert.equal(dbWrites,1);
+ targetCanWrite=false;
+ assert.equal(await service.assign(alice,conversation.id,"target"),null,
+  "Idempotent requests must not acknowledge a revoked recipient grant");
+ assert.equal(dbWrites,1);
+ providerOutage=true;
+ assert.equal((await service.assign(alice,conversation.id,null)).assignedTo,null,
+  "Unassignment never requires recipient access or an operational target FGA check");
+ assert.equal(dbWrites,2);
+});
+
 test("authorization and membership deny before database resolution",async()=>{
  const {inbox,selects}=await setup();
  await inbox.create(alice,{subject:"Privado"});
