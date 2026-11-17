@@ -1,0 +1,110 @@
+name: Syndes Core Host DevServer01 CD
+
+on:
+  workflow_run:
+    workflows: ["Syndes Mainline CI"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: syndes-core-host-devserver01-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Inactive unless the owner enables the explicit release switch.
+    # Never promote a PR, fork, failed CI, or an older SHA to the server.
+    if: >-
+      ${{ vars.SYNDES_DEV_CORE_HOST_CD_ENABLED == 'true' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: devserver01
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+      DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      DEPLOY_USER: ${{ vars.SYNDES_DEV_SSH_USER }}
+      DEPLOY_PORT: ${{ vars.SYNDES_DEV_SSH_PORT }}
+      COMPOSE_DIR: ${{ vars.SYNDES_DEV_CORE_HOST_COMPOSE_DIR }}
+      COMPOSE_FILE: ${{ vars.SYNDES_DEV_CORE_HOST_COMPOSE_FILE }}
+      COMPOSE_PROJECT: ${{ vars.SYNDES_DEV_CORE_HOST_COMPOSE_PROJECT }}
+      COMPOSE_SERVICE: ${{ vars.SYNDES_DEV_CORE_HOST_COMPOSE_SERVICE }}
+      COMPOSE_SHA256: ${{ vars.SYNDES_DEV_CORE_HOST_COMPOSE_SHA256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Validate source SHA, environment and rollout script
+        shell: bash
+        env:
+          TAILSCALE_OAUTH_CLIENT_ID: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          TAILSCALE_OAUTH_SECRET: ${{ secrets.SYNDES_TAILSCALE_OAUTH_SECRET }}
+          SSH_PRIVATE_KEY: ${{ secrets.SYNDES_DEV_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SYNDES_DEV_SSH_KNOWN_HOSTS }}
+          TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          # Do not deploy an older main after a newer push.
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9_.-]+$ && "$DEPLOY_HOST" == *.ts.net ]]
+          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ "$DEPLOY_PORT" =~ ^[0-9]{1,5}$ ]]
+          (( DEPLOY_PORT >= 1 && DEPLOY_PORT <= 65535 ))
+          [[ "$TAILSCALE_TAG" =~ ^tag:[a-z0-9_-]+$ ]]
+          [[ "$COMPOSE_DIR" =~ ^/[a-zA-Z0-9_./-]+$ ]]
+          [[ "$COMPOSE_FILE" =~ ^[a-zA-Z0-9_./-]+$ ]]
+          [[ "$COMPOSE_PROJECT" =~ ^[a-z][a-z0-9_-]{1,63}$ ]]
+          [[ "$COMPOSE_SERVICE" =~ ^[a-z][a-z0-9_-]{1,63}$ ]]
+          [[ "$COMPOSE_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          [[ -n "$TAILSCALE_OAUTH_CLIENT_ID" && -n "$TAILSCALE_OAUTH_SECRET" ]]
+          [[ -n "$SSH_PRIVATE_KEY" && -n "$SSH_KNOWN_HOSTS" ]]
+          bash -n scripts/deploy/devserver01-core-host.sh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/syndes-dev-key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/syndes-dev-known-hosts"
+          chmod 600 "$RUNNER_TEMP/syndes-dev-key" "$RUNNER_TEMP/syndes-dev-known-hosts"
+      - name: Build SHA-pinned Core Host image in GitHub Actions
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker build --file apps/core-host/Dockerfile --tag "syndes/core-host:git-$SOURCE_SHA" .
+      - name: Join the deployment Tailnet (ephemeral runner)
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.SYNDES_TAILSCALE_OAUTH_SECRET }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+          ping: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      - name: Transfer image from GitHub runner without a registry credential
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sshopts=(-i "$RUNNER_TEMP/syndes-dev-key"
+            -o "UserKnownHostsFile=$RUNNER_TEMP/syndes-dev-known-hosts"
+            -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20
+            -p "$DEPLOY_PORT" -T)
+          docker save "syndes/core-host:git-$SOURCE_SHA" | gzip -1 |
+            ssh "${sshopts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" 'gzip -dc | docker load'
+      - name: Deploy only the existing Core Host service; smoke and rollback
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sshopts=(-i "$RUNNER_TEMP/syndes-dev-key"
+            -o "UserKnownHostsFile=$RUNNER_TEMP/syndes-dev-known-hosts"
+            -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20
+            -p "$DEPLOY_PORT" -T)
+          ssh "${sshopts[@]}" "$DEPLOY_USER@$DEPLOY_HOST"
+            bash -s -- "syndes/core-host:git-$SOURCE_SHA" "$COMPOSE_PROJECT"
+            "$COMPOSE_DIR" "$COMPOSE_FILE" "$COMPOSE_SERVICE" "$COMPOSE_SHA256"
+            < scripts/deploy/devserver01-core-host.sh
+      - name: Remove temporary SSH credentials
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/syndes-dev-key" "$RUNNER_TEMP/syndes-dev-known-hosts"
