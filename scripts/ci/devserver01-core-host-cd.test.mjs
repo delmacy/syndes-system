@@ -21,7 +21,7 @@ test('Core Host CD is gated by main SHA, mainline CI, repository and owner enabl
   "vars.SYNDES_DEV_CORE_HOST_CD_ENABLED == 'true'",
   'vars.SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA == github.event.workflow_run.head_sha',
   "vars.SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED == 'true'",
-  '!(vars.SYNDES_DEV_CORE_HOST_CD_ENABLED',
+  '!( (vars.SYNDES_DEV_CORE_HOST_CD_ENABLED',
   '[[ "$RELEASE_APPROVED_SHA" == "$SOURCE_SHA" && "$RECOVERY_APPROVED" == \'true\' ]]',
   'git ls-remote origin refs/heads/main','id-token: write',
   'environment: devserver01','persist-credentials: false',
