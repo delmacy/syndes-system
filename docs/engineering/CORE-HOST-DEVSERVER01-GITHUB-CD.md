@@ -6,6 +6,20 @@
 
 O único mecanismo autorizado para ativar o Core Host no DevServer01 é `.github/workflows/syndes-core-host-devserver01.yml`. O workflow escuta `workflow_run` de `Syndes Mainline CI` concluído com sucesso, originado de push em `main` do próprio repositório. Confere que o SHA de origem ainda é a ponta atual do `main`; não promove PR, fork ou commit obsoleto. Exige TRÊS condições simultâneas em **variáveis de repositório**: `SYNDES_DEV_CORE_HOST_CD_ENABLED=true`, `SYNDES_DEV_CORE_HOST_RELEASE_APPROVED_SHA=<SHA exato do commit de main>` e `SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED=true`. O terceiro campo é uma declaração **manual de aprovação**, não uma prova técnica de backup: só configurar depois de evidência real de restore recuperável, sob custódia e aprovação do operador. As três condições protegem contra deploy de todo novo push indiscriminadamente. Caso qualquer condição falte, executa somente o preflight de leitura. **Mantenha o switch ausente ou false enquanto a recuperação operacional não estiver homologada.**
 
+## Exceção pontual aprovada para protótipo (17/11/2026)
+
+O proprietário autorizou explicitamente realizar **o primeiro deploy do Core Host em DevServer01 sem exigir restore operacional dos dados**, por este ser um ambiente de prototipação. Essa decisão aceita o risco de perda de dados do protótipo em caso de falha, e **não** equivale a ter backup/restore comprovado.
+
+A exceção é ativada **somente** pelo commit de `main` cujo assunto exato seja:
+
+`ci(cd): prototype DevServer01 Core Host release 2026-11-17`
+
+O workflow consulta o assunto do commit da execução `workflow_run` e confirma novamente com `git log -1 --format=%s` antes do build. Permanecem obrigatórios CI da `main` verde, repositório e branch corretos, SHA atual, Tailscale OIDC, os quatro hashes do Compose, identidade remota, imagem de rollback e capacidade de disco. O serviço alvo continua exclusivamente `core-host-whatsapp`. O pipeline não executa migrações SQL, DDL, backfill nem alterações de outros contêineres.
+
+**Não declarar `SYNDES_DEV_CORE_HOST_RECOVERY_APPROVED=true`:** essa variável continua representando atestação de recuperação real, que ainda não ocorreu. A exceção de protótipo é separada e deve ser eliminada do workflow após a execução para não se tornar via permanente de deploy.
+
+Uma liberação de Core Host sem migrações pode, mesmo assim, encontrar incompatibilidade com o banco e exigir rollback de contêiner. Restaurar a imagem anterior **não recupera dados perdidos ou alterados**.
+
 ## Conectividade e variáveis
 
 A conexão de deploy é GitHub Actions → OIDC Tailscale → `tag:syndes-ci` → Tailscale SSH → `tag:syndes-devserver01`. A autenticação SSH e identidade do host são verificadas pelo Tailscale. Não requer segredo de chave SSH, known_hosts, Client Secret OAuth ou credencial de registry. A regra Tailscale SSH para o CI precisa permitir usuário Linux `delmacy`, `accept` sem confirmação interativa, junto a grant TCP 22 de rede. A identidade OIDC observada é `repo:delmacy@26817160/syndes-system@1433806501:environment:devserver01`.
