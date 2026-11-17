@@ -33,6 +33,25 @@ test("Core Host CD is gated behind mainline success, main push, repository ident
  assert.doesNotMatch(workflow,/ssh-keyscan|StrictHostKeyChecking=no|pull_request:|workflow_dispatch:/);
 });
 
+test("Tailnet OIDC preflight runs before deploy enablement, limited to ephemeral network authentication",()=>{
+ const preflight=workflow.split("  tailnet-preflight:\n")[1]?.split("\n  deploy:\n")[0];
+ assert.ok(preflight,"preflight job missing");
+ for(const critical of [
+  "vars.SYNDES_DEV_CORE_HOST_CD_ENABLED != 'true'",
+  "github.event.workflow_run.conclusion == 'success'",
+  "github.event.workflow_run.event == 'push'",
+  "github.event.workflow_run.head_branch == 'main'",
+  "github.event.workflow_run.head_repository.full_name == github.repository",
+  "environment: devserver01","id-token: write",
+  "SYNDES_TAILSCALE_OIDC_AUDIENCE","SYNDES_TAILSCALE_OAUTH_CLIENT_ID",
+  "SYNDES_DEV_TAILSCALE_TAG","tailscale/github-action@v4",
+  "tailscale ip -4","TAILNET_OIDC_AUTH_VERIFIED"
+ ])assert.ok(preflight.includes(critical),"preflight missing "+critical);
+ assert.doesNotMatch(preflight,/SYNDES_DEV_SSH_|COMPOSE_|SYNDES_CORE_HOST_IMAGE|docker (?:build|save|load|compose)|ssh \"|workflow_dispatch:/i);
+ const deployment=workflow.split("\n  deploy:\n")[1];
+ assert.ok(deployment?.includes("vars.SYNDES_DEV_CORE_HOST_CD_ENABLED == 'true'"));
+});
+
 test("Remote cutover is single-service, pinned image and Compose digest with failure rollback",()=>{
  for(const required of [
   "manifest_digest", '[[ "$actual_digest" == "$manifest_digest" ]]',
