@@ -14,6 +14,9 @@ concurrency:
 
 jobs:
   deploy:
+    permissions:
+      contents: read
+      id-token: write # Tailscale OIDC short-lived GitHub identity token
     # Inactive unless the owner enables the explicit release switch.
     # Never promote a PR, fork, failed CI, or an older SHA to the server.
     if: >-
@@ -43,8 +46,8 @@ jobs:
       - name: Validate source SHA, environment and rollout script
         shell: bash
         env:
-          TAILSCALE_OAUTH_CLIENT_ID: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
-          TAILSCALE_OAUTH_SECRET: ${{ secrets.SYNDES_TAILSCALE_OAUTH_SECRET }}
+          TAILSCALE_OIDC_CLIENT_ID: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          TAILSCALE_OIDC_AUDIENCE: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
           SSH_PRIVATE_KEY: ${{ secrets.SYNDES_DEV_SSH_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.SYNDES_DEV_SSH_KNOWN_HOSTS }}
           TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
@@ -64,7 +67,7 @@ jobs:
           [[ "$COMPOSE_PROJECT" =~ ^[a-z][a-z0-9_-]{1,63}$ ]]
           [[ "$COMPOSE_SERVICE" =~ ^[a-z][a-z0-9_-]{1,63}$ ]]
           [[ "$COMPOSE_SHA256" =~ ^[a-f0-9]{64}$ ]]
-          [[ -n "$TAILSCALE_OAUTH_CLIENT_ID" && -n "$TAILSCALE_OAUTH_SECRET" ]]
+          [[ -n "$TAILSCALE_OIDC_CLIENT_ID" && -n "$TAILSCALE_OIDC_AUDIENCE" ]]
           [[ -n "$SSH_PRIVATE_KEY" && -n "$SSH_KNOWN_HOSTS" ]]
           bash -n scripts/deploy/devserver01-core-host.sh
           printf '%s\n' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/syndes-dev-key"
@@ -79,7 +82,7 @@ jobs:
         uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.SYNDES_TAILSCALE_OAUTH_SECRET }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
           tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
           ping: ${{ vars.SYNDES_DEV_SSH_HOST }}
       - name: Transfer image from GitHub runner without a registry credential
