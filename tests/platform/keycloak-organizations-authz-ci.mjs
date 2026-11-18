@@ -181,6 +181,53 @@ export async function runIam03Lab({base,adminToken}){
   assert.equal(await membership(orgs.a,bob),false);
   assert.equal(await membership(orgs.b,alice),false);
 
+
+  // IAM-05B: use client_credentials with only the realm-management view-users
+  // role. Never use the bootstrap admin's token in the membership reader.
+  stage="service-membership";
+  const readerClient="syndes-iam-membership-reader";
+  await post(prefix+"/clients",{
+    clientId:readerClient,enabled:true,protocol:"openid-connect",
+    publicClient:false,clientAuthenticatorType:"client-secret",
+    serviceAccountsEnabled:true,standardFlowEnabled:false,
+    directAccessGrantsEnabled:false,fullScopeAllowed:false,
+  });
+  const allClients=await get(prefix+"/clients");
+  const reader=allClients.find(c=>c.clientId===readerClient);
+  const realmManagement=allClients.find(c=>c.clientId==="realm-management");
+  assert.ok(reader&&realmManagement,"IAM05B_SERVICE_CLIENTS_MISSING");
+  const readerInternalId=mustId(reader.id,"IAM05B_READER_INTERNAL_ID");
+  const managementInternalId=mustId(realmManagement.id,"IAM05B_REALM_MANAGEMENT_ID");
+  const serviceUser=await get(prefix+"/clients/"+readerInternalId+"/service-account-user");
+  assert.ok(uuid.test(serviceUser?.id),"IAM05B_SERVICE_ACCOUNT_MISSING");
+  const viewUsers=await get(prefix+"/clients/"+managementInternalId+"/roles/view-users");
+  assert.equal(viewUsers?.name,"view-users","IAM05B_MINIMUM_ROLE_MISSING");
+  await call(prefix+"/users/"+serviceUser.id+
+    "/role-mappings/clients/"+managementInternalId,"POST",adminToken,[viewUsers],[204]);
+  // Explicit scope mapping is needed when fullScopeAllowed=false.
+  await call(prefix+"/clients/"+readerInternalId+
+    "/scope-mappings/clients/"+managementInternalId,"POST",adminToken,[viewUsers],[204]);
+  const readerSecret=(await get(prefix+"/clients/"+readerInternalId+"/client-secret"))?.value;
+  assert.ok(typeof readerSecret==="string"&&readerSecret.length>=12,"IAM05B_SECRET_MISSING");
+  const clientGrant=await call("/realms/"+LAB_REALM+"/protocol/openid-connect/token",
+    "POST",null,{grant_type:"client_credentials",client_id:readerClient,
+      client_secret:readerSecret},[200],"form");
+  const memberToken=clientGrant.json?.access_token;
+  assert.match(memberToken||"",/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+  const readerMembership=async(org,user)=>{
+    const response=await call(prefix+"/organizations/"+org+"/members/"+user,
+      "GET",memberToken,undefined,[200,404]);
+    if(response.status===404)return false;
+    assert.equal(response.json?.id,user,"IAM05B_SUBJECT_MISMATCH");
+    assert.equal(response.json?.enabled,true,"IAM05B_DISABLED_IDENTITY");
+    return true;
+  };
+  assert.equal(await readerMembership(orgs.a,alice),true);
+  assert.equal(await readerMembership(orgs.b,bob),true);
+  assert.equal(await readerMembership(orgs.a,bob),false);
+  assert.equal(await readerMembership(orgs.b,alice),false);
+  console.log("IAM05B_KEYCLOAK_SERVICE_VIEW_USERS_MEMBERSHIP_PASS");
+
   stage="scopes";
   const capabilityNames=["inbox.conversation.read","inbox.conversation.claim",
     "inbox.conversation.transfer","service.funnel.operate"];
@@ -288,6 +335,7 @@ export async function runIam03Lab({base,adminToken}){
   await call(prefix+"/organizations/"+orgs.a+"/members/"+alice,"DELETE",
     adminToken,undefined,[200,204]);
   assert.equal(await membership(orgs.a,alice),false);
+  assert.equal(await readerMembership(orgs.a,alice),false,"IAM05B_SERVICE_REVOKE_DENIED");
   const umaAfterOrgRevocation=await decide(atAlice,alpha,workspaceA,null,"inbox.conversation.read");
   const combined=await membership(orgs.a,alice)&&umaAfterOrgRevocation;
   assert.equal(combined,false,"IAM03_REVOKED_MEMBER_CANNOT_ACCESS_APP");
