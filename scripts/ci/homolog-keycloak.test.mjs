@@ -18,8 +18,10 @@ test("isolated identity is one-shot, after preflight, in the established CD work
   assert.ok(job,"No identity job in existing CD");
   assert.match(job,/github\.event\.workflow_run\.head_commit\.message/);
   assert.match(job,/github\.event\.workflow_run\.actor\.login == 'delmacy'/);
-  assert.match(job,/needs: \[tailnet-preflight\]/);
-  assert.match(job,/needs\.tailnet-preflight\.result == 'success'/);
+  assert.doesNotMatch(job,/needs: \[tailnet-preflight\]/);
+  assert.match(job,/HOMOLOG_IDENTITY_TAILNET_SSH_READONLY_PASS/);
+  assert.match(job,/SYNDES_USER=delmacy/);
+  assert.match(job,/SYNDES_HOST=DevServer01/);
   assert.match(job,/environment: devserver01/);
   assert.match(job,/tailscale\/github-action@v4/);
   assert.match(job,/scripts\/identity\/provision-homolog-keycloak\.py/);

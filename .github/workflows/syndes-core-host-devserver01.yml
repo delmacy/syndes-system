@@ -165,11 +165,11 @@ jobs:
 
 
   provision-homolog-identity:
-    # One-time owner-authorized Keycloak principal ONLY. Never grants tenant,
-    # OpenFGA, admin role or credential; it is not a product release.
-    needs: [tailnet-preflight]
+    # Identity-only provisioning is independent of the Core Host Compose contract.
+    # Core Host preflight still fails closed and is NOT weakened by this job.
+    # No tenant membership, OpenFGA grant, admin role or credential.
     if: >-
-      ${{ needs.tailnet-preflight.result == 'success' &&
+      ${{
           github.event.workflow_run.conclusion == 'success' &&
           github.event.workflow_run.event == 'push' &&
           github.event.workflow_run.head_branch == 'main' &&
@@ -206,6 +206,14 @@ jobs:
           oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
           tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Check Tailnet and DevServer01 Linux identity without modifications
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "$DEPLOY_HOST" >/dev/null
+          remote_identity="$(timeout 25s tailscale ssh "delmacy@$DEPLOY_HOST" 'printf "SYNDES_USER="; id -un; printf "SYNDES_HOST="; hostname -s')"
+          [[ "$remote_identity" == *'SYNDES_USER=delmacy'* && "$remote_identity" == *'SYNDES_HOST=DevServer01'* ]]
+          echo 'HOMOLOG_IDENTITY_TAILNET_SSH_READONLY_PASS'
       - name: Provision dedicated Keycloak user without password or grants
         shell: bash
         run: |
