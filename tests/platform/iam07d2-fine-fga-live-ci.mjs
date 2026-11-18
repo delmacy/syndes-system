@@ -17,6 +17,8 @@ import {OpenFgaFineCapabilityPolicy,OpenFgaFineGrantRevoker,iam07dFineObject}
  from "../../apps/core-host/dist/iam07d-fine-fga-policy.js";
 import {pilotResourceName}
  from "../../apps/core-host/dist/keycloak-authorization-pilot.js";
+import {runIam07d5InboxBusinessHttpLab}
+ from "./iam07d5-inbox-business-http-ci.mjs";
 
 const TENANT="11111111-1111-4111-8111-111111111111";
 const ORG="22222222-2222-4222-8222-222222222222";
@@ -161,6 +163,22 @@ export async function runIam07d2FineFgaLiveLab(f){
   " VALUES($1,$2,'IAM07D3 verified claim','simulation',$3,$4,$4)",
   [TENANT,chat,ORG,WS]);
  const business=new Iam07dInboxBusinessPilot(controlled);
+ // Exercise a separate real conversation through Nest HTTP with the SAME JWT
+ // and the exact fine-grained policy. Never mount the CI controller in main.ts.
+ const httpChat=randomUUID();
+ await f.tenantDb.query(
+  "INSERT INTO inbox_conversations"+
+  "(tenant_id,id,subject,channel,platform_organization_id,"+
+  "platform_origin_workspace_id,platform_current_workspace_id)"+
+  " VALUES($1,$2,'IAM07D5 business HTTP claim','simulation',$3,$4,$4)",
+  [TENANT,httpChat,ORG,WS]);
+ await runIam07d5InboxBusinessHttpLab({
+  bearer:f.bearer,userToken:f.userToken,otherOrgToken:f.otherOrgToken,
+  managerToken:f.managerToken,verifier:f.verifier,
+  business,chat:httpChat,tenantDb:f.tenantDb,control:f.control,
+  actorId:f.actorId,changeMembership:f.changeMembership,
+  orgId:f.orgId,adminToken:f.adminToken,
+ });
  const claimed=await business.claim(f.bearer,request(CAP),assignedChat);
  assert.equal(claimed.id,assignedChat);
  assert.equal(claimed.assignedTo,f.actorId);
