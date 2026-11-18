@@ -327,7 +327,10 @@ export async function runIam06bLab(args){
     console.log("IAM06B_REAL_FGA_DENY_UMA_ALLOW_AND_LIVE_REVOCATION_PASS");
   }finally{
     if(tenantDb)await tenantDb.end();
-    if(created)await admin.query('DROP DATABASE "'+dbName+'" WITH (FORCE)');
+    // IAM-07 uses long-lived SSE rechecks. Never FORCE-kill idle PostgreSQL
+    // clients at teardown: doing so can emit an unhandled pool 'error' and
+    // hide an open lease. Plain DROP fails visibly if a session leaked.
+    if(created)await admin.query('DROP DATABASE "'+dbName+'"');
     await admin.end();
     await control.end();
     await rm(temp,{force:true,recursive:true});
