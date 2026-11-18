@@ -4,6 +4,11 @@ import {randomUUID} from "node:crypto";
 import {readFile} from "node:fs/promises";
 import {createRequire} from "node:module";
 import {PgInboxRepository} from "../dist/postgres.js";
+import {PINNED_TENANT_TRANSACTION,AccessDeniedError} from "@syndes/core-kernel";
+import {Iam07dRevokeFirstPilot}
+ from "../../../apps/core-host/dist/iam07d-revoke-first-pilot.js";
+import {Iam07dInboxBusinessPilot}
+ from "../../../apps/core-host/dist/iam07d-inbox-business-pilot.js";
 
 const require=createRequire(new URL("../../../apps/core-host/package.json",import.meta.url));
 const {Client}=require("pg");
@@ -53,6 +58,9 @@ test("IAM-07C PG17 Inbox transfer: destination revocation is fenced until effect
   for(const client of [setup,revoker,transfer])
    await client.query("SET search_path TO "+schema);
   for(const path of migrations)await setup.query(strip(await read(path)));
+  // Install 008 while SQL002 safety indexes still exist; drop only the
+  // disposable test schema's workspace index for a two-workspace race.
+  await setup.query(await read("../../organizations/sql/008_iam07d_revoke_first_candidate.sql"));
   // The operating SQL002 is never changed. This ISOLATED disposable
   // schema intentionally lifts the multi-workspace index for a racing test.
   await setup.query("DROP INDEX platform_legacy_single_workspace");
@@ -116,6 +124,99 @@ test("IAM-07C PG17 Inbox transfer: destination revocation is fenced until effect
     AND action='workspace_transferred'`,
    [tenant,conversation])).rows[0].n,1);
   console.log("IAM07C_PG17_INBOX_TRANSFER_DESTINATION_REVOKE_FENCE_PASS");
+
+  // IAM07D3: same REAL PgInboxRepository.transferWorkspace SQL/effect/audit
+  // inside the tenant epoch lock. This is an isolated PG17 fixture with a
+  // trusted-admission stub; signed JWT/FGA real are tested separately by
+  // IAM07D3_REAL_KEYCLOAK_FGA_PG17_INBOX_CLAIM_EPOCH_AUDIT_PASS.
+  const principal=randomUUID();
+  await setup.query(`INSERT INTO platform_org_memberships
+   (tenant_id,organization_id,principal_id,role)
+   VALUES($1,$2,$3,'editor')`,[tenant,org,principal]);
+  await setup.query(`INSERT INTO platform_workspace_memberships
+   (tenant_id,organization_id,workspace_id,principal_id,role)
+   VALUES($1,$2,$3,$4,'editor'),($1,$2,$5,$4,'editor')`,
+   [tenant,org,source,principal,destination]);
+  await setup.query(`INSERT INTO platform_iam_capability_fences
+    (tenant_id,organization_id,workspace_id,principal_id,capability,epoch,state)
+    VALUES($1,$2,$3,$4,'inbox.conversation.transfer',1,'active')`,
+   [tenant,org,source,principal]);
+  const testOne=randomUUID(),testTwo=randomUUID();
+  for(const chat of [testOne,testTwo])await setup.query(`INSERT INTO inbox_conversations
+   (tenant_id,id,subject,channel,platform_organization_id,
+    platform_origin_workspace_id,platform_current_workspace_id)
+   VALUES($1,$2,'IAM07D3 transfer','simulation',$3,$4,$4)`,
+   [tenant,chat,org,source]);
+  let fineAllowed=true;
+  const issuer="Bearer ci-verified-admission-stub";
+  const request={
+   tenantId:tenant,organizationId:org,workspaceId:source,
+   capability:"inbox.conversation.transfer",
+  };
+  const admission={resolve:async(bearer,selected)=>{
+   if(bearer!==issuer||selected.tenantId!==tenant||
+      selected.organizationId!==org||selected.workspaceId!==source||
+      selected.capability!==request.capability)throw new AccessDeniedError();
+   return {
+    actor:{kind:"user",id:principal},
+    tenantId:tenant,organizationId:org,workspaceId:source,
+    moduleId:"inbox",capability:request.capability,scopeWriteAllowed:true,
+    resourceName:"syndes:v1:tenant:"+tenant+":org:"+org+":workspace:"+source,
+    keycloakOrganizationId:randomUUID(),realm:"syndes-iam-lab-ci",
+   };
+  }};
+  const providers={
+   resolve:async(id)=>{
+    if(id!==tenant)throw new AccessDeniedError();
+    return {tenantId:id,query:(sql,vals)=>setup.query(sql,[...vals])};
+   },
+   withTransaction:async(id,work)=>{
+    if(id!==tenant)throw new AccessDeniedError();
+    await transfer.query("BEGIN");
+    try{
+     const wrapped={
+      tenantId:id,[PINNED_TENANT_TRANSACTION]:true,
+      query:(sql,vals)=>transfer.query(sql,[...(vals??[])]),
+     };
+     const result=await work(wrapped);
+     await transfer.query("COMMIT");
+     return result;
+    }catch(e){await transfer.query("ROLLBACK").catch(()=>{});throw e}
+   },
+  };
+  const guarded=new Iam07dRevokeFirstPilot(admission,{
+   canPerform:async(_context,cap)=>fineAllowed&&cap===request.capability,
+  },providers,{query:async()=>{throw new AccessDeniedError()}});
+  const business=new Iam07dInboxBusinessPilot(guarded);
+  fineAllowed=false;
+  await assert.rejects(business.transfer(issuer,request,testOne,destination),
+    AccessDeniedError,"No fine transfer grant cannot use a coarse write");
+  fineAllowed=true;
+  const beforeRevocation=await business.transfer(issuer,request,testOne,destination);
+  assert.equal(beforeRevocation.id,testOne);
+  assert.equal((await setup.query(`SELECT platform_current_workspace_id
+    FROM inbox_conversations WHERE tenant_id=$1 AND id=$2`,
+   [tenant,testOne])).rows[0].platform_current_workspace_id,destination);
+  assert.equal((await setup.query(`SELECT count(*)::int AS n FROM inbox_events
+    WHERE tenant_id=$1 AND conversation_id=$2 AND action='workspace_transferred'`,
+   [tenant,testOne])).rows[0].n,1);
+  const stale=await guarded.issue(issuer,request);
+  await setup.query(`UPDATE platform_iam_capability_fences
+    SET state='revoked',epoch=2,last_revoke_operation_id=$5::uuid
+    WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3
+     AND principal_id=$4 AND capability='inbox.conversation.transfer'`,
+   [tenant,org,source,principal,randomUUID()]);
+  await assert.rejects(business.transfer(issuer,request,testTwo,destination),
+   AccessDeniedError);
+  await assert.rejects(guarded.execute(stale,async()=>true),
+   AccessDeniedError,"Stale ticket cannot bypass the database epoch");
+  assert.equal((await setup.query(`SELECT platform_current_workspace_id
+    FROM inbox_conversations WHERE tenant_id=$1 AND id=$2`,
+   [tenant,testTwo])).rows[0].platform_current_workspace_id,source);
+  assert.equal((await setup.query(`SELECT count(*)::int AS n FROM inbox_events
+    WHERE tenant_id=$1 AND conversation_id=$2`,
+   [tenant,testTwo])).rows[0].n,0);
+  console.log("IAM07D3_PG17_REAL_TRANSFER_EPOCH_AUDIT_PASS");
  }finally{
   if(tx)await revoker.query("ROLLBACK").catch(()=>{});
   if(pending)await pending.catch(()=>{});
