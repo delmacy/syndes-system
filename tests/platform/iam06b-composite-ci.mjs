@@ -1,3 +1,4 @@
+import {runIam07SseLiveLab} from "./iam07-sse-live-ci.mjs";
 /**
  * IAM-06B: ONE verified HUMAN bearer + live Keycloak Org membership + real
  * PG17 Control / separately selected tenant DB + real OpenFGA v1.22 + UMA.
@@ -260,6 +261,16 @@ export async function runIam06bLab(args){
     assert.deepEqual(counters.slice(-2),[
       "legacy_coarse_agree_allow","legacy_coarse_agree_allow"]);
 
+    // IAM-07A: same signed Keycloak user, real SSE event bus + source
+    // revalidation against Keycloak, Control, tenant PG17 and OpenFGA.
+    await runIam07SseLiveLab({
+      admission,fgaAdapter,bearer,request:request(),
+      control,tenantDb,alice:args.alice,
+      memberOrgId:args.orgs.a,adminToken:args.adminToken,
+      tuples,storeId:store.id,fgaWrite:fga,
+      linkTransition:op,linkRequest,changeMembership:keycloakMemberChange,
+    });
+
     // Real FGA revoke while UMA user policy remains ALLOW: the request DENIES.
     await fga("POST","/stores/"+store.id+"/write",
       {deletes:{tuple_keys:[tuples[0]]}});
@@ -286,10 +297,14 @@ export async function runIam06bLab(args){
       " WHERE tenant_id=$1 AND module_id='inbox'",[TENANT]);
 
     // Real immutable link revocation, then operator-driven reactivation.
-    assert.equal(await op(control,linkRequest("revoked",1)),2);
+    // IAM-07 may also have exercised revocation in this same disposable
+    // Control database, so use the actual current revision rather than
+    // assuming the initial IAM-06B candidate has never been modified.
+    const priorRevision=(await links.findPlatform(TENANT,ORG))[0].revision;
+    assert.equal(await op(control,linkRequest("revoked",priorRevision)),priorRevision+1);
     await assert.rejects(admission.resolve(bearer,request()),
       e=>e.name==="AccessDeniedError");
-    assert.equal(await op(control,linkRequest("active",2)),3);
+    assert.equal(await op(control,linkRequest("active",priorRevision+1)),priorRevision+2);
 
     // Real revocation DURING THE SAME VALID USER JWT session: no SQL read or
     // FGA check is allowed to revive membership. UMA grant may still be TRUE.
