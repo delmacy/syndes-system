@@ -36,9 +36,10 @@ test("IAM07D2 fine resource is scope- and capability-complete; no coarse aliases
   tenantId:tenant,organizationId:org,workspaceId:ws,
   resourceName:resource,capability:funnel,
  }));
+ const anotherOrg=randomUUID();
  assert.notEqual(claimObject,iam07dFineObject({
-  ...context(claim),organizationId:randomUUID(),
-  resourceName:"syndes:v1:tenant:"+tenant+":org:"+randomUUID()+":workspace:"+ws,
+  ...context(claim),organizationId:anotherOrg,
+  resourceName:"syndes:v1:tenant:"+tenant+":org:"+anotherOrg+":workspace:"+ws,
  },claim));
 });
 
