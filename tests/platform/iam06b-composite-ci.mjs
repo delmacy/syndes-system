@@ -1,3 +1,4 @@
+import {runIam07d2FineFgaLiveLab} from "./iam07d2-fine-fga-live-ci.mjs";
 import {runIam07cNestHttpLab} from "./iam07c-nest-http-ci.mjs";
 import {runIam07bProviderRecoveryLab} from "./iam07b-provider-recovery-ci.mjs";
 import {runIam07SseLiveLab} from "./iam07-sse-live-ci.mjs";
@@ -290,6 +291,14 @@ export async function runIam06bLab(args){
       readTuple:tuples[0],fgaWrite:fga,
       orgId:args.orgs.a,adminToken:args.adminToken,
       changeMembership:keycloakMemberChange,
+    });
+    // IAM-07D2: independent fine OpenFGA resource with no coarse inheritance.
+    // Same signed Keycloak bearer, Control/tenant PG17 and SQL002 fixture.
+    await runIam07d2FineFgaLiveLab({
+      bearer,atAlice:args.atAlice,actorId:args.alice,
+      admission,tenantDb,control,fgaWrite:fga,
+      changeMembership:keycloakMemberChange,orgId:args.orgs.a,
+      adminToken:args.adminToken,
     });
 
     // Real FGA revoke while UMA user policy remains ALLOW: the request DENIES.

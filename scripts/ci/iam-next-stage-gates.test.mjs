@@ -80,3 +80,42 @@ test("IAM07D revoke-first PG17 fence remains opt-in and requires exact capabilit
  assert.ok(testSource.includes("IAM07D_FINE_CAPABILITY_NO_COARSE_GRANT_FALLBACK_PASS"));
  execFileSync("node",["--check","apps/core-host/test/iam07d-revoke-first-pg17.test.mjs"]);
 });
+
+test("IAM07D2 fine FGA and tenant outbox are separate, real and fail-closed",()=>{
+ const model=JSON.parse(read("infra/security-access/fga-model-iam07d2-candidate.json"));
+ const live=read("tests/platform/iam07d2-fine-fga-live-ci.mjs");
+ const combined=read("tests/platform/iam06b-composite-ci.mjs");
+ const pilot=read("apps/core-host/src/iam07d-revoke-first-pilot.ts");
+ const worker=read("apps/core-host/src/iam07d-revocation-dispatcher.ts");
+ const fga=read("apps/core-host/src/iam07d-fine-fga-policy.ts");
+ const tenant=read("modules/organizations/sql/008_iam07d_revoke_first_candidate.sql");
+ const main=read("apps/core-host/src/main.ts");
+ const legacy=JSON.parse(read("infra/security-access/fga-model.json"));
+ assert.ok(model.type_definitions.some(x=>x.type==="iam_capability"));
+ assert.ok(!legacy.type_definitions.some(x=>x.type==="iam_capability"),
+  "New FGA fine-grained model cannot silently become the deployed legacy model");
+ const t=model.type_definitions.find(x=>x.type==="iam_capability");
+ assert.deepEqual(Object.keys(t.relations).sort(),["can_execute","grantee"]);
+ assert.deepEqual(t.metadata.relations.grantee.directly_related_user_types,[{type:"user"}]);
+ assert.ok(!JSON.stringify(t).includes("can_write"));
+ assert.ok(combined.includes("await runIam07d2FineFgaLiveLab({"));
+ assert.ok(live.includes("IAM07D2_REAL_KEYCLOAK_SIGNED_JWT_PG17_OPENFGA_EXACT_CAPABILITY_PASS"));
+ assert.ok(live.includes("IAM07D2_REAL_TENANT_FIRST_OUTBOX_FGA_RECOVERY_CONTROL_RECONCILE_PASS"));
+ assert.ok(pilot.includes("this.verifiedRequests.set(ticket"));
+ assert.ok(pilot.includes("await this.admission.resolve(original.bearer,original.requested)"));
+ assert.ok(pilot.includes("platform_iam_revocation_outbox"));
+ assert.ok(worker.includes("this.fga.revokeExact"));
+ assert.ok(worker.includes("platform_iam_revocation_outbox"));
+ assert.ok(worker.includes("this.reconcile"));
+ assert.ok(fga.includes('relation:"can_execute"'));
+ assert.ok(fga.includes('relation:"grantee"'));
+ assert.ok(tenant.includes("platform_iam_fga_grant_targets"));
+ assert.ok(tenant.includes("platform_iam_revocation_outbox"));
+ for(const name of ["iam07d-revoke-first-pilot","iam07d-fine-fga-policy",
+                     "iam07d-revocation-dispatcher"]){
+  assert.ok(!main.includes(name),"Candidate IAM cannot be activated on operational Host");
+ }
+ execFileSync("node",["--check","tests/platform/iam07d2-fine-fga-live-ci.mjs"]);
+ execFileSync("node",["--check","tests/platform/iam06b-composite-ci.mjs"]);
+ execFileSync("node",["--check","apps/core-host/test/iam07d2-fine-policy.test.mjs"]);
+});

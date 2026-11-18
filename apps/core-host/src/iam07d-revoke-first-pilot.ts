@@ -70,6 +70,10 @@ export type SpecificIam07dPolicy=Readonly<{
  */
 export class Iam07dRevokeFirstPilot{
  private readonly issued=new WeakSet<object>();
+ private readonly verifiedContexts=new WeakMap<object,ResolvedIamPilotContext>();
+ private readonly verifiedRequests=new WeakMap<object,Readonly<{
+  bearer:string;requested:RequestedIamPilotContext;
+ }>>();
  constructor(private readonly admission:Pick<OrganizationContextAdmissionPilot,"resolve">,
    private readonly specific:SpecificIam07dPolicy,
    private readonly tenants:TrustedTenantTransactionProvider,
@@ -116,6 +120,10 @@ export class Iam07dRevokeFirstPilot{
     epoch:epochNumber(result.rows[0].epoch),
    });
    this.issued.add(ticket);
+   this.verifiedContexts.set(ticket,Object.freeze({...context}));
+   this.verifiedRequests.set(ticket,Object.freeze({
+    bearer,requested:Object.freeze({...requested}),
+   }));
    return ticket;
   }catch{throw new AccessDeniedError();}
  }
@@ -127,6 +135,20 @@ export class Iam07dRevokeFirstPilot{
   if(!ticket||!this.issued.has(ticket)||typeof effect!=="function")
    throw new AccessDeniedError();
   try{
+   const context=this.verifiedContexts.get(ticket);
+   const original=this.verifiedRequests.get(ticket);
+   if(!context||!original||context.actor.id!==ticket.actor.id||
+      context.capability!==ticket.capability)
+    throw new AccessDeniedError();
+   // Reverify the SAME signed bearer, live Keycloak Org membership,
+   // module entitlement, Control link and selected SQL context. This catches
+   // direct external revocations when they precede the new check. Only a
+   // trusted tenant-first fence can serialize the subsequent SQL commit.
+   const live=await this.admission.resolve(original.bearer,original.requested);
+   if(live.actor.id!==ticket.actor.id||live.capability!==ticket.capability||
+      live.resourceName!==context.resourceName||
+      await this.specific.canPerform(live,ticket.capability)!==true)
+    throw new AccessDeniedError();
    return await this.tenants.withTransaction(ticket.tenantId,async tx=>{
     if(tx.tenantId!==ticket.tenantId||
        tx[PINNED_TENANT_TRANSACTION]!==true)
@@ -189,16 +211,38 @@ export class Iam07dRevokeFirstPilot{
        AND capability=$5 AND epoch=$7::bigint AND state='active'
       RETURNING epoch::text AS epoch`,
       [...values,command.operationId,command.expectedEpoch]);
-    if(changed.rows.length===1)return epochNumber(changed.rows[0].epoch);
-    const prior=await tx.query(`
-      SELECT epoch::text AS epoch,state,last_revoke_operation_id::text AS op
-      FROM platform_iam_capability_fences WHERE tenant_id=$1::uuid
-       AND organization_id=$2::uuid AND workspace_id=$3::uuid
-       AND principal_id=$4 AND capability=$5 FOR UPDATE`,values);
-    if(prior.rows.length!==1||
-       epochNumber(prior.rows[0].epoch)!==n||
-       prior.rows[0].state!=="revoked"||
-       prior.rows[0].op!==command.operationId)
+    if(changed.rows.length!==1){
+     const prior=await tx.query(`
+       SELECT epoch::text AS epoch,state,last_revoke_operation_id::text AS op
+       FROM platform_iam_capability_fences WHERE tenant_id=$1::uuid
+        AND organization_id=$2::uuid AND workspace_id=$3::uuid
+        AND principal_id=$4 AND capability=$5 FOR UPDATE`,values);
+     if(prior.rows.length!==1||
+        epochNumber(prior.rows[0].epoch)!==n||
+        prior.rows[0].state!=="revoked"||
+        prior.rows[0].op!==command.operationId)
+      throw new AccessDeniedError();
+    }
+    // Outbox + deny fence commit ATOMICALLY in the tenant database.
+    // A crash or outage before Control/FGA leaves a durable pending record.
+    await tx.query(`
+      INSERT INTO platform_iam_revocation_outbox(
+       operation_id,tenant_id,organization_id,workspace_id,
+       principal_id,capability,revoked_epoch)
+      VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7::bigint)
+      ON CONFLICT(operation_id) DO NOTHING`,
+      [command.operationId,...values,n]);
+    const pending=await tx.query(`
+      SELECT tenant_id::text,organization_id::text,workspace_id::text,
+       principal_id,capability,revoked_epoch::text AS epoch
+      FROM platform_iam_revocation_outbox WHERE operation_id=$1::uuid`,
+      [command.operationId]);
+    if(pending.rows.length!==1||pending.rows[0].tenant_id!==command.tenantId||
+      pending.rows[0].organization_id!==command.organizationId||
+      pending.rows[0].workspace_id!==command.workspaceId||
+      pending.rows[0].principal_id!==command.principalId||
+      pending.rows[0].capability!==command.capability||
+      epochNumber(pending.rows[0].epoch)!==n)
      throw new AccessDeniedError();
     return n;
    });

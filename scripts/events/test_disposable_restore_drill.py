@@ -89,6 +89,38 @@ class DisposableRestoreGuards(unittest.TestCase):
             with self.assertRaises(mod.DrillError):
                 mod.verified_archive(path, digest)
 
+    def test_version_check_retries_postgres_temporary_postmaster_restart(self):
+        class Fake:
+            attempts = 0
+            def sql(self, name, query):
+                self.attempts += 1
+                self_name = name
+                if self.attempts < 3:
+                    raise mod.DrillError("transient container init")
+                if self_name != "postgres":
+                    raise AssertionError("Wrong database")
+                return "170006"
+        fake = Fake()
+        with patch.object(mod.time, "sleep") as delay:
+            self.assertEqual(mod.checked_pg17_version(fake, 5, .1), 170006)
+            self.assertEqual(fake.attempts, 3)
+            self.assertEqual(delay.call_count, 2)
+        class Wrong:
+            def sql(self, name, query):
+                return "160012"
+        with self.assertRaises(mod.DrillError):
+            mod.checked_pg17_version(Wrong(), 3, 0)
+        class NeverReady:
+            attempts = 0
+            def sql(self, name, query):
+                self.attempts += 1
+                raise mod.DrillError("transient")
+        unavailable = NeverReady()
+        with patch.object(mod.time, "sleep"):
+            with self.assertRaises(mod.DrillError):
+                mod.checked_pg17_version(unavailable, 4, 0)
+        self.assertEqual(unavailable.attempts, 4)
+
     def test_cli_requires_both_safety_flags(self):
         with patch("sys.argv", ["disposable_restore_drill.py", "--disposable"]):
             with self.assertRaises(SystemExit) as exc:

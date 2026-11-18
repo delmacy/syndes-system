@@ -149,6 +149,28 @@ class Postgres:
             stdin=archive, timeout=120)
 
 
+def checked_pg17_version(pg: Postgres, attempts: int = 24,
+                         pause_seconds: float = .5) -> int:
+    """Wait through Docker's first-init temporary server restart.
+
+    pg_isready may report ready for the temporary bootstrap postmaster just
+    before it exits; a subsequent psql can fail despite a healthy image.
+    Never swallow a wrong PostgreSQL major version or reveal stderr.
+    """
+    for attempt in range(attempts):
+        try:
+            version = int(pg.sql("postgres", "SELECT current_setting('server_version_num')::integer;"))
+        except (DrillError, ValueError):
+            if attempt + 1 == attempts:
+                raise DrillError("Disposable PG17 version check never stabilized") from None
+            time.sleep(pause_seconds)
+            continue
+        if version < 170000 or version >= 180000:
+            raise DrillError("Fixture is not PostgreSQL 17")
+        return version
+    raise DrillError("Disposable PG17 not stable")
+
+
 def sql_file(relative: str) -> str:
     if relative not in (*CONTROL, *TENANT):
         raise DrillError("Untrusted migration path")
@@ -308,9 +330,7 @@ def restore_drill() -> dict:
         else:
             raise DrillError("Disposable postgres did not become ready")
         stage = "postgres_version"
-        version = int(pg.sql("postgres", "SELECT current_setting('server_version_num')::integer;"))
-        if version < 170000 or version >= 180000:
-            raise DrillError("Fixture is not PostgreSQL 17")
+        version = checked_pg17_version(pg)
         report["checks"]["pg17"] = True
         stage = "database_create"
         for database in ("syndes_control", tenant_db,
