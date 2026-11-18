@@ -91,11 +91,17 @@ def request(base, path, token=None, payload=None, form=False, method="GET", allo
 
 def assert_identity(user, credentials):
     attrs = user.get("attributes") or {}
-    if (user.get("username") != USER
-        or user.get("enabled") is not True
-        or attrs.get("syndes-homolog-purpose") != [PURPOSE]
-        or "UPDATE_PASSWORD" not in (user.get("requiredActions") or [])):
-        raise RuntimeError("Existing username is not the dedicated homolog identity")
+    checks = {
+        "username": user.get("username") == USER,
+        "enabled": user.get("enabled") is True,
+        "purpose": attrs.get("syndes-homolog-purpose") == [PURPOSE],
+        "required_action": "UPDATE_PASSWORD" in (user.get("requiredActions") or []),
+        "expected_email": user.get("email") == "syndes-homolog-crm-inbox@example.invalid",
+        "expected_display": user.get("firstName") == "Syndes" and user.get("lastName") == "Homologacao",
+    }
+    if not all(checks[k] for k in ("username", "enabled", "purpose", "required_action")):
+        flags = ",".join(k + "=" + ("PASS" if v else "MISS") for k, v in checks.items())
+        raise RuntimeError("Dedicated identity mismatch (sanitized flags: " + flags + ")")
     if credentials:
         raise RuntimeError("Credentials already present; operator review required")
 
