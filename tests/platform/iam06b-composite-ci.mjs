@@ -296,6 +296,8 @@ export async function runIam06bLab(args){
     // Same signed Keycloak bearer, Control/tenant PG17 and SQL002 fixture.
     await runIam07d2FineFgaLiveLab({
       bearer,atAlice:args.atAlice,actorId:args.alice,
+      verifier,userToken:args.atAlice,otherOrgToken:args.atBob,
+      managerToken:args.adminAccess,
       admission,tenantDb,control,fgaWrite:fga,
       changeMembership:keycloakMemberChange,orgId:args.orgs.a,
       adminToken:args.adminToken,
