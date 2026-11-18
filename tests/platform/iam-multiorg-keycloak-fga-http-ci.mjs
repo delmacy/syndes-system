@@ -15,6 +15,13 @@ import {OpenFgaFineCapabilityPolicy,iam07dFineObject}
 import {IamTopologyMultiOrgHttpController,IAM_TOPOLOGY_HTTP_DEPS}
  from "../../apps/core-host/dist/iam-topology-multiorg-http-pilot.js";
 import {PgMembership} from "../../apps/core-host/dist/adapters.js";
+import {PINNED_TENANT_TRANSACTION} from "../../packages/core-kernel/dist/index.js";
+import {Iam07dRevokeFirstPilot}
+ from "../../apps/core-host/dist/iam07d-revoke-first-pilot.js";
+import {Iam07dInboxBusinessPilot}
+ from "../../apps/core-host/dist/iam07d-inbox-business-pilot.js";
+import {IamTopologyInboxClaimController,IAM_TOPOLOGY_CLAIM_DEPS}
+ from "../../apps/core-host/dist/iam-topology-inbox-claim-http-pilot.js";
 
 const require=createRequire(new URL("../../apps/core-host/package.json",import.meta.url));
 require("reflect-metadata");
@@ -108,9 +115,52 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
  assert.equal(await fine.canPerform(ctxB,CAP),false);
  await f.fgaWrite("POST","/stores/"+store.id+"/write",{
   writes:{tuple_keys:[tupleA,tupleB]}});
+ // Actual business writes in BOTH organizations, through IAM07D pinned
+ // transaction and exact per-workspace FGA, after SQL002 lab-only cutover.
+ const tenantProvider={
+  resolve:async id=>{
+   if(id!==TENANT)throw Error("Wrong tenant");
+   return {tenantId:id,query:(sql,params)=>f.tenantDb.query(sql,params)};
+  },
+  withTransaction:async(id,work)=>{
+   if(id!==TENANT)throw Error("Wrong tenant");
+   const client=await f.tenantDb.connect();
+   try{
+    await client.query("BEGIN");
+    const tx={tenantId:id,[PINNED_TENANT_TRANSACTION]:true,
+     query:(sql,params)=>client.query(sql,params??[])};
+    const result=await work(tx);
+    await client.query("COMMIT");
+    return result;
+   }catch(error){
+    await client.query("ROLLBACK").catch(()=>{});
+    throw error;
+   }finally{client.release()}
+  },
+ };
+ const protectedIam=new Iam07dRevokeFirstPilot(
+  admission,fine,tenantProvider,f.control);
+ const business=new Iam07dInboxBusinessPilot(protectedIam);
+ for(const [org,ws] of [[ORG_A,WS_A1],[orgB,wsB1]]){
+  await f.tenantDb.query("INSERT INTO platform_iam_capability_fences"+
+   "(tenant_id,organization_id,workspace_id,principal_id,capability,epoch,state)"+
+   " VALUES($1,$2,$3,$4,$5,1,'active')",
+   [TENANT,org,ws,f.actorId,CAP]);
+ }
+ const chatA=randomUUID(),chatB=randomUUID(),crossChat=randomUUID();
+ for(const [chat,org,ws] of [
+  [chatA,ORG_A,WS_A1],[chatB,orgB,wsB1],[crossChat,orgB,wsB1],
+ ]){
+  await f.tenantDb.query("INSERT INTO inbox_conversations"+
+   "(tenant_id,id,subject,channel,platform_organization_id,"+
+   "platform_origin_workspace_id,platform_current_workspace_id)"+
+   " VALUES($1,$2,'TOPO04B real claim','simulation',$3,$4,$4)",
+   [TENANT,chat,org,ws]);
+ }
  class DisposableTopologyHttpModule{}
- Module({controllers:[IamTopologyMultiOrgHttpController],providers:[
+ Module({controllers:[IamTopologyMultiOrgHttpController,IamTopologyInboxClaimController],providers:[
   {provide:IAM_TOPOLOGY_HTTP_DEPS,useValue:{verifier:f.verifier,admission,fine}},
+  {provide:IAM_TOPOLOGY_CLAIM_DEPS,useValue:{verifier:f.verifier,business}},
  ]})(DisposableTopologyHttpModule);
  const app=await NestFactory.create(DisposableTopologyHttpModule,{logger:false});
  await app.listen(0,"127.0.0.1");
@@ -179,6 +229,72 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
    assert.equal(await send(f.bearer,ORG_A,WS_A1),200);
   }finally{assert.equal(await f.linkTransition(f.control,link("active",2)),3)}
   assert.equal(await send(f.bearer,orgB,wsB1),200);
+  const claimUrl=chat=>base+"/__ci/iam-topology/tenants/"+TENANT+
+   "/inbox/conversations/"+chat+"/claim";
+  const claim=async(chat,org,ws,token=f.bearer)=>{
+   const response=await fetch(claimUrl(chat),{
+    method:"POST",headers:{
+     ...(token?{authorization:token}:{}),
+     "x-syndes-organization-id":org,"x-syndes-workspace-id":ws,
+    },redirect:"error",cache:"no-store",signal:AbortSignal.timeout(11000),
+   });
+   const body=await response.text();
+   assert.ok(!body.includes(f.atAlice));
+   return response.status;
+  };
+  // Cross-organization conversation ID and workspace substitution are
+  // rejected BEFORE any business mutation or audit event.
+  assert.equal(await claim(chatB,ORG_A,WS_A1),403);
+  assert.equal(await claim(chatA,orgB,wsB1),403);
+  assert.equal(await claim(chatB,orgB,wsB2),403);
+  assert.equal(await claim(chatB,orgB,wsB1,"Bearer invalid"),401);
+  assert.equal(await claim(chatB,orgB,wsB1,"Bearer "+f.managerToken),401);
+  assert.equal(await claim(chatB,orgB,wsB1,"Bearer "+f.otherUserToken),403);
+  assert.equal(await claim(chatA,ORG_A,WS_A1),200);
+  assert.equal(await claim(chatB,orgB,wsB1),200);
+  assert.equal(await claim(chatA,ORG_A,WS_A1),403);
+  for(const chat of [chatA,chatB]){
+   const own=await f.tenantDb.query(
+    "SELECT assigned_to FROM inbox_conversations WHERE tenant_id=$1 AND id=$2",
+    [TENANT,chat]);
+   assert.equal(own.rows[0].assigned_to,f.actorId);
+   const audit=await f.tenantDb.query(
+    "SELECT count(*)::int AS n FROM inbox_events"+
+    " WHERE tenant_id=$1 AND conversation_id=$2 AND action='assigned'",
+    [TENANT,chat]);
+   assert.equal(audit.rows[0].n,1);
+  }
+  assert.equal((await f.tenantDb.query(
+   "SELECT assigned_to FROM inbox_conversations WHERE id=$1",[crossChat]))
+   .rows[0].assigned_to,null);
+  assert.equal((await f.tenantDb.query(
+   "SELECT count(*)::int AS n FROM inbox_events WHERE conversation_id=$1",
+   [crossChat])).rows[0].n,0);
+  // Tenant-first scoped revocation B cannot block a DIFFERENT org A.
+  const op=randomUUID();
+  const revoke=await protectedIam.revoke({
+   operationId:op,tenantId:TENANT,organizationId:orgB,
+   workspaceId:wsB1,principalId:f.actorId,capability:CAP,expectedEpoch:1,
+  });
+  assert.equal(revoke,2);
+  assert.equal(await claim(crossChat,orgB,wsB1),403);
+  const chatA2=randomUUID();
+  await f.tenantDb.query("INSERT INTO inbox_conversations"+
+   "(tenant_id,id,subject,channel,platform_organization_id,"+
+   "platform_origin_workspace_id,platform_current_workspace_id)"+
+   " VALUES($1,$2,'TOPO04B post revoke','simulation',$3,$4,$4)",
+   [TENANT,chatA2,ORG_A,WS_A1]);
+  assert.equal(await claim(chatA2,ORG_A,WS_A1),200);
+  assert.equal((await f.tenantDb.query(
+   "SELECT state FROM platform_iam_capability_fences"+
+   " WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3"+
+   " AND principal_id=$4 AND capability=$5",
+   [TENANT,ORG_A,WS_A1,f.actorId,CAP])).rows[0].state,"active");
+  assert.equal((await f.tenantDb.query(
+   "SELECT count(*)::int AS n FROM platform_iam_revocation_outbox"+
+   " WHERE operation_id=$1 AND organization_id=$2",
+   [op,orgB])).rows[0].n,1);
+  console.log("IAM_TOPO04B_REAL_MULTI_ORG_INBOX_CLAIM_SQL_AUDIT_AND_SCOPED_REVOKE_PASS");
   console.log("IAM_TOPO04_REAL_TWO_KC_ORGS_SAME_TENANT_HTTP_FINE_FGA_ISOLATION_PASS");
   console.log("IAM_TOPO04_REAL_KC_ORG_B_REVOKE_A_STAYS_ACTIVE_PASS");
  }finally{
