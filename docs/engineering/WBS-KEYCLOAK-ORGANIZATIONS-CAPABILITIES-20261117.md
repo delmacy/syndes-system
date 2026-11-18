@@ -186,3 +186,10 @@ O Product Gate permanece BLOQUEADO até portas reais, laboratório integrado e s
 - Marcador esperado `IAM_TOPOLOGY_PG17_CROSS_ORG_EPOCH_OUTBOX_FENCE_ISOLATION_PASS`. Resultado CI não presumido antes de execução.
 - O teste usa SQL PG17 real, mas NÃO comprova serialização de revogação concorrente com operação em outra conexão, nem revogação direta Keycloak/FGA, nem entrada por HTTP com duas memberships reais. `008_iam07d_revoke_first_candidate.sql` continua exigindo SQL002 no preflight e **não pode ser instalado a frio após cutover**; isso requer revisão específica e recuperação de staging antes de ativar multi-org. Este teste não altera a migration 008 nem runtime.
 - `PRODUCTION_GATE=BLOCKED`; SQL002 físico permanece intacto após rollback. Sem alteração de realm, grants, banco operacional ou deploy.
+
+
+### TOPO-03B — instalador alternativo de fence após SQL002 (2026-11-18)
+
+- PR de candidato: `modules/organizations/sql/009_iam_multiorg_fence_candidate.sql`, DDL **idêntico** ao 008 para capability fences, catálogo de alvos FGA e outbox, mas preflight distinto: exige remoção conjunta anterior dos dois índices SQL002 e FKs reais de ownership/operational memberships. `008` original permanece intocado, válido apenas em single-org.
+- A suíte PG17 no laboratório IAM-06B é ampliada para exigir 009 DENY com SQL002 completo, DENY com remoção parcial (um índice restante), 008 DENY sem índices, 009 instalação com ambos ausentes, rollback e índices preservados. Marcador esperado: `IAM_TOPOLOGY_PG17_POST_SQL002_FENCE_INSTALLER_PASS`.
+- **Não concluir cutover**: esse teste demonstra compatibilidade do DDL, mas não aprovação das rotas CRM/Inbox/WhatsApp tenant-wide, da serialização concorrente entre conexões, Keycloak org B real ou rollback/restauração em staging. Migration 009 permanece manual/CI e NÃO pode ser incluída em instalação automática do plugin; `PRODUCTION_GATE=BLOCKED`.
