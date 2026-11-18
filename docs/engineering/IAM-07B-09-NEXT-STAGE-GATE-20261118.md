@@ -1,6 +1,6 @@
 # IAM-07B/09 — Matriz objetiva de desbloqueio das próximas implementações
 
-**Data:** 2026-11-18. **Escopo:** autorizar **continuação de implementação em branch**, nunca aprovação de produção. `NEXT_IMPLEMENTATION_GATE=ELIGIBLE_ON_GREEN_CI`. `PRODUCTION_GATE=BLOCKED`.
+**Data:** 2026-11-18. **Resultado:** PR [#171](https://github.com/delmacy/syndes-system/pull/171) integrada em `1e78434ce445b39d0d16efb7420d1e38bdfa05c9`, CI [44294919766](https://github.com/delmacy/syndes-system/actions/runs/44294919766) **24/24 jobs aprovados** (tentativa final + reexecução isolada de Infra aprovada). `NEXT_IMPLEMENTATION_GATE=ELIGIBLE_ON_GREEN_CI` **SATISFEITO para desenvolvimento em branch**. `PRODUCTION_GATE=BLOCKED` **permanece**.
 
 ## Por que este gate existe
 
@@ -48,3 +48,12 @@ Após CI aprovado, acrescentar **run ID, HEAD SHA, contagem dos jobs e marcadore
 ## Gate de restore inserido no runner da CI
 
 O `scripts/ci/run-suite.sh infra` agora exige `python3 -m unittest scripts/events/test_disposable_restore_drill.py scripts/events/test_staging_preflight.py` e executa o **restore inteiro** `python3 scripts/events/disposable_restore_drill.py --disposable --ack-synthetic --json` após a limpeza de `run-infra.sh`. O report deve comprovar PG17, formato e checksum SHA256 do archive, restaurados de Control/tenant, grant de acesso fechado, trigger do Control, consumer inbox/replay idempotente, fonte original intacta, `network:none`, `production_backup_verified:false`, `production_restore_approved:false` e `operational_ddl_executed:false`. Não é um teste sobre backups de clientes nem autoriza operação em produção.
+
+
+### Evidência de aceite em 2026-11-18
+
+- `IAM07B_SIGNED_JWT_EXP_NBF_AUD_ISS_AZP_SIGNATURE_DENY_PASS` e `IAM07B_SIGNED_JWT_EXPIRES_DURING_LIVE_SSE_PASS`: job `Regression / host` verde no SHA da PR #171.
+- `IAM07B_REAL_KEYCLOAK_CONTROL_TENANT_FGA_TRANSPORT_FAULT_RECOVERY_PASS`: job `keycloak-real-jwt` com 26.8.1 + Control/tenant PG17 + OpenFGA real descartáveis. Falha e retorno de transporte, **não HA operacional**.
+- `IAM09_SYNTHETIC_PG17_CONTROL_TENANT_RESTORE_DRILL_PASS`: job `Regression / infra`, incluindo 13 unitários e restore completo isolado. Verificado na tentativa inicial bem-sucedida e na reexecução do job (GitHub run 44294919766, tentativa 2). Sem backup de dados operacionais.
+- **Risco de intermitência não resolvido:** run anterior 44294244321 executou 13 testes unitários verdes, mas seu restore retornou `DrillError` genérico. O código agora emite **somente a etapa segura** quando um erro reaparecer; a causa original não pôde ser recuperada da evidência existente. Duas execuções seguintes passaram. Não classificar como correção de causa-raiz; reabrir investigação se houver recorrência.
+- **Próxima implementação autorizada:** IAM-07B HTTP com bearer real no mesmo controller, revogação/fencing na transação de claim/transfer/funil e recovery escalável. **Bloqueado ainda:** IAM-09 release, realm e bancos operacionais, multi-org SQL002, OpenFGA replacement, Service rollout, rollout frontend, backup/restore staging real e Product Gate.
