@@ -9,7 +9,9 @@ import {randomUUID} from "node:crypto";
 import {PINNED_TENANT_TRANSACTION,AccessDeniedError} from "../../packages/core-kernel/dist/index.js";
 import {Iam07dRevokeFirstPilot}
  from "../../apps/core-host/dist/iam07d-revoke-first-pilot.js";
-import {OpenFgaFineCapabilityPolicy,iam07dFineObject}
+import {Iam07dRevocationOutboxDispatcher}
+ from "../../apps/core-host/dist/iam07d-revocation-dispatcher.js";
+import {OpenFgaFineCapabilityPolicy,OpenFgaFineGrantRevoker,iam07dFineObject}
  from "../../apps/core-host/dist/iam07d-fine-fga-policy.js";
 import {pilotResourceName}
  from "../../apps/core-host/dist/keycloak-authorization-pilot.js";
@@ -118,8 +120,15 @@ export async function runIam07d2FineFgaLiveLab(f){
    finally{client.release()}
   },
  };
+ await f.control.query(await readFile(new URL(
+  "../../infra/postgres/bootstrap/control-iam07d-revocation-receipts.schema",
+  import.meta.url),"utf8"));
+ let controlAvailable=true;
  const controlled=new Iam07dRevokeFirstPilot(
-  f.admission,fine,tenantProvider,{query:(sql,params)=>f.control.query(sql,params)},
+  f.admission,fine,tenantProvider,{query:(sql,params)=>{
+   if(!controlAvailable)throw Error("Control transport deliberately unavailable");
+   return f.control.query(sql,params);
+  }},
  );
  const ticket=await controlled.issue(f.bearer,request(CAP));
  assert.equal(ticket.epoch,1);
@@ -143,13 +152,79 @@ export async function runIam07d2FineFgaLiveLab(f){
  }),AccessDeniedError,"A signed ticket is rechecked against live fine FGA on execute");
  assert.equal((await f.tenantDb.query(
   "SELECT count(*)::int AS n FROM iam07d2_live_effects")).rows[0].n,1);
- // This test intentionally avoids claiming direct OpenFGA revoke and
- // existing ticket transaction are atomic. IAM07D3 must close it by routing
- // administrative revoke through tenant-first outbox.
+ // Restore the specific tuple for the trusted administrator test.
+ await f.fgaWrite("POST","/stores/"+store.id+"/write",{
+  writes:{tuple_keys:[claimTuple]},
+ });
+ const preRevocation=await controlled.issue(f.bearer,request(CAP));
+ // A direct Keycloak membership revocation, once observed, must deny
+ // execution even if the signed JWT and fine FGA tuple remain valid.
+ await f.changeMembership("DELETE",f.orgId,f.actorId,f.adminToken);
+ try{
+  await assert.rejects(controlled.execute(preRevocation,async tx=>{
+   await tx.query("INSERT INTO iam07d2_live_effects(id,capability) VALUES($1,$2)",
+    [randomUUID(),CAP]);
+  }),AccessDeniedError);
+ }finally{
+  await f.changeMembership("POST",f.orgId,f.actorId,f.adminToken);
+ }
+ assert.equal((await f.tenantDb.query(
+  "SELECT count(*)::int AS n FROM iam07d2_live_effects")).rows[0].n,1);
+ assert.equal(await fine.canPerform(claimContext,CAP),true);
+ // Registration is an independently reviewed reconciliation list, never
+ // a grant. A missing catalog entry cannot authorize a dispatcher ACK.
+ await f.tenantDb.query(
+  "INSERT INTO platform_iam_fga_grant_targets"+
+  "(tenant_id,organization_id,workspace_id,principal_id,capability,"+
+  "resource_name,fga_object) VALUES($1,$2,$3,$4,$5,$6,$7)",
+  [TENANT,ORG,WS,f.actorId,CAP,claimContext.resourceName,claimObject]);
+ const command={
+  operationId:randomUUID(),tenantId:TENANT,organizationId:ORG,
+  workspaceId:WS,principalId:f.actorId,capability:CAP,expectedEpoch:1,
+ };
+ controlAvailable=false;
+ await assert.rejects(controlled.revoke(command),AccessDeniedError,
+  "Control outage follows committed tenant deny and outbox");
+ assert.equal((await f.tenantDb.query(
+  "SELECT state FROM platform_iam_capability_fences WHERE capability=$1",
+  [CAP])).rows[0].state,"revoked");
+ const queued=await f.tenantDb.query(
+  "SELECT state FROM platform_iam_revocation_outbox WHERE operation_id=$1",
+  [command.operationId]);
+ assert.equal(queued.rows[0].state,"pending");
+ await assert.rejects(controlled.execute(preRevocation,async tx=>{
+  await tx.query("INSERT INTO iam07d2_live_effects(id,capability) VALUES($1,$2)",
+   [randomUUID(),CAP]);
+ }),AccessDeniedError);
+ assert.equal(await fine.canPerform(claimContext,CAP),true,
+  "Remote tuple may remain ALLOW, but tenant fence blocks business writes");
+ const deadFga=new OpenFgaFineGrantRevoker(
+  "http://127.0.0.1:18998",store.id,"disposable-only-fga-ci");
+ controlAvailable=true;
+ const failing=new Iam07dRevocationOutboxDispatcher(
+  tenantProvider,deadFga,command=>controlled.revoke(command));
+ await assert.rejects(failing.deliver(TENANT,command.operationId),AccessDeniedError);
+ assert.equal((await f.tenantDb.query(
+  "SELECT state FROM platform_iam_revocation_outbox WHERE operation_id=$1",
+  [command.operationId])).rows[0].state,"pending");
+ const liveRevoker=new OpenFgaFineGrantRevoker(
+  FGA,store.id,"disposable-only-fga-ci");
+ const dispatcher=new Iam07dRevocationOutboxDispatcher(
+  tenantProvider,liveRevoker,command=>controlled.revoke(command));
+ assert.equal(await dispatcher.deliver(TENANT,command.operationId),"delivered");
+ assert.equal(await dispatcher.deliver(TENANT,command.operationId),"already_delivered");
+ assert.equal(await fine.canPerform(claimContext,CAP),false);
+ assert.equal((await f.tenantDb.query(
+  "SELECT state FROM platform_iam_revocation_outbox WHERE operation_id=$1",
+  [command.operationId])).rows[0].state,"delivered");
+ assert.equal((await f.control.query(
+  "SELECT count(*)::int AS n FROM platform_iam07d_revocation_receipts"+
+  " WHERE operation_id=$1",[command.operationId])).rows[0].n,1);
  const dead=new OpenFgaFineCapabilityPolicy(
   "http://127.0.0.1:18998",store.id,"disposable-only-fga-ci");
  await assert.rejects(controlled.issue(f.bearer,request(TRANSFER)),AccessDeniedError);
  await assert.rejects(dead.canPerform(claimContext,CAP));
  console.log("IAM07D2_REAL_KEYCLOAK_SIGNED_JWT_PG17_OPENFGA_EXACT_CAPABILITY_PASS");
  console.log("IAM07D2_REAL_FGA_FUNNEL_A_B_AND_COARSE_GRANT_ISOLATION_PASS");
+ console.log("IAM07D2_REAL_TENANT_FIRST_OUTBOX_FGA_RECOVERY_CONTROL_RECONCILE_PASS");
 }
