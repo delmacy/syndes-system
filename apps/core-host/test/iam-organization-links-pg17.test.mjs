@@ -77,6 +77,7 @@ test("IAM-04B manual Control schema: PostgreSQL 17 ACL, 1:1, CAS, audit, concurr
       await assert.rejects(operator(cmd(tenantB,orgB,kcA)),e=>e.code==="23505");
       await assert.rejects(operator(cmd(tenantA,orgA,kcB)),e=>e.code==="23505");
       const replayWithDifferentPayload=cmd(tenantA,orgA,kcA,"active",0);
+      replayWithDifferentPayload[8]="different reason";
       replayWithDifferentPayload[6]=(await scoped.query(
         "SELECT request_id FROM public.platform_keycloak_org_link_audit LIMIT 1")).rows[0].request_id;
       await assert.rejects(operator(replayWithDifferentPayload),e=>e.code==="23505");
