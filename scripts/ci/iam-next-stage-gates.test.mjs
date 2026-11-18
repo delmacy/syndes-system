@@ -57,3 +57,26 @@ test("IAM09 production remains deny-by-default until distinct operational gates"
  assert.ok(stage.includes("PRODUCTION_GATE=BLOCKED"));
  assert.ok(stage.includes("NEXT_IMPLEMENTATION_GATE=ELIGIBLE_ON_GREEN_CI"));
 });
+
+test("IAM07D revoke-first PG17 fence remains opt-in and requires exact capabilities",()=>{
+ const main=read("apps/core-host/src/main.ts");
+ const fence=read("apps/core-host/src/iam07d-revoke-first-pilot.ts");
+ const tenant=read("modules/organizations/sql/008_iam07d_revoke_first_candidate.sql");
+ const control=read("infra/postgres/bootstrap/control-iam07d-revocation-receipts.schema");
+ const hostSuite=read("scripts/ci/run-suite.sh");
+ const testSource=read("apps/core-host/test/iam07d-revoke-first-pg17.test.mjs");
+ assert.equal(main.includes("iam07d-revoke-first-pilot"),false);
+ assert.equal(main.includes("iam07c-http-admission-pilot"),false);
+ assert.ok(fence.includes("FOR SHARE OF f,w,o,om,wm"));
+ assert.ok(fence.includes("this.specific.canPerform(context,requested.capability)"));
+ assert.ok(fence.includes("last_revoke_operation_id"));
+ assert.ok(!fence.includes('"inbox:assignment"'));
+ assert.ok(!fence.includes('"inbox:messages"'));
+ assert.ok(tenant.includes("platform_legacy_single_organization"));
+ assert.ok(tenant.includes("platform_legacy_single_workspace"));
+ assert.ok(control.includes("platform_iam07d_revocation_receipts"));
+ assert.ok(hostSuite.includes("node --test test/iam07d-revoke-first-pg17.test.mjs"));
+ assert.ok(testSource.includes("IAM07D_PG17_REVOKE_FIRST_EPOCH_LOCK_CONTROL_OUTAGE_REPLAY_PASS"));
+ assert.ok(testSource.includes("IAM07D_FINE_CAPABILITY_NO_COARSE_GRANT_FALLBACK_PASS"));
+ execFileSync("node",["--check","apps/core-host/test/iam07d-revoke-first-pg17.test.mjs"]);
+});
