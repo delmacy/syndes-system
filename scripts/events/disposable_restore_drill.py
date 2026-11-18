@@ -281,6 +281,7 @@ def restore_drill() -> dict:
     restore_tenant = "drill_restore_tenant_" + suffix
     source_snapshot = {}
     started = False
+    stage = "setup"
     report = {"kind": "syndes_synthetic_pg17_restore_v1",
               "isolated": True, "network": "none", "source": "synthetic_only",
               "production_backup_verified": False,
@@ -291,11 +292,13 @@ def restore_drill() -> dict:
         password = secrets.token_urlsafe(32)
         # No -p published port, no external network, no persistent volume.
         started = True  # Also clean up if Docker starts but the client call times out.
+        stage = "container_start"
         run(["docker", "run", "-d", "--rm", "--network", "none",
              "--name", container, "--label", "syndes.disposable=restore-drill",
              "--memory", "768m", "--pids-limit", "192",
              "-e", "POSTGRES_PASSWORD=" + password, IMAGE], timeout=60)
         password = ""
+        stage = "container_ready"
         for _ in range(40):
             status = subprocess.run(pg.command("pg_isready", "-q", "-d", "postgres"),
                                     capture_output=True, timeout=5, check=False)
@@ -304,18 +307,24 @@ def restore_drill() -> dict:
             time.sleep(.5)
         else:
             raise DrillError("Disposable postgres did not become ready")
+        stage = "postgres_version"
         version = int(pg.sql("postgres", "SELECT current_setting('server_version_num')::integer;"))
         if version < 170000 or version >= 180000:
             raise DrillError("Fixture is not PostgreSQL 17")
         report["checks"]["pg17"] = True
+        stage = "database_create"
         for database in ("syndes_control", tenant_db,
                          restore_control, restore_tenant):
             pg.sql("postgres", f'CREATE DATABASE "{safe_database(database)}";')
+        stage = "control_seed"
         seed_control(pg, tenant_id, tenant_db)
+        stage = "tenant_seed"
         pending_event, _ = seed_tenant(pg, tenant_db, tenant_id)
+        stage = "source_snapshot"
         original_control = collect(pg, "syndes_control", CONTROL_FACTS)
         original_tenant = collect(pg, tenant_db, TENANT_FACTS)
         report["checks"]["source_audit_and_outboxes"] = True
+        stage = "backup_and_restore"
         with tempfile.TemporaryDirectory(prefix="syndes-synthetic-restore-") as directory:
             os.chmod(directory, 0o700)
             paths = {}
@@ -331,6 +340,7 @@ def restore_drill() -> dict:
                 current = verified_archive(filename, digest)
                 pg.restore(target, current)
             report["checks"]["archive_sha256_verified"] = True
+        stage = "compare_restored_ledgers"
         restored_control = collect(pg, restore_control, CONTROL_FACTS)
         restored_tenant = collect(pg, restore_tenant, TENANT_FACTS)
         if original_control != restored_control:
@@ -342,6 +352,7 @@ def restore_drill() -> dict:
         report["checks"]["tenant_delivery_inbox_restored"] = True
         # Verify that the RESTORED Control DB remains operational (function +
         # trigger) without changing the original synthetic source database.
+        stage = "restored_control_transition"
         pg.sql(restore_control, f"""
         SELECT transition_tenant_module_entitlement(
           '{tenant_id}'::uuid,'crm','suspend','{uuid4()}'::uuid,
@@ -355,12 +366,14 @@ def restore_drill() -> dict:
         report["checks"]["restored_control_trigger_operational"] = True
         # Explicitly verify that even after DB restore the runtime Core role
         # has no SELECT privilege on the Control event ledger.
+        stage = "restored_control_acl"
         permission = pg.sql(restore_control,
             "SELECT has_table_privilege('syndes_core','control_events.outbox_events','SELECT');")
         if permission != "f":
             raise DrillError("Restored event ledger has unsafe runtime privileges")
         report["checks"]["restored_control_acl_closed"] = True
         # Simulated idempotent resume is only on the RESTORED disposable tenant.
+        stage = "idempotent_replay"
         replay = f"""
         BEGIN;
         INSERT INTO restore_drill_effects(event_id) VALUES('{pending_event}')
@@ -383,11 +396,17 @@ def restore_drill() -> dict:
           WHERE consumer_id='crm.restore-fixture';""")
         if count != "1" or processed != "1":
             raise DrillError("Restored idempotent replay duplicated effects")
+        stage = "source_invariance"
         if collect(pg, tenant_db, TENANT_FACTS) != original_tenant:
             raise DrillError("Source tenant changed during restored replay")
         report["checks"]["restored_replay_idempotent"] = True
         report["checks"]["source_unchanged_after_replay"] = True
         report["result"] = "passed_synthetic_only"
+    except (DrillError, subprocess.TimeoutExpired, OSError, ValueError) as exc:
+        # Only a FIXED execution stage may escape. No SQL, file contents,
+        # IDs, container details, credentials or raw exception are logged.
+        exc.restore_stage = stage
+        raise
     finally:
         if started:
             # Only the random container created by this run is removed.
@@ -415,6 +434,7 @@ def main() -> int:
         print(json.dumps({"kind": "syndes_synthetic_pg17_restore_v1",
                           "result": "failed",
                           "reason": type(exc).__name__,
+                          "stage": getattr(exc, "restore_stage", "unknown"),
                           "operational_ddl_executed": False}), file=sys.stderr)
         return 1
 

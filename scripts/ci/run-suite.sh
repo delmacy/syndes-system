@@ -166,6 +166,31 @@ case "$suite" in
     ;;
   infra)
     bash scripts/ci/run-infra.sh
+    # IAM-09 qualification ONLY: after infrastructure compose cleanup, prove
+    # checksum-verified PG17 Control+tenant synthetic backup/restore in a NEW
+    # network-disabled container. Never mistake this for operational restore.
+    python3 -m unittest scripts/events/test_disposable_restore_drill.py \
+      scripts/events/test_staging_preflight.py -v
+    restore_report="$(python3 scripts/events/disposable_restore_drill.py \
+      --disposable --ack-synthetic --json)"
+    printf '%s\n' "$restore_report" | python3 -c '
+import json,sys
+r=json.load(sys.stdin)
+assert r["kind"]=="syndes_synthetic_pg17_restore_v1"
+assert r["result"]=="passed_synthetic_only"
+assert r["isolated"] is True and r["network"]=="none"
+assert r["source"]=="synthetic_only"
+assert r["production_backup_verified"] is False
+assert r["production_restore_approved"] is False
+assert r["operational_ddl_executed"] is False
+required={"pg17","custom_archives","archive_sha256_verified",
+"control_event_audit_restored","tenant_data_and_events_restored",
+"tenant_delivery_inbox_restored","restored_control_trigger_operational",
+"restored_control_acl_closed","restored_replay_idempotent",
+"source_unchanged_after_replay"}
+assert all(r["checks"].get(name) is True for name in required)
+print("IAM09_SYNTHETIC_PG17_CONTROL_TENANT_RESTORE_DRILL_PASS")
+'
     ;;
   *)
     echo "::error::Unrecognized CI suite: $suite" >&2
