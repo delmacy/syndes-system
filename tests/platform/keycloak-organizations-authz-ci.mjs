@@ -260,7 +260,7 @@ export async function runIam03Lab({base,adminToken}){
     assert.ok(id&&scopes[cap],"IAM03_MISSING_TRUSTED_RESOURCE_MAPPING");
     const form={
       grant_type:"urn:ietf:params:oauth:grant-type:uma-ticket",
-      audience:policyClient,permission:id+"#"+scopes[cap],
+      audience:policyClient,permission:id+"#"+cap,
       response_mode:"decision",submit_request:"false"
     };
     const resp=await call("/realms/"+LAB_REALM+"/protocol/openid-connect/token",
