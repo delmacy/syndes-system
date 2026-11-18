@@ -8,6 +8,7 @@ import {createRequire} from "node:module";
 import {fileURLToPath} from "node:url";
 import {createMasterTokenVerifier} from "../../apps/master-admin-api/src/auth.mjs";
 import {createHandler} from "../../apps/master-admin-api/src/server.mjs";
+import {runIam03Lab} from "./keycloak-organizations-authz-ci.mjs";
 
 const base=process.env.KC_CI_BASE_URL||"http://127.0.0.1:18088";
 const issuer="https://id.ci.syndes.invalid/realms/syndes-ci";
@@ -133,6 +134,7 @@ async function main(){
  }
  if(process.env.CI_MASTER_REAL_PG==="1"){
   await runLiveDatabaseIntegration({master,adminAccess,workspaceAccess,unrelatedAccess,notGranted});
+  await runIam03Lab({base,adminToken});
  }
  console.log("Real Keycloak CI: RS256, HTTPS issuer, audience, azp, ungranted sub and HTTP denial PASS");
 }

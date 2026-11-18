@@ -10,7 +10,8 @@ const token="eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzYW1wbGUifQ.signature";
 const endpoint="https://iam.example.invalid/realms/syndes/protocol/openid-connect/token";
 const workspace={tenantId:A,organizationId:B,workspaceId:C,kind:"workspace"};
 const funnel={...workspace,kind:"funnel",funnelId:D};
-const input={verifiedAccessToken:token,context:workspace,capability:"inbox.conversation.read"};
+const resource={id:A,scopeId:B,name:pilotResourceName(workspace),scopeName:"inbox.conversation.read"};
+const input={verifiedAccessToken:token,context:workspace,capability:"inbox.conversation.read",keycloakResource:resource};
 const mk=(send)=>new KeycloakUmaAuthorizationPilot(endpoint,"syndes-policy-api",send);
 
 test("derives tenant/org/workspace/funnel-bound names, never global names",()=>{
@@ -39,7 +40,7 @@ test("uses exact UMA ticket and one scope, no client or admin secret",async()=>{
     assert.equal(form.get("audience"),"syndes-policy-api");
     assert.equal(form.get("response_mode"),"decision");
     assert.equal(form.get("submit_request"),"false");
-    assert.equal(form.get("permission"),pilotResourceName(workspace)+"#inbox.conversation.read");
+    assert.equal(form.get("permission"),A+"#inbox.conversation.read");
     return new Response(JSON.stringify({result:true}),{status:200});
   });
   assert.equal(await adapter.check(input),true);
@@ -53,18 +54,22 @@ test("rejects wrong scope, unknown capability, invalid context or token before n
   assert.equal(await adapter.check({...input,capability:"service:admin"}),false);
   assert.equal(await adapter.check({...input,context:{...workspace,tenantId:"bogus"}}),false);
   assert.equal(await adapter.check({...input,verifiedAccessToken:"not-jwt"}),false);
+  assert.equal(await adapter.check({...input,keycloakResource:{...resource,id:"not-uuid"}}),false);
+  assert.equal(await adapter.check({...input,keycloakResource:{...resource,name:pilotResourceName({...workspace,tenantId:D})}}),false);
+  assert.equal(await adapter.check({...input,keycloakResource:{...resource,scopeName:"inbox.message.send"}}),false);
   assert.equal(called,false);
 });
 
 test("checks a particular funnel without authorizing other funnels",async()=>{
   const permissions=[];
+  const funnelResource={id:D,scopeId:B,name:pilotResourceName(funnel),scopeName:"service.funnel.operate"};
   const adapter=mk(async(_url,options)=>{
     permissions.push(new URLSearchParams(options.body).get("permission"));
     return new Response(JSON.stringify({result:true}),{status:200});
   });
-  assert.equal(await adapter.check({...input,context:funnel,capability:"service.funnel.operate"}),true);
-  assert.equal(permissions[0],pilotResourceName(funnel)+"#service.funnel.operate");
-  assert.notEqual(permissions[0],pilotResourceName({...funnel,funnelId:A})+"#service.funnel.operate");
+  assert.equal(await adapter.check({...input,context:funnel,capability:"service.funnel.operate",keycloakResource:funnelResource}),true);
+  assert.equal(permissions[0],D+"#service.funnel.operate");
+  assert.equal(await adapter.check({...input,context:{...funnel,funnelId:A},capability:"service.funnel.operate",keycloakResource:funnelResource}),false);
 });
 
 test("403, explicit false, malformed responses and outages never grant access",async()=>{

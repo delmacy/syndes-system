@@ -9,7 +9,7 @@
 | IAM-00 | P0 | Inventariar fontes de identidades, memberships, capabilities e grants | Documentar pontos atuais Keycloak/Control/Org-DB/FGA, evitar novo grant SQL duplicado | ANÁLISE / ADR |
 | IAM-01 | P0 | Catálogo v1 de capacidades observadas e propostas | Mesmo resource/action declarado nos plugins atuais; propostas sem herdar permissões amplas; IDs imutáveis | CODIFICADO, CI PENDENTE |
 | IAM-02 | P0 | Contrato granular por recurso/escopo e adapter de avaliação Keycloak UMA | recurso tenant/org/workspace/funil; deny 403/false; outage/error/malformed fail-closed; sem bypass FGA | PILOTO ISOLADO, CI PENDENTE |
-| IAM-03 | P0 | Prova Keycloak 26.8.1 em laboratório descartável | Realm descartável, resource server confidential, Enforcing, 2 usuários, 2 orgs, 2 workspaces e funis; 0 concessão cruzada; remoção segura | PENDENTE |
+| IAM-03 | P0 | Prova Keycloak 26.8.1 em laboratório descartável | Realm descartável, resource server confidential, Enforcing, 2 usuários, 2 orgs, 2 workspaces e funis; 0 concessão cruzada; remoção segura | CODIFICADO; CI REAL PENDENTE |
 | IAM-04 | P0 | Associação Organization Keycloak ↔ platform_organizations do Syndes | IDs imutáveis, tenant explícito, state/audit, provisionamento e revogação idempotentes, sem depender de nomes | PENDENTE; DDL somente após gates |
 | IAM-05 | P0 | AuthenticatedUser/Token+Context trusted para AuthorizationPort | Validação OIDC iss/aud/azp, membership tenant e org, vínculo workspace+funil, refetch server-side, nunca JWT em log; Manager isolado | PENDENTE |
 | IAM-06 | P0 | Integrar capability check no backend apenas em modo shadow | Comparar Keycloak vs OpenFGA para mesmas chamadas, sem trocar decisões ou emitir grants; cobertura real de Inbox claim/transfer e Funis | PENDENTE |
@@ -41,3 +41,11 @@
 Exigir: entitlement de módulo no Control; migrations Organizations/Service instaladas somente após restore comprovado; FGA service principals preservados; SQL002 mantido até corte multi-org aprovado; grants IAM reais provisionados; revogação durante SSE/transferência; trilha de auditoria, operação de suporte e rollback com data/stores verificáveis.
 
 **Status de aceite:** desenho e piloto candidato, **não liberado para runtime nem produção**.
+
+### Evolução IAM-03 — validação real na CI existente
+
+O ensaio passa a rodar no job `keycloak-real-jwt` de Platform Manager, reutilizando o container Keycloak descartável do próprio job. Não existe uma stack ou workflow novo em produção. O ensaio cria o realm exclusivo `syndes-iam-lab-ci` e mede grants por capability, isolamento de usuário/empresa/funil e revogação de Organization. **Não presume** que políticas de usuário já incluem membership Organization. A decisão combinada deve negar mesmo se UMA isoladamente continuar concedendo após a retirada do membro.
+
+Fix IAM-02: o adapter usa `RESOURCE_ID#SCOPE_NAME` com ID de recurso e nome de scope reconciliados com o catálogo; não substitui a política ativa FGA. Testes de mock mantidos, integração real somente após CI verde.
+
+**Compatibilidade Keycloak 26.8.1:** a documentação da API UMA descreve `RESOURCE_ID#SCOPE_ID`, mas a implementação de resolução de scopes chama `scopeStore.findByName(resourceServer, scope)`. Portanto, o piloto valida ID/nome de scope reconciliados, mas envia o **nome canônico da scope** na permissão (`RESOURCE_ID#SCOPE_NAME`). Este comportamento precisa ser confirmado pela suíte real e novamente em upgrades; não assumir equivalência universal com outras versões. Referências: https://www.keycloak.org/docs/26.8.1/authorization_services/ e https://github.com/keycloak/keycloak/blob/main/services/src/main/java/org/keycloak/authorization/authorization/AuthorizationTokenService.java .
