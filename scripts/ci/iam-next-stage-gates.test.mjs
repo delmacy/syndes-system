@@ -136,6 +136,10 @@ test("IAM07D3 real Inbox write uses pinned IAM epoch and cannot hijack claim",()
  assert.ok(real.includes("new Iam07dInboxBusinessPilot(controlled)"));
  assert.ok(real.includes("IAM07D3_REAL_KEYCLOAK_FGA_PG17_INBOX_CLAIM_EPOCH_AUDIT_PASS"));
  assert.ok(real.includes("inbox_events"));
+ const pgTransfer=read("modules/inbox/test/pg-transfer-revocation-races.mjs");
+ assert.ok(pgTransfer.includes("IAM07D3_PG17_REAL_TRANSFER_EPOCH_AUDIT_PASS"));
+ assert.ok(pgTransfer.includes("new Iam07dInboxBusinessPilot(guarded)"));
+ assert.ok(pgTransfer.includes("008_iam07d_revoke_first_candidate.sql"));
  assert.ok(composite.includes("await runIam07d2FineFgaLiveLab({"));
  assert.ok(!main.includes("iam07d-inbox-business-pilot"));
  assert.ok(!selection.includes("iam07d-inbox-business-pilot"));
