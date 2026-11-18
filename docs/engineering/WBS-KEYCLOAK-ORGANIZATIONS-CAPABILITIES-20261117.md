@@ -15,7 +15,7 @@
 | IAM-06 | P0 | Integrar capability check no backend apenas em modo shadow | Comparar Keycloak vs OpenFGA para mesmas chamadas, sem trocar decisões ou emitir grants; cobertura real de Inbox claim/transfer e Funis | IAM-06A MERGED #166; IAM-06B LAB REAL COMPOSTO CI 24/24 E MERGED #167; RUNTIME/HTTP/CLAIM/TRANSFER PENDENTES |
 | IAM-07 | P0 | Provar revogação, isolamento e performance | Grupo/membro revogado e UI/SSE concorrente; org A/B; tenant A/B; funil A/B; indisponibilidade Keycloak; medir latência/p95 sem PII | IAM-07A #169, IAM-07B TEST GATES #171 MERGED; IAM-07C #173 PROVEN; IAM-07D1 #175 + IAM-07D2 #177 + IAM-07D3 #178 + IAM-07D4 #179 MERGED, CI 24/24; CONTROLLER/ADMIN BYPASS/IAM09 BLOCKED |
 | IAM-08 | P1 | Administração delegada via Syndes | UI somente após APIs autenticadas e auditadas, grants mínimos e sync/reconciliação; sem admin Keycloak no browser | PENDENTE |
-| IAM-09 | P0 | Product Gate, backup/restore, rollout e rollback | Comparação positiva e negativa real, recovery e custos; controle SHA; remover FGA de classe humana **somente** com equivalência e aprovação | BLOQUEADO |
+| IAM-09 | P0 | Product Gate, backup/restore, rollout e rollback | Comparação positiva e negativa real, recovery e custos; controle SHA; preservar OpenFGA como motor de grants por recurso; Keycloak é único motor de identidade/credenciais; paridade e reconciliação sem dupla autoridade | BLOQUEADO |
 | IAM-10 | P1 | Reavaliar service/event_delivery FGA separado | Não confundir grants de bots e workers com usuários; nenhum desligamento antes de desenho próprio | PENDENTE |
 
 ### Primeira entrega técnica nesta PR
