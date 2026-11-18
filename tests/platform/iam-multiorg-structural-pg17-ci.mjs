@@ -97,6 +97,53 @@ export async function runIamMultiOrgTopologyPg17Lab(f){
   const all=await conn.query("SELECT count(*)::int AS n"+
    " FROM service.service_funnels WHERE tenant_id=$1",[TENANT]);
   assert.equal(all.rows[0].n,8);
+  // IAM07D fence must remain isolated by organization, workspace, principal
+  // and exact capability, even after SQL002 indexes are absent.
+  // These rows exist only in this rollback-only PG17 transaction.
+  const cap="inbox.conversation.claim";
+  for(const [org,ws] of [[ORG_A,wsA2],[orgB,wsB1]]){
+   await conn.query("INSERT INTO platform_iam_capability_fences"+
+    "(tenant_id,organization_id,workspace_id,principal_id,capability,epoch,state)"+
+    " VALUES($1,$2,$3,$4,$5,1,'active')",
+    [TENANT,org,ws,actor,cap]);
+  }
+  const operation=generated();
+  const before=await conn.query(
+   "SELECT epoch::text AS epoch,state FROM platform_iam_capability_fences"+
+   " WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3"+
+   " AND principal_id=$4 AND capability=$5 FOR SHARE",
+   [TENANT,orgB,wsB1,actor,cap]);
+  assert.equal(before.rows.length,1);
+  assert.deepEqual(before.rows[0],{epoch:"1",state:"active"});
+  const changed=await conn.query(
+   "UPDATE platform_iam_capability_fences SET state='revoked',epoch=epoch+1,"+
+   "last_revoke_operation_id=$6 WHERE tenant_id=$1 AND organization_id=$2"+
+   " AND workspace_id=$3 AND principal_id=$4 AND capability=$5"+
+   " AND state='active' AND epoch=1 RETURNING epoch::text AS epoch",
+   [TENANT,orgB,wsB1,actor,cap,operation]);
+  assert.equal(changed.rows[0].epoch,"2");
+  await conn.query("INSERT INTO platform_iam_revocation_outbox"+
+   "(operation_id,tenant_id,organization_id,workspace_id,principal_id,"+
+   "capability,revoked_epoch) VALUES($1,$2,$3,$4,$5,$6,2)",
+   [operation,TENANT,orgB,wsB1,actor,cap]);
+  const fences=await conn.query(
+   "SELECT organization_id::text AS org,workspace_id::text AS ws,"+
+   "epoch::text AS epoch,state FROM platform_iam_capability_fences"+
+   " WHERE tenant_id=$1 AND principal_id=$2 AND capability=$3"+
+   " AND ((organization_id=$4 AND workspace_id=$5) OR"+
+   " (organization_id=$6 AND workspace_id=$7))",
+   [TENANT,actor,cap,ORG_A,wsA2,orgB,wsB1]);
+  assert.equal(fences.rows.length,2);
+  assert.deepEqual(fences.rows.find(x=>x.org===ORG_A&&x.ws===wsA2),
+   {org:ORG_A,ws:wsA2,epoch:"1",state:"active"});
+  assert.deepEqual(fences.rows.find(x=>x.org===orgB&&x.ws===wsB1),
+   {org:orgB,ws:wsB1,epoch:"2",state:"revoked"});
+  const outbox=await conn.query(
+   "SELECT organization_id::text AS org,workspace_id::text AS ws,"+
+   "revoked_epoch::text AS epoch FROM platform_iam_revocation_outbox"+
+   " WHERE operation_id=$1",[operation]);
+  assert.deepEqual(outbox.rows,[{org:orgB,ws:wsB1,epoch:"2"}]);
+  console.log("IAM_TOPOLOGY_PG17_CROSS_ORG_EPOCH_OUTBOX_FENCE_ISOLATION_PASS");
   console.log("IAM_TOPOLOGY_PG17_TWO_ORGS_FOUR_WORKSPACES_EIGHT_FUNNELS_PASS");
  }finally{
   if(started)await conn.query("ROLLBACK").catch(()=>{});
