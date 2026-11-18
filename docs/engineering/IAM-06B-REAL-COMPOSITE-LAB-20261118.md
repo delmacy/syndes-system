@@ -1,6 +1,6 @@
 # IAM-06B — Ensaio composto real descartável de decisão OpenFGA × Keycloak
 
-**Data:** 2026-11-18. **Estado:** código candidato, sujeito ao CI da PR. **NÃO há integração a main.ts, runtime, bancos reais, policies operacionais ou deploy.**
+**Data:** 2026-11-18. **Estado:** laboratório composto real validado — PR #167 CI 44277334326, **24/24 jobs**, merge `edd6e2c1c5aeaa0f278e3944d29af1b83336ed28`. **NÃO há integração a main.ts, runtime, bancos reais, policies operacionais ou deploy.**
 
 ## Contexto
 IAM-04B/05B comprovou os adapters de vínculo e membership separadamente. IAM-06A foi integrado à main como comparador shadow isolado; OpenFGA permanece a única decisão efetiva. Este incremento exige, **para a mesma requisição de usuário**, provar a autenticação JWT real e as condições do Control Plane, banco tenant, Keycloak Organizations, OpenFGA e UMA.
@@ -29,9 +29,11 @@ IAM-04B/05B comprovou os adapters de vínculo e membership separadamente. IAM-06
 - A conta service `view-organizations` lê Organizations no realm inteiro. Testar FGAP/menor privilégio por organização antes do Product Gate operacional.
 
 ## Aceite e próximas etapas
-- CI `keycloak-real-jwt`: reconhecer explicitamente `IAM06B_REAL_JWT_CONTROL_PG17_TENANT_SQL002_OPENFGA_KEYCLOAK_PASS` e `IAM06B_REAL_FGA_DENY_UMA_ALLOW_AND_LIVE_REVOCATION_PASS`. Sem esses dois marcadores **não declarar integração real aprovada**.
+- CI `keycloak-real-jwt`: reconhecer explicitamente `IAM06B_REAL_JWT_CONTROL_PG17_TENANT_SQL002_OPENFGA_KEYCLOAK_PASS` e `IAM06B_REAL_FGA_DENY_UMA_ALLOW_AND_LIVE_REVOCATION_PASS`. Ambos os marcadores foram encontrados no log real do job `keycloak-real-jwt` da run 44277334326. A prova de laboratório foi APROVADA; **não homologada operacionalmente**.
 - CI centralizada requer todas as regressões verdes, incluindo `host` e `infra`. PR só pode integrar main após aprovação.
 - IAM-07: sessão SSE e concorrência real de requests, revogação durante efeitos SQL, latência p95, descontinuidade Keycloak/Control/PG/FGA, restauração e observabilidade.
 - IAM-09: Product Gate, backup/restore, política de menor privilégio, rollback e revisão de service/event_delivery FGA separados (IAM-10). Até lá, **runtime OpenFGA inalterado**.
 
 Rastreio: Issue #160, WBS IAM e PR deste incremento.
+
+- Evidência: [PR #167](https://github.com/delmacy/syndes-system/pull/167), [CI 44277334326](https://github.com/delmacy/syndes-system/actions/runs/44277334326), [merge SHA](https://github.com/delmacy/syndes-system/commit/edd6e2c1c5aeaa0f278e3944d29af1b83336ed28). O runtime continua com OpenFGA; não aplicar schema manual no Control operacional.
