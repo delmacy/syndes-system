@@ -183,7 +183,7 @@ export async function runIam03Lab({base,adminToken}){
 
 
   // IAM-05B: use client_credentials with only the realm-management view-users
-  // role. Never use the bootstrap admin's token in the membership reader.
+  // and view-organizations roles. No realm administration or write grants.
   stage="service-membership";
   const readerClient="syndes-iam-membership-reader";
   await post(prefix+"/clients",{
@@ -201,12 +201,15 @@ export async function runIam03Lab({base,adminToken}){
   const serviceUser=await get(prefix+"/clients/"+readerInternalId+"/service-account-user");
   assert.ok(uuid.test(serviceUser?.id),"IAM05B_SERVICE_ACCOUNT_MISSING");
   const viewUsers=await get(prefix+"/clients/"+managementInternalId+"/roles/view-users");
-  assert.equal(viewUsers?.name,"view-users","IAM05B_MINIMUM_ROLE_MISSING");
+  assert.equal(viewUsers?.name,"view-users","IAM05B_USER_READ_ROLE_MISSING");
+  const viewOrganizations=await get(prefix+"/clients/"+managementInternalId+"/roles/view-organizations");
+  assert.equal(viewOrganizations?.name,"view-organizations","IAM05B_ORG_READ_ROLE_MISSING");
+  const memberReadRoles=[viewUsers,viewOrganizations];
   await call(prefix+"/users/"+serviceUser.id+
-    "/role-mappings/clients/"+managementInternalId,"POST",adminToken,[viewUsers],[204]);
+    "/role-mappings/clients/"+managementInternalId,"POST",adminToken,memberReadRoles,[204]);
   // Explicit scope mapping is needed when fullScopeAllowed=false.
   await call(prefix+"/clients/"+readerInternalId+
-    "/scope-mappings/clients/"+managementInternalId,"POST",adminToken,[viewUsers],[204]);
+    "/scope-mappings/clients/"+managementInternalId,"POST",adminToken,memberReadRoles,[204]);
   const readerSecret=(await get(prefix+"/clients/"+readerInternalId+"/client-secret"))?.value;
   assert.ok(typeof readerSecret==="string"&&readerSecret.length>=12,"IAM05B_SECRET_MISSING");
   const clientGrant=await call("/realms/"+LAB_REALM+"/protocol/openid-connect/token",
@@ -226,7 +229,7 @@ export async function runIam03Lab({base,adminToken}){
   assert.equal(await readerMembership(orgs.b,bob),true);
   assert.equal(await readerMembership(orgs.a,bob),false);
   assert.equal(await readerMembership(orgs.b,alice),false);
-  console.log("IAM05B_KEYCLOAK_SERVICE_VIEW_USERS_MEMBERSHIP_PASS");
+  console.log("IAM05B_KEYCLOAK_SERVICE_READ_ONLY_ORG_MEMBERSHIP_PASS");
 
   stage="scopes";
   const capabilityNames=["inbox.conversation.read","inbox.conversation.claim",
