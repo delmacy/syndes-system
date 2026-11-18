@@ -21,11 +21,11 @@ test("IAM-03 disposable lab integrated only with existing real Keycloak CI test"
 });
 
 test("Keycloak UMA permission must use resource and scope immutable IDs",()=>{
-  assert.ok(adapter.includes('permission: mapped.id + "#" + mapped.scopeId'));
+  assert.ok(adapter.includes('permission: mapped.id + "#" + mapped.scopeName'));
   assert.ok(adapter.includes("mapped.name !== name"));
   assert.ok(adapter.includes("mapped.scopeName !== input.capability"));
   assert.ok(!adapter.includes('permission: name + "#" + input.capability'));
-  assert.ok(lab.includes('permission:id+"#"+scopes[cap]'));
+  assert.ok(lab.includes('permission:id+"#"+cap'));
   assert.ok(lab.includes('response_mode:"decision"'));
   assert.ok(lab.includes('const combined=await membership(orgs.a,alice)&&umaAfterOrgRevocation'));
   assert.ok(lab.includes("assert.equal(combined,false"));
