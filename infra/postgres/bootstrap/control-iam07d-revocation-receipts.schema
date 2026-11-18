@@ -1,0 +1,20 @@
+-- IAM-07D1: disposable-only candidate Control audit/forwarding record.
+-- MANUAL only; intentionally excluded from Control automatic bootstrapping.
+-- Written only AFTER the tenant's monotonic deny fence commits.
+-- Not a replacement for operational transactional outbox/delivery receipts.
+CREATE TABLE IF NOT EXISTS public.platform_iam07d_revocation_receipts (
+ operation_id UUID PRIMARY KEY,
+ tenant_id UUID NOT NULL,
+ organization_id UUID NOT NULL,
+ workspace_id UUID NOT NULL,
+ principal_id TEXT NOT NULL CHECK(length(principal_id) BETWEEN 1 AND 256),
+ capability TEXT NOT NULL CHECK(capability IN (
+  'inbox.conversation.claim',
+  'inbox.conversation.transfer',
+  'service.funnel.operate'
+ )),
+ tenant_revoked_epoch BIGINT NOT NULL CHECK(tenant_revoked_epoch>1),
+ state TEXT NOT NULL DEFAULT 'revoked' CHECK(state='revoked'),
+ recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ UNIQUE (tenant_id,organization_id,workspace_id,principal_id,capability,tenant_revoked_epoch)
+);
