@@ -297,6 +297,8 @@ export async function runIam06bLab(args){
     await runIam07d2FineFgaLiveLab({
       bearer,atAlice:args.atAlice,actorId:args.alice,
       admission,tenantDb,control,fgaWrite:fga,
+      changeMembership:keycloakMemberChange,orgId:args.orgs.a,
+      adminToken:args.adminToken,
     });
 
     // Real FGA revoke while UMA user policy remains ALLOW: the request DENIES.
