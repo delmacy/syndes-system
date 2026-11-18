@@ -53,3 +53,26 @@ test("IAM-06B is attached only to existing disposable Keycloak and PG17/OpenFGA 
   assert.ok(workflow.includes("SYNDES_IAM06B_REAL"));
   execFileSync("node",["--check","tests/platform/iam06b-composite-ci.mjs"]);
 });
+
+
+test("IAM-07A live SSE uses only the established disposable real-identity job",()=>{
+ const live=readFileSync("tests/platform/iam07-sse-live-ci.mjs","utf8");
+ const combined=readFileSync("tests/platform/iam06b-composite-ci.mjs","utf8");
+ const pilot=readFileSync("apps/core-host/src/iam07-sse-session-pilot.ts","utf8");
+ const realtime=readFileSync("modules/inbox/src/realtime.ts","utf8");
+ assert.ok(combined.includes('await runIam07SseLiveLab({'));
+ assert.ok(live.includes('CI_MASTER_REAL_PG,"1"'));
+ assert.ok(live.includes('IAM06B_DISPOSABLE_ONLY'));
+ assert.ok(live.includes('InboxChangeBus'));
+ assert.ok(live.includes('IAM07_REAL_SSE_FGA_SQL_MODULE_LINK_ORG_REVOCATION_PASS'));
+ assert.ok(live.includes('IAM07_REAL_SSE_CROSS_SCOPE_AND_PROVIDER_FAILURE_DENY_PASS'));
+ assert.ok(live.includes('IAM07_REAL_CI_REVALIDATION_P95_MS'));
+ assert.ok(!live.includes("docker run"));
+ assert.ok(!live.includes('"/admin/realms/syndes/"'));
+ assert.ok(pilot.includes("this.admission.resolve(bearer,fixed)"));
+ assert.ok(pilot.includes("this.fga.canAccess"));
+ assert.ok(!pilot.includes("main.ts\""));
+ assert.ok(realtime.includes("An in-progress periodic or prior publish check"));
+ assert.ok(realtime.includes("Coalesce bursts per stream"));
+ execFileSync("node",["--check","tests/platform/iam07-sse-live-ci.mjs"]);
+});
