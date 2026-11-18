@@ -101,7 +101,7 @@ def assert_identity(user, credentials):
     }
     if not all(checks[k] for k in ("username", "enabled", "purpose", "required_action")):
         flags = ",".join(k + "=" + ("PASS" if v else "MISS") for k, v in checks.items())
-        raise RuntimeError("Dedicated identity mismatch (sanitized flags: " + flags + ")")
+        raise RuntimeError("dedicated identity mismatch (sanitized flags: " + flags + ")")
     if credentials:
         raise RuntimeError("Credentials already present; operator review required")
 
