@@ -152,11 +152,13 @@ test("IAM07D4 requires actual Service engine SQL and same trusted tenant IAM tra
  const pg=read("modules/service-management/test/service-funnels-pg17.test.mjs");
  const runner=read("scripts/ci/run-suite.sh");
  const main=read("apps/core-host/src/main.ts");
- assert.ok(host.includes("this.iam.issue(bearer,requested)"));
+ assert.ok(host.includes("this.iam.issue(bearer,fixedRequest)"));
  assert.ok(host.includes("this.iam.execute(ticket,async tx=>"));
- assert.ok(host.includes("this.service.advancePinned(context,input,tx)"));
+ assert.ok(host.includes("this.service.advancePinned(context,fixedInput,tx)"));
  assert.ok(host.includes("a.funnel_id=$5::uuid"));
  assert.ok(host.includes("FOR NO KEY UPDATE"));
+ assert.ok(host.includes("Object.freeze({...requested})"));
+ assert.ok(host.includes("Object.freeze({...input})"));
  assert.ok(service.includes("PINNED_TENANT_TRANSACTION"));
  assert.ok(service.includes("private async advanceMutation("));
  assert.ok(service.includes("async advancePinned("));
