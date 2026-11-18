@@ -1,3 +1,4 @@
+import {runIam06bLab} from "./iam06b-composite-ci.mjs";
 // IAM-03 REAL DISPOSABLE Keycloak 26.8.1 experiment.
 // Imported only from existing Platform Manager CI, on its loopback-only container.
 // No change to production realm, stores, credentials, tenants or provider configs.
@@ -101,7 +102,14 @@ export async function runIam03Lab({base,adminToken}){
     standardFlowEnabled:true,directAccessGrantsEnabled:true,implicitFlowEnabled:false,
     serviceAccountsEnabled:false,
     redirectUris:["https://iam-lab.ci.syndes.invalid/callback"],
-    webOrigins:["https://iam-lab.ci.syndes.invalid"]
+    webOrigins:["https://iam-lab.ci.syndes.invalid"],
+    // The Host requires signed aud + azp. CI password grant is NOT PKCE production login.
+    protocolMappers:[{
+      name:"ci-core-audience",protocol:"openid-connect",
+      protocolMapper:"oidc-audience-mapper",
+      config:{"included.custom.audience":"syndes-core",
+        "access.token.claim":"true","id.token.claim":"false"}
+    }]
   });
   await post(prefix+"/clients",{
     clientId:policyClient,enabled:true,protocol:"openid-connect",
@@ -232,7 +240,7 @@ export async function runIam03Lab({base,adminToken}){
   console.log("IAM05B_KEYCLOAK_SERVICE_READ_ONLY_ORG_MEMBERSHIP_PASS");
 
   stage="scopes";
-  const capabilityNames=["inbox.conversation.read","inbox.conversation.claim",
+  const capabilityNames=["inbox.conversation.read","inbox.message.send","inbox.conversation.claim",
     "inbox.conversation.transfer","service.funnel.operate"];
   const scopes={};
   for(const name of capabilityNames){
@@ -242,7 +250,7 @@ export async function runIam03Lab({base,adminToken}){
   }
   stage="resources";
   const resourceDefinitions=[
-    {name:resourceName(alpha,workspaceA),keys:["inbox.conversation.read","inbox.conversation.claim","inbox.conversation.transfer"]},
+    {name:resourceName(alpha,workspaceA),keys:["inbox.conversation.read","inbox.message.send","inbox.conversation.claim","inbox.conversation.transfer"]},
     {name:resourceName(beta,workspaceB),keys:["inbox.conversation.read","inbox.conversation.claim","inbox.conversation.transfer"]},
     {name:resourceName(alpha,workspaceA,funnelA),keys:["service.funnel.operate"]},
     {name:resourceName(beta,workspaceB,funnelB),keys:["service.funnel.operate"]}
@@ -272,6 +280,7 @@ export async function runIam03Lab({base,adminToken}){
   stage="permissions";
   const grants=[
     ["alice",alpha,workspaceA,null,"inbox.conversation.read"],
+    ["alice",alpha,workspaceA,null,"inbox.message.send"],
     ["alice",alpha,workspaceA,null,"inbox.conversation.claim"],
     ["alice",alpha,workspaceA,funnelA,"service.funnel.operate"],
     ["bob",beta,workspaceB,null,"inbox.conversation.read"],
@@ -349,4 +358,11 @@ export async function runIam03Lab({base,adminToken}){
   console.log("IAM03_UMA_USER_POLICY_REMAINS_AFTER_ORG_REVOKE="+
     (umaAfterOrgRevocation?"TRUE_REQUIRES_BACKEND_GATE":"FALSE"));
   console.log("IAM03_REAL_DISPOSABLE_KEYCLOAK_PASS");
+  // Same still-valid human JWT, now exercised against real Control+tenant PG17,
+  // real live Organization membership, OpenFGA and real Keycloak UMA.
+  await runIam06bLab({
+    base,realm:LAB_REALM,adminToken,adminAccess:process.env.CI_IAM06B_MANAGER_TOKEN,
+    readerClient,readerSecret,policyClient,uiClient,
+    tenant,alpha,workspaceA,orgs,alice,bob,atAlice,atBob,scopes,resources,
+  });
 }
