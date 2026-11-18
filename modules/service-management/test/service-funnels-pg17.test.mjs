@@ -234,100 +234,6 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    assert.equal((await service.history(ctx(0,"agent-a"),attendance.id))[0].action,"created");
   });
 
-  await t.test("IAM07D4 PG17: real Service.advance uses SAME tenant IAM epoch transaction",async()=>{
-   const selection=tenants[0],pool=pools.get(selection.tenantId);
-   const bearer="Bearer ci-trusted-signed-verification-stub";
-   const request={
-    tenantId:selection.tenantId,organizationId:selection.orgId,
-    workspaceId:selection.workspaceId,funnelId:funnel.id,
-    capability:"service.funnel.operate",
-   };
-   const fineObject="syndes:v1:tenant:"+selection.tenantId+
-    ":org:"+selection.orgId+":workspace:"+selection.workspaceId+
-    ":funnel:"+funnel.id;
-   await pool.query(`INSERT INTO platform_iam_capability_fences
-    (tenant_id,organization_id,workspace_id,principal_id,capability,epoch,state)
-    VALUES($1,$2,$3,$4,'service.funnel.operate',1,'active')`,
-    [selection.tenantId,selection.orgId,selection.workspaceId,IAM_OPERATOR]);
-   const session=await service.open(ctx(0,IAM_OPERATOR),{
-    funnelId:funnel.id,idempotencyKey:"iam07d4-stage-advance-20261118",
-   });
-   assert.equal(session.version,1);
-   let fineAllowed=true,admissionAllowed=true;
-   const admission={resolve:async(token,requested)=>{
-    if(!admissionAllowed||token!==bearer||
-       requested.tenantId!==selection.tenantId||
-       requested.organizationId!==selection.orgId||
-       requested.workspaceId!==selection.workspaceId||
-       requested.funnelId!==funnel.id||
-       requested.capability!=="service.funnel.operate")
-     throw new AccessDeniedError();
-    return {
-     actor:{id:IAM_OPERATOR,kind:"user"},
-     tenantId:selection.tenantId,organizationId:selection.orgId,
-     workspaceId:selection.workspaceId,
-     keycloakOrganizationId:randomUUID(),realm:"syndes-iam-lab-ci",
-     capability:requested.capability,moduleId:"service",
-     scopeWriteAllowed:true,resourceName:fineObject,
-    };
-   }};
-   const fine={canPerform:async(context,capability)=>fineAllowed&&
-    context.actor.id===IAM_OPERATOR&&capability==="service.funnel.operate"&&
-    context.resourceName===fineObject};
-   const pilot=new Iam07dRevokeFirstPilot(admission,fine,providers,{
-    query:async()=>{throw new AccessDeniedError()},
-   });
-   const business=new Iam07dServiceFunnelBusinessPilot(pilot,service);
-   // A wrong funnel can never borrow another funnel's exact grant/epoch.
-   await assert.rejects(business.advance(bearer,{
-    ...request,funnelId:randomUUID(),
-   },{attendanceId:session.id,nextStageId:secondStage,expectedVersion:1}),
-    AccessDeniedError);
-   fineAllowed=false;
-   await assert.rejects(business.advance(bearer,request,{
-    attendanceId:session.id,nextStageId:secondStage,expectedVersion:1,
-   }),AccessDeniedError);
-   fineAllowed=true;
-   const first=await business.advance(bearer,request,{
-    attendanceId:session.id,nextStageId:secondStage,expectedVersion:1,
-   });
-   assert.equal(first.version,2);
-   assert.equal(first.stageId,secondStage);
-   const count=async()=>(await pool.query(`
-    SELECT count(*)::int AS n FROM service.service_attendance_events
-    WHERE tenant_id=$1 AND attendance_id=$2 AND action='stage_changed'
-   `,[selection.tenantId,session.id])).rows[0].n;
-   assert.equal(await count(),1);
-   // CAS and SAME service function guard against a duplicate business effect.
-   await assert.rejects(business.advance(bearer,request,{
-    attendanceId:session.id,nextStageId:secondStage,expectedVersion:1,
-   }),AccessDeniedError);
-   assert.equal(await count(),1);
-   const stale=await pilot.issue(bearer,request);
-   await pool.query(`
-    UPDATE platform_iam_capability_fences SET state='revoked',epoch=2,
-      last_revoke_operation_id=$5::uuid
-    WHERE tenant_id=$1::uuid AND organization_id=$2::uuid
-     AND workspace_id=$3::uuid AND principal_id=$4
-     AND capability='service.funnel.operate'
-   `,[selection.tenantId,selection.orgId,selection.workspaceId,
-       IAM_OPERATOR,randomUUID()]);
-   // Remote fine grant can still say ALLOW, but the SQL fence stops effects.
-   assert.equal(fineAllowed,true);
-   await assert.rejects(business.advance(bearer,request,{
-    attendanceId:session.id,nextStageId:thirdStage,expectedVersion:2,
-   }),AccessDeniedError);
-   await assert.rejects(pilot.execute(stale,async()=>true),AccessDeniedError);
-   const after=(await pool.query(`
-    SELECT stage_id::text,version FROM service.service_attendances
-    WHERE tenant_id=$1 AND id=$2
-   `,[selection.tenantId,session.id])).rows[0];
-   assert.equal(after.stage_id,secondStage);
-   assert.equal(Number(after.version),2);
-   assert.equal(await count(),1);
-   console.log("IAM07D4_PG17_REAL_SERVICE_FUNNEL_EPOCH_AUDIT_PASS");
-  });
-
   await t.test("assignment rejects outsider/revoked and stamps actor in same transaction",async()=>{
    await assert.rejects(service.assign(ctx(0,"agent-a"),{
     attendanceId:attendance.id,assigneeId:"revoked-a",expectedVersion:1,
@@ -644,6 +550,100 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
         AND principal_id='owner-a'`,
       [scope.tenantId,scope.orgId,scope.workspaceId]).catch(()=>{});
    }
+  });
+
+  await t.test("IAM07D4 PG17: real Service.advance uses SAME tenant IAM epoch transaction",async()=>{
+   const selection=tenants[0],pool=pools.get(selection.tenantId);
+   const bearer="Bearer ci-trusted-signed-verification-stub";
+   const request={
+    tenantId:selection.tenantId,organizationId:selection.orgId,
+    workspaceId:selection.workspaceId,funnelId:funnel.id,
+    capability:"service.funnel.operate",
+   };
+   const fineObject="syndes:v1:tenant:"+selection.tenantId+
+    ":org:"+selection.orgId+":workspace:"+selection.workspaceId+
+    ":funnel:"+funnel.id;
+   await pool.query(`INSERT INTO platform_iam_capability_fences
+    (tenant_id,organization_id,workspace_id,principal_id,capability,epoch,state)
+    VALUES($1,$2,$3,$4,'service.funnel.operate',1,'active')`,
+    [selection.tenantId,selection.orgId,selection.workspaceId,IAM_OPERATOR]);
+   const session=await service.open(ctx(0,IAM_OPERATOR),{
+    funnelId:funnel.id,idempotencyKey:"iam07d4-stage-advance-20261118",
+   });
+   assert.equal(session.version,1);
+   let fineAllowed=true,admissionAllowed=true;
+   const admission={resolve:async(token,requested)=>{
+    if(!admissionAllowed||token!==bearer||
+       requested.tenantId!==selection.tenantId||
+       requested.organizationId!==selection.orgId||
+       requested.workspaceId!==selection.workspaceId||
+       requested.funnelId!==funnel.id||
+       requested.capability!=="service.funnel.operate")
+     throw new AccessDeniedError();
+    return {
+     actor:{id:IAM_OPERATOR,kind:"user"},
+     tenantId:selection.tenantId,organizationId:selection.orgId,
+     workspaceId:selection.workspaceId,
+     keycloakOrganizationId:randomUUID(),realm:"syndes-iam-lab-ci",
+     capability:requested.capability,moduleId:"service",
+     scopeWriteAllowed:true,resourceName:fineObject,
+    };
+   }};
+   const fine={canPerform:async(context,capability)=>fineAllowed&&
+    context.actor.id===IAM_OPERATOR&&capability==="service.funnel.operate"&&
+    context.resourceName===fineObject};
+   const pilot=new Iam07dRevokeFirstPilot(admission,fine,providers,{
+    query:async()=>{throw new AccessDeniedError()},
+   });
+   const business=new Iam07dServiceFunnelBusinessPilot(pilot,service);
+   // A wrong funnel can never borrow another funnel's exact grant/epoch.
+   await assert.rejects(business.advance(bearer,{
+    ...request,funnelId:randomUUID(),
+   },{attendanceId:session.id,nextStageId:secondStage,expectedVersion:1}),
+    AccessDeniedError);
+   fineAllowed=false;
+   await assert.rejects(business.advance(bearer,request,{
+    attendanceId:session.id,nextStageId:secondStage,expectedVersion:1,
+   }),AccessDeniedError);
+   fineAllowed=true;
+   const first=await business.advance(bearer,request,{
+    attendanceId:session.id,nextStageId:secondStage,expectedVersion:1,
+   });
+   assert.equal(first.version,2);
+   assert.equal(first.stageId,secondStage);
+   const count=async()=>(await pool.query(`
+    SELECT count(*)::int AS n FROM service.service_attendance_events
+    WHERE tenant_id=$1 AND attendance_id=$2 AND action='stage_changed'
+   `,[selection.tenantId,session.id])).rows[0].n;
+   assert.equal(await count(),1);
+   // CAS and SAME service function guard against a duplicate business effect.
+   await assert.rejects(business.advance(bearer,request,{
+    attendanceId:session.id,nextStageId:secondStage,expectedVersion:1,
+   }),AccessDeniedError);
+   assert.equal(await count(),1);
+   const stale=await pilot.issue(bearer,request);
+   await pool.query(`
+    UPDATE platform_iam_capability_fences SET state='revoked',epoch=2,
+      last_revoke_operation_id=$5::uuid
+    WHERE tenant_id=$1::uuid AND organization_id=$2::uuid
+     AND workspace_id=$3::uuid AND principal_id=$4
+     AND capability='service.funnel.operate'
+   `,[selection.tenantId,selection.orgId,selection.workspaceId,
+       IAM_OPERATOR,randomUUID()]);
+   // Remote fine grant can still say ALLOW, but the SQL fence stops effects.
+   assert.equal(fineAllowed,true);
+   await assert.rejects(business.advance(bearer,request,{
+    attendanceId:session.id,nextStageId:thirdStage,expectedVersion:2,
+   }),AccessDeniedError);
+   await assert.rejects(pilot.execute(stale,async()=>true),AccessDeniedError);
+   const after=(await pool.query(`
+    SELECT stage_id::text,version FROM service.service_attendances
+    WHERE tenant_id=$1 AND id=$2
+   `,[selection.tenantId,session.id])).rows[0];
+   assert.equal(after.stage_id,secondStage);
+   assert.equal(Number(after.version),2);
+   assert.equal(await count(),1);
+   console.log("IAM07D4_PG17_REAL_SERVICE_FUNNEL_EPOCH_AUDIT_PASS");
   });
 
   await t.test("input errors are rejected before any query or mutation",async()=>{
