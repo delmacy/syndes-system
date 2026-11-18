@@ -5,6 +5,7 @@ import {readFile} from "node:fs/promises";
 import {fileURLToPath} from "node:url";
 import pg from "pg";
 import {PgOrganizationIdentityLinks} from "../dist/iam-organization-adapters.js";
+import {OrganizationContextAdmissionPilot} from "../dist/iam-organization-context-pilot.js";
 
 const raw=process.env.SYNDES_IAM04_PG_URL;
 const safe=(()=>{
@@ -116,6 +117,42 @@ test("IAM-04B manual Control schema: PostgreSQL 17 ACL, 1:1, CAS, audit, concurr
         await assert.rejects(scoped.query("SELECT * FROM public.platform_keycloak_org_links"),e=>e.code==="42501");
         await assert.rejects(scoped.query("DELETE FROM public.platform_keycloak_org_link_audit"),e=>e.code==="42501");
       }finally{await scoped.query("RESET ROLE");}
+    });
+    await t.test("real Control link participates in trusted admission; revocation blocks live session",async()=>{
+      const workspace=randomUUID(),actorId=randomUUID(),bearer="Bearer synthetic.signed.token";
+      let consultedTenantDB=0;
+      const pilot=new OrganizationContextAdmissionPilot({
+        realm:"syndes-iam-lab-ci",clientId:"syndes-inbox-ui",multiOrganizationEnabled:false,
+        verifier:{verifyClient:async(value,client)=>{
+          assert.equal(value,bearer);assert.equal(client,"syndes-inbox-ui");
+          return {kind:"user",id:actorId};
+        }},
+        tenancy:{canAccessTenant:async({tenantId})=>tenantId===tenantA},
+        moduleAccess:{canExecuteModule:async()=>true},
+        links:new PgOrganizationIdentityLinks(scoped),
+        keycloakMembers:{isActiveMember:async(realm,org,sub)=>
+          realm==="syndes-iam-lab-ci"&&org===kcA&&sub===actorId},
+        tenantDatabases:{resolve:async(id)=>{
+          consultedTenantDB++;
+          return {tenantId:id,query:async(sql,values)=>{
+            assert.match(sql,/platform_org_memberships/);
+            assert.match(sql,/platform_workspace_memberships/);
+            assert.match(sql,/platform_legacy_backfill_runs/);
+            assert.deepEqual(values,[tenantA,actorId,orgA,workspace,false]);
+            return {rows:[{organization_id:orgA,workspace_id:workspace,scope_write_allowed:true}],rowCount:1};
+          }};
+        }},
+        funnelOwnership:{isActiveInWorkspace:async()=>false},
+      });
+      const request={tenantId:tenantA,organizationId:orgA,workspaceId:workspace,
+        capability:"inbox.message.send"};
+      assert.equal((await pilot.resolve(bearer,request)).moduleId,"inbox");
+      assert.equal(consultedTenantDB,1);
+      assert.equal(Number(await operator(cmd(tenantA,orgA,kcA,"revoked",3))),4);
+      await assert.rejects(pilot.resolve(bearer,request),e=>e.name==="AccessDeniedError");
+      assert.equal(consultedTenantDB,1,"revoked control link denies before tenant SQL");
+      assert.equal(Number(await operator(cmd(tenantA,orgA,kcA,"active",4))),5);
+      assert.equal((await pilot.resolve(bearer,request)).realm,"syndes-iam-lab-ci");
     });
     console.log("IAM04B_DISPOSABLE_PG17_ACL_CONCURRENCY_AUDIT_PASS");
   }finally{
