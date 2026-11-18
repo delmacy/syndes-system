@@ -1,3 +1,4 @@
+import {runIam07cNestHttpLab} from "./iam07c-nest-http-ci.mjs";
 import {runIam07bProviderRecoveryLab} from "./iam07b-provider-recovery-ci.mjs";
 import {runIam07SseLiveLab} from "./iam07-sse-live-ci.mjs";
 /**
@@ -277,6 +278,18 @@ export async function runIam06bLab(args){
       verifier,tenancy:new PgMembership(control),moduleGate,
       control,tenantDb,provider,source,storeId:store.id,
       links,memberReader:members,bearer,actorId:args.alice,
+    });
+    // IAM-07C: genuine Nest HTTP ingress, identical signed bearer, live
+    // Keycloak Organizations, Control/tenant PostgreSQL, and real FGA.
+    // Read-only candidate endpoint lives in a disposable-only Nest module;
+    // it is never registered on the operational Core Host.
+    await runIam07cNestHttpLab({
+      bearer,userToken:args.atAlice,otherOrgToken:args.atBob,
+      managerToken:args.adminAccess,verifier,admission,fgaAdapter,
+      tenantDb,control,alice:args.alice,storeId:store.id,
+      readTuple:tuples[0],fgaWrite:fga,
+      orgId:args.orgs.a,adminToken:args.adminToken,
+      changeMembership:keycloakMemberChange,
     });
 
     // Real FGA revoke while UMA user policy remains ALLOW: the request DENIES.
