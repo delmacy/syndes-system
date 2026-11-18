@@ -193,3 +193,12 @@ O Product Gate permanece BLOQUEADO até portas reais, laboratório integrado e s
 - PR de candidato: `modules/organizations/sql/009_iam_multiorg_fence_candidate.sql`, DDL **idêntico** ao 008 para capability fences, catálogo de alvos FGA e outbox, mas preflight distinto: exige remoção conjunta anterior dos dois índices SQL002 e FKs reais de ownership/operational memberships. `008` original permanece intocado, válido apenas em single-org.
 - A suíte PG17 no laboratório IAM-06B é ampliada para exigir 009 DENY com SQL002 completo, DENY com remoção parcial (um índice restante), 008 DENY sem índices, 009 instalação com ambos ausentes, rollback e índices preservados. Marcador esperado: `IAM_TOPOLOGY_PG17_POST_SQL002_FENCE_INSTALLER_PASS`.
 - **Não concluir cutover**: esse teste demonstra compatibilidade do DDL, mas não aprovação das rotas CRM/Inbox/WhatsApp tenant-wide, da serialização concorrente entre conexões, Keycloak org B real ou rollback/restauração em staging. Migration 009 permanece manual/CI e NÃO pode ser incluída em instalação automática do plugin; `PRODUCTION_GATE=BLOCKED`.
+
+
+### TOPO-03C — corrida real de commit revogação/escrita em duas conexões PG17 (2026-11-18)
+
+- Teste novo `tests/platform/iam-revocation-concurrent-pg17-ci.mjs` roda no job `keycloak-real-jwt` existente, com **duas conexões físicas independentes** PostgreSQL17 do tenant descartável (sem alterar nenhum banco operacional). Verifica o fence da capability `inbox.conversation.transfer` já provisionado pelo laboratório IAM07D2.
+- **Write-first:** transação A adquire `FOR SHARE` sobre o fence, grava efeito, transação B tenta `FOR UPDATE NOWAIT` e recebe `55P03`; A faz commit. Revoke não consegue antecipar operação que obteve lock primeiro.
+- **Revoke-first:** transação B atualiza state+epoch e grava outbox **no mesmo commit**; transação A tenta `FOR SHARE NOWAIT` e recebe `55P03`; antes de B confirmar a outbox é invisível; após B confirmar, `state='active'` retorna zero e a outbox é visível como `pending`; efeito não é gravado novamente.
+- Marcadores esperados `IAM_TOPO03C_PG17_WRITE_FIRST_LOCK_SERIALIZATION_PASS` e `IAM_TOPO03C_PG17_REVOKE_FIRST_STALE_WRITE_DENY_OUTBOX_ATOMIC_PASS`. CI e aceite **pendentes** até execução real.
+- **Limites:** demonstra serialização tenant-local para uma scope já existente, não valida corrida remota Keycloak/OpenFGA vs commits SQL, SLA SSE ou dois bancos de tenant distintos. Cutover multi-org e produto continuam bloqueados. `PRODUCTION_GATE=BLOCKED`.
