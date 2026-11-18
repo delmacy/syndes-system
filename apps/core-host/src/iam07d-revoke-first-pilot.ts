@@ -211,16 +211,38 @@ export class Iam07dRevokeFirstPilot{
        AND capability=$5 AND epoch=$7::bigint AND state='active'
       RETURNING epoch::text AS epoch`,
       [...values,command.operationId,command.expectedEpoch]);
-    if(changed.rows.length===1)return epochNumber(changed.rows[0].epoch);
-    const prior=await tx.query(`
-      SELECT epoch::text AS epoch,state,last_revoke_operation_id::text AS op
-      FROM platform_iam_capability_fences WHERE tenant_id=$1::uuid
-       AND organization_id=$2::uuid AND workspace_id=$3::uuid
-       AND principal_id=$4 AND capability=$5 FOR UPDATE`,values);
-    if(prior.rows.length!==1||
-       epochNumber(prior.rows[0].epoch)!==n||
-       prior.rows[0].state!=="revoked"||
-       prior.rows[0].op!==command.operationId)
+    if(changed.rows.length!==1){
+     const prior=await tx.query(`
+       SELECT epoch::text AS epoch,state,last_revoke_operation_id::text AS op
+       FROM platform_iam_capability_fences WHERE tenant_id=$1::uuid
+        AND organization_id=$2::uuid AND workspace_id=$3::uuid
+        AND principal_id=$4 AND capability=$5 FOR UPDATE`,values);
+     if(prior.rows.length!==1||
+        epochNumber(prior.rows[0].epoch)!==n||
+        prior.rows[0].state!=="revoked"||
+        prior.rows[0].op!==command.operationId)
+      throw new AccessDeniedError();
+    }
+    // Outbox + deny fence commit ATOMICALLY in the tenant database.
+    // A crash or outage before Control/FGA leaves a durable pending record.
+    await tx.query(`
+      INSERT INTO platform_iam_revocation_outbox(
+       operation_id,tenant_id,organization_id,workspace_id,
+       principal_id,capability,revoked_epoch)
+      VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7::bigint)
+      ON CONFLICT(operation_id) DO NOTHING`,
+      [command.operationId,...values,n]);
+    const pending=await tx.query(`
+      SELECT tenant_id::text,organization_id::text,workspace_id::text,
+       principal_id,capability,revoked_epoch::text AS epoch
+      FROM platform_iam_revocation_outbox WHERE operation_id=$1::uuid`,
+      [command.operationId]);
+    if(pending.rows.length!==1||pending.rows[0].tenant_id!==command.tenantId||
+      pending.rows[0].organization_id!==command.organizationId||
+      pending.rows[0].workspace_id!==command.workspaceId||
+      pending.rows[0].principal_id!==command.principalId||
+      pending.rows[0].capability!==command.capability||
+      epochNumber(pending.rows[0].epoch)!==n)
      throw new AccessDeniedError();
     return n;
    });
