@@ -1,7 +1,7 @@
 # IAM-04B / IAM-05B — Control link persistente e Membership API real (candidato)
 
 Data: 2026-11-18. Escopo: branch feat/iam04b-05b-pg-keycloak-20261118, Issue #160.
-**Status de entrega:** código e ensaios de CI propostos. **NÃO integrado ao Host runtime; não homologado; não aplicado ao Control DB real.** A autoridade efetiva de autorização de dados permanece OpenFGA.
+**Status de entrega:** laboratório PostgreSQL 17 + Keycloak 26.8.1 real aprovado na PR #164, CI 44236143477 (24/24). Merge `b42038f01aabf154c975a345f22a64e1bdfbaf44`. **NÃO integrado ao Host runtime; não homologado; não aplicado ao Control DB real.** A autoridade efetiva de autorização de dados permanece OpenFGA.
 
 ## 1. Divisão canônica
 
@@ -55,7 +55,7 @@ Os ports reais têm testes unitários mockados. O teste PG17 usa a associação 
 - scripts/ci/run-suite.sh, suite host: inicia PG17 efêmero preso ao loopback, variável de proteção IAM04B_PG17_ONLY e password somente CI; sem schema no banco real.
 - tests/platform/keycloak-organizations-authz-ci.mjs, job keycloak-real-jwt existente: Keycloak 26.8.1 em loopback; adiciona service account específico view-users + view-organizations e valida membership (200/404) antes/depois da revogação, mantendo teste UMA IAM-03.
 
-Se qualquer job falhar, reter branch/PR, não integrar main e não promover o status da WBS.
+Comprovação: run 44236143477 concluiu 24/24 jobs aprovados em SHA 36765f4506319d611c7664626bf2b1152d6d6857; `host` executou PG17 realmente (marcador IAM04B_DISPOSABLE_PG17_ACL_CONCURRENCY_AUDIT_PASS), `keycloak-real-jwt` consultou memberships e testou revogação. O primeiro ensaio `view-users` isoladamente negou com HTTP 403; foi corrigido com `view-organizations`, sem `manage-realm`. O fluxo fim a fim de produção continua pendente.
 
 ## 6. IAM-06 — entrada e shadow mode futuro
 
@@ -71,3 +71,12 @@ Próximo incremento, somente após CI das portas reais:
 Acesso operacional (main.ts, controllers e worker) não foi ativado; SQL002 impede múltiplas orgs/workspaces em tenant operacional; não há backing operacional migrado, backup/restore homologado, grants fino por operação, ownership transacional de todos fluxos, token real combinado Control+SQL+FGA nem teste de SSE/revogação atômica. Keycloak Org Group não é automaticamente Group Policy de Authorization Services.
 
 **CD preflight separado:** run 44229567880, job tailnet-preflight 134550997742. OIDC Tailnet, peer e Tailscale SSH passaram. Falhou em "Verify locked four-file Compose contract remotely without writes", saída "Core Host Compose service missing", exit 3. Jobs provision-homolog-identity e deploy foram pulados. Isso é divergência de Compose/service remoto a investigar exclusivamente pelo workflow de CD, sem contornar os controles nem executar deploy manual.
+
+## 8. Evidência de PR, sem homologação
+
+- [PR #164](https://github.com/delmacy/syndes-system/pull/164) — merged; [CI 24/24](https://github.com/delmacy/syndes-system/actions/runs/44236143477).
+- [Merge](https://github.com/delmacy/syndes-system/commit/b42038f01aabf154c975a345f22a64e1bdfbaf44).
+- API Admin Organizations exige papel de leitura `view-organizations` além da visibilidade `view-users`; ambos são realm-level e não provam menor privilégio **por organização**. FGAP/filtragem adicional é gate de IAM-07/IAM-09 antes de promover service credentials reais.
+- Não houve deploy de IAM nem migration no banco operacional. O CD permanece controlado por aprovação explícita do SHA e seus preflights.
+
+- Verificação CD pós-merge: run [44236978834](https://github.com/delmacy/syndes-system/actions/runs/44236978834) no SHA `b42038f01aabf154c975a345f22a64e1bdfbaf44` — Tailnet/SSH, checagem Compose read-only, JWKS Keycloak e OpenFGA passaram; `deploy` e `provision-homolog-identity` ficaram **skipped** (sem deploy IAM). A falha `Core Host Compose service missing` da run antiga 44229567880 não se reproduziu; causa-raiz anterior não comprovada, controles preservados.
