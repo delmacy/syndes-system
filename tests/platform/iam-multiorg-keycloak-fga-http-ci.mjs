@@ -34,14 +34,16 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
  assert.ok(f.orgA&&f.orgB&&f.orgA!==f.orgB);
  // LAST composite test only: this whole PG17 tenant is deleted in finally.
  // Both SQL002 guards are removed together in a disposable transaction.
- await f.tenantDb.query("BEGIN");
+ const cutover=await f.tenantDb.connect();
  try{
-  await f.tenantDb.query("DROP INDEX platform_legacy_single_organization");
-  await f.tenantDb.query("DROP INDEX platform_legacy_single_workspace");
-  await f.tenantDb.query("COMMIT");
- }catch(e){await f.tenantDb.query("ROLLBACK").catch(()=>{});throw e}
- // PG Pool.query uses a new session per call: the migration above is limited
- // to this disposable CI database, NOT a privileged runtime migration.
+  await cutover.query("BEGIN");
+  await cutover.query("DROP INDEX platform_legacy_single_organization");
+  await cutover.query("DROP INDEX platform_legacy_single_workspace");
+  await cutover.query("COMMIT");
+ }catch(e){await cutover.query("ROLLBACK").catch(()=>{});throw e}
+ finally{cutover.release()}
+ // A pinned connection performs the SQL002 cutover ONLY in the disposable
+ // CI tenant database, which the enclosing IAM06B fixture drops in finally.
  const orgB=randomUUID(),wsA2=randomUUID(),wsB1=randomUUID(),wsB2=randomUUID();
  await f.tenantDb.query(
   "INSERT INTO platform_organizations(tenant_id,id,display_name)"+
