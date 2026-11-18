@@ -88,7 +88,7 @@ export class KeycloakUmaAuthorizationPilot {
     const form = new URLSearchParams({
       grant_type: "urn:ietf:params:oauth:grant-type:uma-ticket",
       audience: this.audience,
-      permission: mapped.id + "#" + mapped.scopeId,
+      permission: mapped.id + "#" + mapped.scopeName,
       response_mode: "decision",
       submit_request: "false",
     });
