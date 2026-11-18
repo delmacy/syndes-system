@@ -39,12 +39,12 @@ export class Iam07dRevocationOutboxDispatcher{
   try{
    const db=await this.tenantDatabases.resolve(tenantId);
    if(db.tenantId!==tenantId)throw new AccessDeniedError();
-   const out=await db.query(\`
+   const out=await db.query(`
      SELECT tenant_id::text,organization_id::text,workspace_id::text,
       principal_id,capability,revoked_epoch::text AS epoch,state
      FROM platform_iam_revocation_outbox
      WHERE tenant_id=$1::uuid AND operation_id=$2::uuid
-   \`,[tenantId,operationId]);
+   `,[tenantId,operationId]);
    if(out.rows.length!==1)throw new AccessDeniedError();
    const row=out.rows[0];
    if(row.state==="delivered")return "already_delivered";
@@ -63,23 +63,23 @@ export class Iam07dRevocationOutboxDispatcher{
    };
    const values=[tenantId,scope.organizationId,scope.workspaceId,
     scope.principalId,scope.capability];
-   const fence=await db.query(\`
+   const fence=await db.query(`
      SELECT state,epoch::text AS epoch,last_revoke_operation_id::text AS op
      FROM platform_iam_capability_fences
      WHERE tenant_id=$1::uuid AND organization_id=$2::uuid
       AND workspace_id=$3::uuid AND principal_id=$4 AND capability=$5
-   \`,values);
+   `,values);
    if(fence.rows.length!==1||fence.rows[0].state!=="revoked"||
       Number(fence.rows[0].epoch)!==epoch||
       fence.rows[0].op!==operationId)
     throw new AccessDeniedError();
-   const targets=await db.query(\`
+   const targets=await db.query(`
       SELECT resource_name,fga_object
       FROM platform_iam_fga_grant_targets
       WHERE tenant_id=$1::uuid AND organization_id=$2::uuid
        AND workspace_id=$3::uuid AND principal_id=$4 AND capability=$5
       ORDER BY resource_name
-    \`,values);
+    `,values);
    // Without a COMPLETE trusted registration catalog we cannot assert all
    // external fine grants were withdrawn. No empty-target success shortcut.
    if(targets.rows.length===0)throw new AccessDeniedError();
@@ -108,30 +108,30 @@ export class Iam07dRevocationOutboxDispatcher{
     if(tx.tenantId!==tenantId||tx[PINNED_TENANT_TRANSACTION]!==true)
      throw new AccessDeniedError();
     // Revalidate local deny under lock BEFORE marking delivered.
-    const locked=await tx.query(\`
+    const locked=await tx.query(`
       SELECT state,epoch::text AS epoch,last_revoke_operation_id::text AS op
       FROM platform_iam_capability_fences
       WHERE tenant_id=$1::uuid AND organization_id=$2::uuid
        AND workspace_id=$3::uuid AND principal_id=$4 AND capability=$5
       FOR SHARE
-    \`,values);
+    `,values);
     if(locked.rows.length!==1||locked.rows[0].state!=="revoked"||
        Number(locked.rows[0].epoch)!==epoch||locked.rows[0].op!==operationId)
      throw new AccessDeniedError();
-    const updated=await tx.query(\`
+    const updated=await tx.query(`
       UPDATE platform_iam_revocation_outbox
       SET state='delivered',attempts=attempts+1,
        last_attempt_at=clock_timestamp(),delivered_at=clock_timestamp()
       WHERE tenant_id=$1::uuid AND operation_id=$2::uuid
        AND revoked_epoch=$3::bigint AND state='pending'
       RETURNING operation_id::text
-    \`,[tenantId,operationId,epoch]);
+    `,[tenantId,operationId,epoch]);
     if(updated.rows.length===1)return "delivered";
-    const reread=await tx.query(\`
+    const reread=await tx.query(`
       SELECT state FROM platform_iam_revocation_outbox
       WHERE tenant_id=$1::uuid AND operation_id=$2::uuid
        AND revoked_epoch=$3::bigint
-    \`,[tenantId,operationId,epoch]);
+    `,[tenantId,operationId,epoch]);
     if(reread.rows.length!==1||reread.rows[0].state!=="delivered")
      throw new AccessDeniedError();
     return "already_delivered";
@@ -143,11 +143,11 @@ export class Iam07dRevocationOutboxDispatcher{
      await this.tenantDatabases.withTransaction(tenantId,async tx=>{
       if(tx.tenantId!==tenantId||tx[PINNED_TENANT_TRANSACTION]!==true)
        throw new AccessDeniedError();
-      await tx.query(\`
+      await tx.query(`
        UPDATE platform_iam_revocation_outbox
         SET attempts=attempts+1,last_attempt_at=clock_timestamp()
        WHERE tenant_id=$1::uuid AND operation_id=$2::uuid AND state='pending'
-      \`,[tenantId,operationId]);
+      `,[tenantId,operationId]);
      });
     }catch{/* no content or secrets logged */}
    }
