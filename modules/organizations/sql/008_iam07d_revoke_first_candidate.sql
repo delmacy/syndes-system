@@ -42,3 +42,52 @@ CREATE TABLE IF NOT EXISTS platform_iam_capability_fences (
 );
 -- No default ACTIVE entry; provisioning of this independent restrictive fence
 -- must be reviewed and NEVER inferred from a SQL role or coarse FGA write.
+
+-- IAM07D2: remote FGA target catalog is reconciliation metadata ONLY.
+-- It is not a grant and cannot authorize an operation by itself.
+-- A missing target is not evidence that external tuples are absent.
+CREATE TABLE IF NOT EXISTS platform_iam_fga_grant_targets (
+ tenant_id UUID NOT NULL,
+ organization_id UUID NOT NULL,
+ workspace_id UUID NOT NULL,
+ principal_id TEXT NOT NULL,
+ capability TEXT NOT NULL,
+ resource_name TEXT NOT NULL CHECK(length(resource_name) BETWEEN 20 AND 512),
+ fga_object TEXT NOT NULL CHECK(
+  fga_object ~ '^iam_capability:[0-9a-f]{64}$'
+ ),
+ PRIMARY KEY(tenant_id,organization_id,workspace_id,
+  principal_id,capability,resource_name),
+ FOREIGN KEY(tenant_id,organization_id,workspace_id,principal_id,capability)
+  REFERENCES platform_iam_capability_fences(
+   tenant_id,organization_id,workspace_id,principal_id,capability)
+  ON DELETE RESTRICT
+);
+
+-- A durable tenant-local outbox row commits in the SAME transaction as the
+-- deny fence. The Control receipt is written later and can fail independently.
+-- Empty/unknown grant catalog means dispatch cannot claim completion.
+CREATE TABLE IF NOT EXISTS platform_iam_revocation_outbox (
+ operation_id UUID PRIMARY KEY,
+ tenant_id UUID NOT NULL,
+ organization_id UUID NOT NULL,
+ workspace_id UUID NOT NULL,
+ principal_id TEXT NOT NULL,
+ capability TEXT NOT NULL,
+ revoked_epoch BIGINT NOT NULL CHECK(revoked_epoch>1),
+ state TEXT NOT NULL DEFAULT 'pending'
+  CHECK(state IN ('pending','delivered')),
+ attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts>=0),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ last_attempt_at TIMESTAMPTZ,
+ delivered_at TIMESTAMPTZ,
+ FOREIGN KEY(tenant_id,organization_id,workspace_id,principal_id,capability)
+  REFERENCES platform_iam_capability_fences(
+   tenant_id,organization_id,workspace_id,principal_id,capability)
+  ON DELETE RESTRICT,
+ CHECK((state='pending' AND delivered_at IS NULL) OR
+       (state='delivered' AND delivered_at IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS platform_iam_revocation_outbox_pending
+ ON platform_iam_revocation_outbox(tenant_id,created_at,operation_id)
+ WHERE state='pending';
