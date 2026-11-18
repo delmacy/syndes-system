@@ -71,8 +71,12 @@ case "$suite" in
     bash modules/inbox/test/postgres-integration.sh
     ;;
   service-management)
-    build_kernel
-    install modules/service-management
+    # IAM07D4 real Service stage mutation runs through the SAME candidate Host
+    # epoch fence. Build module dependencies first, with no operational deploy.
+    build_host_modules
+    build modules/service-management
+    install apps/core-host
+    (cd apps/core-host && npm run build)
     pg_container="syndes-funnel-pg17-20261111"
     start_pg "$pg_container" 32772 "ci-only-disposable-funnel-ci" "17-alpine" "funnel-mvp-pg17"
     (cd modules/service-management && npm run check &&

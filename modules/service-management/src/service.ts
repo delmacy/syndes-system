@@ -1,6 +1,6 @@
 import {randomUUID} from "node:crypto";
 import {
- AccessDeniedError,type Actor,type CoreKernel,type TenantTransaction,
+ AccessDeniedError,PINNED_TENANT_TRANSACTION,type Actor,type CoreKernel,type TenantTransaction,
  type TrustedTenantTransactionProvider,
 } from "@syndes/core-kernel";
 
@@ -55,16 +55,12 @@ export class ServiceFunnelService{
  constructor(private readonly kernel:CoreKernel,
   private readonly tenants:TrustedTenantTransactionProvider){}
 
- private async run<T>(ctx:FunnelContext,resource:"service:funnels"|"service:attendances"|"service:teams",
-  action:"read"|"write",permission:"admin"|"editor"|"viewer",
-  work:(tx:TenantTransaction)=>Promise<T>):Promise<T>{
-  validateContext(ctx);
-  // The module Control Plane admission runs *after* tenant/FGA and before
-  // resolving a tenant DB. A missing ENABLED gate is never a legacy fallback.
-  return this.kernel.executeModule({actor:ctx.actor,tenantId:ctx.tenantId,
-    moduleId:"service",resource,action},
-   ()=>this.tenants.withTransaction(ctx.tenantId,async tx=>{
-    if(tx.tenantId!==ctx.tenantId)throw new AccessDeniedError();
+ private async checkedPinned<T>(
+  ctx:FunnelContext,action:"read"|"write",
+  permission:"admin"|"editor"|"viewer",
+  tx:TenantTransaction,work:(tx:TenantTransaction)=>Promise<T>):Promise<T>{
+  if(tx.tenantId!==ctx.tenantId||tx[PINNED_TENANT_TRANSACTION]!==true)
+   throw new AccessDeniedError();
     const allowed=await tx.query(`
      SELECT 1 FROM public.platform_workspaces w
      JOIN public.platform_organizations o ON o.tenant_id=w.tenant_id
@@ -92,7 +88,33 @@ export class ServiceFunnelService{
     if(action==="write")
      await tx.query("SELECT set_config('syndes.service_actor_id',$1,true)",[ctx.actor.id]);
     return work(tx);
-   }));
+ }
+
+ private async run<T>(ctx:FunnelContext,
+  resource:"service:funnels"|"service:attendances"|"service:teams",
+  action:"read"|"write",permission:"admin"|"editor"|"viewer",
+  work:(tx:TenantTransaction)=>Promise<T>):Promise<T>{
+  validateContext(ctx);
+  // Existing operational entrypoint keeps the SAME Core Kernel FGA and
+  // Control ModuleAccess check before acquiring a tenant transaction.
+  return this.kernel.executeModule({actor:ctx.actor,tenantId:ctx.tenantId,
+    moduleId:"service",resource,action},
+   ()=>this.tenants.withTransaction(ctx.tenantId,tx=>
+    this.checkedPinned(ctx,action,permission,tx,work)));
+ }
+
+ /** IAM07D4 candidate-only external pinned transaction path: caller must
+  * already be inside an IAM07D exact-funnel epoch fence. Still enforce the
+  * existing module-grant, tenant membership and Service actor SQL GUC.
+  * No second transaction is opened, unlike calling public advance().
+  */
+ private async runPinned<T>(ctx:FunnelContext,tx:TenantTransaction,
+  resource:"service:attendances",action:"write",permission:"editor",
+  work:(tx:TenantTransaction)=>Promise<T>):Promise<T>{
+  validateContext(ctx);
+  return this.kernel.executeModule({actor:ctx.actor,tenantId:ctx.tenantId,
+   moduleId:"service",resource,action},
+   ()=>this.checkedPinned(ctx,action,permission,tx,work));
  }
 
  /** Published funnel definitions are shared read-only inside the selected scope.
@@ -237,13 +259,9 @@ export class ServiceFunnelService{
   });
  }
 
- async advance(ctx:FunnelContext,input:Readonly<{
+ private async advanceMutation(ctx:FunnelContext,input:Readonly<{
   attendanceId:string;nextStageId:string;expectedVersion:number;
- }>){
-  if(!uid(input?.attendanceId)||!uid(input.nextStageId))
-   throw new ServiceFunnelInputError("Invalid stage reference");
-  requireVersion(input.expectedVersion);
-  return this.run(ctx,"service:attendances","write","editor",async tx=>{
+ }>,tx:TenantTransaction){
    const r=await tx.query(`
     UPDATE service.service_attendances a
     SET stage_id=s.id,version=a.version+1,updated_at=clock_timestamp()
@@ -263,7 +281,29 @@ export class ServiceFunnelService{
        input.expectedVersion,input.nextStageId,ctx.actor.id]);
    if(r.rows.length!==1)throw new ServiceFunnelConflictError();
    return asAttendance(r.rows[0]);
-  });
+ }
+
+ async advance(ctx:FunnelContext,input:Readonly<{
+  attendanceId:string;nextStageId:string;expectedVersion:number;
+ }>){
+  if(!uid(input?.attendanceId)||!uid(input.nextStageId))
+   throw new ServiceFunnelInputError("Invalid stage reference");
+  requireVersion(input.expectedVersion);
+  return this.run(ctx,"service:attendances","write","editor",
+    tx=>this.advanceMutation(ctx,input,tx));
+ }
+
+ /** Accessible only through a trusted IAM07D Host adapter, not mounted in
+  * runtime. Must use the *same* pinned transaction as the epoch read.
+  */
+ async advancePinned(ctx:FunnelContext,input:Readonly<{
+  attendanceId:string;nextStageId:string;expectedVersion:number;
+ }>,tx:TenantTransaction){
+  if(!uid(input?.attendanceId)||!uid(input.nextStageId))
+   throw new ServiceFunnelInputError("Invalid stage reference");
+  requireVersion(input.expectedVersion);
+  return this.runPinned(ctx,tx,"service:attendances","write","editor",
+   pinned=>this.advanceMutation(ctx,input,pinned));
  }
 
  async assign(ctx:FunnelContext,input:Readonly<{

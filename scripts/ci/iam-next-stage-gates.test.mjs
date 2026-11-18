@@ -145,3 +145,31 @@ test("IAM07D3 real Inbox write uses pinned IAM epoch and cannot hijack claim",()
  assert.ok(!selection.includes("iam07d-inbox-business-pilot"));
  execFileSync("node",["--check","tests/platform/iam07d2-fine-fga-live-ci.mjs"]);
 });
+
+test("IAM07D4 requires actual Service engine SQL and same trusted tenant IAM transaction",()=>{
+ const host=read("apps/core-host/src/iam07d-service-funnel-business-pilot.ts");
+ const service=read("modules/service-management/src/service.ts");
+ const pg=read("modules/service-management/test/service-funnels-pg17.test.mjs");
+ const runner=read("scripts/ci/run-suite.sh");
+ const main=read("apps/core-host/src/main.ts");
+ assert.ok(host.includes("this.iam.issue(bearer,fixedRequest)"));
+ assert.ok(host.includes("this.iam.execute(ticket,async tx=>"));
+ assert.ok(host.includes("this.service.advancePinned(context,fixedInput,tx)"));
+ assert.ok(host.includes("a.funnel_id=$5::uuid"));
+ assert.ok(host.includes("FOR NO KEY UPDATE"));
+ assert.ok(host.includes("Object.freeze({...requested})"));
+ assert.ok(host.includes("Object.freeze({...input})"));
+ assert.ok(service.includes("PINNED_TENANT_TRANSACTION"));
+ assert.ok(service.includes("private async advanceMutation("));
+ assert.ok(service.includes("async advancePinned("));
+ assert.ok(service.includes("this.advanceMutation(ctx,input,pinned)"));
+ assert.ok(service.includes("this.advanceMutation(ctx,input,tx)"));
+ assert.ok(service.includes("this.kernel.executeModule"));
+ assert.ok(service.includes("FOR SHARE OF w,o,om,wm"));
+ assert.ok(pg.includes("new Iam07dServiceFunnelBusinessPilot(pilot,service)"));
+ assert.ok(pg.includes("IAM07D4_PG17_REAL_SERVICE_FUNNEL_EPOCH_AUDIT_PASS"));
+ assert.ok(pg.includes("008_iam07d_revoke_first_candidate.sql"));
+ assert.ok(runner.includes("build modules/service-management"));
+ assert.ok(!main.includes("iam07d-service-funnel-business-pilot"));
+ execFileSync("node",["--check","modules/service-management/test/service-funnels-pg17.test.mjs"]);
+});
