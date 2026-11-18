@@ -115,6 +115,14 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
  assert.equal(await fine.canPerform(ctxB,CAP),false);
  await f.fgaWrite("POST","/stores/"+store.id+"/write",{
   writes:{tuple_keys:[tupleA,tupleB]}});
+ // Use organization A / workspace A2 for the business mutation: A1's
+ // claim fence was already REVOKED by IAM07D2. Never reactivate or reset it.
+ const claimCtxA2=await admission.resolve(f.bearer,scope(ORG_A,wsA2));
+ const tupleA2=tuple(claimCtxA2);
+ assert.notEqual(tupleA2.object,tupleA.object);
+ await f.fgaWrite("POST","/stores/"+store.id+"/write",{
+  writes:{tuple_keys:[tupleA2]},
+ });
  // Actual business writes in BOTH organizations, through IAM07D pinned
  // transaction and exact per-workspace FGA, after SQL002 lab-only cutover.
  const tenantProvider={
@@ -141,7 +149,7 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
  const protectedIam=new Iam07dRevokeFirstPilot(
   admission,fine,tenantProvider,f.control);
  const business=new Iam07dInboxBusinessPilot(protectedIam);
- for(const [org,ws] of [[ORG_A,WS_A1],[orgB,wsB1]]){
+ for(const [org,ws] of [[ORG_A,wsA2],[orgB,wsB1]]){
   await f.tenantDb.query("INSERT INTO platform_iam_capability_fences"+
    "(tenant_id,organization_id,workspace_id,principal_id,capability,epoch,state)"+
    " VALUES($1,$2,$3,$4,$5,1,'active')",
@@ -149,7 +157,7 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
  }
  const chatA=randomUUID(),chatB=randomUUID(),crossChat=randomUUID();
  for(const [chat,org,ws] of [
-  [chatA,ORG_A,WS_A1],[chatB,orgB,wsB1],[crossChat,orgB,wsB1],
+  [chatA,ORG_A,wsA2],[chatB,orgB,wsB1],[crossChat,orgB,wsB1],
  ]){
   await f.tenantDb.query("INSERT INTO inbox_conversations"+
    "(tenant_id,id,subject,channel,platform_organization_id,"+
@@ -196,14 +204,14 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
   await f.changeMembership("DELETE",f.orgB,f.actorId,f.adminToken);
   try{
    assert.equal(await send(f.bearer,orgB,wsB1),403);
-   assert.equal(await send(f.bearer,ORG_A,WS_A1),200);
+   assert.equal(await send(f.bearer,ORG_A,wsA2),200);
   }finally{await f.changeMembership("POST",f.orgB,f.actorId,f.adminToken)}
   assert.equal(await send(f.bearer,orgB,wsB1),200);
   // An FGA tuple for A cannot imply B, nor vice versa.
   await f.fgaWrite("POST","/stores/"+store.id+"/write",{
    deletes:{tuple_keys:[tupleA]}});
   try{
-   assert.equal(await send(f.bearer,ORG_A,WS_A1),403);
+   assert.equal(await send(f.bearer,ORG_A,wsA2),403);
    assert.equal(await send(f.bearer,orgB,wsB1),200);
   }finally{await f.fgaWrite("POST","/stores/"+store.id+"/write",{
    writes:{tuple_keys:[tupleA]}})}
@@ -215,7 +223,7 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
    [TENANT,orgB,wsB1,f.actorId]);
   try{
    assert.equal(await send(f.bearer,orgB,wsB1),403);
-   assert.equal(await send(f.bearer,ORG_A,WS_A1),200);
+   assert.equal(await send(f.bearer,ORG_A,wsA2),200);
   }finally{
    await f.tenantDb.query("UPDATE platform_workspace_memberships"+
     " SET state='active' WHERE tenant_id=$1 AND organization_id=$2"+
@@ -226,7 +234,7 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
   assert.equal(await f.linkTransition(f.control,link("revoked",1)),2);
   try{
    assert.equal(await send(f.bearer,orgB,wsB1),403);
-   assert.equal(await send(f.bearer,ORG_A,WS_A1),200);
+   assert.equal(await send(f.bearer,ORG_A,wsA2),200);
   }finally{assert.equal(await f.linkTransition(f.control,link("active",2)),3)}
   assert.equal(await send(f.bearer,orgB,wsB1),200);
   const claimUrl=chat=>base+"/__ci/iam-topology/tenants/"+TENANT+
@@ -244,15 +252,15 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
   };
   // Cross-organization conversation ID and workspace substitution are
   // rejected BEFORE any business mutation or audit event.
-  assert.equal(await claim(chatB,ORG_A,WS_A1),403);
+  assert.equal(await claim(chatB,ORG_A,wsA2),403);
   assert.equal(await claim(chatA,orgB,wsB1),403);
   assert.equal(await claim(chatB,orgB,wsB2),403);
   assert.equal(await claim(chatB,orgB,wsB1,"Bearer invalid"),401);
   assert.equal(await claim(chatB,orgB,wsB1,"Bearer "+f.managerToken),401);
   assert.equal(await claim(chatB,orgB,wsB1,"Bearer "+f.otherUserToken),403);
-  assert.equal(await claim(chatA,ORG_A,WS_A1),200);
+  assert.equal(await claim(chatA,ORG_A,wsA2),200);
   assert.equal(await claim(chatB,orgB,wsB1),200);
-  assert.equal(await claim(chatA,ORG_A,WS_A1),403);
+  assert.equal(await claim(chatA,ORG_A,wsA2),403);
   for(const chat of [chatA,chatB]){
    const own=await f.tenantDb.query(
     "SELECT assigned_to FROM inbox_conversations WHERE tenant_id=$1 AND id=$2",
@@ -283,13 +291,13 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
    "(tenant_id,id,subject,channel,platform_organization_id,"+
    "platform_origin_workspace_id,platform_current_workspace_id)"+
    " VALUES($1,$2,'TOPO04B post revoke','simulation',$3,$4,$4)",
-   [TENANT,chatA2,ORG_A,WS_A1]);
-  assert.equal(await claim(chatA2,ORG_A,WS_A1),200);
+   [TENANT,chatA2,ORG_A,wsA2]);
+  assert.equal(await claim(chatA2,ORG_A,wsA2),200);
   assert.equal((await f.tenantDb.query(
    "SELECT state FROM platform_iam_capability_fences"+
    " WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3"+
    " AND principal_id=$4 AND capability=$5",
-   [TENANT,ORG_A,WS_A1,f.actorId,CAP])).rows[0].state,"active");
+   [TENANT,ORG_A,wsA2,f.actorId,CAP])).rows[0].state,"active");
   assert.equal((await f.tenantDb.query(
    "SELECT count(*)::int AS n FROM platform_iam_revocation_outbox"+
    " WHERE operation_id=$1 AND organization_id=$2",
