@@ -162,3 +162,58 @@ jobs:
           set -Eeuo pipefail
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
           timeout 180s tailscale ssh "delmacy@$DEPLOY_HOST" "bash -s -- deploy syndes/core-host:git-$SOURCE_SHA" < scripts/deploy/devserver01-core-host.sh
+
+
+  provision-homolog-identity:
+    # One-time owner-authorized Keycloak principal ONLY. Never grants tenant,
+    # OpenFGA, admin role or credential; it is not a product release.
+    needs: [tailnet-preflight]
+    if: >-
+      ${{ needs.tailnet-preflight.result == 'success' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository &&
+          github.event.workflow_run.actor.login == 'delmacy' &&
+          startsWith(github.event.workflow_run.head_commit.message,
+          'chore(auth): provision isolated Keycloak homologation principal 2026-11-17') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+      DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Verify immutable one-time authorization and private SSH host
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEPLOY_HOST" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          python3 -m py_compile scripts/identity/provision-homolog-keycloak.py
+          python3 scripts/identity/test_provision_homolog_keycloak.py
+      - name: Join Tailnet via GitHub OIDC
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Provision dedicated Keycloak user without password or grants
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          timeout 90s tailscale ssh "delmacy@$DEPLOY_HOST" 'python3 - --apply' < scripts/identity/provision-homolog-keycloak.py
+      - name: Verify isolated Keycloak identity without modifications
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          timeout 60s tailscale ssh "delmacy@$DEPLOY_HOST" 'python3 - --check' < scripts/identity/provision-homolog-keycloak.py
