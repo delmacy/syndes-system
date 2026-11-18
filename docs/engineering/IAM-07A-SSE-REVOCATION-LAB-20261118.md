@@ -1,6 +1,6 @@
 # IAM-07A — SSE com reautorização fresca e revogação real em laboratório
 
-**Data:** 2026-11-18. **Estado:** candidato para CI da PR, não homologado nem conectado ao IAM operacional.
+**Data:** 2026-11-18. **Estado:** IAM-07A **testado e integrado na main** via [PR #169](https://github.com/delmacy/syndes-system/pull/169), commit `948472f9a1e0a3672d2598549bb519228a94c96f`; CI [44283576958](https://github.com/delmacy/syndes-system/actions/runs/44283576958) **24/24 aprovado**. Não homologado como IAM operacional.
 
 ## Motivo e alteração
 
@@ -21,13 +21,13 @@ Reusa o `tests/platform/iam06b-composite-ci.mjs` dentro do job `keycloak-real-jw
 5. Amostra sequencial de 14 revalidações end-to-end reais, reportando p95 em milissegundos **sem** PII. É uma medição de ambiente descartável; não serve como SLO de produção.
 6. Testes determinísticos `modules/inbox/test/realtime.test.mjs` mostram a corrida entre checagem anterior e nova invalidação, coalescência de 100 eventos, isolamento de channel e fechamento por backpressure.
 
-Marcadores esperados depois de CI:
+Marcadores **comprovados no CI real** (job `keycloak-real-jwt`):
 
 `IAM07_REAL_SSE_FGA_SQL_MODULE_LINK_ORG_REVOCATION_PASS`
 
 `IAM07_REAL_SSE_CROSS_SCOPE_AND_PROVIDER_FAILURE_DENY_PASS`
 
-`IAM07_REAL_CI_REVALIDATION_P95_MS=...` — medição descartável, sem comprometer meta de p95 de produção.
+`IAM07_REAL_CI_REVALIDATION_P95_MS=36_N=14_DISPOSABLE_NOT_SLA` — medição descartável, sem comprometer meta de p95 de produção.
 
 ## Limites obrigatórios
 
@@ -43,3 +43,6 @@ Marcadores esperados depois de CI:
 **IAM-07B**: ensaio em HTTP real (401/403, restart/reconexão de SSE, expiração do JWT), teste de transfer/claim/funil com efeitos concorrentes e locks SQL; fault injection independente para Keycloak/Control/tenant/FGA, recuperação, latência p95 sob carga e multi-processo. **IAM-09** somente após Product Gate CRM/Inbox, restore/rollback e isolamento físico integral.
 
 Rastreamento: Issue #160, WBS IAM, PR desta entrega. A classificação permanece **BLOCKER de segurança para ativação operacional**, não um novo produto do MVP.
+
+
+**Evidência de laboratório:** run [44283576958](https://github.com/delmacy/syndes-system/actions/runs/44283576958), PR [#169](https://github.com/delmacy/syndes-system/pull/169). A falha intermitente de teardown foi corrigida removendo `DROP DATABASE ... WITH (FORCE)` e exigindo ausência de conexões ativas antes de remover o banco descartável. Nenhum IAM operacional foi ativado por esta entrega.
