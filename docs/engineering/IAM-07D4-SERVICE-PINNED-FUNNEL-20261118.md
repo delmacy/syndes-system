@@ -1,6 +1,6 @@
 # IAM-07D4 — Engine real do Service Management sob epoch transacional
 
-**Data:** 2026-11-18. **Estado:** PR candidata, CI ainda pendente. **PRODUCTION_GATE=BLOCKED**.
+**Data:** 2026-11-18. **Estado:** MERGED PR [#179](https://github.com/delmacy/syndes-system/pull/179), CI [44315562330](https://github.com/delmacy/syndes-system/actions/runs/44315562330) **24/24**, marcador `IAM07D4_PG17_REAL_SERVICE_FUNNEL_EPOCH_AUDIT_PASS` confirmado, merge `802e9d23891e028bd4e319b8998d3c51a5e1dfd0`. **PRODUCTION_GATE=BLOCKED**.
 
 ## Garantia restrita, mas concreta
 
@@ -32,6 +32,6 @@ A **política específica e a admission Keycloak do teste Service são portas si
 - A verificação externa Keycloak/OpenFGA antes de começar o efeito não é atomicamente conectada ao COMMIT tenant. A garantia de ordem vem do canal tenant-first quando este é o único escritor autorizado, que ainda precisa ser operacionalmente imposto.
 - Não há backup/restore real de staging com rollback, load/soak multi-host, deploy, alteração de realm ou credentials, nem aceite do Product Gate.
 
-**Resultado permitido em CI verde:** autorizar **mais implementação e E2E integrado**, nunca produção; `PRODUCTION_GATE=BLOCKED`.
+**Resultado permitido com CI verde confirmado:** autorizar **mais implementação e E2E integrado**, nunca produção; `PRODUCTION_GATE=BLOCKED`.
 
 Rastreamento: Issue #160 e WBS IAM.
