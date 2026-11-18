@@ -13,7 +13,7 @@
 | IAM-04 | P0 | Associação Organization Keycloak ↔ platform_organizations do Syndes | IDs imutáveis, tenant explícito, state/audit, provisionamento e revogação idempotentes, sem depender de nomes | IAM-04B: PG17 REAL DESCARTÁVEL + CI 24/24 APROVADO; OPERAÇÃO PENDENTE |
 | IAM-05 | P0 | AuthenticatedUser/Token+Context trusted para AuthorizationPort | Validação OIDC iss/aud/azp, membership tenant e org, vínculo workspace+funil, refetch server-side, nunca JWT em log; Manager isolado | IAM-05B: KEYCLOAK 26.8.1 REAL + SERVICE ACCOUNT LEITURA CI APROVADO; RUNTIME/JORNADA PENDENTES |
 | IAM-06 | P0 | Integrar capability check no backend apenas em modo shadow | Comparar Keycloak vs OpenFGA para mesmas chamadas, sem trocar decisões ou emitir grants; cobertura real de Inbox claim/transfer e Funis | IAM-06A MERGED #166; IAM-06B LAB REAL COMPOSTO CI 24/24 E MERGED #167; RUNTIME/HTTP/CLAIM/TRANSFER PENDENTES |
-| IAM-07 | P0 | Provar revogação, isolamento e performance | Grupo/membro revogado e UI/SSE concorrente; org A/B; tenant A/B; funil A/B; indisponibilidade Keycloak; medir latência/p95 sem PII | PENDENTE |
+| IAM-07 | P0 | Provar revogação, isolamento e performance | Grupo/membro revogado e UI/SSE concorrente; org A/B; tenant A/B; funil A/B; indisponibilidade Keycloak; medir latência/p95 sem PII | IAM-07A: CORREÇÃO SSE + LAB REVOGAÇÃO REAL EM PR; HTTP/TRANSAÇÕES/ESCALA/P95 PROD PENDENTES |
 | IAM-08 | P1 | Administração delegada via Syndes | UI somente após APIs autenticadas e auditadas, grants mínimos e sync/reconciliação; sem admin Keycloak no browser | PENDENTE |
 | IAM-09 | P0 | Product Gate, backup/restore, rollout e rollback | Comparação positiva e negativa real, recovery e custos; controle SHA; remover FGA de classe humana **somente** com equivalência e aprovação | BLOQUEADO |
 | IAM-10 | P1 | Reavaliar service/event_delivery FGA separado | Não confundir grants de bots e workers com usuários; nenhum desligamento antes de desenho próprio | PENDENTE |
@@ -90,3 +90,13 @@ O Product Gate permanece BLOQUEADO até portas reais, laboratório integrado e s
 - Product Gate CRM/Inbox, IAM-07/09 e decisão efetiva OpenFGA permanecem inalterados. Logs devem conter apenas marcadores categóricos, sem JWT, sub, token de serviço ou IDs de tenant.
 
 - Evidência: [PR #167](https://github.com/delmacy/syndes-system/pull/167), [CI 44277334326](https://github.com/delmacy/syndes-system/actions/runs/44277334326), [merge SHA](https://github.com/delmacy/syndes-system/commit/edd6e2c1c5aeaa0f278e3944d29af1b83336ed28). O runtime continua com OpenFGA; não aplicar schema manual no Control operacional.
+
+
+### IAM-07A — candidato de revogação viva e SSE (18/11/2026)
+
+- `modules/inbox/src/realtime.ts`: cada invalidação SSE em modo `revalidate` exige **checagem nova**; não reaproveita uma promise de período/invalidação anterior. Bursts coalescidos, erro e cliente lento fecham stream. O mecanismo já existente de modo legado permanece sem acoplamento IAM.
+- `apps/core-host/src/iam07-sse-session-pilot.ts`: candidato **isolado** para abrir SSE apenas após JWT real + membership atual Keycloak + Control, tenant PG17 / SQL002 + módulo e link válidos + FGA. O callback volta a percorrer todos os checks; não é importado por main.ts/InboxHost.
+- `modules/inbox/test/realtime.test.mjs` e `apps/core-host/test/iam07-sse-session-pilot.test.mjs`: corrida verificadora antiga x publicação nova, coalescência, revogação e falhas de fonte.
+- `tests/platform/iam07-sse-live-ci.mjs`, chamado pelo lab `iam06b-composite-ci.mjs`: real Keycloak 26.8.1 e mesmo JWT humano, Control+tenant PG17 isolados, OpenFGA real e InboxChangeBus. Exige marcadores `IAM07_REAL_SSE_FGA_SQL_MODULE_LINK_ORG_REVOCATION_PASS`, `IAM07_REAL_SSE_CROSS_SCOPE_AND_PROVIDER_FAILURE_DENY_PASS` e p95 de amostra CI (14 consultas, sem PII).
+- **CI desta PR:** pendente; não marcar como validado até logs e `Syndes CI Gate` verdes.
+- **Permanecem abertos:** SSE HTTP/proxy real, expiração e reconexão token, races de efeitos SQL claim/transfer/funil, A/B com múltiplos Contexts (SQL002 bloqueia multi-org no tenant), fault injection independente e recovery providers, escala multi-Core Host e p95 produção. Não ativar IAM no runtime nem promover Keycloak UMA substituto do FGA. Ver `docs/engineering/IAM-07A-SSE-REVOCATION-LAB-20261118.md`.
