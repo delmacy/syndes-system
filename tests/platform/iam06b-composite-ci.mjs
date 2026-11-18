@@ -1,3 +1,4 @@
+import {runIamMultiOrgKeycloakFgaHttpLab} from "./iam-multiorg-keycloak-fga-http-ci.mjs";
 import {runIam07d2FineFgaLiveLab} from "./iam07d2-fine-fga-live-ci.mjs";
 import {runIamMultiOrgTopologyPg17Lab} from "./iam-multiorg-structural-pg17-ci.mjs";
 import {runIamRevocationConcurrentPg17Lab} from "./iam-revocation-concurrent-pg17-ci.mjs";
@@ -363,6 +364,15 @@ export async function runIam06bLab(args){
       !c.includes(args.alice)&&!c.includes(args.atAlice)));
     console.log("IAM06B_REAL_JWT_CONTROL_PG17_TENANT_SQL002_OPENFGA_KEYCLOAK_PASS");
     console.log("IAM06B_REAL_FGA_DENY_UMA_ALLOW_AND_LIVE_REVOCATION_PASS");
+    // LAST: Keycloak Org A+B real links to one disposable tenant DB after
+    // removing SQL002. Does not affect previous single-context regressions.
+    await runIamMultiOrgKeycloakFgaHttpLab({
+      bearer,atAlice:args.atAlice,actorId:args.alice,
+      orgA:args.orgs.a,orgB:args.orgs.b,adminToken:args.adminToken,
+      managerToken:args.adminAccess,otherUserToken:args.atBob,
+      verifier,control,tenantDb,links,members,moduleGate,provider,
+      linkTransition:op,changeMembership:keycloakMemberChange,fgaWrite:fga,
+    });
   }finally{
     if(tenantDb)await tenantDb.end();
     // IAM-07 uses long-lived SSE rechecks. Never FORCE-kill idle PostgreSQL
