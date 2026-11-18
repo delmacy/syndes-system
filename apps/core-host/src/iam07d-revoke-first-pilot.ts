@@ -71,6 +71,9 @@ export type SpecificIam07dPolicy=Readonly<{
 export class Iam07dRevokeFirstPilot{
  private readonly issued=new WeakSet<object>();
  private readonly verifiedContexts=new WeakMap<object,ResolvedIamPilotContext>();
+ private readonly verifiedRequests=new WeakMap<object,Readonly<{
+  bearer:string;requested:RequestedIamPilotContext;
+ }>>();
  constructor(private readonly admission:Pick<OrganizationContextAdmissionPilot,"resolve">,
    private readonly specific:SpecificIam07dPolicy,
    private readonly tenants:TrustedTenantTransactionProvider,
@@ -118,6 +121,9 @@ export class Iam07dRevokeFirstPilot{
    });
    this.issued.add(ticket);
    this.verifiedContexts.set(ticket,Object.freeze({...context}));
+   this.verifiedRequests.set(ticket,Object.freeze({
+    bearer,requested:Object.freeze({...requested}),
+   }));
    return ticket;
   }catch{throw new AccessDeniedError();}
  }
@@ -130,9 +136,18 @@ export class Iam07dRevokeFirstPilot{
    throw new AccessDeniedError();
   try{
    const context=this.verifiedContexts.get(ticket);
-   if(!context||context.actor.id!==ticket.actor.id||
-      context.capability!==ticket.capability||
-      await this.specific.canPerform(context,ticket.capability)!==true)
+   const original=this.verifiedRequests.get(ticket);
+   if(!context||!original||context.actor.id!==ticket.actor.id||
+      context.capability!==ticket.capability)
+    throw new AccessDeniedError();
+   // Reverify the SAME signed bearer, live Keycloak Org membership,
+   // module entitlement, Control link and selected SQL context. This catches
+   // direct external revocations when they precede the new check. Only a
+   // trusted tenant-first fence can serialize the subsequent SQL commit.
+   const live=await this.admission.resolve(original.bearer,original.requested);
+   if(live.actor.id!==ticket.actor.id||live.capability!==ticket.capability||
+      live.resourceName!==context.resourceName||
+      await this.specific.canPerform(live,ticket.capability)!==true)
     throw new AccessDeniedError();
    return await this.tenants.withTransaction(ticket.tenantId,async tx=>{
     if(tx.tenantId!==ticket.tenantId||
