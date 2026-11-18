@@ -28,6 +28,10 @@ export class CrmDefaultContextGuard{
     private readonly enforceModuleGate=false,
   ){}
   async resolve(tenantId:string,actor:Actor,selection?:RequestedOperationalScope):Promise<AuthorizedCrmDefaultContext>{
+    // Multi-org needs Control's live module entitlement as well as tenant
+    // and scoped SQL membership. A coarse legacy FGA grant is insufficient.
+    if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&!this.enforceModuleGate)
+      throw new AccessDeniedError();
     if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&!selection)throw new AccessDeniedError();
     const admission={actor,tenantId,action:"read",resource:"crm:context"} as const;
     const resolveContext=async()=>{
