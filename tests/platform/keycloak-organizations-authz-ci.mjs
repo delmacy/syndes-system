@@ -361,7 +361,7 @@ export async function runIam03Lab({base,adminToken,managerToken}){
   // Same still-valid human JWT, now exercised against real Control+tenant PG17,
   // real live Organization membership, OpenFGA and real Keycloak UMA.
   await runIam06bLab({
-    base,realm:LAB_REALM,adminToken,adminAccess:process.env.CI_IAM06B_MANAGER_TOKEN,
+    base,realm:LAB_REALM,adminToken,adminAccess:managerToken,
     readerClient,readerSecret,policyClient,uiClient,
     tenant,alpha,workspaceA,orgs,alice,bob,atAlice,atBob,scopes,resources,
   });
