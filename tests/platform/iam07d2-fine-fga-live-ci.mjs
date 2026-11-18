@@ -11,6 +11,8 @@ import {Iam07dRevokeFirstPilot}
  from "../../apps/core-host/dist/iam07d-revoke-first-pilot.js";
 import {Iam07dRevocationOutboxDispatcher}
  from "../../apps/core-host/dist/iam07d-revocation-dispatcher.js";
+import {Iam07dInboxBusinessPilot}
+ from "../../apps/core-host/dist/iam07d-inbox-business-pilot.js";
 import {OpenFgaFineCapabilityPolicy,OpenFgaFineGrantRevoker,iam07dFineObject}
  from "../../apps/core-host/dist/iam07d-fine-fga-policy.js";
 import {pilotResourceName}
@@ -139,6 +141,37 @@ export async function runIam07d2FineFgaLiveLab(f){
  });
  assert.equal((await f.tenantDb.query(
   "SELECT count(*)::int AS n FROM iam07d2_live_effects")).rows[0].n,1);
+ // IAM07D3: the SAME signed Keycloak identity and fine OpenFGA grant now
+ // execute the REAL Inbox Repository.assign SQL and audit, under epoch lock.
+ for(const relative of [
+  "../../modules/core-crm/sql/001_crm_foundation.sql",
+  "../../modules/core-crm/sql/002_crm_tags_notes.sql",
+  "../../modules/core-crm/sql/003_crm_employees_channels.sql",
+  "../../modules/inbox/sql/001_inbox_foundation.sql",
+  "../../modules/whatsapp/sql/001_whatsapp_accounts.sql",
+  "../../modules/organizations/sql/003_legacy_ownership.sql",
+ ]){
+  await f.tenantDb.query(await readFile(new URL(relative,import.meta.url),"utf8"));
+ }
+ const assignedChat=randomUUID(),deniedChat=randomUUID();
+ for(const chat of [assignedChat,deniedChat])await f.tenantDb.query(
+  "INSERT INTO inbox_conversations"+
+  "(tenant_id,id,subject,channel,platform_organization_id,"+
+  "platform_origin_workspace_id,platform_current_workspace_id)"+
+  " VALUES($1,$2,'IAM07D3 verified claim','simulation',$3,$4,$4)",
+  [TENANT,chat,ORG,WS]);
+ const business=new Iam07dInboxBusinessPilot(controlled);
+ const claimed=await business.claim(f.bearer,request(CAP),assignedChat);
+ assert.equal(claimed.id,assignedChat);
+ assert.equal(claimed.assignedTo,f.actorId);
+ await assert.rejects(business.claim(f.bearer,request(CAP),assignedChat),
+  AccessDeniedError,"A second claim must not silently seize the same conversation");
+ assert.equal((await f.tenantDb.query(
+  "SELECT count(*)::int AS n FROM inbox_events"+
+  " WHERE tenant_id=$1 AND conversation_id=$2 AND action='assigned'",
+  [TENANT,assignedChat])).rows[0].n,1);
+ await assert.rejects(business.transfer(f.bearer,request(TRANSFER),deniedChat,randomUUID()),
+  AccessDeniedError,"No exact transfer grant exists");
  // A direct OpenFGA change is detected on the next admission, but an already
  // issued ticket is NOT globally fenced unless revocation passes tenant first.
  await f.fgaWrite("POST","/stores/"+store.id+"/write",{
@@ -146,6 +179,8 @@ export async function runIam07d2FineFgaLiveLab(f){
  });
  assert.equal(await fine.canPerform(claimContext,CAP),false);
  await assert.rejects(controlled.issue(f.bearer,request(CAP)),AccessDeniedError);
+ await assert.rejects(business.claim(f.bearer,request(CAP),deniedChat),
+  AccessDeniedError,"Direct FGA grant revocation must deny real Inbox claim");
  await assert.rejects(controlled.execute(ticket,async tx=>{
   await tx.query("INSERT INTO iam07d2_live_effects(id,capability) VALUES($1,$2)",
    [randomUUID(),CAP]);
@@ -198,6 +233,14 @@ export async function runIam07d2FineFgaLiveLab(f){
  }),AccessDeniedError);
  assert.equal(await fine.canPerform(claimContext,CAP),true,
   "Remote tuple may remain ALLOW, but tenant fence blocks business writes");
+ await assert.rejects(business.claim(f.bearer,request(CAP),deniedChat),
+  AccessDeniedError,"Tenant-first epoch must deny real claim even while FGA is ALLOW");
+ assert.equal((await f.tenantDb.query(
+  "SELECT assigned_to FROM inbox_conversations WHERE tenant_id=$1 AND id=$2",
+  [TENANT,deniedChat])).rows[0].assigned_to,null);
+ assert.equal((await f.tenantDb.query(
+  "SELECT count(*)::int AS n FROM inbox_events WHERE tenant_id=$1"+
+  " AND conversation_id=$2",[TENANT,deniedChat])).rows[0].n,0);
  const deadFga=new OpenFgaFineGrantRevoker(
   "http://127.0.0.1:18998",store.id,"disposable-only-fga-ci");
  controlAvailable=true;
@@ -227,4 +270,5 @@ export async function runIam07d2FineFgaLiveLab(f){
  console.log("IAM07D2_REAL_KEYCLOAK_SIGNED_JWT_PG17_OPENFGA_EXACT_CAPABILITY_PASS");
  console.log("IAM07D2_REAL_FGA_FUNNEL_A_B_AND_COARSE_GRANT_ISOLATION_PASS");
  console.log("IAM07D2_REAL_TENANT_FIRST_OUTBOX_FGA_RECOVERY_CONTROL_RECONCILE_PASS");
+ console.log("IAM07D3_REAL_KEYCLOAK_FGA_PG17_INBOX_CLAIM_EPOCH_AUDIT_PASS");
 }
