@@ -42,7 +42,7 @@ export class OrganizationService{
     const safeName=(value:unknown,fallback:string)=>{
       if(value===undefined)return fallback;
       if(typeof value!=="string"||value.trim().length<2||
-         value.trim().length>160||/[\\u0000-\\u001f]/.test(value))
+         value.trim().length>160||[...value].some(char=>char.charCodeAt(0)<32))
         throw new OrgInputError("Invalid bootstrap name");
       return value.trim();
     };
