@@ -200,14 +200,14 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
   await f.changeMembership("DELETE",f.orgB,f.actorId,f.adminToken);
   try{
    assert.equal(await send(f.bearer,orgB,wsB1),403);
-   assert.equal(await send(f.bearer,ORG_A,wsA2),200);
+   assert.equal(await send(f.bearer,ORG_A,WS_A1),200);
   }finally{await f.changeMembership("POST",f.orgB,f.actorId,f.adminToken)}
   assert.equal(await send(f.bearer,orgB,wsB1),200);
   // An FGA tuple for A cannot imply B, nor vice versa.
   await f.fgaWrite("POST","/stores/"+store.id+"/write",{
    deletes:{tuple_keys:[tupleA]}});
   try{
-   assert.equal(await send(f.bearer,ORG_A,wsA2),403);
+   assert.equal(await send(f.bearer,ORG_A,WS_A1),403);
    assert.equal(await send(f.bearer,orgB,wsB1),200);
   }finally{await f.fgaWrite("POST","/stores/"+store.id+"/write",{
    writes:{tuple_keys:[tupleA]}})}
@@ -219,7 +219,7 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
    [TENANT,orgB,wsB1,f.actorId]);
   try{
    assert.equal(await send(f.bearer,orgB,wsB1),403);
-   assert.equal(await send(f.bearer,ORG_A,wsA2),200);
+   assert.equal(await send(f.bearer,ORG_A,WS_A1),200);
   }finally{
    await f.tenantDb.query("UPDATE platform_workspace_memberships"+
     " SET state='active' WHERE tenant_id=$1 AND organization_id=$2"+
@@ -230,7 +230,7 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
   assert.equal(await f.linkTransition(f.control,link("revoked",1)),2);
   try{
    assert.equal(await send(f.bearer,orgB,wsB1),403);
-   assert.equal(await send(f.bearer,ORG_A,wsA2),200);
+   assert.equal(await send(f.bearer,ORG_A,WS_A1),200);
   }finally{assert.equal(await f.linkTransition(f.control,link("active",2)),3)}
   assert.equal(await send(f.bearer,orgB,wsB1),200);
   const claimCtxA2=await admission.resolve(f.bearer,scope(ORG_A,wsA2));
