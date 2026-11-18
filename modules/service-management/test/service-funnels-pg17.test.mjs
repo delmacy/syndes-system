@@ -488,6 +488,63 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    assert.equal(count,2);
   });
 
+  await t.test("IAM-07C PG17: membership revocation locks business effects and preserves audit",async()=>{
+   const scope=tenants[0],pool=pools.get(scope.tenantId);
+   const locker=await pool.connect();
+   let tx=false,pending;
+   try{
+    const before=Number((await pool.query(
+     "SELECT count(*)::int AS n FROM service.service_funnels")).rows[0].n);
+    const previousAudit=Number((await pool.query(
+     "SELECT count(*)::int AS n FROM service.service_attendance_events")).rows[0].n);
+    await locker.query("BEGIN");
+    tx=true;
+    await locker.query(`UPDATE platform_workspace_memberships
+      SET state='revoked'
+      WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3
+        AND principal_id='owner-a'`,
+      [scope.tenantId,scope.orgId,scope.workspaceId]);
+    let settled=false;
+    pending=service.publishSimpleFunnel(ctx(0,"owner-a"),{
+     code:"iam07c_revoked",name:"Revoked actor must not publish",
+     stages:[{code:"entry",label:"Recebido"},
+       {code:"done",label:"Concluído"}],
+    });
+    pending.then(()=>{settled=true},()=>{settled=true});
+    await new Promise(resolve=>setTimeout(resolve,140));
+    assert.equal(settled,false,
+     "A business write must wait for an uncommitted scope revocation");
+    await locker.query("COMMIT");
+    tx=false;
+    await assert.rejects(pending,AccessDeniedError,
+     "A committed SQL revoke must deny the pending business effect");
+    pending=undefined;
+    assert.equal(Number((await pool.query(
+     "SELECT count(*)::int AS n FROM service.service_funnels")).rows[0].n),before);
+    assert.equal(Number((await pool.query(
+     "SELECT count(*)::int AS n FROM service.service_attendance_events")).rows[0].n),previousAudit);
+    await pool.query(`UPDATE platform_workspace_memberships SET state='active'
+      WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3
+        AND principal_id='owner-a'`,
+      [scope.tenantId,scope.orgId,scope.workspaceId]);
+    const ok=await service.publishSimpleFunnel(ctx(0,"owner-a"),{
+     code:"iam07c_restored",name:"Restored local membership",
+     stages:[{code:"entry",label:"Recebido"},
+       {code:"done",label:"Concluído"}],
+    });
+    assert.equal(ok.state,"published");
+    console.log("IAM07C_PG17_SERVICE_MEMBERSHIP_REVOKE_COMMIT_FENCE_PASS");
+   }finally{
+    if(tx)await locker.query("ROLLBACK").catch(()=>{});
+    if(pending)await pending.catch(()=>{});
+    locker.release();
+    await pool.query(`UPDATE platform_workspace_memberships SET state='active'
+      WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3
+        AND principal_id='owner-a'`,
+      [scope.tenantId,scope.orgId,scope.workspaceId]).catch(()=>{});
+   }
+  });
+
   await t.test("input errors are rejected before any query or mutation",async()=>{
    await assert.rejects(service.publishSimpleFunnel(ctx(0,"owner-a"),{
     code:"invalido",name:"Invalido",stages:[
