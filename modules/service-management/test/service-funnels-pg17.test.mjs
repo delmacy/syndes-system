@@ -646,6 +646,108 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    console.log("IAM07D4_PG17_REAL_SERVICE_FUNNEL_EPOCH_AUDIT_PASS");
   });
 
+  await t.test("TOPO-05D real Service operations isolate two Organizations, four Workspaces and eight Funnels in ONE PG17 tenant",async()=>{
+   const pool=pools.get(tenants[0].tenantId);
+   const current=tenants[0],orgB=randomUUID(),wsA2=randomUUID(),
+    wsB1=randomUUID(),wsB2=randomUUID();
+   // This is the disposable database created by THIS test. The indexes
+   // are removed in one transaction, not in the operational SQL002 DB.
+   const cutover=await pool.connect();
+   try{
+    await cutover.query("BEGIN");
+    await cutover.query("DROP INDEX platform_legacy_single_organization");
+    await cutover.query("DROP INDEX platform_legacy_single_workspace");
+    await cutover.query("COMMIT");
+   }catch(error){await cutover.query("ROLLBACK").catch(()=>{});throw error}
+   finally{cutover.release()}
+   await pool.query(`INSERT INTO platform_organizations
+    (tenant_id,id,display_name,is_default)
+    VALUES($1,$2,'Second business',false)`,[current.tenantId,orgB]);
+   for(const [org,ws,slug,isDefault] of [
+    [current.orgId,wsA2,"second-a",false],
+    [orgB,wsB1,"first-b",true],
+    [orgB,wsB2,"second-b",false],
+   ]){
+    await pool.query(`INSERT INTO platform_workspaces
+     (tenant_id,id,organization_id,name,slug,is_default)
+     VALUES($1,$2,$3,$4,$5,$6)`,
+     [current.tenantId,ws,org,"Multi-org "+slug,slug,isDefault]);
+   }
+   await pool.query(`INSERT INTO platform_org_memberships
+    (tenant_id,organization_id,principal_id,role)
+    VALUES($1,$2,'owner-a','admin')`,[current.tenantId,orgB]);
+   for(const [org,ws] of [[current.orgId,wsA2],[orgB,wsB1],[orgB,wsB2]]){
+    await pool.query(`INSERT INTO platform_workspace_memberships
+     (tenant_id,organization_id,workspace_id,principal_id,role)
+     VALUES($1,$2,$3,'owner-a','admin')`,[current.tenantId,org,ws]);
+   }
+   const contexts=[
+    ctx(0,"owner-a"),
+    {tenantId:current.tenantId,organizationId:current.orgId,
+     workspaceId:wsA2,actor:{id:"owner-a",kind:"user"}},
+    {tenantId:current.tenantId,organizationId:orgB,
+     workspaceId:wsB1,actor:{id:"owner-a",kind:"user"}},
+    {tenantId:current.tenantId,organizationId:orgB,
+     workspaceId:wsB2,actor:{id:"owner-a",kind:"user"}},
+   ];
+   const all=[];
+   for(let index=0;index<contexts.length;index++){
+    const entry=[];
+    for(const n of [1,2]){
+     entry.push(await service.publishSimpleFunnel(contexts[index],{
+      code:"multi_org_"+n,
+      name:"Context "+index+" funnel "+n,
+      stages:[{code:"entry",label:"New case"},{code:"done",label:"Complete"}],
+     }));
+    }
+    all.push(entry);
+    const listed=await service.listFunnels(contexts[index]);
+    assert.equal(listed.filter(f=>f.code.startsWith("multi_org_")).length,2);
+   }
+   for(let i=0;i<contexts.length;i++){
+    const own=await service.open(contexts[i],{
+     funnelId:all[i][0].id,idempotencyKey:"topo05d-retry-shared-key",
+    });
+    assert.equal(own.funnelId,all[i][0].id);
+    assert.equal((await service.open(contexts[i],{
+     funnelId:all[i][0].id,idempotencyKey:"topo05d-retry-shared-key",
+    })).id,own.id);
+    assert.equal((await service.get(contexts[i],own.id))?.id,own.id);
+    assert.equal((await service.history(contexts[i],own.id)).length,1);
+    for(let j=0;j<contexts.length;j++){
+     if(i===j)continue;
+     assert.equal(await service.get(contexts[j],own.id),null);
+     assert.deepEqual(await service.history(contexts[j],own.id),[]);
+     assert.deepEqual(await service.board(contexts[j],all[i][0].id),[]);
+     await assert.rejects(service.open(contexts[j],{
+      funnelId:all[i][0].id,idempotencyKey:"topo05d-cross-"+i+"-"+j,
+     }),ServiceFunnelConflictError);
+    }
+   }
+   // A live revoke in B1 denies only that workspace. A2 and B2 remain
+   // writable for the SAME human subject and tenant after the revoke.
+   await pool.query(`UPDATE platform_workspace_memberships
+    SET state='revoked' WHERE tenant_id=$1 AND organization_id=$2
+     AND workspace_id=$3 AND principal_id='owner-a'`,
+    [current.tenantId,orgB,wsB1]);
+   await assert.rejects(service.publishSimpleFunnel(contexts[2],{
+    code:"revoked_b1",name:"Should never publish",
+    stages:[{code:"entry",label:"Entry"},{code:"done",label:"Done"}],
+   }),AccessDeniedError);
+   assert.equal((await service.open(contexts[1],{
+    funnelId:all[1][1].id,idempotencyKey:"topo05d-a2-after-b1-revoke",
+   })).funnelId,all[1][1].id);
+   assert.equal((await service.open(contexts[3],{
+    funnelId:all[3][1].id,idempotencyKey:"topo05d-b2-after-b1-revoke",
+   })).funnelId,all[3][1].id);
+   const count=(await pool.query(`SELECT count(*)::int AS n
+    FROM service.service_funnels WHERE tenant_id=$1
+     AND organization_id=$2 AND workspace_id=$3
+     AND code='revoked_b1'`,[current.tenantId,orgB,wsB1])).rows[0].n;
+   assert.equal(count,0);
+   console.log("IAM_TOPO05D_REAL_SERVICE_TWO_ORGS_FOUR_WORKSPACES_EIGHT_FUNNELS_BUSINESS_ISOLATION_PASS");
+  });
+
   await t.test("input errors are rejected before any query or mutation",async()=>{
    await assert.rejects(service.publishSimpleFunnel(ctx(0,"owner-a"),{
     code:"invalido",name:"Invalido",stages:[
