@@ -1,6 +1,6 @@
 # IAM-07D3 — Inbox real dentro da transação IAM com epoch
 
-**Data:** 2026-11-18. **Estado:** candidato até CI. **PRODUCTION_GATE=BLOCKED**.
+**Data:** 2026-11-18. **Estado:** MERGED PR [#178](https://github.com/delmacy/syndes-system/pull/178), CI [44312054884](https://github.com/delmacy/syndes-system/actions/runs/44312054884) **24/24**. **PRODUCTION_GATE=BLOCKED**.
 
 ## Contrato de execução
 
@@ -16,7 +16,7 @@ A operação `claim` exige `inbox.conversation.claim`, seleciona dentro da trans
 
 **Marcador adicional esperado:** `IAM07D3_REAL_KEYCLOAK_FGA_PG17_INBOX_CLAIM_EPOCH_AUDIT_PASS`, além dos marcadores IAM07D2 e `Syndes CI Gate`.
 
-**Limites relevantes:** a rota Nest de negócios operacional não está montada neste piloto; `main.ts` permanece sem import. A transferência cross-workspace **sob epoch IAM** é exercitada em um **schema PostgreSQL 17 isolado com duas workspaces**, mas usa um **adapter de identidade/política fina injetado pelo teste**; não é a mesma prova HTTP com JWT real do laboratório IAM-07D3 claim, nem libera SQL002 físico em qualquer tenant operacional. O módulo Service Management ainda carece de ligação **real** do fence ao mesmo `TenantTransaction` de `advance/assign/transferTeam` e de validação de `funnelId` dentro dele. Não tratar callback sintético como autorização de produto.
+**Limites relevantes:** a rota Nest de negócios operacional não está montada neste piloto; `main.ts` permanece sem import. A transferência cross-workspace **sob epoch IAM** é exercitada em um **schema PostgreSQL 17 isolado com duas workspaces**, mas usa um **adapter de identidade/política fina injetado pelo teste**; não é a mesma prova HTTP com JWT real do laboratório IAM-07D3 claim, nem libera SQL002 físico em qualquer tenant operacional. O avanço de etapa do Service Management passou a ter ligação **real** do fence ao mesmo `TenantTransaction` via IAM-07D4 #179, com `funnelId` validado e teste PG17 real. **Outras** operações (`assign`, `transferTeam`, `open`, `close`) ainda não estão vinculadas ao fence. Não tratar callback sintético como autorização de produto.
 
 A janela de revogação externa direta **após a última revalidação e antes do COMMIT** permanece; a garantia robusta depende de impedir escritores administrativos externos de contornar o tenant-first e garantir que **todos** os caminhos de negócio usem o fence. Reconciliar concessões FGA fora do catálogo é indispensável. **IAM-09 PRODUCTION_GATE=BLOCKED** até tais invariantes, least privilege, rollout controlado, testes de carga, restore staging real e aceite.
 
