@@ -35,6 +35,10 @@ export async function runIamMultiOrgTopologyPg17Lab(f){
   await conn.query("ROLLBACK TO SAVEPOINT legacy_fence_denial");
   await conn.query("RELEASE SAVEPOINT legacy_fence_denial");
   await conn.query("DROP INDEX platform_legacy_single_organization");
+  await conn.query("SAVEPOINT partial_fence_denial");
+  await assert.rejects(conn.query(multiFenceSql),error=>error.code==="55000");
+  await conn.query("ROLLBACK TO SAVEPOINT partial_fence_denial");
+  await conn.query("RELEASE SAVEPOINT partial_fence_denial");
   await conn.query("DROP INDEX platform_legacy_single_workspace");
   // The original 008 MUST reject a multi-org physical schema.
   await conn.query("SAVEPOINT original_fence_denial");
