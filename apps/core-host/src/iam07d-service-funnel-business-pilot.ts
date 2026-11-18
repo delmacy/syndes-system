@@ -38,7 +38,11 @@ export class Iam07dServiceFunnelBusinessPilot{
      !UUID.test(input.nextStageId??"")||
      !Number.isSafeInteger(input.expectedVersion)||input.expectedVersion<1)
    throw new AccessDeniedError();
-  const ticket=await this.iam.issue(bearer,requested);
+  // Snapshot browser-originated objects BEFORE any await. Neither a changed
+  // funnelId nor a modified expectedVersion can retarget an issued ticket.
+  const fixedRequest=Object.freeze({...requested});
+  const fixedInput=Object.freeze({...input});
+  const ticket=await this.iam.issue(bearer,fixedRequest);
   if(ticket.capability!=="service.funnel.operate")
    throw new AccessDeniedError();
   return this.iam.execute(ticket,async tx=>{
@@ -53,7 +57,7 @@ export class Iam07dServiceFunnelBusinessPilot{
       AND a.version=$6::bigint
      FOR NO KEY UPDATE
    `,[ticket.tenantId,ticket.organizationId,ticket.workspaceId,
-     input.attendanceId,requested.funnelId,input.expectedVersion]);
+     fixedInput.attendanceId,fixedRequest.funnelId,fixedInput.expectedVersion]);
    if(selected.rows.length!==1)throw new AccessDeniedError();
    const context:FunnelContext={
     tenantId:ticket.tenantId,organizationId:ticket.organizationId,
@@ -61,7 +65,7 @@ export class Iam07dServiceFunnelBusinessPilot{
    };
    // The Service implementation repeats its existing kernel/module checks,
    // protected membership query, trusted actor GUC and CAS stage transition.
-   return this.service.advancePinned(context,input,tx);
+   return this.service.advancePinned(context,fixedInput,tx);
   });
  }
 }
