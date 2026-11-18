@@ -15,6 +15,32 @@ const CAPS=new Set<SpecificIam07dCapability>([
 ]);
 const SCOPE_PREFIX="syndes:v1:tenant:";
 const equalString=(value:unknown):value is string=>typeof value==="string"&&value.length>0;
+/** Pure deterministic object key for a trusted tenant grant catalog.
+ * No principal or personal information is embedded in the FGA object name.
+ * Does not grant access; model requires direct user: grantee tuple.
+ */
+export function iam07dFineObjectForScope(input:Readonly<{
+ tenantId:string;organizationId:string;workspaceId:string;
+ capability:SpecificIam07dCapability;resourceName:string;
+}>):string{
+ if(!input||![input.tenantId,input.organizationId,input.workspaceId]
+    .every(x=>typeof x==="string"&&UUID.test(x))||
+    !CAPS.has(input.capability))
+  throw Error("Invalid fine capability scope");
+ const base=SCOPE_PREFIX+input.tenantId+":org:"+input.organizationId+
+  ":workspace:"+input.workspaceId;
+ if(input.capability==="service.funnel.operate"){
+  if(typeof input.resourceName!=="string"||
+    !input.resourceName.startsWith(base+":funnel:")||
+    !UUID.test(input.resourceName.slice((base+":funnel:").length)))
+   throw Error("Verified funnel scope required");
+ }else if(input.resourceName!==base)
+  throw Error("Verified workspace scope required");
+ return "iam_capability:"+createHash("sha256").update([
+   "v1",input.tenantId,input.organizationId,input.workspaceId,
+   input.capability,input.resourceName,
+ ].join("\x1f")).digest("hex");
+}
 /** Exact immutable context; do not accept browser-selected resources or raw
  * arbitrary FGA object names. Funnel ID is explicit in trusted resourceName.
  * All inputs must already come from OrganizationContextAdmissionPilot.
@@ -30,20 +56,10 @@ export function iam07dFineObject(context:ResolvedIamPilotContext,
    context.moduleId!==(capability==="service.funnel.operate"?"service":"inbox")||
    !equalString(context.realm))
   throw Error("Untrusted fine capability identity");
- const base=SCOPE_PREFIX+context.tenantId+":org:"+context.organizationId+
-  ":workspace:"+context.workspaceId;
- const resource=context.resourceName;
- if(capability==="service.funnel.operate"){
-  if(typeof resource!=="string"||!resource.startsWith(base+":funnel:")||
-    !UUID.test(resource.slice((base+":funnel:").length)))
-   throw Error("Verified funnel ownership required");
- }else if(resource!==base)
-  throw Error("Verified workspace scope required");
- // Distinct capability and funnel resource derive distinct 256-bit object IDs.
- const fields=["v1",context.tenantId,context.organizationId,
-   context.workspaceId,capability,resource];
- return "iam_capability:"+createHash("sha256")
-  .update(fields.join("\x1f")).digest("hex");
+ return iam07dFineObjectForScope({
+  tenantId:context.tenantId,organizationId:context.organizationId,
+  workspaceId:context.workspaceId,capability,resourceName:context.resourceName,
+ });
 }
 function trustedOrigin(endpoint:string):URL{
  let parsed:URL;
