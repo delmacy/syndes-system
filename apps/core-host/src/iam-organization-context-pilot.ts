@@ -114,7 +114,8 @@ export class OrganizationContextAdmissionPilot {
     // Every failure is an access denial. Never log the bearer, sub, Keycloak
     // response body, membership rows, SQL credentials, or admin tokens.
     try{
-      const {tenantId,organizationId,workspaceId,capability,funnelId}=requested??{};
+      if(!requested)throw new AccessDeniedError();
+      const {tenantId,organizationId,workspaceId,capability,funnelId}=requested;
       if(!UUID.test(tenantId??"")||!UUID.test(organizationId??"")||
          !UUID.test(workspaceId??"")||
          !Object.hasOwn(CAPABILITIES,capability??""))throw new AccessDeniedError();
