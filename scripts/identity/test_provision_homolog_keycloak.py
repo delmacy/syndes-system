@@ -12,12 +12,20 @@ class HomologIdentityTest(unittest.TestCase):
     def test_existing_user_must_match_exact_marker_and_have_no_credentials(self):
         valid = {"username": mod.USER, "enabled": True,
                  "requiredActions": ["UPDATE_PASSWORD"],
+                 "email": "syndes-homolog-crm-inbox@example.invalid",
+                 "firstName": "Syndes", "lastName": "Homologacao",
                  "attributes": {"syndes-homolog-purpose": [mod.PURPOSE]}}
         mod.assert_identity(valid, [])
         with self.assertRaisesRegex(RuntimeError, "Credentials"):
             mod.assert_identity(valid, [{"type": "password"}])
         with self.assertRaisesRegex(RuntimeError, "dedicated"):
             mod.assert_identity({**valid, "attributes": {}}, [])
+        original = {**valid, "attributes": {}, "createdTimestamp": 1794962994000}
+        mod.assert_identity(original, [])
+        with self.assertRaisesRegex(RuntimeError, "dedicated"):
+            mod.assert_identity({**original, "createdTimestamp": 1794960000000}, [])
+        with self.assertRaisesRegex(RuntimeError, "dedicated"):
+            mod.assert_identity({**original, "email": "collision@example.invalid"}, [])
         with self.assertRaisesRegex(RuntimeError, "dedicated"):
             mod.assert_identity({**valid, "enabled": False}, [])
 

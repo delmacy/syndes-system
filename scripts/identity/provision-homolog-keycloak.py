@@ -99,9 +99,20 @@ def assert_identity(user, credentials):
         "expected_email": user.get("email") == "syndes-homolog-crm-inbox@example.invalid",
         "expected_display": user.get("firstName") == "Syndes" and user.get("lastName") == "Homologacao",
     }
-    if not all(checks[k] for k in ("username", "enabled", "purpose", "required_action")):
+    # Keycloak 26 can discard unmanaged custom profile attributes. For the
+    # one-time user created in the original approved run, accept instead the
+    # immutable creation-time window plus exact purpose-specific profile.
+    # Never adopt an older or unrelated account with the same username.
+    created = user.get("createdTimestamp")
+    original_release_user = (
+        isinstance(created, int)
+        and 1794962985000 <= created <= 1794963005000
+    )
+    required = ("username", "enabled", "required_action", "expected_email", "expected_display")
+    if not all(checks[k] for k in required) or not (checks["purpose"] or original_release_user):
         flags = ",".join(k + "=" + ("PASS" if v else "MISS") for k, v in checks.items())
-        raise RuntimeError("dedicated identity mismatch (sanitized flags: " + flags + ")")
+        raise RuntimeError("dedicated identity mismatch (sanitized flags: " + flags
+                           + ",original_release_window=" + ("PASS" if original_release_user else "MISS") + ")")
     if credentials:
         raise RuntimeError("Credentials already present; operator review required")
 

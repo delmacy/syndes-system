@@ -13,6 +13,8 @@
 ## Procedimento autorizado e evidência
 O provisionador é `scripts/identity/provision-homolog-keycloak.py`. O caminho de execução é **GitHub Actions → OIDC/Tailscale → SSH → script em stdin**, sem checkout, build, aplicação ou migração no servidor. O job `provision-homolog-identity` faz parte do workflow CD já existente e depende de `tailnet-preflight` PASS. Só aceita CI verde de `push` em `main`, com proprietário `delmacy` e assunto de commit de release *one-shot* `chore(auth): provision isolated Keycloak homologation principal 2026-11-17`. O código verifica também o SHA efetivo da `main`.
 
+Em Keycloak 26, atributos personalizados não gerenciados podem ser descartados pela política do User Profile. Se o marcador de finalidade não persistir, a reconciliação excepcional do usuário desta release exige **a janela de criação original de 18/11/2026 00:49:45–00:50:05 UTC**, username, e-mail, nome, status e ação de senha exatamente esperados e ausência de credenciais. Não modifica o realm nem concede permissões.
+
 O script só alcança a instância Keycloak do projeto Compose operacional `syndes-security-access`, usa o admin bootstrap já montado como Docker secret, nunca o imprime e falha com username existente incompatível. Sua operação `--check` não cria usuários. `--apply` só cria o usuário e a evidência privada.
 
 **A criação de usuário não torna o login funcional.** Por não gerar senha no pipeline, um operador autorizado deve criar uma senha temporária na administração do Keycloak e exigir substituição no primeiro login, preferencialmente por canal privado de recuperação. Não colocar senha no GitHub Actions, chat, README ou logs.
