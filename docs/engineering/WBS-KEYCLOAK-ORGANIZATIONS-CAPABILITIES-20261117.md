@@ -12,7 +12,7 @@
 | IAM-03 | P0 | Prova Keycloak 26.8.1 em laboratório descartável | Realm descartável, resource server confidential, Enforcing, 2 usuários, 2 orgs, 2 workspaces e funis; 0 concessão cruzada; remoção segura | LAB REAL APROVADO — PR #162, CI 24/24 |
 | IAM-04 | P0 | Associação Organization Keycloak ↔ platform_organizations do Syndes | IDs imutáveis, tenant explícito, state/audit, provisionamento e revogação idempotentes, sem depender de nomes | IAM-04B: PG17 REAL DESCARTÁVEL + CI 24/24 APROVADO; OPERAÇÃO PENDENTE |
 | IAM-05 | P0 | AuthenticatedUser/Token+Context trusted para AuthorizationPort | Validação OIDC iss/aud/azp, membership tenant e org, vínculo workspace+funil, refetch server-side, nunca JWT em log; Manager isolado | IAM-05B: KEYCLOAK 26.8.1 REAL + SERVICE ACCOUNT LEITURA CI APROVADO; RUNTIME/JORNADA PENDENTES |
-| IAM-06 | P0 | Integrar capability check no backend apenas em modo shadow | Comparar Keycloak vs OpenFGA para mesmas chamadas, sem trocar decisões ou emitir grants; cobertura real de Inbox claim/transfer e Funis | IAM-06A COMPARADOR ISOLADO + UNIT TESTS CANDIDATOS; IAM-06B E2E REAL/RUNTIME PENDENTES |
+| IAM-06 | P0 | Integrar capability check no backend apenas em modo shadow | Comparar Keycloak vs OpenFGA para mesmas chamadas, sem trocar decisões ou emitir grants; cobertura real de Inbox claim/transfer e Funis | IAM-06A CI 24/24 + merge #166; IAM-06B LAB REAL COMPOSTO EM CI; RUNTIME/HTTP/CLAIM/TRANSFER PENDENTES |
 | IAM-07 | P0 | Provar revogação, isolamento e performance | Grupo/membro revogado e UI/SSE concorrente; org A/B; tenant A/B; funil A/B; indisponibilidade Keycloak; medir latência/p95 sem PII | PENDENTE |
 | IAM-08 | P1 | Administração delegada via Syndes | UI somente após APIs autenticadas e auditadas, grants mínimos e sync/reconciliação; sem admin Keycloak no browser | PENDENTE |
 | IAM-09 | P0 | Product Gate, backup/restore, rollout e rollback | Comparação positiva e negativa real, recovery e custos; controle SHA; remover FGA de classe humana **somente** com equivalência e aprovação | BLOQUEADO |
@@ -79,3 +79,12 @@ O Product Gate permanece BLOQUEADO até portas reais, laboratório integrado e s
 - Atenção: only declared_legacy inbox.conversation.read (inbox:conversations/read) e inbox.message.send (inbox:messages/write) possuem mapa FGA coarse. Não afirmar paridade, mesmo quando decisões coincidirem. claim, transfer e service.funnel.operate são proposed e não herdam um write genérico.
 - Não alterado main.ts, controllers, SQL002, OpenFGA model/tuples, migrations, realm, usuário ou grants. A prova conjunta JWT humano+Control PG17+tenant PG+FGA real+Keycloak UMA e Product Gates IAM-07/09 continuam pendentes.
 - Referência: docs/engineering/IAM-06-SHADOW-COMPARISON-ISOLATED-20261118.md. Estado CI inicial: PENDENTE de PR; não tratar o código como runtime integrado.
+
+
+### IAM-06B — ensaio combinado no job existente (2026-11-18)
+
+- `tests/platform/iam06b-composite-ci.mjs`: Keycloak 26.8.1 JWT com audience+azp, memberships Organizations reais, Control/tenant PostgreSQL 17 em databases separados, módulo ENABLED do Control, link auditado, SQL002, OpenFGA real e UMA no mesmo fluxo de teste.
+- `.github/workflows/platform-manager.yml` mantém o job existente `keycloak-real-jwt`; acrescenta compilação dos adapters Host, OpenFGA 1.22.1 in-memory preso ao loopback e flag `IAM06B_DISPOSABLE_ONLY`. Não cria workflow lateral, realm operacional, migration ou deploy.
+- Negativos: FGA deny / UMA allow, membership removida sob token assinado vigente, viewer escrevendo, módulo desabilitado, link Control revogado, identidade Manager de outro issuer, org divergente e tentativa segunda org bloqueada por SQL002.
+- **Status inicial:** CÓDIGO PROPOSTO NA PR, CI NÃO COMPROVADO. Somente promover a LAB REAL após verificar os marcadores de log do ensaio e CI central completo. A prova não contém controllers HTTP/SSE, grants específicos para claim/transfer/funil, instalador físico, OpenBao/role tenant operacional ou migration 003 integral. Consultar `docs/engineering/IAM-06B-REAL-COMPOSITE-LAB-20261118.md`.
+- Product Gate CRM/Inbox, IAM-07/09 e decisão efetiva OpenFGA permanecem inalterados. Logs devem conter apenas marcadores categóricos, sem JWT, sub, token de serviço ou IDs de tenant.
