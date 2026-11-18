@@ -41,3 +41,11 @@
 | G-6 | Aprovação e implantação da migration de cutover em tenant controlado exclusivamente via CI/CD | NÃO EXECUTADA |
 
 **Regra de release:** só mudar Product Gate de BLOCKED para READY quando G-1..G-6 tiverem testes e provas vinculados a commits/SHA e execução CI real. Nenhuma documentação ou teste isolado substitui essa condição.
+
+
+## TOPO-05F — prova de restore DESCARTÁVEL, não homologação staging
+
+- Após TOPO-05D, a suite `modules/service-management/test/service-funnels-pg17.test.mjs` cria um arquivo **pg_dump -Fc** do tenant PG17 multi-org descartável, verifica seu cabeçalho `PGDMP` e checksum SHA-256 e executa `pg_restore` em um segundo banco descartável no mesmo container Docker.
+- A suite exige, depois da restauração: duas Organizations, quatro Workspaces, oito funis novos, attendances/eventos preservados, estado de membership B1 revogado e A2 ativo, índices SQL002 ausentes e FK que nega um funil declarado em Organization B com Workspace da Organization A.
+- Marcador esperado `IAM_TOPO05F_PG17_MULTI_ORG_PGDUMP_RESTORE_REVOCATION_AND_FK_PASS`; resultado não presumido antes da CI. Banco restaurado descartado em `finally`.
+- Esta prova **não** constitui G-4: staging com credenciais reais, backup externo/versionado, controle de acesso, restauração de Control + tenant e reconciliação de Keycloak/FGA ainda precisam de execução aprovada via GitHub Actions. `PRODUCTION_GATE=BLOCKED`.
