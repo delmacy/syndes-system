@@ -13,6 +13,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 type HostApi=Readonly<{
  kernel:CoreKernel;
  verifier:{verify(header:string|undefined):Promise<Actor>};
+ organizationAccess?:{requireActive(tenantId:string,organizationId:string,principalId:string):Promise<void>};
 }>;
 const status=(error:unknown)=>{
  if(error instanceof HttpException)return error;
@@ -50,6 +51,11 @@ export class ServiceManagementHost{
      typeof workspaceId!=="string"||!UUID.test(organizationId)||!UUID.test(workspaceId))
    throw new HttpException("Authorized organization/workspace selection required",403);
   try{
+   if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"){
+    if(!this.core.organizationAccess)throw new AccessDeniedError();
+    await this.core.organizationAccess.requireActive(
+     tenantId,organizationId,actor.id);
+   }
    return await operation({tenantId,organizationId,workspaceId,actor});
   }catch(error){throw status(error);}
  }
