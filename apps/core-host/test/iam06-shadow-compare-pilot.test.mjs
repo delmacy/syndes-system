@@ -142,7 +142,7 @@ test("spoofed manager/client/token/tenant/actor or wrong workspace scope denies 
     {...context,resourceName:"syndes:v1:tenant:"+tenant+":org:"+org+
       ":workspace:88888888-8888-4888-8888-888888888888"},
     {...context,moduleId:"service"},
-    {...context},
+    {...context,actor:{kind:"user",id:"not-uuid"}},
   ]){
     assert.equal(await pilot.authorize({
       context:Object.freeze(candidate),verifiedAccessToken:token,
