@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Read-only inventory of existing plugin permissions and candidate fine-grained IAM capabilities. NOT an authorization grant source.",
+  "entries": [
+    {
+      "id": "crm.person.read",
+      "module": "crm",
+      "resourceKind": "workspace",
+      "status": "declared_legacy",
+      "legacy": {
+        "resource": "crm:people",
+        "action": "read"
+      }
+    },
+    {
+      "id": "crm.person.update",
+      "module": "crm",
+      "resourceKind": "workspace",
+      "status": "declared_legacy",
+      "legacy": {
+        "resource": "crm:people",
+        "action": "write"
+      }
+    },
+    {
+      "id": "inbox.conversation.read",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "declared_legacy",
+      "legacy": {
+        "resource": "inbox:conversations",
+        "action": "read"
+      }
+    },
+    {
+      "id": "inbox.message.send",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "declared_legacy",
+      "legacy": {
+        "resource": "inbox:messages",
+        "action": "write"
+      }
+    },
+    {
+      "id": "inbox.conversation.claim",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "inbox.conversation.transfer",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "service.funnel.read",
+      "module": "service",
+      "resourceKind": "funnel",
+      "status": "declared_legacy",
+      "legacy": {
+        "resource": "service:funnels",
+        "action": "read"
+      }
+    },
+    {
+      "id": "service.funnel.operate",
+      "module": "service",
+      "resourceKind": "funnel",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "whatsapp.account.manage",
+      "module": "whatsapp",
+      "resourceKind": "workspace",
+      "status": "declared_legacy",
+      "legacy": {
+        "resource": "whatsapp:accounts",
+        "action": "write"
+      }
+    }
+  ]
+}
