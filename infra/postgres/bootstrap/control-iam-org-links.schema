@@ -1,0 +1,148 @@
+-- IAM-04B CANDIDATE: CONTROL PLANE ONLY; manual disposable PG17 rehearsal.
+-- NEVER sourced by 00-init.sh, tenant migrations, or operational deployment.
+-- Requires public.tenant_registry and preexisting syndes_core (control.schema).
+-- Physical platform_organizations live in separate tenant databases: an authorized
+-- operator MUST verify that organization and tenant ownership before invoking.
+DO $role$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='syndes_iam_link_operator')
+ THEN CREATE ROLE syndes_iam_link_operator NOLOGIN; END IF;
+END $role$;
+
+CREATE TABLE IF NOT EXISTS public.platform_keycloak_org_links (
+ tenant_id UUID NOT NULL REFERENCES public.tenant_registry(tenant_id) ON DELETE RESTRICT,
+ organization_id UUID NOT NULL,
+ realm TEXT NOT NULL CHECK (realm ~ '^[a-z][a-z0-9_-]{1,80}$'),
+ keycloak_organization_id UUID NOT NULL,
+ state TEXT NOT NULL CHECK (state IN ('active','revoked')),
+ revision BIGINT NOT NULL CHECK (revision > 0),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ PRIMARY KEY (tenant_id,organization_id),
+ UNIQUE (realm,keycloak_organization_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.platform_keycloak_org_link_audit (
+ id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ request_id UUID NOT NULL UNIQUE,
+ tenant_id UUID NOT NULL,
+ organization_id UUID NOT NULL,
+ realm TEXT NOT NULL,
+ keycloak_organization_id UUID NOT NULL,
+ payload_hash TEXT NOT NULL CHECK (payload_hash ~ '^[0-9a-f]{32}$'),
+ actor_id TEXT NOT NULL CHECK (length(actor_id) BETWEEN 1 AND 256),
+ reason TEXT NOT NULL CHECK (length(reason) BETWEEN 1 AND 500),
+ operation TEXT NOT NULL CHECK (operation IN ('provisioned','reaffirmed','revoked','reactivated')),
+ previous_state TEXT CHECK (previous_state IN ('active','revoked')),
+ result_state TEXT NOT NULL CHECK (result_state IN ('active','revoked')),
+ previous_revision BIGINT,
+ result_revision BIGINT NOT NULL CHECK (result_revision > 0),
+ occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ FOREIGN KEY (tenant_id,organization_id)
+   REFERENCES public.platform_keycloak_org_links(tenant_id,organization_id) ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS platform_keycloak_org_link_audit_by_org
+ ON public.platform_keycloak_org_link_audit(tenant_id,organization_id,id DESC);
+
+-- The only write entry point is a privileged operator function with a stable
+-- request UUID, expected revision CAS and two serializing advisory locks.
+-- Never grant the operator direct UPDATE/INSERT/DELETE on either table.
+CREATE OR REPLACE FUNCTION public.transition_platform_keycloak_org_link(
+ p_tenant UUID,p_organization UUID,p_realm TEXT,p_keycloak_organization UUID,
+ p_state TEXT,p_expected_revision BIGINT,p_request UUID,p_actor TEXT,p_reason TEXT
+) RETURNS BIGINT
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $fn$
+DECLARE
+ v_link RECORD;
+ v_replay RECORD;
+ v_hash TEXT;
+ v_revision BIGINT;
+ v_previous TEXT;
+ v_operation TEXT;
+BEGIN
+ IF p_tenant IS NULL OR p_organization IS NULL OR p_keycloak_organization IS NULL
+    OR p_request IS NULL OR p_realm IS NULL
+    OR p_realm !~ '^[a-z][a-z0-9_-]{1,80}$'
+    OR p_state NOT IN ('active','revoked') OR p_state IS NULL
+    OR p_expected_revision IS NULL OR p_expected_revision < 0
+    OR p_actor IS NULL OR length(p_actor) NOT BETWEEN 1 AND 256
+    OR p_reason IS NULL OR length(p_reason) NOT BETWEEN 1 AND 500
+ THEN RAISE EXCEPTION 'Invalid IAM organization link command' USING ERRCODE='22023'; END IF;
+
+ v_hash:=pg_catalog.md5(pg_catalog.jsonb_build_object(
+   'tenant',p_tenant,'organization',p_organization,'realm',p_realm,
+   'keycloak',p_keycloak_organization,'state',p_state,
+   'expected',p_expected_revision,'actor',p_actor,'reason',p_reason)::TEXT);
+
+ -- Deterministic acquisition order (platform then Keycloak) for all commands.
+ PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+  'iam-link-platform:'||p_tenant::TEXT||':'||p_organization::TEXT,0));
+ PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+  'iam-link-keycloak:'||p_realm||':'||p_keycloak_organization::TEXT,0));
+
+ SELECT * INTO v_replay FROM public.platform_keycloak_org_link_audit
+   WHERE request_id=p_request;
+ IF FOUND THEN
+   IF v_replay.payload_hash<>v_hash
+   THEN RAISE EXCEPTION 'IAM idempotency request conflict' USING ERRCODE='23505'; END IF;
+   IF NOT EXISTS(SELECT 1 FROM public.platform_keycloak_org_links
+     WHERE tenant_id=p_tenant AND organization_id=p_organization
+       AND realm=p_realm AND keycloak_organization_id=p_keycloak_organization
+       AND state=v_replay.result_state AND revision=v_replay.result_revision)
+   THEN RAISE EXCEPTION 'Stale IAM idempotency replay' USING ERRCODE='23514'; END IF;
+   RETURN v_replay.result_revision;
+ END IF;
+
+ -- Revocation must remain available when the tenant is suspended.
+ IF NOT EXISTS(SELECT 1 FROM public.tenant_registry WHERE tenant_id=p_tenant
+     AND (state='active' OR p_state='revoked'))
+ THEN RAISE EXCEPTION 'IAM tenant unavailable' USING ERRCODE='23514'; END IF;
+
+ SELECT * INTO v_link FROM public.platform_keycloak_org_links
+   WHERE tenant_id=p_tenant AND organization_id=p_organization FOR UPDATE;
+ IF NOT FOUND THEN
+   IF p_state<>'active' OR p_expected_revision<>0
+   THEN RAISE EXCEPTION 'IAM initial provision requires active expected=0'
+      USING ERRCODE='23514'; END IF;
+   INSERT INTO public.platform_keycloak_org_links(
+     tenant_id,organization_id,realm,keycloak_organization_id,state,revision)
+   VALUES(p_tenant,p_organization,p_realm,p_keycloak_organization,'active',1);
+   v_previous:=NULL;v_operation:='provisioned';v_revision:=1;
+ ELSE
+   IF v_link.realm<>p_realm
+      OR v_link.keycloak_organization_id<>p_keycloak_organization
+   THEN RAISE EXCEPTION 'IAM immutable identity association conflict'
+      USING ERRCODE='23505'; END IF;
+   IF v_link.revision<>p_expected_revision
+   THEN RAISE EXCEPTION 'IAM revision conflict' USING ERRCODE='40001'; END IF;
+   v_previous:=v_link.state;
+   IF v_previous=p_state THEN
+     v_operation:='reaffirmed';v_revision:=v_link.revision;
+   ELSE
+     v_revision:=v_link.revision+1;
+     v_operation:=CASE WHEN p_state='revoked' THEN 'revoked' ELSE 'reactivated' END;
+     UPDATE public.platform_keycloak_org_links
+       SET state=p_state,revision=v_revision,updated_at=clock_timestamp()
+       WHERE tenant_id=p_tenant AND organization_id=p_organization;
+   END IF;
+ END IF;
+
+ INSERT INTO public.platform_keycloak_org_link_audit(
+   request_id,tenant_id,organization_id,realm,keycloak_organization_id,
+   payload_hash,actor_id,reason,operation,previous_state,result_state,
+   previous_revision,result_revision)
+ VALUES(p_request,p_tenant,p_organization,p_realm,p_keycloak_organization,
+   v_hash,p_actor,p_reason,v_operation,v_previous,p_state,
+   CASE WHEN v_previous IS NULL THEN NULL ELSE p_expected_revision END,v_revision);
+ RETURN v_revision;
+END $fn$;
+
+REVOKE ALL ON public.platform_keycloak_org_links,
+  public.platform_keycloak_org_link_audit FROM PUBLIC;
+REVOKE ALL ON public.platform_keycloak_org_links,
+  public.platform_keycloak_org_link_audit FROM syndes_core,syndes_iam_link_operator;
+GRANT SELECT ON public.platform_keycloak_org_links TO syndes_core;
+REVOKE ALL ON FUNCTION public.transition_platform_keycloak_org_link(
+ UUID,UUID,TEXT,UUID,TEXT,BIGINT,UUID,TEXT,TEXT) FROM PUBLIC,syndes_core;
+GRANT USAGE ON SCHEMA public TO syndes_iam_link_operator;
+GRANT EXECUTE ON FUNCTION public.transition_platform_keycloak_org_link(
+ UUID,UUID,TEXT,UUID,TEXT,BIGINT,UUID,TEXT,TEXT) TO syndes_iam_link_operator;

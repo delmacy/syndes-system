@@ -108,6 +108,13 @@ case "$suite" in
     build_host_modules
     install apps/core-host
     (cd apps/core-host && npm run check && npm test)
+    # IAM-04B candidate: one isolated PostgreSQL 17 Control rehearsal. No operational migration.
+    pg_container="syndes-iam04b-pg17-ci"
+    start_pg "$pg_container" 32779 "ci-only-disposable-iam-ci" "17-alpine" "iam04b-pg17"
+    (cd apps/core-host && \
+      SYNDES_IAM04_DISPOSABLE_PG=IAM04B_PG17_ONLY \
+      SYNDES_IAM04_PG_URL="postgresql://postgres:ci-only-disposable-iam-ci@127.0.0.1:32779/postgres" \
+      node --test test/iam-organization-links-pg17.test.mjs)
     docker build --file apps/core-host/Dockerfile --tag syndes-core-host:ci .
     ;;
   workspace)
