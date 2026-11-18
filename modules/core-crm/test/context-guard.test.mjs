@@ -107,3 +107,23 @@ test("CRM rollout defaults to legacy and keeps existing guarded route behavior",
  assert.deepEqual(f.calls.map(([type])=>type),["tenancy","fga"]);
  assert.equal(f.resolved.length,1);
 });
+
+test("multi-org CRM denies coarse legacy access before opening tenant DB",async()=>{
+ const previous=process.env.SYNDES_MULTI_ORG_ENABLED;
+ process.env.SYNDES_MULTI_ORG_ENABLED="true";
+ try{
+  const legacy=await fake({enforce:false});
+  await assert.rejects(legacy.guard.resolve(tenant,alice,
+   {organizationId:org,workspaceId:ws}),AccessDeniedError);
+  assert.deepEqual(legacy.calls,[]);
+  assert.deepEqual(legacy.resolved,[]);
+  const disabled=await fake({enforce:true,enabled:false});
+  await assert.rejects(disabled.guard.resolve(tenant,alice,
+   {organizationId:org,workspaceId:ws}),AccessDeniedError);
+  assert.deepEqual(disabled.calls.map(([type])=>type),["tenancy","fga","module"]);
+  assert.deepEqual(disabled.resolved,[]);
+ }finally{
+  if(previous===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
+  else process.env.SYNDES_MULTI_ORG_ENABLED=previous;
+ }
+});

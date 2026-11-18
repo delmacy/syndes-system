@@ -60,9 +60,12 @@ test("Inbox SQL isolates Org A/B and Workspace A1/A2 inside one disposable tenan
   }};
   // No caller can select a second org/workspace until the SERVER switch
   // is on. Even then, the correct principal must hold BOTH memberships.
-  const kernel={execute:async (_query,fn)=>fn()};
+  // SQL isolation fixture: FGA and Control entitlement have independent
+  // tests; keep their verified ordering while exercising multi-org PG scopes.
+  const kernel={execute:async (_query,fn)=>fn(),
+   executeModule:async (_query,fn)=>fn()};
   const inboxScope=new InboxDefaultContextGuard(kernel,{resolve:async()=>db});
-  const crmScope=new CrmDefaultContextGuard(kernel,{resolve:async()=>db});
+  const crmScope=new CrmDefaultContextGuard(kernel,{resolve:async()=>db},true);
   const whatsappScope=new WhatsAppDefaultContextGuard(kernel,{resolve:async()=>db});
   const prior=process.env.SYNDES_MULTI_ORG_ENABLED;
   try{

@@ -15,7 +15,8 @@ export class WhatsAppDefaultContextGuard{
  constructor(private readonly kernel:CoreKernel,private readonly databases:TrustedTenantDatabaseProvider){}
  async resolve(tenantId:string,actor:Actor,selection?:RequestedOperationalScope):Promise<WhatsAppScope>{
   if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&!selection)throw new AccessDeniedError();
-  return this.kernel.execute({actor,tenantId,action:"read",resource:"whatsapp:accounts"},async()=>{
+  const admission={actor,tenantId,action:"read",resource:"whatsapp:accounts"} as const;
+  const resolveContext=async()=>{
    const db=await this.databases.resolve(tenantId);
    if(db.tenantId!==tenantId)throw Error("Tenant database mismatch");
    if(selection){
@@ -46,7 +47,10 @@ export class WhatsAppDefaultContextGuard{
    const row=query.rows[0];
    if(!row)throw new AccessDeniedError();
    return validScope({tenantId,organizationId:String(row.organization_id),workspaceId:String(row.workspace_id)});
-  });
+  };
+  return process.env.SYNDES_MULTI_ORG_ENABLED==="true"
+   ?this.kernel.executeModule({...admission,moduleId:"whatsapp"},resolveContext)
+   :this.kernel.execute(admission,resolveContext);
  }
 }
 
