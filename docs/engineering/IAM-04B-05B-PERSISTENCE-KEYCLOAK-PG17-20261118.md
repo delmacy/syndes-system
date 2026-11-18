@@ -32,7 +32,7 @@ Read adapter PgOrganizationIdentityLinks usa dois SELECTs parametrizados, sem LI
 Arquivo: apps/core-host/src/iam-organization-adapters.ts.
 
 - KeycloakServiceAccountTokens: confidential client_credentials de segredo em arquivo protegido; HTTPS obrigatório fora de localhost descartável; sem bootstrap admin ou token do browser.
-- KeycloakOrganizationMembershipReader: consulta GET /admin/realms/{realm}/organizations/{organization_uuid}/members/{subject_uuid} da **API oficial de administração**; role mínima proposta: realm-management/view-users no service account, fullScopeAllowed=false e scope mapping explícito.
+- KeycloakOrganizationMembershipReader: consulta GET /admin/realms/{realm}/organizations/{organization_uuid}/members/{subject_uuid} da **API oficial de administração**; roles de leitura mínimas para 26.8.1: realm-management/view-users + view-organizations no service account, fullScopeAllowed=false e scope mapping explícito.
 - Uma resposta 200 só admite member id correspondente e enabled=true. 404 nega; 403, 500, redirect, JSON malformado, indisponibilidade e timeout lançam erro e a admissão nega.
 - Cada verificação busca membership atual, sem cache de claims de organization ou token antigo como substitutos; não devolve PII ou segredo nas exceções. Serviço sem privilégio de administração do realm e sem uso de admin token no frontend.
 - A prova do privilégio mínimo do endpoint na 26.8.1 deve ser **observada no job Keycloak real**, não presumida a partir de uma interface mockada.
@@ -53,7 +53,7 @@ Os ports reais têm testes unitários mockados. O teste PG17 usa a associação 
 - apps/core-host/test/iam-organization-adapters.test.mjs: URL/realm/token, deny 404/403/500/redirect/timeout, subject mismatch/disabled, Control rows divergentes, ausência de LIMIT, client_credentials de arquivo sem log.
 - apps/core-host/test/iam-organization-links-pg17.test.mjs: PG17 descartável, repetição da DDL, ACL, N orgs por tenant, tenant B versus A, mapping 1:1, concorrência, idempotência, auditoria, CAS e revogação com sessão simulada.
 - scripts/ci/run-suite.sh, suite host: inicia PG17 efêmero preso ao loopback, variável de proteção IAM04B_PG17_ONLY e password somente CI; sem schema no banco real.
-- tests/platform/keycloak-organizations-authz-ci.mjs, job keycloak-real-jwt existente: Keycloak 26.8.1 em loopback; adiciona service account específico view-users e valida membership (200/404) antes/depois da revogação, mantendo teste UMA IAM-03.
+- tests/platform/keycloak-organizations-authz-ci.mjs, job keycloak-real-jwt existente: Keycloak 26.8.1 em loopback; adiciona service account específico view-users + view-organizations e valida membership (200/404) antes/depois da revogação, mantendo teste UMA IAM-03.
 
 Se qualquer job falhar, reter branch/PR, não integrar main e não promover o status da WBS.
 
