@@ -1,5 +1,6 @@
 import {runIam07d2FineFgaLiveLab} from "./iam07d2-fine-fga-live-ci.mjs";
 import {runIamMultiOrgTopologyPg17Lab} from "./iam-multiorg-structural-pg17-ci.mjs";
+import {runIamRevocationConcurrentPg17Lab} from "./iam-revocation-concurrent-pg17-ci.mjs";
 import {runIam07cNestHttpLab} from "./iam07c-nest-http-ci.mjs";
 import {runIam07bProviderRecoveryLab} from "./iam07b-provider-recovery-ci.mjs";
 import {runIam07SseLiveLab} from "./iam07-sse-live-ci.mjs";
@@ -304,6 +305,8 @@ export async function runIam06bLab(args){
     // Rollback-only PG17 topology proof: 2 organizations, 2 workspaces each,
     // 2 funnels per workspace. Restores physical SQL002 indexes on rollback.
     await runIamMultiOrgTopologyPg17Lab({tenantDb,actorId:args.alice});
+    // True PostgreSQL two-connection lock race and committed tenant-first deny.
+    await runIamRevocationConcurrentPg17Lab({tenantDb,actorId:args.alice});
 
 
     // Real FGA revoke while UMA user policy remains ALLOW: the request DENIES.
