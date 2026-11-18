@@ -119,3 +119,25 @@ test("IAM07D2 fine FGA and tenant outbox are separate, real and fail-closed",()=
  execFileSync("node",["--check","tests/platform/iam06b-composite-ci.mjs"]);
  execFileSync("node",["--check","apps/core-host/test/iam07d2-fine-policy.test.mjs"]);
 });
+
+test("IAM07D3 real Inbox write uses pinned IAM epoch and cannot hijack claim",()=>{
+ const source=read("apps/core-host/src/iam07d-inbox-business-pilot.ts");
+ const real=read("tests/platform/iam07d2-fine-fga-live-ci.mjs");
+ const composite=read("tests/platform/iam06b-composite-ci.mjs");
+ const main=read("apps/core-host/src/main.ts");
+ const selection=read("apps/core-host/config/modules.json");
+ assert.ok(source.includes("this.iam.issue(bearer,requested)"));
+ assert.ok(source.includes("this.iam.execute(ticket,async tx=>"));
+ assert.ok(source.includes("new PgInboxRepository(tx"));
+ assert.ok(source.includes("assigned_to IS NULL"));
+ assert.ok(source.includes("FOR NO KEY UPDATE"));
+ assert.ok(source.includes('requested.capability!=="inbox.conversation.claim"'));
+ assert.ok(source.includes('requested.capability!=="inbox.conversation.transfer"'));
+ assert.ok(real.includes("new Iam07dInboxBusinessPilot(controlled)"));
+ assert.ok(real.includes("IAM07D3_REAL_KEYCLOAK_FGA_PG17_INBOX_CLAIM_EPOCH_AUDIT_PASS"));
+ assert.ok(real.includes("inbox_events"));
+ assert.ok(composite.includes("await runIam07d2FineFgaLiveLab({"));
+ assert.ok(!main.includes("iam07d-inbox-business-pilot"));
+ assert.ok(!selection.includes("iam07d-inbox-business-pilot"));
+ execFileSync("node",["--check","tests/platform/iam07d2-fine-fga-live-ci.mjs"]);
+});
