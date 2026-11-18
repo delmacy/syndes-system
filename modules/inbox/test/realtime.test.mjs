@@ -128,3 +128,100 @@ test("SSE rejects a reauthorization that exceeds its timeout",async()=>{
  assert.equal(messages.at(-1),"END");
  assert.equal(messages.some(x=>x.startsWith("event: changed")),false);
 });
+
+
+test("IAM-07 SSE rechecks after a pending verdict when invalidation races revocation",async()=>{
+ const bus=new InboxChangeBus();
+ const scope={tenantId:A,organizationId:"33333333-3333-4333-8333-333333333333",
+  workspaceId:"44444444-4444-4444-8444-444444444444"};
+ const checks=[],frames=[];
+ let ends=0;
+ const sink={
+  setHeader:()=>{},write:frame=>{frames.push(frame);return true;},
+  end:()=>{frames.push("END");ends++;},on:()=>{},
+ };
+ const authorize=()=>new Promise(resolve=>checks.push(resolve));
+ bus.connect(scope,sink,authorize,10000,2000);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(checks.length,1,"initial change has an in-flight verdict");
+ bus.publish(scope); // a revocation can happen while the initial verifier is running
+ bus.publish(scope);
+ checks[0](true); // the OLD verifier result is permissive, but no longer fresh
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(checks.length,2,"a later invalidation MUST demand a fresh check");
+ assert.equal(frames.filter(x=>x.startsWith("event: changed")).length,0,
+  "stale success must not emit a changed notification");
+ checks[1](false);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(ends,1);
+ assert.equal(bus.count(scope),0);
+ assert.equal(frames.filter(x=>x.startsWith("event: changed")).length,0);
+});
+
+test("IAM-07 coalesces invalidation bursts and never borrows periodic authorization",async()=>{
+ const bus=new InboxChangeBus();
+ const scope={tenantId:A,organizationId:"33333333-3333-4333-8333-333333333333",
+  workspaceId:"44444444-4444-4444-8444-444444444444"};
+ const output=[],checks=[];
+ let releaseConnection;
+ const sink={setHeader:()=>{},write:x=>{output.push(x);return true;},
+  end:()=>output.push("END"),on:()=>{}};
+ const verifier=()=>new Promise(resolve=>checks.push(resolve));
+ bus.connect(scope,sink,verifier,10000,2000);
+ await new Promise(resolve=>setImmediate(resolve));
+ checks.shift()(true);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(output.filter(x=>x.startsWith("event: changed")).length,1);
+ for(let i=0;i<100;i++)bus.publish(scope);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(checks.length,1,"100 synchronous changes require one fresh in-flight recheck");
+ checks.shift()(true);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(output.filter(x=>x.startsWith("event: changed")).length,2);
+ for(let i=0;i<100;i++)bus.publish(scope);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(checks.length,1);
+ checks.shift()(false);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(output.at(-1),"END");
+ assert.equal(output.filter(x=>x.startsWith("event: changed")).length,2);
+});
+
+test("IAM-07 scoped streams cannot borrow another organization or workspace notification",async()=>{
+ const bus=new InboxChangeBus();
+ const orgA="33333333-3333-4333-8333-333333333333";
+ const orgB="66666666-6666-4666-8666-666666666666";
+ const wsA="44444444-4444-4444-8444-444444444444";
+ const wsB="77777777-7777-4777-8777-777777777777";
+ const a={tenantId:A,organizationId:orgA,workspaceId:wsA};
+ const b={tenantId:A,organizationId:orgB,workspaceId:wsB};
+ const otherTenant={tenantId:B,organizationId:orgA,workspaceId:wsA};
+ const framesA=[],framesB=[],framesC=[];
+ const sink=frames=>({setHeader:()=>{},write:s=>{frames.push(s);return true;},
+  end:()=>frames.push("END"),on:()=>{}});
+ bus.connect(a,sink(framesA),async()=>true,10000);
+ bus.connect(b,sink(framesB),async()=>true,10000);
+ bus.connect(otherTenant,sink(framesC),async()=>true,10000);
+ await new Promise(resolve=>setImmediate(resolve));
+ bus.publish(a);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(framesA.filter(s=>s.startsWith("event: changed")).length,2);
+ assert.equal(framesB.filter(s=>s.startsWith("event: changed")).length,1);
+ assert.equal(framesC.filter(s=>s.startsWith("event: changed")).length,1);
+});
+
+test("IAM-07 slow client backpressure closes enforced SSE without queuing invalidations",async()=>{
+ const bus=new InboxChangeBus();
+ const frames=[],scope={tenantId:A,organizationId:"33333333-3333-4333-8333-333333333333",
+  workspaceId:"44444444-4444-4444-8444-444444444444"};
+ let writes=0;
+ const sink={setHeader:()=>{},write:s=>{frames.push(s);return ++writes!==2;},
+  end:()=>frames.push("END"),on:()=>{}};
+ bus.connect(scope,sink,async()=>true,10000);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(frames.at(-1),"END");
+ assert.equal(bus.count(scope),0);
+ bus.publish(scope);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(frames.filter(x=>x.startsWith("event: changed")).length,1);
+});
