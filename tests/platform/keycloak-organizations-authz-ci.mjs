@@ -182,7 +182,7 @@ export async function runIam03Lab({base,adminToken}){
   assert.equal(await membership(orgs.b,alice),false);
 
 
-  // IAM-05B: use client_credentials with only the realm-management view-users
+  // IAM-05B: use client_credentials with realm-management view-users
   // and view-organizations roles. No realm administration or write grants.
   stage="service-membership";
   const readerClient="syndes-iam-membership-reader";
