@@ -89,6 +89,10 @@ class CoreController{
   catch{throw new HttpException("Unauthorized",HttpStatus.UNAUTHORIZED)}
   if(!tenantUUID(tenantId)||!body||typeof body!=="object"||typeof (body as {action?:unknown}).action!=="string"||typeof (body as {resource?:unknown}).resource!=="string")
    throw new HttpException("Invalid request",HttpStatus.BAD_REQUEST);
+  // This older authorize endpoint accepts only a tenant; it cannot express
+  // Organization/Workspace/Funnel. Never advertise a coarse ALLOW when
+  // multiple Organizations share that tenant. Scoped endpoints own admission.
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true")return {allowed:false};
   try{
    return await this.service.kernel.execute({actor,tenantId,action:(body as {action:string}).action,resource:(body as {resource:string}).resource},()=>({allowed:true}));
   }catch(e){
