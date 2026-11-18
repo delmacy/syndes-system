@@ -6,6 +6,9 @@ import {CoreKernel,AccessDeniedError,type ModuleDefinition,type SyndesPlugin} fr
 import {loadInstalledPlugins,installModuleAssets} from "./module-host.js";
 import {TenantPgProvider} from "./tenant-database.js";
 import {ActorVerifier,PgMembership,FgaPermission,tenantUUID} from "./adapters.js";
+import {OperationalOrganizationMembershipGate} from "./iam-operational-organization-gate.js";
+import {PgOrganizationIdentityLinks,KeycloakServiceAccountTokens,
+ KeycloakOrganizationMembershipReader} from "./iam-organization-adapters.js";
 import {PgModuleCatalog} from "./module-catalog.js";
 import {PgModuleLifecycle} from "./module-lifecycle.js";
 import {PgEffectiveModuleAccess} from "./module-effective-access.js";
@@ -24,6 +27,7 @@ class CoreService implements OnModuleDestroy{
  readonly moduleStates:PgModuleLifecycle;
  readonly crmModuleGateMode:"legacy"|"enforce";
  readonly inboxModuleGateMode:"legacy"|"enforce";
+ readonly organizationAccess?:OperationalOrganizationMembershipGate;
  constructor(@Inject(RUNTIME_SECRETS) credentials:CoreRuntimeSecrets,
              @Inject("SYNDES_MODULE_DEFINITIONS") modules:readonly ModuleDefinition[]) {
   this.crmModuleGateMode=crmModuleGateMode(process.env.SYNDES_CRM_MODULE_GATE);
@@ -32,12 +36,37 @@ class CoreService implements OnModuleDestroy{
   this.catalog=new PgModuleCatalog(this.db,modules);
   this.moduleStates=new PgModuleLifecycle(this.db,this.catalog);
   this.verifier=new ActorVerifier(env("CORE_KEYCLOAK_ISSUER"),env("CORE_KEYCLOAK_AUDIENCE"),env("CORE_KEYCLOAK_JWKS_URL"));
+  // Multi-org is never merely an environment toggle: the operational Host
+  // must have a read-only Keycloak Organizations service account and Control
+  // immutable-link schema. Missing configuration prevents boot entirely.
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"){
+   if(this.crmModuleGateMode!=="enforce"||this.inboxModuleGateMode!=="enforce")
+    throw Error("Multi-org requires CRM and Inbox enforced module gates");
+   const issuer=new URL(env("CORE_KEYCLOAK_ISSUER"));
+   const path=/^\/realms\/([a-z][a-z0-9_-]{1,80})$/.exec(issuer.pathname);
+   if(!path||issuer.search||issuer.hash||issuer.username||issuer.password||
+      (issuer.protocol!=="https:"&&!(issuer.protocol==="http:"&&
+       ["localhost","127.0.0.1"].includes(issuer.hostname))))
+    throw Error("Invalid multi-org Keycloak issuer");
+   const reader=new KeycloakServiceAccountTokens(issuer.origin,path[1],
+    env("CORE_IAM_ORG_READER_CLIENT_ID"),
+    env("CORE_IAM_ORG_READER_SECRET_FILE"));
+   this.organizationAccess=new OperationalOrganizationMembershipGate(path[1],
+    new PgOrganizationIdentityLinks(this.db),
+    new KeycloakOrganizationMembershipReader(issuer.origin,path[1],reader));
+  }
   this.kernel=new CoreKernel({modules,
    moduleAccess:new PgEffectiveModuleAccess(this.moduleStates),
    tenancy:new PgMembership(this.db),
    authorization:new FgaPermission(env("CORE_OPENFGA_URL"),env("CORE_OPENFGA_STORE_ID"),credentials.openfgaToken)});
  }
- async ready():Promise<void>{await this.db.query("SELECT 1");await this.kernel.start()}
+ async ready():Promise<void>{
+  await this.db.query("SELECT 1");
+  if(this.organizationAccess)
+   await this.db.query("SELECT realm,keycloak_organization_id,state,revision "+
+    "FROM public.platform_keycloak_org_links LIMIT 0");
+  await this.kernel.start();
+ }
  async onModuleDestroy():Promise<void>{await this.db.end()}
 }
 
