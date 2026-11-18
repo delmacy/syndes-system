@@ -177,6 +177,11 @@ test("IAM-07 coalesces invalidation bursts and never borrows periodic authorizat
  assert.equal(checks.length,1,"100 synchronous changes require one fresh in-flight recheck");
  checks.shift()(true);
  await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(output.filter(x=>x.startsWith("event: changed")).length,1,
+  "changes arriving during an older check require a second fresh verdict");
+ assert.equal(checks.length,1,"one coalesced follow-up check, not 100 checks");
+ checks.shift()(true);
+ await new Promise(resolve=>setImmediate(resolve));
  assert.equal(output.filter(x=>x.startsWith("event: changed")).length,2);
  for(let i=0;i<100;i++)bus.publish(scope);
  await new Promise(resolve=>setImmediate(resolve));
