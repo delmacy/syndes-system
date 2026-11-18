@@ -29,7 +29,7 @@ const PILOT_SCOPES: Readonly<Record<KeycloakPilotCapability, ScopedKind>> = Obje
   "service.funnel.operate": "funnel",
 });
 
-/** A registered Keycloak resource MUST have exactly this name. */
+/** A registered Keycloak resource MUST have exactly this name; UMA sends its server-issued ID. */
 export function pilotResourceName(context: TrustedKeycloakPilotContext): string {
   if (!context || !UUID.test(context.tenantId) || !UUID.test(context.organizationId) ||
       !UUID.test(context.workspaceId)) throw new Error("Invalid trusted authorization context");
@@ -70,6 +70,8 @@ export class KeycloakUmaAuthorizationPilot {
     verifiedAccessToken: string;
     context: TrustedKeycloakPilotContext;
     capability: KeycloakPilotCapability;
+    /** Resource/scope IDs reconciled against the trusted Keycloak catalog, never the browser. */
+    keycloakResource: Readonly<{ id: string; name: string; scopeId: string; scopeName: string }>;
   }>): Promise<boolean> {
     if (!input || typeof input.verifiedAccessToken !== "string" ||
         !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(input.verifiedAccessToken))
@@ -79,11 +81,14 @@ export class KeycloakUmaAuthorizationPilot {
     let name: string;
     try { name = pilotResourceName(input.context); }
     catch { return false; }
+    const mapped = input.keycloakResource;
+    if (!mapped || mapped.name !== name || mapped.scopeName !== input.capability ||
+        !UUID.test(mapped.id) || !UUID.test(mapped.scopeId)) return false;
 
     const form = new URLSearchParams({
       grant_type: "urn:ietf:params:oauth:grant-type:uma-ticket",
       audience: this.audience,
-      permission: name + "#" + input.capability,
+      permission: mapped.id + "#" + mapped.scopeId,
       response_mode: "decision",
       submit_request: "false",
     });
