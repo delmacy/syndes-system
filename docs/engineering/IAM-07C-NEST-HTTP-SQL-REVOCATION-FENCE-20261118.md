@@ -1,6 +1,6 @@
 # IAM-07C — HTTP Nest real e proteção SQL da revogação local
 
-**Data:** 2026-11-18. **Estado:** PR candidata, sujeita ao CI central. **PRODUCTION_GATE=BLOCKED**.
+**Data:** 2026-11-18. **Estado:** IMPLEMENTADO E TESTADO: PR [#173](https://github.com/delmacy/syndes-system/pull/173) merge `57c722658a4186cc50f2181d3613de2f1bc3153b`, CI [44301444684](https://github.com/delmacy/syndes-system/actions/runs/44301444684) **24/24 jobs aprovados, incluindo `Syndes CI Gate`**. **PRODUCTION_GATE=BLOCKED**.
 
 ## Motivação e fronteira
 
@@ -14,12 +14,12 @@ O gate IAM-07B #171 permitiu avançar nas implementações, não habilitar a nov
 4. `modules/inbox/src/postgres.ts`: transferência de workspace mantém `FOR SHARE` nas memberships de origem e destino, e `FOR NO KEY UPDATE` na conversa, na mesma instrução de atualização+auditoria. A atribuição já tinha lock previamente e permanece inalterada.
 5. `modules/service-management/test/service-funnels-pg17.test.mjs` e `modules/inbox/test/pg-transfer-revocation-races.mjs`: concorrência real PG17, revogação antes da operação, espera do lock, nenhuma alteração nem auditoria após revogação e sucesso após restabelecimento do vínculo. O teste de transferência cria schema **descartável** separado e suspende apenas nele o índice workspace SQL002 para viabilizar o segundo workspace. **SQL002 operacional e outros esquemas não são alterados.**
 
-## Evidência exigida
+## Evidência obtida (laboratório, não produção)
 
-- `IAM07C_REAL_NEST_HTTP_SIGNED_JWT_PG17_FGA_DENY_REVOKE_RESTORE_PASS` — no job real Keycloak, além dos marcadores IAM06/07.
-- `IAM07C_PG17_SERVICE_MEMBERSHIP_REVOKE_COMMIT_FENCE_PASS` — job Service PG17.
-- `IAM07C_PG17_INBOX_TRANSFER_DESTINATION_REVOKE_FENCE_PASS` — job Inbox PG17.
-- `Syndes CI Gate` aprovado, sem ignorar falhas das regressões ou artefatos pré-existentes.
+- `IAM07C_REAL_NEST_HTTP_SIGNED_JWT_PG17_FGA_DENY_REVOKE_RESTORE_PASS` — **PASS** no job real Keycloak, além dos marcadores IAM06/07.
+- `IAM07C_PG17_SERVICE_MEMBERSHIP_REVOKE_COMMIT_FENCE_PASS` — **PASS** job Service PG17.
+- `IAM07C_PG17_INBOX_TRANSFER_DESTINATION_REVOKE_FENCE_PASS` — **PASS** job Inbox PG17.
+- `Syndes CI Gate` **PASS**, com **24/24** jobs aprovados na run 44301444684.
 
 ## O que NÃO foi comprovado nem habilitado
 
