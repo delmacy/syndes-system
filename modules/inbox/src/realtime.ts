@@ -12,11 +12,20 @@ type Listener=()=>void;
 /** Old tenant-only messages are intentionally isolated from scoped clients. */
 export type InboxNotificationScope=Readonly<{tenantId:string;organizationId?:string;workspaceId?:string}>;
 type Address=string|InboxNotificationScope;
-const channel=(address:Address)=>typeof address==="string"
- ? "tenant:"+address
- : address.organizationId&&address.workspaceId
-   ? "workspace:"+JSON.stringify([address.tenantId,address.organizationId,address.workspaceId])
-   : (()=>{throw Error("Verified Inbox event scope is required")})();
+const channel=(address:Address)=>{
+ // Tenant-wide notifications cannot be admitted when multiple organizations
+ // share a tenant: old producers/subscribers must migrate or fail closed.
+ if(typeof address==="string"){
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true")
+   throw Error("Tenant-wide Inbox invalidations prohibited in multi-org");
+  return "tenant:"+address;
+ }
+ if(!address.organizationId||!address.workspaceId)
+  throw Error("Verified Inbox event scope is required");
+ return "workspace:"+JSON.stringify([
+  address.tenantId,address.organizationId,address.workspaceId,
+ ]);
+};
 export class InboxChangeBus {
   private readonly clients=new Map<string,Set<Listener>>();
   constructor(private readonly maxPerTenant=60){}
@@ -45,6 +54,8 @@ export class InboxChangeBus {
    */
   connect(address:Address,res:SseSink,
     revalidate?:()=>Promise<boolean>,recheckIntervalMs=5000,recheckTimeoutMs=3000):void {
+    if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&!revalidate)
+      throw Error("Live Inbox revalidation required in multi-org");
     if(revalidate&&(!Number.isInteger(recheckIntervalMs)||recheckIntervalMs<1||
       !Number.isInteger(recheckTimeoutMs)||recheckTimeoutMs<1))
       throw Error("Invalid SSE recheck interval/timeout");

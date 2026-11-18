@@ -230,3 +230,33 @@ test("IAM-07 slow client backpressure closes enforced SSE without queuing invali
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(frames.filter(x=>x.startsWith("event: changed")).length,1);
 });
+
+test("multi-org SSE refuses tenant-wide channels and streams without live revalidation",()=>{
+ const old=process.env.SYNDES_MULTI_ORG_ENABLED;
+ process.env.SYNDES_MULTI_ORG_ENABLED="true";
+ const bus=new InboxChangeBus(2);
+ const scopeA={tenantId:A,organizationId:"33333333-3333-4333-8333-333333333333",
+  workspaceId:"44444444-4444-4444-8444-444444444444"};
+ const scopeB={tenantId:A,organizationId:"55555555-5555-4555-8555-555555555555",
+  workspaceId:"66666666-6666-4666-8666-666666666666"};
+ try{
+  assert.throws(()=>bus.subscribe(A,()=>{}),/Tenant-wide/);
+  assert.throws(()=>bus.publish(A),/Tenant-wide/);
+  assert.throws(()=>bus.count(A),/Tenant-wide/);
+  const sink={setHeader:()=>{},write:()=>true,end:()=>{},on:()=>{}};
+  assert.throws(()=>bus.connect(scopeA,sink),/revalidation required/);
+  assert.throws(()=>bus.connect(A,sink,async()=>true),/Tenant-wide/);
+  const outputA=[],outputB=[];
+  const stopA=bus.subscribe(scopeA,()=>outputA.push("changed"));
+  const stopB=bus.subscribe(scopeB,()=>outputB.push("changed"));
+  bus.publish(scopeA);
+  assert.deepEqual(outputA,["changed"]);
+  assert.deepEqual(outputB,[]);
+  bus.publish(scopeB);
+  assert.deepEqual(outputB,["changed"]);
+  stopA();stopB();
+ }finally{
+  if(old===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
+  else process.env.SYNDES_MULTI_ORG_ENABLED=old;
+ }
+});

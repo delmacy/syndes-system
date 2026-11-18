@@ -224,3 +224,10 @@ O Product Gate permanece BLOQUEADO até portas reais, laboratório integrado e s
 - Documento de produto `docs/product/UC-SIGNUP-TENANT-ORGANIZATION-WORKSPACE-WIZARD-20261118.md`: caso de uso, user stories, fluxo OIDC Keycloak exclusivo, saga de criação no Control/installer, vínculo org Keycloak ↔ Platform Organization, grants FGA exatos, idempotência, rollback/reconciliação e mobile.
 - Backend `OrganizationService.bootstrap` e controller aceitam nomes opcionais validados `organizationName`/`workspaceName`, sem alterar a CTE idempotente, ownership de primeiro escritor e FGA obrigatório. Testes regressivos novos para validação de campos e defaults existentes.
 - **UC-SIGNUP-01B/C/D/E PENDENTES:** intenções de signup duráveis no Control (ACL/CAS), provisionador confiável de tenant DB e Organization Keycloak, API de status e wizard frontend acessível, staging restore e E2E com falhas. Não criar conta pela UI antes da autoridade de tenant estar comprovada. SQL002 intacto e `PRODUCTION_GATE=BLOCKED`.
+
+
+### TOPO-05A — fail-closed SSE operacional no limiar de multi-org (2026-11-18)
+
+- A rota Inbox SSE só pode subir com `SYNDES_MULTI_ORG_ENABLED=true` se o Core Host configurar `inboxModuleGateMode=enforce`; caso contrário o Host Inbox recusa inicializar. O bus recusa qualquer canal tenant-wide e exige callback de revalidação vivo para conexões sob multi-org; a publicação de invalidations org/workspace continua isolada.
+- Testes `modules/inbox/test/realtime.test.mjs` comprovam negação de subscribe/publish/connect sem escopo, ausência de revalidação e isolamento de A/B no mesmo tenant, além de preservar cenário legado quando flag desativada.
+- A alteração **não** habilita multi-host: InboxChangeBus continua in-memory por processo e requer broker compartilhado antes de escalar instâncias. Também não substitui a autenticação de Organizations Keycloak no Inbox operacional legacy: o IAM real continua CI-only até product gate. `PRODUCTION_GATE=BLOCKED`.
