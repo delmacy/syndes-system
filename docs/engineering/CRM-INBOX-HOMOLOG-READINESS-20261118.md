@@ -13,7 +13,7 @@ O script scripts/identity/homolog-readiness.py é transmitido por stdin usando G
 - Não altera membership, usuários, OpenFGA, PostgreSQL, Docker ou serviço de aplicação.
 - O status active do tenant registry NÃO demonstra que um tenant seja exclusivo de homologação. Não vincular esse principal a um tenant comercial por conveniência.
 
-O job homolog-readiness é incluído no workflow existente do Core Host CD, mas é independente do deploy e do preflight Compose. É one-shot, acionado pelo assunto exato de commit de auditoria, após CI completo verde em main.
+Estado: auditoria implementada e coberta por testes, sem execução operacional. A ativação no GitHub Actions ainda não foi integrada: a tentativa de adicionar o job foi bloqueada pelo controle da ferramenta. O fluxo proposto seria independente do deploy e do preflight Compose, acionado apenas após CI verde da main.
 
 A senha da identidade deverá ser definida pelo operador Keycloak via canal seguro. O endereço example.invalid não recebe e-mails de recuperação, portanto nenhum reset por e-mail é presumido.
 
