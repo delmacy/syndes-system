@@ -20,6 +20,13 @@ test("IAM07B next-stage code/tests select the full existing centralized CI and r
    assert.ok(suites.includes(required),required+" must run for IAM07B impact");
   }
  }
+ const suiteRunner=read("scripts/ci/run-suite.sh");
+ assert.ok(suiteRunner.includes('IAM09_SYNTHETIC_PG17_CONTROL_TENANT_RESTORE_DRILL_PASS'));
+ assert.ok(suiteRunner.includes('disposable_restore_drill.py'));
+ assert.ok(suiteRunner.includes('--disposable --ack-synthetic --json'));
+ assert.ok(suiteRunner.includes('archive_sha256_verified'));
+ assert.ok(suiteRunner.includes('restored_control_acl_closed'));
+ assert.ok(suiteRunner.includes('restored_replay_idempotent'));
  const workflow=read(".github/workflows/syndes-ci.yml");
  const integrated=read("tests/platform/iam06b-composite-ci.mjs");
  const real=read("tests/platform/iam07b-provider-recovery-ci.mjs");
