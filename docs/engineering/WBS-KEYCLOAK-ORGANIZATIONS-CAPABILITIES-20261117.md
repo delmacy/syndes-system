@@ -178,3 +178,11 @@ O Product Gate permanece BLOQUEADO até portas reais, laboratório integrado e s
 - **TOPO-03 — P0:** substituir a dependência SQL002 de IAM07D migration 008/fence antes do corte; produzir migration operador-only aditiva/reversível, sem desligar fence. Reconciliar links org A/B no Control sem unicidade por tenant, apenas por organização.
 - **TOPO-04 — P0:** restore/rollback staging, grants mínimos, isolamento de usuários e service accounts, SSE multi-host, revisão de índice SQL002 e gate explícito; nunca remover índices em PR de documentação, em CI de desenvolvimento ou por toggle apenas.
 - **Estado:** CONTRATO + TESTE DE REGRESSÃO E LAB PG17 CANDIDATOS; CI pendente até execução do pipeline central. **Nenhum endpoint de criação multi-org, realm, DDL operacional ou deploy ativado. PRODUCTION_GATE=BLOCKED.**
+
+
+### TOPO-03A — prova SQL de fence IAM-07D no mesmo tenant multi-org (2026-11-18)
+
+- A suite `tests/platform/iam-multiorg-structural-pg17-ci.mjs` amplia o ensaio PostgreSQL 17 descartável 2×2×2 sem SQL002 **apenas dentro de rollback-only transaction**. Instala linhas de fence IAM por `tenant_id,organization_id,workspace_id,principal_id,capability`, revoga somente org B/workspace B1 por CAS de epoch e persiste outbox na mesma transação; garante org A/workspace A2 ainda ativa e outbox limitada à org B.
+- Marcador esperado `IAM_TOPOLOGY_PG17_CROSS_ORG_EPOCH_OUTBOX_FENCE_ISOLATION_PASS`. Resultado CI não presumido antes de execução.
+- O teste usa SQL PG17 real, mas NÃO comprova serialização de revogação concorrente com operação em outra conexão, nem revogação direta Keycloak/FGA, nem entrada por HTTP com duas memberships reais. `008_iam07d_revoke_first_candidate.sql` continua exigindo SQL002 no preflight e **não pode ser instalado a frio após cutover**; isso requer revisão específica e recuperação de staging antes de ativar multi-org. Este teste não altera a migration 008 nem runtime.
+- `PRODUCTION_GATE=BLOCKED`; SQL002 físico permanece intacto após rollback. Sem alteração de realm, grants, banco operacional ou deploy.
