@@ -8,7 +8,8 @@ import {WhatsAppGroupService} from "./groups.js";
 import {WhatsAppAvatars} from "./avatars.js";
 import {WhatsAppDefaultContextGuard,type WhatsAppScope} from "./scope.js";
 
-type Runtime={kernel:CoreKernel;verifier:{verify(value:string|undefined):Promise<Actor>}};
+type Runtime={kernel:CoreKernel;verifier:{verify(value:string|undefined):Promise<Actor>};
+ organizationAccess?:{requireActive(tenantId:string,organizationId:string,principalId:string):Promise<void>}};
 @Injectable()
 export class WhatsAppHost {
  readonly accounts:WhatsAppAccounts;
@@ -32,6 +33,12 @@ export class WhatsAppHost {
    }};
   });
  }
+ private async requireLiveOrganization(tenantId:string,scope:WhatsAppScope,actor:Actor):Promise<void>{
+  if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true")return;
+  if(!this.core.organizationAccess)throw new AccessDeniedError();
+  await this.core.organizationAccess.requireActive(
+   tenantId,scope.organizationId,actor.id);
+ }
  async avatarAuthorized(tenantId:string,authorization:string|undefined,conversationId:string,scope:WhatsAppScope){
   const actor=await this.core.verifier.verify(authorization);
   return this.core.kernel.execute({tenantId,actor,resource:"inbox:conversations",action:"read"},
@@ -47,6 +54,7 @@ export class WhatsAppHost {
        async()=>{
          const scope=await this.scope.resolve(tenantId,actor,selection);
          if(scope.scopeWriteAllowed===false)throw new AccessDeniedError();
+         await this.requireLiveOrganization(tenantId,scope,actor);
          return fn(actor,scope);
        }));
   }catch(error){
@@ -70,6 +78,7 @@ export class WhatsAppHost {
     async()=>{
       const scope=await this.scope.resolve(tenantId,actor,selection);
       if(action==="write"&&scope.scopeWriteAllowed===false)throw new AccessDeniedError();
+      await this.requireLiveOrganization(tenantId,scope,actor);
       return fn(scope);
     });
   }catch(error){
