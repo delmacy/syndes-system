@@ -42,8 +42,29 @@ export async function runIam03Lab({base,adminToken}){
     } catch {
       throw Error("IAM03_"+stage+"_TRANSPORT_BLOCKED");
     }
-    if(!success.includes(resp.status))
-      throw Error("IAM03_"+stage+"_STATUS_"+resp.status);
+    if(!success.includes(resp.status)){
+      // Diagnostics are limited to sanitized OAuth error categories. Never
+      // echo raw responses, tokens, user IDs or credential values into CI.
+      let reason="";
+      if(stage==="uma" && resp.status===400){
+        let fault={};
+        try{fault=await resp.json()}catch{}
+        const error=typeof fault?.error==="string"&&/^[a-z_]{3,40}$/.test(fault.error)
+          ?fault.error:"unknown";
+        const detail=typeof fault?.error_description==="string"
+          ?fault.error_description.toLowerCase():"";
+        const category=
+          detail.includes("client does not support permissions")?"NO_RESOURCE_SERVER":
+          detail.includes("resource with id")?"RESOURCE_ID_MISSING":
+          detail.includes("scope")?"SCOPE_INVALID":
+          detail.includes("resource server")?"AUDIENCE_INVALID":
+          detail.includes("client")?"CLIENT_AUTH_INVALID":
+          detail.includes("permissions")?"PERMISSION_INVALID":
+          detail.includes("identity")?"IDENTITY_INVALID":"UNCLASSIFIED";
+        reason="_"+error+"_"+category;
+      }
+      throw Error("IAM03_"+stage+"_STATUS_"+resp.status+reason);
+    }
     const value=resp.status===204?null:await resp.text();
     let parsed=null;
     if(value){
