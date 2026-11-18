@@ -54,12 +54,22 @@ test("IAM-04B manual Control schema: PostgreSQL 17 ACL, 1:1, CAS, audit, concurr
     // Execute the SQL function only as the dedicated NOLOGIN operator role.
     const operator=async args=>{
       const client=await pool.connect();
+      let committed=false;
       try{
-        await client.query("SET ROLE syndes_iam_link_operator");
-        return (await client.query(transition,args)).rows[0].revision;
+        // A scoped operator role MUST NOT leak into the pooled session.
+        // Pin the role to the same transaction as its CAS operation and
+        // tear the physical connection down after a racing retry.
+        await client.query("BEGIN");
+        await client.query("SET LOCAL ROLE syndes_iam_link_operator");
+        const revision=(await client.query(transition,args)).rows[0].revision;
+        await client.query("COMMIT");
+        committed=true;
+        return revision;
+      }catch(error){
+        if(!committed)await client.query("ROLLBACK").catch(()=>{});
+        throw error;
       }finally{
-        await client.query("RESET ROLE").catch(()=>{});
-        client.release();
+        client.release(true);
       }
     };
     await t.test("concurrent retries share one audit row, unique mapping and revision",async()=>{
