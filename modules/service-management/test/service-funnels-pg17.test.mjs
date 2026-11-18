@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {randomUUID} from "node:crypto";
+import {createHash,randomUUID} from "node:crypto";
 import {readFile} from "node:fs/promises";
 import {execFileSync} from "node:child_process";
 import pg from "pg";
@@ -646,6 +646,7 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
    console.log("IAM07D4_PG17_REAL_SERVICE_FUNNEL_EPOCH_AUDIT_PASS");
   });
 
+  let topologyProof;
   await t.test("TOPO-05D real Service operations isolate two Organizations, four Workspaces and eight Funnels in ONE PG17 tenant",async()=>{
    const pool=pools.get(tenants[0].tenantId);
    const current=tenants[0],orgB=randomUUID(),wsA2=randomUUID(),
@@ -745,7 +746,87 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
      AND organization_id=$2 AND workspace_id=$3
      AND code='revoked_b1'`,[current.tenantId,orgB,wsB1])).rows[0].n;
    assert.equal(count,0);
+   topologyProof={tenantId:current.tenantId,orgA:current.orgId,
+    orgB,wsA1:current.workspaceId,wsA2,wsB1,wsB2};
    console.log("IAM_TOPO05D_REAL_SERVICE_TWO_ORGS_FOUR_WORKSPACES_EIGHT_FUNNELS_BUSINESS_ISOLATION_PASS");
+  });
+
+  await t.test("TOPO-05F disposable PG17 pg_dump/pg_restore retains multi-org ownership and revocations",async()=>{
+   assert.ok(topologyProof,"TOPO-05D must run first");
+   const source=dbNames[0],restoreDb="syndes_restore_"+randomUUID().replaceAll("-","");
+   const password=new URL(URL_RAW).password;
+   const containerName="syndes-funnel-pg17-20261111";
+   const dockerArgs=["exec","-e","PGPASSWORD="+password,containerName];
+   const archive=execFileSync("docker",[
+    ...dockerArgs,"pg_dump","-U","postgres","-d",source,
+    "--format=custom","--no-owner","--no-acl",
+   ],{timeout:45000,maxBuffer:30*1024*1024});
+   assert.equal(archive.subarray(0,5).toString(),"PGDMP");
+   const digest=createHash("sha256").update(archive).digest("hex");
+   assert.match(digest,/^[0-9a-f]{64}$/);
+   let restored,createdRestore=false;
+   try{
+    await admin.query('CREATE DATABASE "'+restoreDb+'"');
+    createdRestore=true;
+    execFileSync("docker",[
+     "exec","-i","-e","PGPASSWORD="+password,containerName,
+     "pg_restore","-U","postgres","-d",restoreDb,
+     "--no-owner","--no-acl","--clean","--if-exists","--exit-on-error",
+    ],{input:archive,timeout:45000,maxBuffer:15*1024*1024});
+    restored=new pg.Pool({connectionString:dsn(restoreDb),max:3});
+    const state=await restored.query(`SELECT
+      (SELECT count(*)::int FROM public.platform_organizations WHERE tenant_id=$1) AS organizations,
+      (SELECT count(*)::int FROM public.platform_workspaces WHERE tenant_id=$1) AS workspaces,
+      (SELECT count(*)::int FROM service.service_funnels WHERE tenant_id=$1
+         AND code LIKE 'multi_org_%') AS funnels,
+      (SELECT count(*)::int FROM service.service_attendances WHERE tenant_id=$1) AS attendances,
+      (SELECT count(*)::int FROM service.service_attendance_events WHERE tenant_id=$1) AS events,
+      (SELECT count(*)::int FROM pg_indexes WHERE schemaname='public'
+        AND indexname IN ('platform_legacy_single_organization',
+                          'platform_legacy_single_workspace')) AS legacy_indexes
+     `,[topologyProof.tenantId]);
+    assert.equal(state.rows[0].organizations,2);
+    assert.equal(state.rows[0].workspaces,4);
+    assert.equal(state.rows[0].funnels,8);
+    assert.ok(state.rows[0].attendances>=4);
+    assert.ok(state.rows[0].events>=4);
+    assert.equal(state.rows[0].legacy_indexes,0,
+      "Restoring multi-org data cannot reintroduce SQL002");
+    const revoked=await restored.query(`SELECT organization_id::text AS org,
+      workspace_id::text AS ws,state FROM public.platform_workspace_memberships
+     WHERE tenant_id=$1 AND principal_id='owner-a'
+       AND organization_id=$2 AND workspace_id=$3`,
+     [topologyProof.tenantId,topologyProof.orgB,topologyProof.wsB1]);
+    assert.deepEqual(revoked.rows,[{
+     org:topologyProof.orgB,ws:topologyProof.wsB1,state:"revoked",
+    }]);
+    const active=await restored.query(`SELECT state FROM public.platform_workspace_memberships
+     WHERE tenant_id=$1 AND principal_id='owner-a'
+       AND organization_id=$2 AND workspace_id=$3`,
+      [topologyProof.tenantId,topologyProof.orgA,topologyProof.wsA2]);
+    assert.equal(active.rows[0].state,"active");
+    // A newly restored database must retain its cross-owner FK. The
+    // transaction and savepoint ensure a failed probe cannot poison it.
+    const client=await restored.connect();
+    try{
+     await client.query("BEGIN");
+     await client.query("SAVEPOINT cross_owner");
+     await assert.rejects(client.query(`INSERT INTO service.service_funnels
+      (tenant_id,organization_id,workspace_id,id,code,name,created_by)
+      VALUES($1,$2,$3,$4,'invalid_owner','Cross owner','owner-a')`,
+      [topologyProof.tenantId,topologyProof.orgB,
+       topologyProof.wsA1,randomUUID()]),error=>error.code==="23503");
+     await client.query("ROLLBACK TO SAVEPOINT cross_owner");
+     await client.query("ROLLBACK");
+    }finally{client.release()}
+    assert.equal((await restored.query(`SELECT count(*)::int AS n
+      FROM service.service_funnels WHERE tenant_id=$1
+        AND code='invalid_owner'`,[topologyProof.tenantId])).rows[0].n,0);
+    console.log("IAM_TOPO05F_PG17_MULTI_ORG_PGDUMP_RESTORE_REVOCATION_AND_FK_PASS");
+   }finally{
+    if(restored)await restored.end();
+    if(createdRestore)await admin.query('DROP DATABASE "'+restoreDb+'" WITH (FORCE)');
+   }
   });
 
   await t.test("input errors are rejected before any query or mutation",async()=>{
