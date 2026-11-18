@@ -76,3 +76,26 @@ test("IAM-07A live SSE uses only the established disposable real-identity job",(
  assert.ok(realtime.includes("Coalesce bursts per stream"));
  execFileSync("node",["--check","tests/platform/iam07-sse-live-ci.mjs"]);
 });
+
+test("IAM-07C real HTTP admission stays in disposable Nest job, SQL fences require PG17 race tests",()=>{
+ const http=readFileSync("tests/platform/iam07c-nest-http-ci.mjs","utf8");
+ const composite=readFileSync("tests/platform/iam06b-composite-ci.mjs","utf8");
+ const controller=readFileSync("apps/core-host/src/iam07c-http-admission-pilot.ts","utf8");
+ const main=readFileSync("apps/core-host/src/main.ts","utf8");
+ const shell=readFileSync("modules/inbox/test/postgres-integration.sh","utf8");
+ const service=readFileSync("modules/service-management/src/service.ts","utf8");
+ const inbox=readFileSync("modules/inbox/src/postgres.ts","utf8");
+ assert.ok(composite.includes("await runIam07cNestHttpLab({"));
+ assert.ok(http.includes("IAM07C_REAL_NEST_HTTP_SIGNED_JWT_PG17_FGA_DENY_REVOKE_RESTORE_PASS"));
+ assert.ok(http.includes("NestFactory.create"));
+ assert.ok(http.includes("CI_MASTER_REAL_PG"));
+ assert.ok(controller.includes("CI_MASTER_REAL_PG"));
+ assert.ok(!main.includes("iam07c-http-admission-pilot"));
+ assert.ok(!main.includes("iam07-sse-session-pilot"));
+ assert.ok(shell.includes("pg-transfer-revocation-races.mjs"));
+ assert.ok(service.includes("FOR SHARE OF w,o,om,wm"));
+ assert.ok(inbox.includes("FOR NO KEY UPDATE OF c FOR SHARE OF w,om,wm"));
+ assert.ok(inbox.includes("FOR SHARE OF w,o,om,wm"));
+ execFileSync("node",["--check","tests/platform/iam07c-nest-http-ci.mjs"]);
+ execFileSync("node",["--check","modules/inbox/test/pg-transfer-revocation-races.mjs"]);
+});
