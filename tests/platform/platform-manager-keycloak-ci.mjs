@@ -134,7 +134,7 @@ async function main(){
  }
  if(process.env.CI_MASTER_REAL_PG==="1"){
   await runLiveDatabaseIntegration({master,adminAccess,workspaceAccess,unrelatedAccess,notGranted});
-  await runIam03Lab({base,adminToken});
+  await runIam03Lab({base,adminToken,managerToken:adminAccess});
  }
  console.log("Real Keycloak CI: RS256, HTTPS issuer, audience, azp, ungranted sub and HTTP denial PASS");
 }

@@ -94,7 +94,7 @@ jobs:
 
   keycloak-real-jwt:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -104,6 +104,16 @@ jobs:
           cache-dependency-path: apps/master-admin-api/package-lock.json
       - name: Install the production JWT verifier dependencies
         run: cd apps/master-admin-api && npm ci --no-audit --no-fund
+      - name: Build Core Host IAM adapters for the existing disposable lab
+        run: |
+          set -euo pipefail
+          for dir in packages/core-kernel modules/core-crm modules/inbox modules/whatsapp modules/organizations modules/support apps/core-host; do
+            (cd "$dir" && npm ci --ignore-scripts --no-audit --no-fund --silent)
+          done
+          for dir in packages/core-kernel modules/core-crm modules/inbox modules/whatsapp modules/organizations modules/support; do
+            (cd "$dir" && npm run build --silent)
+          done
+          (cd apps/core-host && npm run link-peers --silent && npm run build --silent)
       - name: Start disposable Keycloak with CI-only admin and HTTPS issuer
         run: |
           docker run --detach --rm --name syndes-master-keycloak-ci \
@@ -139,12 +149,27 @@ jobs:
           printf '%s\n' 'postgresql://syndes_master_api:ci-master-only@127.0.0.1:15432/syndes_control?sslmode=disable' \
             >/run/secrets/ci-master-db-url
           chmod 0600 /run/secrets/ci-master-db-url
+      - name: Start disposable in-memory OpenFGA for real IAM-06B comparison
+        run: |
+          set -euo pipefail
+          docker run --detach --rm --name syndes-iam06b-fga-ci \
+            --label syndes.disposable=iam06b-fga-ci \
+            --publish 127.0.0.1:18089:8080 \
+            openfga/openfga:v1.22.1 run --datastore-engine memory \
+            --authn-method none --playground-enabled=false \
+            --metrics-enabled=false
+          for n in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:18089/healthz >/dev/null 2>&1; then break; fi
+            if [ "$n" -eq 40 ]; then echo "::error::Disposable OpenFGA not ready"; exit 1; fi
+            sleep 1
+          done
       - name: Test production API with real PostgreSQL role and signed Keycloak JWTs
         env:
           CI_MASTER_REAL_PG: '1'
+          SYNDES_IAM06B_REAL: 'IAM06B_DISPOSABLE_ONLY'
         run: node tests/platform/platform-manager-keycloak-ci.mjs
       - name: Clean up disposable integration services
         if: always()
         run: |
-          docker rm -f syndes-master-keycloak-ci syndes-master-db-ci >/dev/null 2>&1 || true
+          docker rm -f syndes-iam06b-fga-ci syndes-master-keycloak-ci syndes-master-db-ci >/dev/null 2>&1 || true
           sudo rm -f /run/secrets/ci-master-db-url
