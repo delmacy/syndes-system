@@ -32,18 +32,33 @@ export class OrganizationService{
       });
   }
   /** Tenant admin only. CTEs guarantee first-writer ownership and no retry privilege escalation. */
-  bootstrap(ctx:OrgContext):Promise<{initialized:boolean}>{
+  bootstrap(ctx:OrgContext,input?:unknown):Promise<{initialized:boolean}>{
+    // First-context setup only. These are DISPLAY names, never authority IDs.
+    // Keep the legacy defaults for existing callers and recovery tooling.
+    if(input!==undefined&&(!input||typeof input!=="object"||Array.isArray(input)||
+      Object.keys(input).some(key=>!["organizationName","workspaceName"].includes(key))))
+      throw new OrgInputError("Invalid bootstrap input");
+    const named=input as {organizationName?:unknown;workspaceName?:unknown}|undefined;
+    const safeName=(value:unknown,fallback:string)=>{
+      if(value===undefined)return fallback;
+      if(typeof value!=="string"||value.trim().length<2||
+         value.trim().length>160||/[\\u0000-\\u001f]/.test(value))
+        throw new OrgInputError("Invalid bootstrap name");
+      return value.trim();
+    };
+    const organizationName=safeName(named?.organizationName,"Minha organização");
+    const workspaceName=safeName(named?.workspaceName,"Principal");
     const organizationId=randomUUID(),workspaceId=randomUUID();
     return this.execute(ctx,"write","organizations:bootstrap",async db=>{
       const result=await db.query(`
         WITH new_org AS (
           INSERT INTO platform_organizations(tenant_id,id,display_name,is_default)
-          VALUES($1::uuid,$2::uuid,'Minha organização',true)
+          VALUES($1::uuid,$2::uuid,$5,true)
           ON CONFLICT DO NOTHING
           RETURNING tenant_id,id
         ), new_workspace AS (
           INSERT INTO platform_workspaces(tenant_id,id,organization_id,name,slug,is_default)
-          SELECT tenant_id,$3::uuid,id,'Principal','principal',true FROM new_org
+          SELECT tenant_id,$3::uuid,id,$6,'principal',true FROM new_org
           RETURNING tenant_id,id,organization_id
         ), org_grant AS (
           INSERT INTO platform_org_memberships(tenant_id,organization_id,principal_id,role)
@@ -63,7 +78,8 @@ export class OrganizationService{
         JOIN org_grant g ON g.organization_id=o.id
         JOIN workspace_grant wg ON wg.workspace_id=w.id
         JOIN audit a ON a.entity_id=o.id`,
-        [ctx.tenantId,organizationId,workspaceId,ctx.actor.id]);
+        [ctx.tenantId,organizationId,workspaceId,ctx.actor.id,
+          organizationName,workspaceName]);
       return {initialized:result.rows.length===1};
     });
   }
