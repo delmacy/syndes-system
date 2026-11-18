@@ -12,7 +12,7 @@
 | IAM-03 | P0 | Prova Keycloak 26.8.1 em laboratório descartável | Realm descartável, resource server confidential, Enforcing, 2 usuários, 2 orgs, 2 workspaces e funis; 0 concessão cruzada; remoção segura | LAB REAL APROVADO — PR #162, CI 24/24 |
 | IAM-04 | P0 | Associação Organization Keycloak ↔ platform_organizations do Syndes | IDs imutáveis, tenant explícito, state/audit, provisionamento e revogação idempotentes, sem depender de nomes | IAM-04B: PG17 REAL DESCARTÁVEL + CI 24/24 APROVADO; OPERAÇÃO PENDENTE |
 | IAM-05 | P0 | AuthenticatedUser/Token+Context trusted para AuthorizationPort | Validação OIDC iss/aud/azp, membership tenant e org, vínculo workspace+funil, refetch server-side, nunca JWT em log; Manager isolado | IAM-05B: KEYCLOAK 26.8.1 REAL + SERVICE ACCOUNT LEITURA CI APROVADO; RUNTIME/JORNADA PENDENTES |
-| IAM-06 | P0 | Integrar capability check no backend apenas em modo shadow | Comparar Keycloak vs OpenFGA para mesmas chamadas, sem trocar decisões ou emitir grants; cobertura real de Inbox claim/transfer e Funis | PENDENTE |
+| IAM-06 | P0 | Integrar capability check no backend apenas em modo shadow | Comparar Keycloak vs OpenFGA para mesmas chamadas, sem trocar decisões ou emitir grants; cobertura real de Inbox claim/transfer e Funis | IAM-06A COMPARADOR ISOLADO + UNIT TESTS CANDIDATOS; IAM-06B E2E REAL/RUNTIME PENDENTES |
 | IAM-07 | P0 | Provar revogação, isolamento e performance | Grupo/membro revogado e UI/SSE concorrente; org A/B; tenant A/B; funil A/B; indisponibilidade Keycloak; medir latência/p95 sem PII | PENDENTE |
 | IAM-08 | P1 | Administração delegada via Syndes | UI somente após APIs autenticadas e auditadas, grants mínimos e sync/reconciliação; sem admin Keycloak no browser | PENDENTE |
 | IAM-09 | P0 | Product Gate, backup/restore, rollout e rollback | Comparação positiva e negativa real, recovery e custos; controle SHA; remover FGA de classe humana **somente** com equivalência e aprovação | BLOQUEADO |
@@ -70,3 +70,12 @@ O Product Gate permanece BLOQUEADO até portas reais, laboratório integrado e s
 - Menor conjunto de roles efetivamente comprovado no laboratório: `realm-management/view-users` + `realm-management/view-organizations`, cliente `fullScopeAllowed=false`. `view-users` isoladamente retornou 403. Roles são de leitura de realm, ainda não delegação per-organization via FGAP; não promover credencial no ambiente operacional sem escopo e Product Gate.
 
 - Verificação CD pós-merge: run [44236978834](https://github.com/delmacy/syndes-system/actions/runs/44236978834) no SHA `b42038f01aabf154c975a345f22a64e1bdfbaf44` — Tailnet/SSH, checagem Compose read-only, JWKS Keycloak e OpenFGA passaram; `deploy` e `provision-homolog-identity` ficaram **skipped** (sem deploy IAM). A falha `Core Host Compose service missing` da run antiga 44229567880 não se reproduziu; causa-raiz anterior não comprovada, controles preservados.
+
+
+### IAM-06A — candidato shadow isolado (18/11/2026)
+
+- apps/core-host/src/iam06-shadow-compare-pilot.ts: OpenFGA decide primeiro, como único gate efetivo; UMA humano validado previamente é consultado somente em observação assíncrona limitada. FGA deny + UMA allow continua deny. Falha FGA deny; falha/timeout UMA não altera resultado FGA.
+- apps/core-host/test/iam06-shadow-compare-pilot.test.mjs: matriz booleana allow/deny, contexto adulterado, viewer, outage e timeout, resource catalog divergente, baixo cardinalidade de métricas e limite de concorrência.
+- Atenção: only declared_legacy inbox.conversation.read (inbox:conversations/read) e inbox.message.send (inbox:messages/write) possuem mapa FGA coarse. Não afirmar paridade, mesmo quando decisões coincidirem. claim, transfer e service.funnel.operate são proposed e não herdam um write genérico.
+- Não alterado main.ts, controllers, SQL002, OpenFGA model/tuples, migrations, realm, usuário ou grants. A prova conjunta JWT humano+Control PG17+tenant PG+FGA real+Keycloak UMA e Product Gates IAM-07/09 continuam pendentes.
+- Referência: docs/engineering/IAM-06-SHADOW-COMPARISON-ISOLATED-20261118.md. Estado CI inicial: PENDENTE de PR; não tratar o código como runtime integrado.
