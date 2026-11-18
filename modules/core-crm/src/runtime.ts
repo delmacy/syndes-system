@@ -8,6 +8,7 @@ export interface CrmHostRuntime {
   readonly verifier:{verify(header:string|undefined):Promise<Actor>};
   /** Trusted Host-only rollout mode; absent means legacy until Control DB is provisioned. */
   readonly crmModuleGateMode?: "legacy" | "enforce";
+  readonly organizationAccess?:{requireActive(tenantId:string,organizationId:string,principalId:string):Promise<void>};
 }
 export const CORE_RUNTIME="SYNDES_CORE_API";
 export const TENANT_DATABASES="SYNDES_TENANT_DB";
