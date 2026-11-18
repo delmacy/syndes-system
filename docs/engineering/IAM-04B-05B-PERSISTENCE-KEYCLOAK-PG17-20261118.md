@@ -78,3 +78,5 @@ Acesso operacional (main.ts, controllers e worker) não foi ativado; SQL002 impe
 - [Merge](https://github.com/delmacy/syndes-system/commit/b42038f01aabf154c975a345f22a64e1bdfbaf44).
 - API Admin Organizations exige papel de leitura `view-organizations` além da visibilidade `view-users`; ambos são realm-level e não provam menor privilégio **por organização**. FGAP/filtragem adicional é gate de IAM-07/IAM-09 antes de promover service credentials reais.
 - Não houve deploy de IAM nem migration no banco operacional. O CD permanece controlado por aprovação explícita do SHA e seus preflights.
+
+- Verificação CD pós-merge: run [44236978834](https://github.com/delmacy/syndes-system/actions/runs/44236978834) no SHA `b42038f01aabf154c975a345f22a64e1bdfbaf44` — Tailnet/SSH, checagem Compose read-only, JWKS Keycloak e OpenFGA passaram; `deploy` e `provision-homolog-identity` ficaram **skipped** (sem deploy IAM). A falha `Core Host Compose service missing` da run antiga 44229567880 não se reproduziu; causa-raiz anterior não comprovada, controles preservados.
