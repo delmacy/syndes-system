@@ -80,7 +80,11 @@ export class ServiceFunnelService{
       AND ($5='viewer' OR
        ($5='editor' AND om.role IN ('admin','editor') AND wm.role IN ('admin','editor'))
        OR ($5='admin' AND om.role='admin' AND wm.role='admin'))
+     -- Keep membership and scope ACTIVE until the pinned transaction ends.
+     -- Concurrent SQL revocation must wait or complete before this command
+     -- can authorize its effects; a prior revocation wins and denies.
      LIMIT 1
+     FOR SHARE OF w,o,om,wm
     `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,ctx.actor.id,permission]);
     if(allowed.rows.length!==1)throw new AccessDeniedError();
     // Only set the trusted actor within the pinned transaction; SQL triggers
