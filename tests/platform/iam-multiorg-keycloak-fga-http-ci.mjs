@@ -117,12 +117,8 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
   writes:{tuple_keys:[tupleA,tupleB]}});
  // Use organization A / workspace A2 for the business mutation: A1's
  // claim fence was already REVOKED by IAM07D2. Never reactivate or reset it.
- const claimCtxA2=await admission.resolve(f.bearer,scope(ORG_A,wsA2));
- const tupleA2=tuple(claimCtxA2);
- assert.notEqual(tupleA2.object,tupleA.object);
- await f.fgaWrite("POST","/stores/"+store.id+"/write",{
-  writes:{tuple_keys:[tupleA2]},
- });
+ // A2 fine grant is intentionally not installed until AFTER the original
+ // negative admission assertions; A2 must first deny in read-only matrix.
  // Actual business writes in BOTH organizations, through IAM07D pinned
  // transaction and exact per-workspace FGA, after SQL002 lab-only cutover.
  const tenantProvider={
@@ -237,6 +233,12 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
    assert.equal(await send(f.bearer,ORG_A,wsA2),200);
   }finally{assert.equal(await f.linkTransition(f.control,link("active",2)),3)}
   assert.equal(await send(f.bearer,orgB,wsB1),200);
+  const claimCtxA2=await admission.resolve(f.bearer,scope(ORG_A,wsA2));
+  const tupleA2=tuple(claimCtxA2);
+  assert.notEqual(tupleA2.object,tupleA.object);
+  await f.fgaWrite("POST","/stores/"+store.id+"/write",{
+   writes:{tuple_keys:[tupleA2]},
+  });
   const claimUrl=chat=>base+"/__ci/iam-topology/tenants/"+TENANT+
    "/inbox/conversations/"+chat+"/claim";
   const claim=async(chat,org,ws,token=f.bearer)=>{
