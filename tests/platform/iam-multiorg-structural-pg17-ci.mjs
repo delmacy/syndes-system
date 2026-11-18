@@ -23,8 +23,38 @@ export async function runIamMultiOrgTopologyPg17Lab(f){
   await conn.query("BEGIN");started=true;
   // Both indexes must be removed TOGETHER, only inside this rollbackable
   // transaction and the disposable tenant DB. Real SQL002 stays installed.
+  const multiFenceSql=await readFile(new URL(
+   "../../modules/organizations/sql/009_iam_multiorg_fence_candidate.sql",
+   import.meta.url),"utf8");
+  const singleFenceSql=await readFile(new URL(
+   "../../modules/organizations/sql/008_iam07d_revoke_first_candidate.sql",
+   import.meta.url),"utf8");
+  // A half-cutover or legacy single-context DB MUST refuse the new installer.
+  await conn.query("SAVEPOINT legacy_fence_denial");
+  await assert.rejects(conn.query(multiFenceSql),error=>error.code==="55000");
+  await conn.query("ROLLBACK TO SAVEPOINT legacy_fence_denial");
+  await conn.query("RELEASE SAVEPOINT legacy_fence_denial");
   await conn.query("DROP INDEX platform_legacy_single_organization");
+  await conn.query("SAVEPOINT partial_fence_denial");
+  await assert.rejects(conn.query(multiFenceSql),error=>error.code==="55000");
+  await conn.query("ROLLBACK TO SAVEPOINT partial_fence_denial");
+  await conn.query("RELEASE SAVEPOINT partial_fence_denial");
   await conn.query("DROP INDEX platform_legacy_single_workspace");
+  // The original 008 MUST reject a multi-org physical schema.
+  await conn.query("SAVEPOINT original_fence_denial");
+  await assert.rejects(conn.query(singleFenceSql),error=>error.code==="55000");
+  await conn.query("ROLLBACK TO SAVEPOINT original_fence_denial");
+  await conn.query("RELEASE SAVEPOINT original_fence_denial");
+  // 009 uses the SAME scoped fence/outbox definitions as 008 and is manually
+  // re-applicable after complete SQL002 cutover, without weakening 008.
+  await conn.query(multiFenceSql);
+  const fenceColumns=await conn.query("SELECT column_name FROM information_schema.columns"+
+   " WHERE table_schema=current_schema() AND table_name='platform_iam_capability_fences'");
+  for(const column of ["tenant_id","organization_id","workspace_id",
+   "principal_id","capability","epoch","state"])
+   assert.ok(fenceColumns.rows.some(x=>x.column_name===column));
+  console.log("IAM_TOPOLOGY_PG17_POST_SQL002_FENCE_INSTALLER_PASS");
+
   const orgB=generated(),wsA2=generated(),wsB1=generated(),wsB2=generated();
   const actor=f.actorId;
   await conn.query("INSERT INTO platform_organizations"+
