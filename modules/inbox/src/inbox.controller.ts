@@ -32,6 +32,11 @@ export class InboxHost{
   }
  ){
   this.events=events;
+  // A multi-org tenant cannot keep a legacy SSE stream with only the
+  // coarse FGA grant and no re-check of the scoped membership.
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&
+     core.inboxModuleGateMode!=="enforce")
+    throw Error("Multi-org Inbox requires enforced live SSE module gate");
   this.requiresStreamRevalidation=core.inboxModuleGateMode==="enforce";
   const repo=new PgInboxRepositoryFactory(pools);
   this.scope=new InboxDefaultContextGuard(core.kernel,pools,core.inboxModuleGateMode==="enforce");
