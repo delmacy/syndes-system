@@ -1,6 +1,6 @@
 # IAM-07D1 — Revoke-first monotonic epoch e fence transacional (candidato)
 
-**Data:** 2026-11-18. **Estado:** CANDIDATO de laboratório até CI verde. **PRODUCTION_GATE=BLOCKED**.
+**Data:** 2026-11-18. **Estado:** IAM-07D1 **integrado na main e testado no laboratório real**. PR [#175](https://github.com/delmacy/syndes-system/pull/175), merge `1f4d2bd95d64f8cce85365c1b8a6570d5a6e643b`, CI [44304717576](https://github.com/delmacy/syndes-system/actions/runs/44304717576): **24/24 jobs aprovados**, inclusive `Syndes CI Gate`. **PRODUCTION_GATE=BLOCKED**.
 
 ## Problema sem falsa garantia
 
@@ -24,7 +24,7 @@ Keycloak Organizations e OpenFGA são externos à transação PostgreSQL tenant;
 - Revogação primeiro: operação aguarda o lock e, após COMMIT da revogação, nega sem efeito nem auditoria.
 - Control indisponível depois do COMMIT tenant: a capability permanece negada, tentativa com outro ID falha, retry do mesmo `operationId` reconcilia sem incrementar epoch.
 - Isolamento de `claim`, `transfer` e `funnel` no mesmo tenant. Sem reutilizar privilégios coarse.
-- Marcadores esperados: `IAM07D_PG17_REVOKE_FIRST_EPOCH_LOCK_CONTROL_OUTAGE_REPLAY_PASS` e `IAM07D_FINE_CAPABILITY_NO_COARSE_GRANT_FALLBACK_PASS` **somente após execução real bem-sucedida**.
+- Marcadores **confirmados** no job `Regression / host`, em PostgreSQL 17 real descartável: `IAM07D_PG17_REVOKE_FIRST_EPOCH_LOCK_CONTROL_OUTAGE_REPLAY_PASS` e `IAM07D_FINE_CAPABILITY_NO_COARSE_GRANT_FALLBACK_PASS`; execução central 44304717576 **24/24**.
 
 ## Restrições que continuam BLOCKER
 
