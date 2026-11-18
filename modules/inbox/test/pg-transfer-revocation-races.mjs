@@ -33,7 +33,7 @@ const migrations=[
  "../../organizations/sql/004_whatsapp_route_owner_guard.sql",
  "../../organizations/sql/005_scoped_relationship_integrity.sql",
 ];
-const strip=s=>s.replace(/^\\s*(?:BEGIN|COMMIT);\\s*$/gim,"");
+const strip=s=>s.replace(/^\s*(?:BEGIN|COMMIT);\s*$/gim,"");
 const read=p=>readFile(new URL(p,import.meta.url),"utf8");
 
 test("IAM-07C PG17 Inbox transfer: destination revocation is fenced until effect/audit",{
