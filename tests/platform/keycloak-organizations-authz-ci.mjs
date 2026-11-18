@@ -22,7 +22,7 @@ const resourceName=(org,ws,funnel)=>"syndes:v1:tenant:"+tenant+":org:"+org+
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const mustId=(value,label)=>{assert.match(value||"",uuid,label);return value;};
 
-export async function runIam03Lab({base,adminToken}){
+export async function runIam03Lab({base,adminToken,managerToken}){
   assert.equal(process.env.CI_MASTER_REAL_PG,"1","IAM lab must run inside existing disposable CI only");
   assert.equal(base,"http://127.0.0.1:18088","Refuse anything except disposable Keycloak");
   assert.match(adminToken||"",/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
