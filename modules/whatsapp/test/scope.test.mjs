@@ -9,12 +9,13 @@ const otherTenant="22222222-2222-4222-8222-222222222222";
 const org="33333333-3333-4333-8333-333333333333";
 const ws="44444444-4444-4444-8444-444444444444";
 const actor={id:"alice",kind:"user"};
-async function fixture({tenantAllowed=true,fgaAllowed=true,rows=[{organization_id:org,workspace_id:ws}],dbTenant=tenant}={}){
+async function fixture({tenantAllowed=true,fgaAllowed=true,moduleAllowed=true,modulePort=true,rows=[{organization_id:org,workspace_id:ws,scope_write_allowed:true}],dbTenant=tenant}={}){
  const resolved=[],queries=[],auth=[];
  const kernel=new CoreKernel({
   modules:[{id:"platform",version:"0.1.0"},{id:"whatsapp",version:"0.1.0",dependencies:["platform"]}],
   tenancy:{canAccessTenant:async q=>{auth.push(["tenant",q]);return tenantAllowed}},
-  authorization:{canAccess:async q=>{auth.push(["fga",q]);return fgaAllowed}}
+  authorization:{canAccess:async q=>{auth.push(["fga",q]);return fgaAllowed}},
+  moduleAccess:modulePort?{canExecuteModule:async q=>{auth.push(["module",q]);return moduleAllowed}}:undefined
  });
  await kernel.start();
  const guard=new WhatsAppDefaultContextGuard(kernel,{
@@ -92,5 +93,34 @@ test("the multi-org switch rejects legacy tenant-only WhatsApp accounts before S
  }finally{
   if(prior===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
   else process.env.SYNDES_MULTI_ORG_ENABLED=prior;
+ }
+});
+
+test("multi-org WhatsApp checks Control entitlement before any tenant database lease",async()=>{
+ const previous=process.env.SYNDES_MULTI_ORG_ENABLED;
+ process.env.SYNDES_MULTI_ORG_ENABLED="true";
+ const selection={organizationId:org,workspaceId:ws};
+ try{
+  for(const options of [{moduleAllowed:false},{modulePort:false}]){
+   const f=await fixture(options);
+   await assert.rejects(f.guard.resolve(tenant,actor,selection),AccessDeniedError);
+   assert.deepEqual(f.resolved,[]);
+   assert.deepEqual(f.auth.slice(0,2).map(([kind])=>kind),["tenant","fga"]);
+   if(options.moduleAllowed===false)
+    assert.equal(f.auth[2][0],"module");
+  }
+  const allowed=await fixture();
+  assert.deepEqual(await allowed.guard.resolve(tenant,actor,selection),
+   {tenantId:tenant,organizationId:org,workspaceId:ws,scopeWriteAllowed:true});
+  assert.deepEqual(allowed.auth.map(([kind])=>kind),["tenant","fga","module"]);
+  assert.equal(allowed.auth.at(-1)[1].moduleId,"whatsapp");
+  assert.deepEqual(allowed.queries[0].params,[tenant,actor.id,org,ws,true]);
+  assert.equal(allowed.resolved.length,1);
+  const noScope=await fixture();
+  await assert.rejects(noScope.guard.resolve(tenant,actor),AccessDeniedError);
+  assert.deepEqual(noScope.resolved,[]);
+ }finally{
+  if(previous===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
+  else process.env.SYNDES_MULTI_ORG_ENABLED=previous;
  }
 });
