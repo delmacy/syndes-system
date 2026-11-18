@@ -1,3 +1,4 @@
+import {runIam07bProviderRecoveryLab} from "./iam07b-provider-recovery-ci.mjs";
 import {runIam07SseLiveLab} from "./iam07-sse-live-ci.mjs";
 /**
  * IAM-06B: ONE verified HUMAN bearer + live Keycloak Org membership + real
@@ -269,6 +270,13 @@ export async function runIam06bLab(args){
       memberOrgId:args.orgs.a,adminToken:args.adminToken,
       tuples,storeId:store.id,fgaWrite:fga,
       linkTransition:op,linkRequest,changeMembership:keycloakMemberChange,
+    });
+    // IAM-07B qualification: individually force each real provider transport
+    // to a closed loopback port and restore it. The old SSE never resurrects.
+    await runIam07bProviderRecoveryLab({
+      verifier,tenancy:new PgMembership(control),moduleGate,
+      control,tenantDb,provider,source,storeId:store.id,
+      links,memberReader:members,bearer,actorId:args.alice,
     });
 
     // Real FGA revoke while UMA user policy remains ALLOW: the request DENIES.
