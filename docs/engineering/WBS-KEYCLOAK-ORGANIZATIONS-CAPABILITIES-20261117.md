@@ -211,3 +211,16 @@ O Product Gate permanece BLOQUEADO até portas reais, laboratório integrado e s
 - Regressões previstas: mesmo JWT acessa Org A/Workspace A1 e Org B/Workspace B1 com duas tuples FGA distintas; sem grant em A2/B2 nega; contexto cruzado org/workspace nega; token Manager/ausente/inválido nega; revogação live da Keycloak Org B nega B e mantém A; exclusão de tuple de A nega A e mantém B; revogação SQL workspace B nega B e mantém A; revogação do link Control B nega B e mantém A; restauração explícita reativa só a permissão correta.
 - Marcadores esperados: `IAM_TOPO04_REAL_TWO_KC_ORGS_SAME_TENANT_HTTP_FINE_FGA_ISOLATION_PASS`, `IAM_TOPO04_REAL_KC_ORG_B_REVOKE_A_STAYS_ACTIVE_PASS`. **Não afirmar aprovado antes de CI verde.**
 - **Limites:** rota é read-only admission probe, não operação Inbox mutável nem operação Service; não há concorrência Keycloak/FGA vs commit, nem SSE de longa duração, nem migração staging/restore ou auditoria integral de CRM/Inbox/WhatsApp tenant-wide. `PRODUCTION_GATE=BLOCKED`.
+
+
+### TOPO-04B — Inbox claim real sob IAM multi-org (2026-11-18)
+
+- Candidata `apps/core-host/src/iam-topology-inbox-claim-http-pilot.ts`, CI-only, POST Nest para `Inbox.claim` real por `Iam07dInboxBusinessPilot`; `tests/platform/iam-multiorg-keycloak-fga-http-ci.mjs` passa a montar esse controlador no laboratório com duas Keycloak Organizations reais, um tenant PG17 e OpenFGA exato.
+- A claim usa JWT humano validado, membership Keycloak atual, Control org link + module entitlement, SQL org/workspace, FGA granular e `IAM07D` epoch fence em transação pinned. Prova esperada: claim A/B, 1 evento de auditoria por conversa, 403 para troca de org/workspace, claim duplicada, outro usuário/Manager e revogação B sem afetar A. Marcador: `IAM_TOPO04B_REAL_MULTI_ORG_INBOX_CLAIM_SQL_AUDIT_AND_SCOPED_REVOKE_PASS`.
+- Esta fatia **não monta rota operacional nem substitui legacy Inbox**, não prova Service mutating HTTP, transfer concorrente, exportações ou SSE com dois tenants; `PRODUCTION_GATE=BLOCKED`.
+
+### UC-SIGNUP-01A — Wizard Tenant → primeira Organization → primeiro Workspace
+
+- Documento de produto `docs/product/UC-SIGNUP-TENANT-ORGANIZATION-WORKSPACE-WIZARD-20261118.md`: caso de uso, user stories, fluxo OIDC Keycloak exclusivo, saga de criação no Control/installer, vínculo org Keycloak ↔ Platform Organization, grants FGA exatos, idempotência, rollback/reconciliação e mobile.
+- Backend `OrganizationService.bootstrap` e controller aceitam nomes opcionais validados `organizationName`/`workspaceName`, sem alterar a CTE idempotente, ownership de primeiro escritor e FGA obrigatório. Testes regressivos novos para validação de campos e defaults existentes.
+- **UC-SIGNUP-01B/C/D/E PENDENTES:** intenções de signup duráveis no Control (ACL/CAS), provisionador confiável de tenant DB e Organization Keycloak, API de status e wizard frontend acessível, staging restore e E2E com falhas. Não criar conta pela UI antes da autoridade de tenant estar comprovada. SQL002 intacto e `PRODUCTION_GATE=BLOCKED`.

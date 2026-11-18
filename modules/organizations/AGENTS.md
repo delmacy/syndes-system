@@ -25,3 +25,10 @@ Security:
 - `008_iam07d_revoke_first_candidate.sql` permanece imutável e exige SQL002. Para um banco já migrado por cutover operador-only existe `009_iam_multiorg_fence_candidate.sql`, **alternativa manual/CI**, que exige os dois índices SQL002 AUSENTES e FKs reais dos memberships Org/Workspace.
 - Nunca instalar 009 em tenant legado nem remover os índices como efeito colateral desse instalador; a retirada precisa de gate separado, rollback/restore e Host comprovadamente org-scoped.
 - A suíte PG17 descartável testa 009 negando quando ambos ou um índice SQL002 ainda existe, aceitando quando ambos ausentes, mantendo fence/outbox e revertendo tudo; não confundir esta prova com autorização para executar em produção.
+
+
+## Signup inicial / wizard (UC-SIGNUP-01A, 2026-11-18)
+
+- Os nomes de exibição `organizationName` e `workspaceName` são opcionais na rota existente `POST /v1/tenants/:tenantId/platform/bootstrap`; 2–160 caracteres e sem controles. Defaults legados continuam compatíveis. Não aceitar um `tenantId`, `organizationId`, membership ou principal vindos do payload como autoridade.
+- A CTE de bootstrap cria a primeira org/workspace **somente após Kernel/FGA e tenant membership** e concede admin apenas ao primeiro fundador. Retentativas jamais concedem admin a outro usuário nem alteram o nome/escopo original.
+- Signup completo é saga futura no Control/Keycloak/installer com checkpoints, idempotência, link e reconciliação. O endpoint bootstrap NÃO cria tenant nem identidade Keycloak. Não criar senha local ou interface de signup antes de UC-SIGNUP-01B/C. Ver `docs/product/UC-SIGNUP-TENANT-ORGANIZATION-WORKSPACE-WIZARD-20261118.md`.

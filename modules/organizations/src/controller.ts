@@ -32,8 +32,9 @@ export class OrganizationHost{
 export class OrganizationController{
   constructor(private readonly host:OrganizationHost){}
   @Post("bootstrap")
-  bootstrap(@Param("tenantId")id:string,@Headers("authorization")auth:string|undefined){
-    return this.host.run(id,auth,ctx=>this.host.service.bootstrap(ctx));
+  bootstrap(@Param("tenantId")id:string,@Headers("authorization")auth:string|undefined,
+    @Body()body:unknown){
+    return this.host.run(id,auth,ctx=>this.host.service.bootstrap(ctx,body));
   }
   @Post("default-context/backfill")
   backfill(@Param("tenantId")id:string,@Headers("authorization")auth:string|undefined){

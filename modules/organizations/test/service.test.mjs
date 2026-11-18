@@ -125,3 +125,34 @@ test("creating additional organization/workspace is flag-gated, role-gated and a
   else process.env.SYNDES_MULTI_ORG_ENABLED=previous;
  }
 });
+
+test("signup first-context bootstrap uses validated names and keeps first-writer privilege only",async()=>{
+  const f=fake();
+  assert.deepEqual(await f.service.bootstrap(ctx,{
+    organizationName:"  Acme Serviços  ",workspaceName:"  Atendimento  ",
+  }),{initialized:false});
+  const {sql,params}=f.queries[0];
+  assert.match(sql,/VALUES\(\$1::uuid,\$2::uuid,\$5,true\)/);
+  assert.match(sql,/SELECT tenant_id,\$3::uuid,id,\$6,'principal',true FROM new_org/);
+  assert.deepEqual(params.slice(4),["Acme Serviços","Atendimento"]);
+  assert.match(sql,/ON CONFLICT DO NOTHING/);
+  assert.match(sql,/FROM new_org/);
+  assert.match(sql,/workspace_grant/);
+  assert.equal(f.checks[0].resource,"organizations:bootstrap");
+  const rejected=fake();
+  for(const invalid of [
+    {organizationName:" "},{workspaceName:"A"},
+    {organizationName:"bad\nname"},
+    {organizationName:"a".repeat(161)},
+    {organizationName:4},{workspaceName:[]},
+    {tenantId:tenant,organizationName:"Acme"},
+    null,[],{organizationName:"Good",workspaceName:"Bad\u0000name"},
+  ]){
+    assert.throws(()=>rejected.service.bootstrap(ctx,invalid),OrgInputError);
+  }
+  assert.equal(rejected.queries.length,0);
+  assert.equal(rejected.checks.length,0);
+  const legacy=fake();
+  await legacy.service.bootstrap(ctx);
+  assert.deepEqual(legacy.queries[0].params.slice(4),["Minha organização","Principal"]);
+});
