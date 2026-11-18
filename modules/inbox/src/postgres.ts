@@ -302,6 +302,8 @@ export class PgInboxRepository implements InboxRepository {
        AND wm.state='active' AND wm.role IN ('admin','editor')
      WHERE w.tenant_id=$1::uuid AND w.organization_id=$5::uuid
        AND w.id=$3::uuid AND w.status='active'
+     -- Protect destination membership until the write/audit finishes.
+     FOR SHARE OF w,o,om,wm
    ), source AS MATERIALIZED (
      SELECT c.tenant_id,c.id
      FROM inbox_conversations c
@@ -318,6 +320,9 @@ export class PgInboxRepository implements InboxRepository {
      WHERE c.tenant_id=$1::uuid AND c.id=$2::uuid
        AND c.platform_organization_id=$5::uuid
        AND c.platform_current_workspace_id=$6::uuid
+     -- Membership revocation must wait for the transaction or win first.
+     -- Strong lock on the conversation serializes concurrent transfers.
+     FOR NO KEY UPDATE OF c FOR SHARE OF w,om,wm
    ), moved AS (
      UPDATE inbox_conversations c
      SET platform_current_workspace_id=d.id,updated_at=clock_timestamp()

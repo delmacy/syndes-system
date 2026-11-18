@@ -86,6 +86,10 @@ SYNDES_INBOX_SCOPE_TEST_PG_URL=postgres://postgres:ci-inbox-only@127.0.0.1:54339
 node modules/inbox/test/pg-integration.mjs
 SYNDES_INBOX_SCOPE_TEST_PG_URL=postgres://postgres:ci-inbox-only@127.0.0.1:54339/postgres \
  node --test modules/inbox/test/pg-assignment-races.mjs
+# IAM-07C real disposable PG17: transfer may not commit past a revoked
+# destination membership or emit an unauthorized audit record.
+SYNDES_INBOX_SCOPE_TEST_PG_URL=postgres://postgres:ci-inbox-only@127.0.0.1:54339/postgres \
+ node --test modules/inbox/test/pg-transfer-revocation-races.mjs
 node --test apps/core-host/test/inbox-pg-http.integration.mjs
 # Pre-deployment rehearsal: analyze historical assignments in a disposable
 # transaction only. The diagnostic SQL never repairs or discloses real users.
