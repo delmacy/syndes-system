@@ -40,7 +40,7 @@ test("uses exact UMA ticket and one scope, no client or admin secret",async()=>{
     assert.equal(form.get("audience"),"syndes-policy-api");
     assert.equal(form.get("response_mode"),"decision");
     assert.equal(form.get("submit_request"),"false");
-    assert.equal(form.get("permission"),A+"#"+B);
+    assert.equal(form.get("permission"),A+"#inbox.conversation.read");
     return new Response(JSON.stringify({result:true}),{status:200});
   });
   assert.equal(await adapter.check(input),true);
@@ -68,7 +68,7 @@ test("checks a particular funnel without authorizing other funnels",async()=>{
     return new Response(JSON.stringify({result:true}),{status:200});
   });
   assert.equal(await adapter.check({...input,context:funnel,capability:"service.funnel.operate",keycloakResource:funnelResource}),true);
-  assert.equal(permissions[0],D+"#"+B);
+  assert.equal(permissions[0],D+"#service.funnel.operate");
   assert.equal(await adapter.check({...input,context:{...funnel,funnelId:A},capability:"service.funnel.operate",keycloakResource:funnelResource}),false);
 });
 
