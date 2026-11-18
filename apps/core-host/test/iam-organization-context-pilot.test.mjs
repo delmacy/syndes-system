@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {AccessDeniedError} from "../../../packages/core-kernel/dist/index.js";
 import {OrganizationContextAdmissionPilot} from "../dist/iam-organization-context-pilot.js";
 
 const tenant="11111111-1111-4111-8111-111111111111";
@@ -62,7 +61,7 @@ function environment(overrides={}){
 }
 
 async function denied(pilot,req=request){
-  await assert.rejects(pilot.resolve(bearer,req),e=>e instanceof AccessDeniedError);
+  await assert.rejects(pilot.resolve(bearer,req),e=>e?.name==="AccessDeniedError");
 }
 
 test("signed actor, tenant, module, reciprocal org link and live member precede tenant database",async()=>{
