@@ -119,7 +119,6 @@ export class Iam06ShadowComparePilot {
       try{
         const timedOut=new Promise<never>((_,reject)=>{
           timer=setTimeout(()=>reject(new Error("Shadow deadline")),this.timeoutMs);
-          timer.unref?.();
         });
         const category=await Promise.race([
           this.inspect(scope,capability,token,allowed),timedOut,
