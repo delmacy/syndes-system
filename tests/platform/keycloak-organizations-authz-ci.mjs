@@ -130,12 +130,14 @@ export async function runIam03Lab({base,adminToken}){
 
   stage="organizations";
   const orgs={};
-  for(const [key,name,domain] of [
-    ["a","IAM Alpha","alpha.iam.syndes.invalid"],
-    ["b","IAM Beta","beta.iam.syndes.invalid"]
+  for(const [key,name] of [
+    ["a","iam-alpha"],
+    ["b","iam-beta"]
   ]){
+    // Keycloak 26 requires URL-safe Organization aliases; no domains needed
+    // for a synthetic CI organization and @example.invalid identities.
     const created=await post(prefix+"/organizations",{
-      name,enabled:true,domains:[{name:domain,verified:false}]
+      name,alias:name,enabled:true
     });
     const id=await resolveCreatedId(created,prefix+"/organizations","name",name);
     orgs[key]=id;
