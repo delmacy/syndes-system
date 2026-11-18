@@ -65,39 +65,64 @@ export class InboxChangeBus {
       cleanup();
       res.end();
     };
-    // Recheck the actual authorized Context on invalidations and periodically,
-    // never emit after revoke or a failed Control Plane/JWT/FGA check.
-    let pending:Promise<boolean>|undefined;
-    const authorized=():Promise<boolean>=>{
-      if(closed)return Promise.resolve(false);
-      if(!revalidate)return Promise.resolve(true);
-      if(pending)return pending;
+    // IAM-07: every published invalidation needs a NEW authorization check.
+    // An in-progress periodic or prior publish check may have started before
+    // a revocation, so reusing it could emit a stale changed notification.
+    // Coalesce bursts per stream, but never reuse a completed/older verdict.
+    const check=async():Promise<boolean>=>{
+      if(closed)return false;
+      if(!revalidate)return true;
       let timeout:ReturnType<typeof setTimeout>|undefined;
-      const timer=new Promise<boolean>(resolve=>{
+      const deadline=new Promise<boolean>(resolve=>{
         timeout=setTimeout(()=>resolve(false),recheckTimeoutMs);
         timeout.unref?.();
       });
-      const check=Promise.race([Promise.resolve().then(revalidate),timer])
-        .then(ok=>{
-          if(ok!==true){revoke();return false;}
-          return !closed;
-        }).catch(()=>{revoke();return false;})
-        .finally(()=>{if(timeout)clearTimeout(timeout);});
-      pending=check;
-      void check.finally(()=>{if(pending===check)pending=undefined;});
-      return check;
+      try{
+        const ok=await Promise.race([Promise.resolve().then(revalidate),deadline]);
+        if(ok!==true){revoke();return false;}
+        return !closed;
+      }catch{
+        revoke();return false;
+      }finally{
+        if(timeout)clearTimeout(timeout);
+      }
     };
+    let periodicPending:Promise<boolean>|undefined;
+    const periodically=()=>{
+      if(closed||periodicPending)return;
+      const current=check();
+      periodicPending=current;
+      void current.finally(()=>{
+        if(periodicPending===current)periodicPending=undefined;
+      });
+    };
+    const emitChanged=()=>{
+      if(closed)return;
+      try{
+        if(res.write(["event: changed","data: {}","",""].join("\n"))===false)
+          revoke(); // no unbounded outbound buffering under a slow client
+      }catch{revoke();}
+    };
+    let dirty=false;
+    let changeInFlight=false;
     const changed=()=>{
       if(closed)return;
-      if(!revalidate){
-        try{res.write(["event: changed","data: {}","",""].join("\n"));}
-        catch{cleanup();}
-        return;
-      }
-      void authorized().then(ok=>{
-        if(!ok||closed)return;
-        try{res.write(["event: changed","data: {}","",""].join("\n"));}
-        catch{cleanup();}
+      if(!revalidate){emitChanged();return;}
+      dirty=true;
+      if(changeInFlight)return;
+      changeInFlight=true;
+      const flush=async()=>{
+        while(dirty&&!closed){
+          dirty=false;
+          // A revocation during the previous check forces this new check
+          // BEFORE any emission. No pending result is borrowed from timers.
+          if(!await check())return;
+          if(!dirty)emitChanged();
+        }
+      };
+      void flush().finally(()=>{
+        changeInFlight=false;
+        if(dirty&&!closed)changed();
       });
     };
     unsubscribe=this.subscribe(address,changed);
@@ -118,7 +143,7 @@ export class InboxChangeBus {
       res.end();
     },60000);
     if(revalidate){
-      recheck=setInterval(()=>{void authorized();},recheckIntervalMs);
+      recheck=setInterval(periodically,recheckIntervalMs);
       recheck.unref?.();
     }
     heartbeat.unref?.();expiry.unref?.();
