@@ -1,6 +1,6 @@
 # IAM-07D2 — OpenFGA granular e revogação com outbox tenant-first
 
-**Data:** 2026-11-18. **Estado:** PR candidata até a CI aprovar. **PRODUCTION_GATE=BLOCKED**.
+**Data:** 2026-11-18. **Estado:** MERGED PR [#177](https://github.com/delmacy/syndes-system/pull/177), CI [44309115757](https://github.com/delmacy/syndes-system/actions/runs/44309115757) **24/24**, marcadores IAM07D2 verificados. **PRODUCTION_GATE=BLOCKED**.
 
 ## Garantia pretendida: o que realmente pode ser serializado
 
@@ -25,6 +25,6 @@ Não existe transação distribuída entre Keycloak, OpenFGA, Control PostgreSQL
 - A nova outbox é específica do IAM e não substitui o Event Bus geral. Faltam serviço de provisionamento, worker operando continuamente com privilégios mínimos, observabilidade, alertas, replay e recuperação segura de staging, testes sob carga, rollback real e o Product Gate IAM-09.
 - A transição para produção exige restrição de credenciais administrativas de modo a **impedir mudanças fora do canal tenant-first**, reconciliação e testes de desvio. Até isso acontecer, o bloqueio não pode ser considerado eliminado.
 
-**Critério de aceite desta PR:** `Syndes CI Gate` integral verde, além de `IAM07D2_REAL_KEYCLOAK_SIGNED_JWT_PG17_OPENFGA_EXACT_CAPABILITY_PASS`, `IAM07D2_REAL_FGA_FUNNEL_A_B_AND_COARSE_GRANT_ISOLATION_PASS` e `IAM07D2_REAL_TENANT_FIRST_OUTBOX_FGA_RECOVERY_CONTROL_RECONCILE_PASS`.
+**Critério de aceite da PR #177 — comprovado na CI:** `Syndes CI Gate` integral verde, além de `IAM07D2_REAL_KEYCLOAK_SIGNED_JWT_PG17_OPENFGA_EXACT_CAPABILITY_PASS`, `IAM07D2_REAL_FGA_FUNNEL_A_B_AND_COARSE_GRANT_ISOLATION_PASS` e `IAM07D2_REAL_TENANT_FIRST_OUTBOX_FGA_RECOVERY_CONTROL_RECONCILE_PASS`.
 
 Rastreabilidade: Issue #160, WBS IAM, PR IAM-07D2. Próxima fase: IAM-07D3 com **operação real Inbox/Service via transação única, rota administrativa isolada e controle de escritores out-of-band**, seguida dos testes de rollout e Product Gate IAM-09.
