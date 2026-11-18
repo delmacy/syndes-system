@@ -103,3 +103,47 @@ export class OpenFgaFineCapabilityPolicy implements SpecificIam07dPolicy{
   return (answer as {allowed:boolean}).allowed===true;
  }
 }
+
+/** Disposable-candidate administrative tuple deletion.
+ * MUST be called only after the tenant's deny epoch has committed; worker
+ * validates this against PostgreSQL, not against caller-provided flags.
+ * Absence is idempotent; no scope wildcard or user-wide write is supported.
+ */
+export class OpenFgaFineGrantRevoker{
+ private readonly base:URL;
+ constructor(endpoint:string,private readonly storeId:string,
+  private readonly token:string,private readonly send:Send=fetch){
+  this.base=trustedOrigin(endpoint);
+  if(!/^[A-Za-z0-9_-]{8,128}$/.test(storeId)||
+    !equalString(token)||token.length<8||typeof send!=="function")
+   throw Error("Trusted fine FGA revoker configuration required");
+ }
+ private async call(path:"check"|"write",body:unknown):Promise<unknown>{
+  const response=await this.send(new URL(
+   "/stores/"+encodeURIComponent(this.storeId)+"/"+path,this.base),{
+   method:"POST",
+   headers:{"Content-Type":"application/json",Authorization:"Bearer "+this.token},
+   body:JSON.stringify(body),signal:AbortSignal.timeout(3000),
+   redirect:"error",cache:"no-store",
+  });
+  if(response.status!==200)throw Error("Fine OpenFGA revocation unavailable");
+  return response.json();
+ }
+ async revokeExact(userId:string,object:string):Promise<"removed"|"absent">{
+  if(!UUID.test(userId)||!/^iam_capability:[0-9a-f]{64}$/.test(object))
+   throw Error("Invalid exact fine tuple");
+  const tuple={user:"user:"+userId,relation:"grantee",object};
+  const before=await this.call("check",{tuple_key:{
+   user:tuple.user,relation:"can_execute",object,
+  }}) as {allowed?:unknown}|null;
+  if(!before||typeof before.allowed!=="boolean")
+   throw Error("Invalid fine OpenFGA check");
+  if(before.allowed===false)return "absent";
+  await this.call("write",{deletes:{tuple_keys:[tuple]}});
+  const after=await this.call("check",{tuple_key:{
+   user:tuple.user,relation:"can_execute",object,
+  }}) as {allowed?:unknown}|null;
+  if(!after||after.allowed!==false)throw Error("Fine OpenFGA revoke unconfirmed");
+  return "removed";
+ }
+}
