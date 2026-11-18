@@ -78,7 +78,7 @@ export interface ServiceTokenSource {
 
 /** Confidential client_credentials token, obtained from a protected file on
  * each membership check. No admin password, browser token or token caching.
- * The Keycloak service account must only have read permission for users.
+ * The Keycloak service account needs only view-users + view-organizations.
  */
 export class KeycloakServiceAccountTokens implements ServiceTokenSource {
   private readonly endpoint:string;
