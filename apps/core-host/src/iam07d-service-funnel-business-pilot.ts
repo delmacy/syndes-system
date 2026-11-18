@@ -5,15 +5,27 @@
  * epoch lock until the SAME tenant transaction commits.
  * Not mounted by main.ts or registered on any operational controller.
  */
-import {AccessDeniedError} from "@syndes/core-kernel";
+import {AccessDeniedError,type Actor,type TenantTransaction} from "@syndes/core-kernel";
 import type {RequestedIamPilotContext} from "./iam-organization-context-pilot.js";
 import type {Iam07dRevokeFirstPilot} from "./iam07d-revoke-first-pilot.js";
-import type {ServiceFunnelService,FunnelContext} from "@syndes/service";
+type FunnelContext=Readonly<{
+ tenantId:string;organizationId:string;workspaceId:string;actor:Actor;
+}>;
+type AdvanceInput=Readonly<{
+ attendanceId:string;nextStageId:string;expectedVersion:number;
+}>;
+/** Port mirrors the existing ServiceFunnelService.advancePinned API,
+ * avoiding a runtime dependency or duplicate Service business engine.
+ */
+type PinnedServicePort=Readonly<{
+ advancePinned(ctx:FunnelContext,input:AdvanceInput,
+  tx:TenantTransaction):Promise<unknown>;
+}>;
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export class Iam07dServiceFunnelBusinessPilot{
  constructor(private readonly iam:Pick<Iam07dRevokeFirstPilot,"issue"|"execute">,
-  private readonly service:Pick<ServiceFunnelService,"advancePinned">){
+  private readonly service:PinnedServicePort){
   if(typeof iam?.issue!=="function"||typeof iam?.execute!=="function"||
      typeof service?.advancePinned!=="function")
    throw new TypeError("Trusted IAM07D4 dependencies required");
