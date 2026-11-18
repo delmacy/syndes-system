@@ -9,7 +9,7 @@ const adapter=readFileSync("apps/core-host/src/keycloak-authorization-pilot.ts",
 
 test("IAM-03 disposable lab integrated only with existing real Keycloak CI test",()=>{
   assert.ok(entry.includes('import {runIam03Lab} from "./keycloak-organizations-authz-ci.mjs";'));
-  assert.ok(entry.includes("await runIam03Lab({base,adminToken});"));
+  assert.ok(entry.includes("await runIam03Lab({base,adminToken,managerToken:adminAccess});"));
   assert.ok(lab.includes('assert.equal(process.env.CI_MASTER_REAL_PG,"1"'));
   assert.ok(lab.includes('assert.equal(base,"http://127.0.0.1:18088"'));
   assert.ok(!lab.includes('"/admin/realms/syndes/"'));
@@ -34,4 +34,22 @@ test("Keycloak UMA permission must use resource and scope immutable IDs",()=>{
 test("IAM-03 Node 22 real lab source passes syntax validation",()=>{
   execFileSync("node",["--check","tests/platform/keycloak-organizations-authz-ci.mjs"]);
   execFileSync("node",["--check","tests/platform/platform-manager-keycloak-ci.mjs"]);
+});
+
+test("IAM-06B is attached only to existing disposable Keycloak and PG17/OpenFGA fixture",()=>{
+  const composite=readFileSync("tests/platform/iam06b-composite-ci.mjs","utf8");
+  const workflow=readFileSync(".github/workflows/platform-manager.yml","utf8");
+  assert.ok(lab.includes('await runIam06bLab({'));
+  assert.ok(composite.includes('CI_MASTER_REAL_PG,"1"'));
+  assert.ok(composite.includes('IAM06B_DISPOSABLE_ONLY'));
+  assert.ok(composite.includes('127.0.0.1:15432'));
+  assert.ok(composite.includes('127.0.0.1:18089'));
+  assert.ok(composite.includes("002_legacy_single_context_gate.sql"));
+  assert.ok(composite.includes("KeycloakOrganizationMembershipReader"));
+  assert.ok(composite.includes("FgaPermission"));
+  assert.ok(composite.includes("ActorVerifier"));
+  assert.ok(!composite.includes("docker run"));
+  assert.ok(workflow.includes("syndes-iam06b-fga-ci"));
+  assert.ok(workflow.includes("SYNDES_IAM06B_REAL"));
+  execFileSync("node",["--check","tests/platform/iam06b-composite-ci.mjs"]);
 });
