@@ -231,3 +231,11 @@ O Product Gate permanece BLOQUEADO até portas reais, laboratório integrado e s
 - A rota Inbox SSE só pode subir com `SYNDES_MULTI_ORG_ENABLED=true` se o Core Host configurar `inboxModuleGateMode=enforce`; caso contrário o Host Inbox recusa inicializar. O bus recusa qualquer canal tenant-wide e exige callback de revalidação vivo para conexões sob multi-org; a publicação de invalidations org/workspace continua isolada.
 - Testes `modules/inbox/test/realtime.test.mjs` comprovam negação de subscribe/publish/connect sem escopo, ausência de revalidação e isolamento de A/B no mesmo tenant, além de preservar cenário legado quando flag desativada.
 - A alteração **não** habilita multi-host: InboxChangeBus continua in-memory por processo e requer broker compartilhado antes de escalar instâncias. Também não substitui a autenticação de Organizations Keycloak no Inbox operacional legacy: o IAM real continua CI-only até product gate. `PRODUCTION_GATE=BLOCKED`.
+
+
+### TOPO-05B — fail-closed Control entitlement CRM + WhatsApp (2026-11-18)
+
+- Quando `SYNDES_MULTI_ORG_ENABLED=true`, `CrmDefaultContextGuard` **recusa o modo legacy**, mesmo com seleção org/workspace válida; requer `crmModuleGateMode=enforce` e `CoreKernel.executeModule` antes de abrir o banco.
+- `WhatsAppDefaultContextGuard` passa a usar `CoreKernel.executeModule({moduleId:'whatsapp'})` antes de resolver o escopo selecionado no mesmo modo. Falha de Control ModuleAccess/membership/FGA recusa a operação sem lease de tenant. Modo single-org continua o caminho legacy.
+- Unit tests em `modules/core-crm/test/context-guard.test.mjs` e `modules/whatsapp/test/scope.test.mjs` verificam denials e ordem tenant→FGA→Control→tenant DB.
+- Estas verificações são **necessárias, mas não suficientes**: Operations continuam sem revalidação Keycloak Organizations nos controllers CRM/WhatsApp legacy; não há broker SSE multi-host nem proof de outbox/worker multi-org no Host operacional. NÃO habilitar multi-org ou remover SQL002 com apenas estas flags e testes. `PRODUCTION_GATE=BLOCKED`.
