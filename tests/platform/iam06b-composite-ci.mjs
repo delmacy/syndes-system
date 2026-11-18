@@ -1,4 +1,5 @@
 import {runIam07d2FineFgaLiveLab} from "./iam07d2-fine-fga-live-ci.mjs";
+import {runIamMultiOrgTopologyPg17Lab} from "./iam-multiorg-structural-pg17-ci.mjs";
 import {runIam07cNestHttpLab} from "./iam07c-nest-http-ci.mjs";
 import {runIam07bProviderRecoveryLab} from "./iam07b-provider-recovery-ci.mjs";
 import {runIam07SseLiveLab} from "./iam07-sse-live-ci.mjs";
@@ -300,6 +301,10 @@ export async function runIam06bLab(args){
       changeMembership:keycloakMemberChange,orgId:args.orgs.a,
       adminToken:args.adminToken,
     });
+    // Rollback-only PG17 topology proof: 2 organizations, 2 workspaces each,
+    // 2 funnels per workspace. Restores physical SQL002 indexes on rollback.
+    await runIamMultiOrgTopologyPg17Lab({tenantDb,actorId:args.alice});
+
 
     // Real FGA revoke while UMA user policy remains ALLOW: the request DENIES.
     await fga("POST","/stores/"+store.id+"/write",
