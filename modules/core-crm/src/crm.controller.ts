@@ -30,7 +30,13 @@ export class CrmHost {
    catch{throw new HttpException("Authentication required",401)}
    // The context guard performs both FGA and active org/workspace checks.
    // Context denial MUST NOT be misclassified as an authentication failure.
-   return this.scope.resolve(tenantId,actor,selection);
+   const scoped=await this.scope.resolve(tenantId,actor,selection);
+   if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"){
+     if(!this.core.organizationAccess)throw new AccessDeniedError();
+     await this.core.organizationAccess.requireActive(
+      tenantId,scoped.organizationId,actor.id);
+   }
+   return scoped;
  }
  async run<T>(tenantId:string,bearer:string|undefined,
    task:(context:CrmContext)=>Promise<T>,selection?:RequestedOperationalScope):Promise<T>{

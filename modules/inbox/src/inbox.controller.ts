@@ -80,6 +80,13 @@ export class InboxHost{
    tenantId:ctx.tenantId,actor:ctx.actor,action:"write",resource:"inbox:messages",
   },()=>this.whatsappReply!.enqueue(ctx,conversationId,body));
  }
+ private async requireLiveOrganization(context:InboxContext):Promise<void>{
+  if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true")return;
+  if(!context.organizationId||!this.core.organizationAccess)
+   throw new AccessDeniedError();
+  await this.core.organizationAccess.requireActive(
+   context.tenantId,context.organizationId,context.actor.id);
+ }
  async revalidateStream(context:InboxContext,bearer:string|undefined,selection?:RequestedOperationalScope):Promise<boolean>{
   // Module suspension and a stale JWT revoke an already-connected SSE stream.
   // Never reuse a user-supplied scope without checking both memberships again.
@@ -88,6 +95,7 @@ export class InboxHost{
   const actual=await this.scope.resolve(context.tenantId,actor,selection);
   if(actual.organizationId!==context.organizationId||actual.workspaceId!==context.workspaceId)
    throw new AccessDeniedError();
+  await this.requireLiveOrganization(context);
   return true;
  }
  async run<T>(tenantId:string,authorization:string|undefined,task:(context:InboxContext)=>Promise<T>,selection?:RequestedOperationalScope):Promise<T>{
@@ -95,7 +103,11 @@ export class InboxHost{
   let actor;
   try{actor=await this.core.verifier.verify(authorization)}
   catch{throw new HttpException("Authentication required",401)}
-  try{return await task(await this.scope.resolve(tenantId,actor,selection))}
+  try{
+   const scoped=await this.scope.resolve(tenantId,actor,selection);
+   await this.requireLiveOrganization(scoped);
+   return await task(scoped);
+  }
   catch(error){
    if(error instanceof HttpException)throw error;
    if(error instanceof AccessDeniedError)throw new HttpException("Forbidden",403);

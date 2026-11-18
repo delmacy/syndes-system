@@ -16,6 +16,9 @@ import {IamTopologyMultiOrgHttpController,IAM_TOPOLOGY_HTTP_DEPS}
  from "../../apps/core-host/dist/iam-topology-multiorg-http-pilot.js";
 import {PgMembership} from "../../apps/core-host/dist/adapters.js";
 import {PINNED_TENANT_TRANSACTION} from "../../packages/core-kernel/dist/index.js";
+import {OperationalOrganizationMembershipGate}
+ from "../../apps/core-host/dist/iam-operational-organization-gate.js";
+import {AccessDeniedError} from "../../packages/core-kernel/dist/index.js";
 import {Iam07dRevokeFirstPilot}
  from "../../apps/core-host/dist/iam07d-revoke-first-pilot.js";
 import {Iam07dInboxBusinessPilot}
@@ -87,6 +90,10 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
  await f.changeMembership("POST",f.orgB,f.actorId,f.adminToken);
  assert.equal(await f.members.isActiveMember(REALM,f.orgA,f.actorId),true);
  assert.equal(await f.members.isActiveMember(REALM,f.orgB,f.actorId),true);
+ const operational=new OperationalOrganizationMembershipGate(
+  REALM,f.links,f.members);
+ await operational.requireActive(TENANT,ORG_A,f.actorId);
+ await operational.requireActive(TENANT,orgB,f.actorId);
  const admission=new OrganizationContextAdmissionPilot({
   realm:REALM,clientId:"syndes-iam-lab-ui",multiOrganizationEnabled:true,
   verifier:f.verifier,tenancy:new PgMembership(f.control),
@@ -199,6 +206,8 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
   // affect Org A's admission; the old JWT alone cannot revive Org B.
   await f.changeMembership("DELETE",f.orgB,f.actorId,f.adminToken);
   try{
+   await assert.rejects(operational.requireActive(TENANT,orgB,f.actorId),AccessDeniedError);
+   await operational.requireActive(TENANT,ORG_A,f.actorId);
    assert.equal(await send(f.bearer,orgB,wsB1),403);
    assert.equal(await send(f.bearer,ORG_A,WS_A1),200);
   }finally{await f.changeMembership("POST",f.orgB,f.actorId,f.adminToken)}
@@ -229,6 +238,8 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
   // Control link revision CAS revocation is independent by Organization.
   assert.equal(await f.linkTransition(f.control,link("revoked",1)),2);
   try{
+   await assert.rejects(operational.requireActive(TENANT,orgB,f.actorId),AccessDeniedError);
+   await operational.requireActive(TENANT,ORG_A,f.actorId);
    assert.equal(await send(f.bearer,orgB,wsB1),403);
    assert.equal(await send(f.bearer,ORG_A,WS_A1),200);
   }finally{assert.equal(await f.linkTransition(f.control,link("active",2)),3)}
