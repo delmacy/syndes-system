@@ -137,6 +137,12 @@ export async function runIam07d2FineFgaLiveLab(f){
  });
  assert.equal(await fine.canPerform(claimContext,CAP),false);
  await assert.rejects(controlled.issue(f.bearer,request(CAP)),AccessDeniedError);
+ await assert.rejects(controlled.execute(ticket,async tx=>{
+  await tx.query("INSERT INTO iam07d2_live_effects(id,capability) VALUES($1,$2)",
+   [randomUUID(),CAP]);
+ }),AccessDeniedError,"A signed ticket is rechecked against live fine FGA on execute");
+ assert.equal((await f.tenantDb.query(
+  "SELECT count(*)::int AS n FROM iam07d2_live_effects")).rows[0].n,1);
  // This test intentionally avoids claiming direct OpenFGA revoke and
  // existing ticket transaction are atomic. IAM07D3 must close it by routing
  // administrative revoke through tenant-first outbox.
