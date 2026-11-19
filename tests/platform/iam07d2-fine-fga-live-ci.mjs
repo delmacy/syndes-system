@@ -125,6 +125,17 @@ export async function runIam07d2FineFgaLiveLab(f){
  await f.control.query(await readFile(new URL(
   "../../infra/postgres/bootstrap/control-iam07d-revocation-receipts.schema",
   import.meta.url),"utf8"));
+ const expandedControl=await readFile(new URL(
+  "../../infra/postgres/bootstrap/control-iam07d-capabilities-010.schema",
+  import.meta.url),"utf8");
+ await f.control.query(expandedControl);
+ await f.control.query(expandedControl);
+ const receiptCapability=(await f.control.query(
+  "SELECT convalidated FROM pg_constraint "+
+  "WHERE conrelid='public.platform_iam07d_revocation_receipts'::regclass"+
+  " AND conname='platform_iam07d_revocation_receipts_capability_v2_check'")).rows;
+ assert.deepEqual(receiptCapability,[{convalidated:true}]);
+ console.log("IAM07D010_CONTROL_PG17_EXPANDED_RECEIPTS_REPLAY_PASS");
  let controlAvailable=true;
  const controlled=new Iam07dRevokeFirstPilot(
   f.admission,fine,tenantProvider,{query:(sql,params)=>{
