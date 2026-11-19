@@ -1,5 +1,5 @@
 import {
- Body,Controller,Get,Headers,HttpException,Inject,Injectable,Module,Param,Patch,Post,
+ Body,Controller,Get,Headers,HttpException,Inject,Injectable,Module,Optional,Param,Patch,Post,
 } from "@nestjs/common";
 import {
  AccessDeniedError,type Actor,type CoreKernel,type TrustedTenantTransactionProvider,
@@ -36,8 +36,26 @@ export class ServiceManagementHost{
  constructor(
   @Inject("SYNDES_CORE_API") private readonly core:HostApi,
   @Inject("SYNDES_TENANT_DB") provider:TrustedTenantTransactionProvider,
+  @Optional() @Inject("SYNDES_IAM07D_OPS")
+  private readonly exact?:{
+   advance(bearer:string,scope:{tenantId:string;organizationId:string;workspaceId:string},
+    funnelId:string,service:ServiceFunnelService,input:{
+     attendanceId:string;nextStageId:string;expectedVersion:number;
+    }):Promise<unknown>;
+  },
  ){
   this.service=new ServiceFunnelService(core.kernel,provider);
+ }
+ async advanceExact(ctx:FunnelContext,bearer:string|undefined,
+  attendanceId:string,nextStageId:string,expectedVersion:number):Promise<unknown>{
+  if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true")
+   return this.service.advance(ctx,{attendanceId,nextStageId,expectedVersion});
+  if(!this.exact||!bearer)throw new AccessDeniedError();
+  const attendance=await this.service.get(ctx,attendanceId);
+  if(!attendance||typeof attendance.funnelId!=="string")
+   throw new AccessDeniedError();
+  return this.exact.advance(bearer,ctx,attendance.funnelId,this.service,
+   {attendanceId,nextStageId,expectedVersion});
  }
  async run<T>(
   tenantId:string,auth:string|undefined,organizationId:unknown,workspaceId:unknown,
@@ -70,6 +88,12 @@ export class ServiceManagementController{
  ):Promise<T>{
   return this.host.run(tenantId,auth,org,workspace,callback);
  }
+ private legacyWrite<T>(tenantId:string,auth:string|undefined,
+  org:unknown,workspace:unknown,callback:(ctx:FunnelContext)=>Promise<T>):Promise<T>{
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true")
+   throw new HttpException("Exact write capability required",403);
+  return this.run(tenantId,auth,org,workspace,callback);
+ }
  @Get("funnels")
  listFunnels(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown){
@@ -79,7 +103,7 @@ export class ServiceManagementController{
  createFunnel(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
   @Body()body:{code:string;name:string;stages:{code:string;label:string}[]}){
-  return this.run(t,a,o,w,ctx=>this.host.service.publishSimpleFunnel(ctx,body));
+  return this.legacyWrite(t,a,o,w,ctx=>this.host.service.publishSimpleFunnel(ctx,body));
  }
  @Get("funnels/:funnelId/board")
  board(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
@@ -96,7 +120,7 @@ export class ServiceManagementController{
  open(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
   @Body()body:{funnelId:string;conversationId?:string|null;idempotencyKey:string}){
-  return this.run(t,a,o,w,ctx=>this.host.service.open(ctx,body));
+  return this.legacyWrite(t,a,o,w,ctx=>this.host.service.open(ctx,body));
  }
  @Get("conversations/:conversationId/attendances")
  byConversation(@Param("tenantId")t:string,
@@ -126,27 +150,28 @@ export class ServiceManagementController{
  advance(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
   @Param("id")id:string,@Body()body:{nextStageId:string;expectedVersion:number}){
-  return this.run(t,a,o,w,ctx=>this.host.service.advance(ctx,{...body,attendanceId:id}));
+  return this.run(t,a,o,w,ctx=>this.host.advanceExact(
+   ctx,a,id,body?.nextStageId,body?.expectedVersion));
  }
  @Patch("attendances/:id/assignment")
  assign(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
   @Param("id")id:string,@Body()body:{assigneeId:string;expectedVersion:number}){
-  return this.run(t,a,o,w,ctx=>this.host.service.assign(ctx,{...body,attendanceId:id}));
+  return this.legacyWrite(t,a,o,w,ctx=>this.host.service.assign(ctx,{...body,attendanceId:id}));
  }
  @Patch("attendances/:id/team")
  transferTeam(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
   @Param("id")id:string,
   @Body()body:{destinationTeamId:string;expectedVersion:number;reason:string}){
-  return this.run(t,a,o,w,ctx=>this.host.service.transferTeam(ctx,{
+  return this.legacyWrite(t,a,o,w,ctx=>this.host.service.transferTeam(ctx,{
    ...body,attendanceId:id}));
  }
  @Post("attendances/:id/close")
  close(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
   @Param("id")id:string,@Body()body:{result:string;expectedVersion:number}){
-  return this.run(t,a,o,w,ctx=>this.host.service.close(ctx,{...body,attendanceId:id}));
+  return this.legacyWrite(t,a,o,w,ctx=>this.host.service.close(ctx,{...body,attendanceId:id}));
  }
 }
 
