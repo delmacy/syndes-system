@@ -85,6 +85,8 @@ test("UC-SIGNUP-01C PG17: initial default Org/Workspace, Control registry and SQ
     intent.workspaceId,intent.accountName,intent.organizationName,
     intent.workspaceName,"syndes-"+intent.tenantId.replaceAll("-","")+"-"+
     intent.requestId.replaceAll("-","")]);
+  await control.query(`INSERT INTO platform_signup_intent_audit(request_id,revision,event)
+   VALUES($1,1,'reserved')`,[intent.requestId]);
   const kcId=randomUUID(),link=new PgFirstTenantSignupKeycloakLink(control,"syndes");
   assert.equal(await link.verify(intent,kcId),false);
   await link.ensure(intent,kcId);
@@ -124,7 +126,8 @@ test("UC-SIGNUP-01C PG17: initial default Org/Workspace, Control registry and SQ
   const finalAudit=(await control.query(`SELECT revision,event
     FROM platform_signup_intent_audit WHERE request_id=$1 ORDER BY revision`,
     [intent.requestId])).rows;
-  assert.deepEqual(finalAudit,[{revision:"2",event:"ready"}]);
+  assert.deepEqual(finalAudit,[{revision:"1",event:"reserved"},
+   {revision:"2",event:"ready"}]);
   await control.query("UPDATE tenant_registry SET state='suspended' WHERE tenant_id=$1",[id]);
   assert.equal(await adapter.verifyActive(intent),false);
   await assert.rejects(store.markReady(intent.requestId,intent.founderId,kcId));
