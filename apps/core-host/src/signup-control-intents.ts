@@ -62,7 +62,9 @@ function decode(row:Record<string,unknown>):SignupReservation{
  */
 export class PgSignupReservationStore{
  constructor(private readonly control:PgQuery,
-  private readonly authorizeFounder:(founderId:string)=>Promise<boolean>){
+  private readonly authorizeFounder:(founderId:string)=>Promise<boolean>,
+  /** Distinct privileged Control pool, only the finalize NOLOGIN role. */
+  private readonly finalizer?:PgQuery){
   if(!control?.query||typeof authorizeFounder!=="function")throw new AccessDeniedError();
  }
  private async authorized(founder:string){
@@ -113,22 +115,17 @@ export class PgSignupReservationStore{
   * Keycloak/Control/tenant/FGA evidence. The database stores a receipt but
   * NEVER infers grants, tokens or membership from it. */
  async markReady(requestId:string,founderId:string,kcId:string):Promise<void>{
-  if(!UUID.test(requestId)||!UUID.test(founderId)||!UUID.test(kcId))
-   throw new AccessDeniedError();
+  if(!UUID.test(requestId)||!UUID.test(founderId)||!UUID.test(kcId)||
+    !this.finalizer)throw new AccessDeniedError();
   await this.authorized(founderId.toLowerCase());
-  const changed=await this.control.query(`
-   WITH updated AS (
-    UPDATE public.platform_signup_intents
-       SET state='ready',keycloak_organization_id=$3::uuid,
-           revision=revision+1,changed_at=clock_timestamp()
-     WHERE request_id=$1::uuid AND founder_id=$2::uuid
-       AND state IN ('reserved','reconcile_required')
-       AND keycloak_organization_id IS NULL
-     RETURNING request_id,revision
-   ) INSERT INTO public.platform_signup_intent_audit(request_id,revision,event)
-     SELECT request_id,revision,'ready' FROM updated RETURNING event_id
-  `,[requestId,founderId,kcId]);
-  if(changed.rows.length>1)throw new AccessDeniedError();
+  // The trusted Control SECURITY DEFINER function validates link+founder
+  // and atomically activates tenant_registry with signup READY+audit.
+  const outcome=await this.finalizer.query(
+   "SELECT public.platform_signup_finalize($1::uuid,$2::uuid,$3::uuid) AS revision",
+   [requestId,founderId,kcId]);
+  if(outcome.rows.length!==1||
+     !Number.isSafeInteger(Number(outcome.rows[0].revision))||
+     Number(outcome.rows[0].revision)<2)throw new AccessDeniedError();
   const final=await this.get(requestId,founderId);
   if(final.state!=="ready"||final.keycloakOrganizationId!==kcId)
    throw new AccessDeniedError();
@@ -136,18 +133,9 @@ export class PgSignupReservationStore{
  async markReconcileRequired(requestId:string,founderId:string):Promise<void>{
   if(!UUID.test(requestId)||!UUID.test(founderId))throw new AccessDeniedError();
   await this.authorized(founderId.toLowerCase());
-  const changed=await this.control.query(`
-   WITH updated AS (
-    UPDATE public.platform_signup_intents
-      SET state='reconcile_required',revision=revision+1,
-       changed_at=clock_timestamp()
-    WHERE request_id=$1::uuid AND founder_id=$2::uuid AND state='reserved'
-    RETURNING request_id,revision
-   ) INSERT INTO public.platform_signup_intent_audit(request_id,revision,event)
-     SELECT request_id,revision,'reconcile_required' FROM updated
-     RETURNING event_id
-  `,[requestId,founderId]);
-  if(changed.rows.length>1)throw new AccessDeniedError();
+  await this.control.query(
+   "SELECT public.platform_signup_mark_reconcile($1::uuid,$2::uuid) AS revision",
+   [requestId,founderId]);
   const state=await this.get(requestId,founderId);
   if(state.state!=="reconcile_required")throw new AccessDeniedError();
  }
