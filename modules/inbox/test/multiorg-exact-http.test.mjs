@@ -49,7 +49,7 @@ test("ten Inbox mutations route only to exact IAM07D; history sync remains denie
    "inbox.conversation.link_contact","inbox.message.reply",
    "inbox.message.note","inbox.message.simulate",
   ]);
-  await assert.rejects(api.requestHistory(T,bearer,scope,C),e=>e.status===403);
+  await assert.rejects(async()=>api.requestHistory(T,bearer,scope,C),e=>e.status===403);
   assert.equal(admitted,10);
   assert.equal(business,0);
   assert.equal(events.length,10);
