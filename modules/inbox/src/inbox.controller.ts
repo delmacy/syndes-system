@@ -313,6 +313,18 @@ export class InboxController{
    throw new HttpException("Exact write capability required",403);
   return this.run(tenant,header,handler,selection);
  }
+ private mutate(tenant:string,bearer:string|undefined,
+  selection:RequestedOperationalScope|undefined,
+  capability:PinnedInboxCapability,key:string|undefined,input:unknown,
+  legacy:(ctx:InboxContext)=>Promise<unknown>):Promise<unknown>{
+  return this.run(tenant,bearer,async ctx=>{
+   const result=found(process.env.SYNDES_MULTI_ORG_ENABLED==="true"
+    ?await this.host.mutateExact(ctx,bearer,capability,key,input)
+    :await legacy(ctx));
+   this.host.events.publish(ctx);
+   return result;
+  },selection);
+ }
  @Get("events")
  async eventsStream(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
     @Res()response:SseSink):Promise<void>{
@@ -338,7 +350,7 @@ export class InboxController{
  @Post("conversations")
  create(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
         @Body()b:CreateConversation){
-  return this.legacyWrite(t,h,async c=>{const result=await this.host.inbox.create(c,b);this.host.events.publish(c);return result;},selection);
+  return this.mutate(t,h,selection,"inbox.conversation.create",undefined,b,c=>this.host.inbox.create(c,b));
  }
  @Get("conversations/:id")
  get(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,@Param("id")key:string){
@@ -362,17 +374,17 @@ export class InboxController{
  @Patch("conversations/:id/assignment")
  assign(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
         @Param("id")key:string,@Body()b:{assigneeId?:string|null}){
-  return this.legacyWrite(t,h,async c=>{const result=found(await this.host.inbox.assign(c,key,b?.assigneeId));this.host.events.publish(c);return result;},selection);
+  return this.mutate(t,h,selection,"inbox.conversation.assign",key,b,c=>this.host.inbox.assign(c,key,b?.assigneeId));
  }
  @Patch("conversations/:id/status")
  status(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
         @Param("id")key:string,@Body()b:{status:ConversationStatus}){
-  return this.legacyWrite(t,h,async c=>{const result=found(await this.host.inbox.status(c,key,b?.status));this.host.events.publish(c);return result;},selection);
+  return this.mutate(t,h,selection,"inbox.conversation.status",key,b,c=>this.host.inbox.status(c,key,b?.status));
  }
  @Patch("conversations/:id/handoff")
  handoff(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
          @Param("id")key:string,@Body()b:{mode:HandoffMode}){
-  return this.legacyWrite(t,h,async c=>{const result=found(await this.host.inbox.handoff(c,key,b?.mode));this.host.events.publish(c);return result;},selection);
+  return this.mutate(t,h,selection,"inbox.conversation.handoff",key,b,c=>this.host.inbox.handoff(c,key,b?.mode));
  }
  @Patch("conversations/:id/workspace")
  transferWorkspace(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
@@ -392,26 +404,16 @@ export class InboxController{
  @Patch("conversations/:id/favorite")
  favorite(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
    @Param("id")key:string,@Body()b:{favorite:boolean}){
-   return this.legacyWrite(t,h,async c=>{
-    const result=found(await this.host.inbox.favorite(c,key,b?.favorite));
-    this.host.events.publish(c);return result;
-   },selection);
+   return this.mutate(t,h,selection,"inbox.conversation.favorite",key,b,c=>this.host.inbox.favorite(c,key,b?.favorite));
  }
  @Patch("conversations/:id/read")
  read(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,@Param("id")key:string){
-   return this.legacyWrite(t,h,async c=>{
-    const result=found(await this.host.inbox.markRead(c,key));
-    this.host.events.publish(c);return result;
-   },selection);
+   return this.mutate(t,h,selection,"inbox.conversation.mark_read",key,{},c=>this.host.inbox.markRead(c,key));
  }
  @Patch("conversations/:id/contact")
  contact(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
          @Param("id")key:string,@Body()b:{personId?:string}){
-  return this.legacyWrite(t,h,async c=>{
-   const result=found(await this.host.inbox.linkContact(c,key,b?.personId??""));
-   this.host.events.publish(c);
-   return this.host.get(c,key);
-  },selection);
+  return this.mutate(t,h,selection,"inbox.conversation.link_contact",key,b,c=>this.host.inbox.linkContact(c,key,b?.personId??""));
  }
  @Post("conversations/:id/history")
  requestHistory(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
@@ -421,17 +423,17 @@ export class InboxController{
  @Post("conversations/:id/replies")
  reply(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
        @Param("id")key:string,@Body()b:{body:string}){
-  return this.legacyWrite(t,h,async c=>{const result=found(await this.host.reply(c,key,b?.body));this.host.events.publish(c);return result;},selection);
+  return this.mutate(t,h,selection,"inbox.message.reply",key,b,c=>this.host.reply(c,key,b?.body));
  }
  @Post("conversations/:id/notes")
  note(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
       @Param("id")key:string,@Body()b:{body:string}){
-  return this.legacyWrite(t,h,async c=>{const result=found(await this.host.inbox.note(c,key,b?.body));this.host.events.publish(c);return result;},selection);
+  return this.mutate(t,h,selection,"inbox.message.note",key,b,c=>this.host.inbox.note(c,key,b?.body));
  }
  @Post("conversations/:id/simulator/inbound")
  simulate(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
           @Param("id")key:string,@Body()b:{body:string;externalMessageId:string}){
-  return this.legacyWrite(t,h,async c=>{const result=found(await this.host.simulator.receive(c,{channel:"simulation",conversationId:key,body:b?.body,externalMessageId:b?.externalMessageId}));this.host.events.publish(c);return result;},selection);
+  return this.mutate(t,h,selection,"inbox.message.simulate",key,b,c=>this.host.simulator.receive(c,{channel:"simulation",conversationId:key,body:b?.body,externalMessageId:b?.externalMessageId}));
  }
  @Get("metrics")
  metrics(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined){
