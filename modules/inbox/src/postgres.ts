@@ -195,9 +195,15 @@ export class PgInboxRepository implements InboxRepository {
  }
  async markRead(tenantId:string,key:string,actorId:string):Promise<Conversation|null>{
   this.check(tenantId);
-  const rows=(await this.query(`UPDATE inbox_conversations SET unread_count=0
-   WHERE tenant_id=$1::uuid AND id=$2::uuid AND channel='whatsapp' /*SCOPE:AND platform_organization_id=@@ORG@@ AND platform_current_workspace_id=@@WS@@*/
-   RETURNING *`,[tenantId,key])).rows;
+  const rows=(await this.query(`WITH changed AS (
+   UPDATE inbox_conversations SET unread_count=0
+   WHERE tenant_id=$1::uuid AND id=$2::uuid AND channel='whatsapp'
+    /*SCOPE:AND platform_organization_id=@@ORG@@ AND platform_current_workspace_id=@@WS@@*/
+   RETURNING *
+  ), audit AS (
+   INSERT INTO inbox_events(tenant_id,conversation_id,actor_id,action)
+   SELECT tenant_id,id,$3,'read' FROM changed RETURNING id
+  ) SELECT changed.* FROM changed CROSS JOIN audit`,[tenantId,key,actorId])).rows;
   return rows[0]?conversation(rows[0]):null;
  }
  async linkContact(tenantId:string,key:string,actorId:string,personId:string):Promise<Conversation|null>{
