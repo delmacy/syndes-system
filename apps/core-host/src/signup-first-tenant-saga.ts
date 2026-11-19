@@ -41,7 +41,7 @@ export interface FirstTenantFgaPort{
 type Ports=Readonly<{
  authorizeOperator(input:SignupReservationInput):Promise<boolean>;
  /** Session-pinned lock, per requestId, across ALL external operations. */
- withRequestLock<T>(requestId:string,work:()=>Promise<T>):Promise<T>;
+ withRequestLock<T>(requestId:string,work:(assertHeld:()=>Promise<void>)=>Promise<T>):Promise<T>;
  intents:IntentPort;
  installer:FirstTenantInstallPort;
  keycloak:FirstTenantKeycloakPort;
@@ -59,7 +59,7 @@ export class FirstTenantSignupSaga{
    throw new AccessDeniedError();
   // This lease must have a dedicated live PostgreSQL session, NOT a pg Pool
   // query, because a session-level advisory lock cannot survive pooling.
-  return this.ports.withRequestLock(input.requestId,async()=>{
+  return this.ports.withRequestLock(input.requestId,async assertHeld=>{
    const intent=await this.ports.intents.reserve(input);
    const response=()=>Object.freeze({
     ready:true as const,tenantId:intent.tenantId,
@@ -102,7 +102,9 @@ export class FirstTenantSignupSaga{
     await this.ports.installer.activate(intent);
     // Only a current live recheck across all systems may precede READY.
     if(!await verify(kcId))throw new AccessDeniedError();
+    await assertHeld();
     await this.ports.intents.markReady(intent.requestId,intent.founderId,kcId);
+    await assertHeld();
     const final=await this.ports.intents.get(intent.requestId,intent.founderId);
     if(final.state!=="ready"||final.keycloakOrganizationId!==kcId||
        !await verify(kcId))throw new AccessDeniedError();
