@@ -7,6 +7,7 @@ import pg from "pg";
 import {PgOrganizationIdentityLinks} from "../dist/iam-organization-adapters.js";
 import {OrganizationContextAdmissionPilot} from "../dist/iam-organization-context-pilot.js";
 import {PgOrgProvisionIntentStore} from "../dist/iam-org-provisioning-operator.js";
+import {MultiOrgSingleHostLease} from "../dist/multiorg-single-host-lease.js";
 
 const raw=process.env.SYNDES_IAM04_PG_URL;
 const safe=(()=>{
@@ -219,6 +220,22 @@ test("IAM-04B manual Control schema: PostgreSQL 17 ACL, 1:1, CAS, audit, concurr
        FROM public.platform_iam_org_provision_intents
        WHERE tenant_id=$1`,[tenantA])).rows[0].n,1);
       console.log("IAM_TOPO06B_CONTROL_PG17_ORG_INTENT_IDEMPOTENCY_ACL_AUDIT_PASS");
+    });
+    await t.test("TOPO-06C real PostgreSQL17 session lease enforces ONE Core Host",async()=>{
+      const owner=new MultiOrgSingleHostLease(pool);
+      const contender=new MultiOrgSingleHostLease(pool);
+      try{
+       await owner.acquire();
+       owner.assertHeld();
+       await assert.rejects(contender.acquire(),/Another Core Host/);
+       await owner.close();
+       await contender.acquire();
+       contender.assertHeld();
+      }finally{
+       await owner.close();
+       await contender.close();
+      }
+      console.log("IAM_TOPO06C_REAL_PG17_MULTI_ORG_SINGLE_CORE_LEASE_PASS");
     });
     console.log("IAM04B_DISPOSABLE_PG17_ACL_CONCURRENCY_AUDIT_PASS");
   }finally{

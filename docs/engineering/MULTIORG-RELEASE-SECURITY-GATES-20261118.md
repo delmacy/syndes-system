@@ -67,3 +67,10 @@
 - Após provar fundador admin do tenant default e autorização externa de operador, a saga reserva intenção, garante Organization+membership Keycloak, executa INSERT atômico de Organization+workspace+membros+auditoria no tenant DB (somente após SQL002 físico removido no tenant), grava link 1:1 Control via operator CAS e só marca `ready` após checks atuais de KC/Control/tenant.
 - Retry após `ready` NUNCA chama `ensureMember`, portanto revogação humana posterior não é desfeita por replay. Qualquer falha antes de `ready` exige reconciliação explícita, não abre autorização parcial.
 - **Limites:** esta entrega implementa componentes de operador + schema candidato + testes, não instala roles em ambiente operacional, não cria cliente Keycloak admin/provisioner, não habilita endpoint de nova Organization e não elimina SQL002. G-3 só é aprovado com CI real de Keycloak + Control + tenant DB no mesmo fluxo, operador/installer separados, verificação de reprocessamento após queda e cleanup de recursos não reconciliáveis. `PRODUCTION_GATE=BLOCKED`.
+
+## TOPO-06C — Control PG17 singleton lease para SSE local
+
+- `MultiOrgSingleHostLease` reserva **sessão PostgreSQL Control** exclusiva via `pg_try_advisory_lock(20506,20261118)`. O Core Host com `SYNDES_MULTI_ORG_ENABLED=true` só publica serviço após possuir a sessão; uma segunda réplica falha no startup. A sessão NÃO volta ao pool enquanto o Host está ativo e é liberada no shutdown.
+- Perda da sessão reservada provoca encerramento imediato do processo para evitar que outro Host assuma o lock enquanto o antigo continua servindo SSE local ou permissões cacheadas.
+- Teste unitário cobre duas instâncias, retry/release e erro de conexão; suite real PG17 valida exclusão mútua com duas conexões.
+- Isso permite *propor* rollout single-host, NÃO comprova ainda topologia deploy real nem protege producers externos que publiquem SSE somente em outro processo. Broker distribuído continua requisito antes de replicar o Core Host. `PRODUCTION_GATE=BLOCKED`.
