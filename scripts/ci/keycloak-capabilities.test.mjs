@@ -54,9 +54,12 @@ test("UMA and fine-FGA resolve every explicit catalog capability without a legac
  assert.match(context,/Object\.fromEntries\(IAM07D_CAPABILITIES\.map/);
  const candidates=catalog.entries.filter(x=>x.status==="proposed"&&
    ["inbox","service"].includes(x.module));
- const captured=exact.match(/export const IAM07D_CAPABILITIES=Object\\.freeze\\((\\[[\\s\\S]*?\\]) as const\\)/);
- assert.ok(captured,"Typed capability array must be explicit");
- const known=JSON.parse(captured[1]);
+ const catalogStart=exact.indexOf("export const IAM07D_CAPABILITIES=Object.freeze(");
+ const opening=exact.indexOf("[",catalogStart);
+ const closing=exact.indexOf("] as const",opening);
+ assert.ok(catalogStart>=0&&opening>catalogStart&&closing>opening,
+  "Typed capability array must be explicit");
+ const known=JSON.parse(exact.slice(opening,closing+1));
  assert.equal(known.length,19,"Every exact mutation has one typed name");
  assert.equal(new Set(known).size,19);
  for(const id of known){
