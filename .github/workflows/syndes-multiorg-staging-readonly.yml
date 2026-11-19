@@ -39,7 +39,7 @@ jobs:
           [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "${SOURCE_SHA}" ]]
-          [[ "${STAGING_PEER}" =~ ^[a-z0-9-]+\\.tayra-delta\\.ts\\.net$ ]]
+          [[ "${STAGING_PEER}" =~ ^[a-z0-9-]+\.tayra-delta\.ts\.net$ ]]
           [[ "${STAGING_PEER}" != 'delmacy-desktoppc.tayra-delta.ts.net' ]]
           [[ "${STAGING_USER}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]
           [[ "${TAILSCALE_TAG}" == "tag:syndes-ci" ]]
