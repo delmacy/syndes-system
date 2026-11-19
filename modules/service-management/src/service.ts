@@ -495,6 +495,65 @@ export class ServiceFunnelService{
   });
  }
 
+ /** Multi-org team transfer within the SAME IAM07D epoch transaction.
+  * Keep prior-team selection + version CAS under a row lock. FGA team
+  * rights are independently required; neither team role grants the exact
+  * attendance capability nor bypasses the SQL workspace ownership gate.
+  */
+ async transferTeamPinned(ctx:FunnelContext,input:Readonly<{
+  attendanceId:string;destinationTeamId:string;expectedVersion:number;reason:string;
+ }>,tx:TenantTransaction){
+  if(!uid(input?.attendanceId)||!uid(input.destinationTeamId)||
+      !good(input.reason,240)||input.reason.trim().length<4)
+   throw new ServiceFunnelInputError("Invalid destination or transfer reason");
+  requireVersion(input.expectedVersion);
+  return this.runPinned(ctx,tx,"service:attendances","write","admin",async pinned=>{
+   const destination=input.destinationTeamId.toLowerCase();
+   const old=await pinned.query(`
+    SELECT a.team_id::text AS team_id
+    FROM service.service_attendances a
+    WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
+      AND a.workspace_id=$3::uuid AND a.id=$4::uuid
+      AND a.version=$5 AND a.state='open'
+      AND service.service_team_can_read(a.tenant_id,a.organization_id,
+       a.workspace_id,a.team_id,$6)
+    FOR UPDATE OF a
+   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,
+      input.attendanceId,input.expectedVersion,ctx.actor.id]);
+   if(old.rows.length!==1)throw new ServiceFunnelConflictError();
+   const current=old.rows[0].team_id as string|null;
+   if(current===destination)throw new ServiceFunnelConflictError();
+   for(const teamId of [...(current?[current]:[]),destination]){
+    await this.kernel.executeModule({actor:ctx.actor,tenantId:ctx.tenantId,
+      moduleId:"service",resource:"service:team:"+teamId,action:"write"},
+      async()=>{});
+   }
+   await this.kernel.executeModule({actor:ctx.actor,tenantId:ctx.tenantId,
+     moduleId:"service",resource:"service:teams",action:"write"},async()=>{});
+   await pinned.query("SELECT set_config('syndes.service_transfer_reason',$1,true)",
+    [input.reason.trim()]);
+   const updated=await pinned.query(`
+    UPDATE service.service_attendances a
+    SET team_id=$6::uuid,assigned_to=NULL,version=a.version+1,
+      updated_at=clock_timestamp()
+    WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
+      AND a.workspace_id=$3::uuid AND a.id=$4::uuid
+      AND a.version=$5 AND a.state='open'
+      AND a.team_id IS DISTINCT FROM $6::uuid
+      AND service.service_team_is_supervisor(a.tenant_id,a.organization_id,
+        a.workspace_id,$7)
+      AND service.service_team_can_read(a.tenant_id,a.organization_id,
+        a.workspace_id,a.team_id,$7)
+      AND service.service_team_is_staffed(a.tenant_id,a.organization_id,
+        a.workspace_id,$6::uuid)
+    RETURNING *
+   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,input.attendanceId,
+      input.expectedVersion,destination,ctx.actor.id]);
+   if(updated.rows.length!==1)throw new ServiceFunnelConflictError();
+   return asAttendance(updated.rows[0]);
+  });
+ }
+
  async board(ctx:FunnelContext,funnelId:string){
   if(!uid(funnelId))throw new ServiceFunnelInputError("Invalid funnel");
   return this.run(ctx,"service:attendances","read","viewer",async tx=>{
