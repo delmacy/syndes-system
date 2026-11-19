@@ -369,6 +369,11 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
    actor:{kind:"user",id:f.actorId},scopeWriteAllowed:true,
   });
   console.log("IAM_TOPO07C_STAGE_FENCE_READY");
+  // The production mutation helper intentionally refuses calls outside
+  // multi-org runtime. Enable it only for this disposable CI segment.
+  const priorMultiOrg=process.env.SYNDES_MULTI_ORG_ENABLED;
+  process.env.SYNDES_MULTI_ORG_ENABLED="true";
+  try{
   const noteA=await operationalInbox.mutateExact(
    activeContext(ORG_A,wsA2),f.bearer,capability,chatA,
    {body:"A private internal note"});
@@ -403,6 +408,10 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
    "SELECT count(*)::int AS n FROM inbox_messages WHERE conversation_id=$1"+
    " AND direction='internal'",[chatA])).rows[0].n,1);
   console.log("IAM_TOPO07C_REAL_INBOX_MUTATION_TWO_ORGS_FINE_FGA_EPOCH_AUDIT_PASS");
+  }finally{
+   if(priorMultiOrg===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
+   else process.env.SYNDES_MULTI_ORG_ENABLED=priorMultiOrg;
+  }
   // TOPO-06B: the SAME disposable Keycloak 26.8.1 realm, Control PG17
   // and tenant DB. No independent synthetic identity copies are used.
   const controlIntentSchema=await readFile(new URL(
