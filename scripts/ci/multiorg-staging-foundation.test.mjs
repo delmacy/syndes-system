@@ -85,3 +85,45 @@ esac
   assert.notEqual(deny.status,0);
  }finally{await rm(dir,{recursive:true,force:true})}
 });
+
+test("MO-REL-04 secret bootstrap actually works under bash nounset, replay remains stable",async()=>{
+ const script=await readFile(runner,"utf8");
+ const match=script.match(/create_secret\(\) \{[\s\S]*?\n\}/);
+ assert.ok(match,"trusted secret creation shell function exists");
+ assert.match(match[0],/local name="\$1"\n\s*local path="\$secrets\/\$name"/,
+  "Do not expand an uninitialized local under set -u");
+ const dir=await mkdtemp(join(tmpdir(),"syndes-staging-secret-replay-"));
+ try{
+  const shell=join(dir,"exercise.sh");
+  await writeFile(shell,[
+   "#!/usr/bin/env bash",
+   "set -Eeuo pipefail",
+   "umask 077",
+   'secrets="$1"',
+   match[0],
+   "create_secret pg-admin",
+   "create_secret keycloak-db",
+   "create_secret keycloak-admin",
+   "create_secret pg-admin",
+   "create_secret keycloak-db",
+   "create_secret keycloak-admin",
+  ].join("\n")+"\n",{mode:0o700});
+  const run=()=>spawnSync("bash",[shell,dir],{encoding:"utf8"});
+  const one=run();
+  assert.equal(one.status,0,one.stderr);
+  const names=["pg-admin","keycloak-db","keycloak-admin"];
+  const {readFile:read,stat}=await import("node:fs/promises");
+  const first=await Promise.all(names.map(async name=>{
+   const item=join(dir,name);
+   const data=await read(item,"utf8");
+   const metadata=await stat(item);
+   assert.match(data,/^[0-9a-f]{64}\n$/);
+   assert.equal(metadata.mode&0o777,0o600);
+   return data;
+  }));
+  const second=run();
+  assert.equal(second.status,0,second.stderr);
+  assert.deepEqual(await Promise.all(names.map(name=>read(join(dir,name),"utf8"))),first,
+   "Retries MUST NOT rotate persistent staging database identity credentials");
+ }finally{await rm(dir,{recursive:true,force:true})}
+});
