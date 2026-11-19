@@ -20,8 +20,7 @@ export interface FirstTenantInstallPort{
  /** SQL002 stays present for the FIRST default Organization/Workspace. */
  ensureDefaultContext(intent:SignupReservation):Promise<void>;
  verifyDefaultContext(intent:SignupReservation):Promise<boolean>;
- /** Activate Control tenant ONLY after all other dependencies are verified. */
- activate(intent:SignupReservation):Promise<void>;
+ /** Active tenant registry is observed only AFTER atomic Control finalization. */
  verifyActive(intent:SignupReservation):Promise<boolean>;
 }
 export interface FirstTenantKeycloakPort{
@@ -65,12 +64,12 @@ export class FirstTenantSignupSaga{
     ready:true as const,tenantId:intent.tenantId,
     organizationId:intent.organizationId,workspaceId:intent.workspaceId,
    });
-   const verify=async(kcId:string):Promise<boolean>=>{
+   const verify=async(kcId:string,requireActive=true):Promise<boolean>=>{
     if(!UUID.test(kcId))return false;
     // No cached provider verdict, and no JWT can replace membership lookup.
     return await this.ports.installer.verifyDatabase(intent)===true&&
       await this.ports.installer.verifyDefaultContext(intent)===true&&
-      await this.ports.installer.verifyActive(intent)===true&&
+      (!requireActive||await this.ports.installer.verifyActive(intent)===true)&&
       await this.ports.keycloak.isActiveMember(kcId,intent.founderId)===true&&
       await this.ports.links.verify(intent,kcId)===true&&
       await this.ports.grants.verifyMinimum(intent)===true;
@@ -99,9 +98,9 @@ export class FirstTenantSignupSaga{
     if(!await this.ports.links.verify(intent,kcId))throw new AccessDeniedError();
     await this.ports.grants.ensureMinimum(intent);
     if(!await this.ports.grants.verifyMinimum(intent))throw new AccessDeniedError();
-    await this.ports.installer.activate(intent);
-    // Only a current live recheck across all systems may precede READY.
-    if(!await verify(kcId))throw new AccessDeniedError();
+    // Before finalize, tenant.state MUST stay PROVISIONED so no runtime
+    // route can use its Keycloak link or FGA tuples to admit a caller.
+    if(!await verify(kcId,false))throw new AccessDeniedError();
     await assertHeld();
     await this.ports.intents.markReady(intent.requestId,intent.founderId,kcId);
     await assertHeld();
