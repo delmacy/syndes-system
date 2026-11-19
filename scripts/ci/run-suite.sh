@@ -83,6 +83,13 @@ case "$suite" in
       SYNDES_FUNNEL_DISPOSABLE=FUNNEL_PG17_ONLY \
       SYNDES_FUNNEL_PG_URL="postgresql://postgres:ci-only-disposable-funnel-ci@127.0.0.1:32772/postgres" \
       npm test && npm pack --dry-run)
+    # MO-REL-02: do not treat a skipped installer test as installation proof.
+    # Run the official Service installer/ledger/rollback suite against this
+    # disposable PG17 fixture, using only its explicitly pinned test switch.
+    (cd apps/core-host &&
+      SYNDES_FUNNEL_DISPOSABLE=FUNNEL_PG17_ONLY \
+      SYNDES_FUNNEL_PG_URL="postgresql://postgres:ci-only-disposable-funnel-ci@127.0.0.1:32772/postgres" \
+      node --test test/service-installer-pg17.test.mjs)
     ;;
   whatsapp-ts)
     build_kernel
