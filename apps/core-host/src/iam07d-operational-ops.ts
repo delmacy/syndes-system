@@ -7,10 +7,15 @@
  * Service funnel advance. Other legacy writes must fail closed in multi-org.
  */
 import {Inject,Injectable} from "@nestjs/common";
-import {AccessDeniedError,type TrustedTenantTransactionProvider}
- from "@syndes/core-kernel";
+import {AccessDeniedError,type Actor,type TenantTransaction,
+ type TrustedTenantTransactionProvider} from "@syndes/core-kernel";
 import type {Pool} from "pg";
-import type {ServiceFunnelService} from "@syndes/service";
+type PinnedServicePort=Readonly<{
+ advancePinned(ctx:Readonly<{tenantId:string;organizationId:string;
+  workspaceId:string;actor:Actor}>,input:Readonly<{
+  attendanceId:string;nextStageId:string;expectedVersion:number;
+ }>,tx:TenantTransaction):Promise<unknown>;
+}>;
 import {ActorVerifier,PgMembership} from "./adapters.js";
 import {PgModuleLifecycle} from "./module-lifecycle.js";
 import {PgEffectiveModuleAccess} from "./module-effective-access.js";
@@ -102,7 +107,7 @@ export class OperationalIam07dOperations{
    conversationId,destination);
  }
  async advance(bearer:string,scope:Selected,funnelId:string,
-  service:ServiceFunnelService,input:Readonly<{
+  service:PinnedServicePort,input:Readonly<{
     attendanceId:string;nextStageId:string;expectedVersion:number;
   }>){
   if(!this.gate)throw new AccessDeniedError();
