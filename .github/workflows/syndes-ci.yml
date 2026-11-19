@@ -202,3 +202,57 @@ jobs:
           timeout 70s tailscale ssh "${STAGING_USER}@${STAGING_PEER}" \
             'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- preflight' \
             < scripts/ci/multiorg-staging-readonly.sh
+
+  devserver01-multiorg-staging-readonly:
+    name: MO-REL-04 DevServer01 staging inventory — read-only
+    # Explicit user authorization permits staging on the existing DevServer01.
+    # On a successful main push, inspect ONLY staging-labeled Docker metadata.
+    # Do not deploy, create containers, run SQL or change the runtime.
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Confirm exact approved DevServer01 peer and immutable main SHA
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "${SOURCE_SHA}" ]]
+          [[ "${DEVSERVER_PEER}" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "${TAILSCALE_TAG}" == 'tag:syndes-ci' ]]
+          bash -n scripts/ci/multiorg-staging-readonly.sh
+          echo 'MO_REL04_DEVSERVER_READONLY_SCOPE_VERIFIED'
+      - name: Connect to authorized DevServer01 Tailnet via GitHub OIDC
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Confirm authorized DevServer01 SSH host identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "${DEVSERVER_PEER}" >/dev/null
+          identity="$(timeout 25s tailscale ssh "delmacy@${DEVSERVER_PEER}" 'printf "SYNDES_USER="; id -un; printf "SYNDES_HOST="; hostname -s')"
+          [[ "${identity}" == *'SYNDES_USER=delmacy'* && "${identity}" == *'SYNDES_HOST=DevServer01'* ]]
+          echo 'MO_REL04_DEVSERVER01_IDENTITY_PASS'
+      - name: Inspect only multi-org-staging labeled Docker services
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          timeout 75s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- preflight' \
+            < scripts/ci/multiorg-staging-readonly.sh
