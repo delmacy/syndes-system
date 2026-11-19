@@ -75,3 +75,31 @@ Consultado `git/trees?recursive=1` via GitHub (2928 entries, `truncated=false`) 
 - Reexecutar os casos com IdP/FGA indisponíveis e ledger de auditoria, especialmente em caminhos de workers sem JWT humano. Prova funcional só em MO-REL-01/02/05.
 
 **Conclusão deste complemento:** inventário de controllers principais realizado, mas ainda não foi demonstrada cobertura de todos os endpoints/callbacks, nem testes de cenários A/B ou CI deste incremento. MO-REL-00 permanece **IN PROGRESS**, sem falso aceite.
+
+
+## Complemento final — Organizations, Support, gateway Go e filas/eventos
+
+**Base auditada:** main `cde786a20c98efaeaa61a17a1962006946271a88`, árvore completa 2928 entries (`truncated=false`). Esta seção registra caminhos concretos de chamada, filtros e riscos, sem afirmar testes E2E.
+
+| Superfície | Código vivo / rotas | Limite comprovável e seguimento |
+|---|---|---|
+| Platform Organizations | `modules/organizations/src/controller.ts:66-128`: 8 decorators: bootstrap, backfill, criação de Organization/Workspace, diretório, workspaces/units e criação de unit | `bootstrap`, `backfill` e criação SQL-only de Organization negam em multi-org (`:73,80,92`). Diretório exige `organizationAccess.requireActive` por item com Keycloak live (`:26-43`). Auditoria A/B HTTP pendente. |
+| Support | `modules/support/src/controller.ts:40-80`: 9 decorators de cases/events/create/status/assignment/queue/notes | Cliente OIDC distinto `syndes-support-ui` (`:14-20`), tenant Syndes dedicado (AGENTS). Não somar ao escopo de tenant cliente nem herdar autorização Manager. Negativos de fronteira de confiança pendentes. |
+| Go outbound gateway | `modules/whatsapp/gateway/whatsmeow/outbound.go:49-113` | Outbox **do gateway** consulta `syndes_whatsapp_accounts.enabled`, reserva quota 40/min e usa `sendDirect` após commit. Não lê Organization ativa do tenant DB, portanto a revogação deve ser decidida ANTES do enqueue confiável e há envio in-flight não cancelável retroativamente. É outro processo / outro banco; não declarar serialização distribuída. |
+| Go inbound callback retry | `modules/whatsapp/gateway/whatsmeow/gateway.go:476-518` | `syndes_whatsapp_inbound_outbox` faz retry para `callback.deliver` sem conhecer o estado tenant Organization; endpoint Host `modules/whatsapp/src/inbound-http.ts:60-65` valida token de webhook e envelope, mas o store SQL precisa negar Organization inativa em cada reentrega. |
+| WhatsApp projection | `modules/whatsapp/src/dispatch.ts:23-34,62-68,94-100,130-136` | Usa conta habilitada e Workspace default ativa; no commit base ainda **não junta** `platform_organizations.status='active'`. PR #200 corrige filtros candidatos. Projection path legado vs events deve permanecer único. |
+| WhatsApp dispatch | `modules/whatsapp/src/dispatch-worker.ts:27-36` | Enumera tenants `tenant_registry.state='active'`, chama projection e outbound relay; não é admission granular de org. Testar revogação em cada tentativa e efeitos externos pendentes. |
+| Platform Event Worker | `apps/core-host/src/platform-event-worker-admission.ts:23-91` | `PgEventWorkerScope.active` valida org ativa e workspace ativa em PG tenant, mais Control ENABLED e FGA service principal; exceções retornam `suspended`. É **candidato**, não worker Host instalado. |
+| Platform Events composition | `apps/core-host/src/platform-event-worker-composition.ts:21-64` | Fábrica explicitamente **não** inscreve worker no startup, Nest ou HTTP, nem inicia scheduler. Consumidores WhatsApp→Inbox→CRM são demonstração descartável; não inferir execução de eventos em produção. |
+| Core SSE | `modules/inbox/src/inbox.controller.ts:334-346` e `apps/core-host/src/multiorg-single-host-lease.ts` | SSE revalida escopo e passa por bus de processo único; lease Control limita Core, mas não prova que todos os produtores de invalidação estão nessa instância. Topologia G-5 pendente. |
+
+### Rastreabilidade operacional — estado de saída do MO-REL-00
+
+- [x] HEAD e documentação consultadas; AGENTS raiz e locais CRM, Inbox, WhatsApp, Organizations, Service, Support.
+- [x] Inventariadas as **84 rotas/decorators** nestes seis controllers principais (CRM 25, Inbox 18, WhatsApp HTTP 11, webhook interno 1, Service 12, Organizations 8, Support 9); os plugins opt-in não representam endpoints operantes. Interfaces auxiliares do Core não integram esta contagem.
+- [x] Queries de escopo centrais identificadas em CRM `scope-query.ts`, Inbox `scope-query.ts`, Service `service.ts`, WhatsApp `dispatch.ts`, `inbound-http.ts`, `outbound-relay.ts`, e Event Worker admission. Não há alegação de prova de segurança SQL A/B; é requisito do MO-REL-01.
+- [x] Gateway Go, retries inbound, envio outbound e callback, event worker candidato e SSE inventariados com fronteiras explícitas.
+- [x] G-1..G-6 reconciliados com estado **BLOCKED** e evidência de PRs/CI; `history_sync` seguirá 403 no piloto.
+- [ ] Revisão final de CI do próprio PR, sincronização WBS/issues e aceite documental. **Até então, MO-REL-00 não está encerrado.**
+
+**Critério de saída:** MO-REL-00 aceita somente a **reconciliação** da baseline, não a correção dos riscos listados; esses riscos são entregáveis de MO-REL-01..08. O plugin Service e o worker de eventos permanecem candidatos, sem ativação operacional.
