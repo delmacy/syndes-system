@@ -1,4 +1,5 @@
 import {Body,Controller,Get,Headers,HttpException,Inject,Injectable,Optional,Param,Patch,Post,Query,Res} from "@nestjs/common";
+import {randomUUID} from "node:crypto";
 import {AccessDeniedError,type Actor,type TenantTransaction,
  type RequestedOperationalScope} from "@syndes/core-kernel";
 import {SelectedScope} from "./selection-header.js";
@@ -122,6 +123,142 @@ export class InboxHost{
   return this.exact.transfer(bearer,{tenantId:context.tenantId,
    organizationId:context.organizationId,workspaceId:context.workspaceId},
    conversationId,destination);
+ }
+ /** Entire business mutation AND existing Inbox/WhatsApp audit happen in
+  * the exact IAM07D epoch-lock transaction. No separate tenant pool query,
+  * remote provider call or second transaction is allowed inside the effect.
+  */
+ async mutateExact(context:InboxContext,bearer:string|undefined,
+  capability:PinnedInboxCapability,conversationId:string|undefined,
+  input:unknown):Promise<Conversation|Message|null>{
+  if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true"||
+     !this.exact?.executeMutation||!bearer||
+     !context.organizationId||!context.workspaceId||
+     context.scopeWriteAllowed===false)throw new AccessDeniedError();
+  const key=capability==="inbox.conversation.create"
+   ?undefined:id(conversationId,"conversation");
+  const body=(input&&typeof input==="object"&&!Array.isArray(input))
+   ?input as Record<string,unknown>:{};
+  let validated:Record<string,unknown>={};
+  switch(capability){
+   case "inbox.conversation.create":
+    validated={
+     subject:text(body.subject,"subject",160),
+     crmPersonId:body.crmPersonId==null?null:id(body.crmPersonId,"CRM person"),
+     externalThreadId:optionalExternal(body.externalThreadId),
+    };
+    break;
+   case "inbox.conversation.assign":{
+    const assigned=assignee(body.assigneeId);
+    if(assigned!==null){
+     const recipient={id:assigned,kind:"user" as const};
+     for(const permission of [
+      {action:"read",resource:"inbox:conversations"},
+      {action:"write",resource:"inbox:messages"},
+     ] as const){
+      // Additional recipient FGA, before opening the epoch transaction.
+      await this.core.kernel.execute({
+       actor:recipient,tenantId:context.tenantId,...permission,
+      },async()=>{});
+     }
+    }
+    validated={assigneeId:assigned};
+    break;
+   }
+   case "inbox.conversation.status":
+    if(!["open","pending","resolved"].includes(String(body.status)))
+     throw new InboxValidationError("Invalid status");
+    validated={status:body.status};
+    break;
+   case "inbox.conversation.handoff":
+    if(!["human","bot"].includes(String(body.mode)))
+     throw new InboxValidationError("Invalid handoff");
+    validated={mode:body.mode};
+    break;
+   case "inbox.conversation.favorite":
+    if(typeof body.favorite!=="boolean")
+     throw new InboxValidationError("Invalid favorite state");
+    validated={favorite:body.favorite};
+    break;
+   case "inbox.conversation.mark_read":break;
+   case "inbox.conversation.link_contact":
+    validated={personId:id(body.personId,"CRM person")};
+    await this.core.kernel.execute({
+     actor:context.actor,tenantId:context.tenantId,
+     action:"read",resource:"crm:people",
+    },async()=>{});
+    break;
+   case "inbox.message.reply":
+    validated={body:text(body.body,"message",5000)};
+    break;
+   case "inbox.message.note":
+    validated={body:text(body.body,"note",5000)};
+    break;
+   case "inbox.message.simulate":{
+    const reference=optionalExternal(body.externalMessageId);
+    if(!reference)throw new InboxValidationError("Simulation message ID required");
+    validated={body:text(body.body,"message",5000),externalMessageId:reference};
+    break;
+   }
+   default:throw new AccessDeniedError();
+  }
+  const scope={tenantId:context.tenantId,
+   organizationId:context.organizationId,workspaceId:context.workspaceId};
+  const selected=Object.freeze({...validated});
+  return this.exact.executeMutation(bearer,scope,capability,undefined,
+   async(tx,actor)=>{
+    if(actor.kind!==context.actor.kind||actor.id!==context.actor.id||
+       tx.tenantId!==context.tenantId)throw new AccessDeniedError();
+    const repo=new PgInboxRepository(tx,{
+     organizationId:scope.organizationId,workspaceId:scope.workspaceId,
+    });
+    const tenant=scope.tenantId,principal=actor.id;
+    switch(capability){
+     case "inbox.conversation.create":
+      return repo.create(tenant,principal,{
+       id:randomUUID(),subject:selected.subject as string,
+       crmPersonId:selected.crmPersonId as string|null,
+       externalThreadId:selected.externalThreadId as string|null,
+      });
+     case "inbox.conversation.assign":
+      return repo.assign(tenant,key!,principal,selected.assigneeId as string|null);
+     case "inbox.conversation.status":
+      return repo.status(tenant,key!,principal,selected.status as ConversationStatus);
+     case "inbox.conversation.handoff":
+      return repo.handoff(tenant,key!,principal,selected.mode as HandoffMode);
+     case "inbox.conversation.favorite":
+      return repo.favorite(tenant,key!,principal,selected.favorite as boolean);
+     case "inbox.conversation.mark_read":
+      return repo.markRead(tenant,key!,principal);
+     case "inbox.conversation.link_contact":
+      return repo.linkContact(tenant,key!,principal,selected.personId as string);
+     case "inbox.message.reply":{
+      const conversation=await repo.get(tenant,key!);
+      if(!conversation)return null;
+      if(conversation.channel==="whatsapp"){
+       if(!this.whatsappReply?.enqueuePinned)throw new AccessDeniedError();
+       return this.whatsappReply.enqueuePinned(
+        {...context,actor,organizationId:scope.organizationId,
+         workspaceId:scope.workspaceId},key!,selected.body,tx);
+      }
+      return repo.append(tenant,key!,principal,{
+       id:randomUUID(),direction:"outbound",body:selected.body as string,
+       externalMessageId:null,
+      });
+     }
+     case "inbox.message.note":
+      return repo.append(tenant,key!,principal,{
+       id:randomUUID(),direction:"internal",body:selected.body as string,
+       externalMessageId:null,
+      });
+     case "inbox.message.simulate":
+      return repo.append(tenant,key!,principal,{
+       id:randomUUID(),direction:"inbound",body:selected.body as string,
+       externalMessageId:selected.externalMessageId as string,
+      });
+     default:throw new AccessDeniedError();
+    }
+   });
  }
  async revalidateStream(context:InboxContext,bearer:string|undefined,selection?:RequestedOperationalScope):Promise<boolean>{
   // Module suspension and a stale JWT revoke an already-connected SSE stream.
