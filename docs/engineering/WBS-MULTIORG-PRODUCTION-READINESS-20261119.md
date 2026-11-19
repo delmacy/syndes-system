@@ -1,0 +1,136 @@
+# WBS executável — multi-org: homologação, signup e liberação controlada
+
+**Programa:** MO-REL · **Baseline verificada:** `main` em `1f9bb11068b177e1c9f3037b90795e1843d4bc0b` (2026-11-19) · **Estado:** `PRODUCTION_GATE=BLOCKED`.
+**Orquestração:** issue-mãe [#193](https://github.com/delmacy/syndes-system/issues/193), IAM [#160](https://github.com/delmacy/syndes-system/issues/160), signup [#189](https://github.com/delmacy/syndes-system/issues/189).
+**Execução:** começar por [runbook do agente](./MULTIORG-AGENT-EXECUTION-20261119.md). **Esta WBS define escopo/critério, não atesta implantação.**
+
+## 0. Inventário obrigatório e invariantes
+
+Antes de começar, comparar esta WBS com a HEAD atual (o SHA acima é somente histórico); abrir/ler issues, PRs, logs e código. Atualizar status por evidências; não repetir trabalho já integrado, não tratar CI antigo como resultado de novo código. **Não** reescrever outra frente/worktree nem modificar funcionalidades além do gate selecionado.
+
+Arquitetura irrenunciável:
+- Um **tenant** = uma conta contratante + um database PostgreSQL; **N Platform Organizations** por tenant; **N Workspaces** por org; **N Service funis** por workspace (cada funil pertence a exatamente um workspace). `crm_organizations` é outro conceito.
+- Keycloak 26.8.1 = identidade, credenciais, Organizations membership atual; Control = tenant/entitlement/vínculo Keycloak Organization ↔ Platform Organization; OpenFGA = grants finos por recurso/capability; tenant SQL = ownership, memberships operacionais, epoch/fence, audit/outbox; Core = enforcement. **Nunca** confiar no `tenantId`, database, org, ws ou autorização vindos somente do browser.
+- `PRODUCTION_GATE=BLOCKED` e SQL002 em todos os bancos operacionais até gates G-1..G-6 comprovados. Instalações candidatas **não** são migrations automáticas.
+- Sem credenciais admin no frontend, grants implicados por papéis amplos, permissões cruzadas Manager↔tenant, tokens inventados, remoção prematura do OpenFGA, nem “backup válido” só porque `pg_dump` executou.
+- Novas operações devem falhar fechado em rede indisponível, FGA deny, vinculação Keycloak revogada, entitlement ausente, perda de lock/lease, escopo inválido e recuperação parcial.
+
+### Realidade encontrada em 2026-11-19 — reconfirmar na execução
+
+- PRs [#197](https://github.com/delmacy/syndes-system/pull/197), [#198](https://github.com/delmacy/syndes-system/pull/198), [#199](https://github.com/delmacy/syndes-system/pull/199), [#201](https://github.com/delmacy/syndes-system/pull/201), [#202](https://github.com/delmacy/syndes-system/pull/202) e [#203](https://github.com/delmacy/syndes-system/pull/203) integradas; a última tem CI central aprovado. IAM07D possui 19 capabilities exatas e pipelines de negócio Inbox/Service com transações pinned. Isto **não** prova todos os caminhos operacionais do Host ou seu deploy.
+- [#200](https://github.com/delmacy/syndes-system/pull/200) **ainda aberta** na verificação: segurança de workers WhatsApp para Organization arquivada; confirmar CI, conflitos, merge e comportamento real antes de marcar G-2.
+- `docs/engineering/MULTIORG-RELEASE-SECURITY-GATES-20261118.md` tem linhas iniciais desatualizadas em relação às seções posteriores (por exemplo, “saga não implementada”). Reconciliar a tabela e o status **sem transformar teste descartável em gate READY**.
+- `apps/core-host/config/modules.json` **não** inclui `@syndes/service/plugin`; instalação/entitlement reais do Service continuam exigindo gate próprio.
+- `modules/inbox/src/inbox.controller.ts` mantém `history_sync` negado (403) em multi-org: requer outbox de comando ou exclusão explícita e testada do piloto.
+- `.github/workflows/syndes-core-host-devserver01.yml` publica para DevServer01 com controles específicos de SHA e recovery; **não** é CD multi-org de produção. `MultiOrgSingleHostLease` é uma medida para um único Core; validar topologia real.
+- `apps/core-host/src/iam-org-provisioning-operator.ts` tem saga de **Organization adicional para tenant existente**; `docs/product/UC-SIGNUP-TENANT-ORGANIZATION-WORKSPACE-WIZARD-20261118.md` exige **criação inicial do tenant/DB**, que não pode ser confundida com essa saga.
+- Migrations: Control `infra/postgres/bootstrap/control-iam07d-capabilities-010.schema`, tenant `modules/organizations/sql/010_iam07d_cutover_capabilities_candidate.sql`; `008` é instalador fence legado com SQL002 presente, `009` é instalador alternativo **pós-SQL002**, e `manual/activate_multiple_organizations.sql` é cutover operador-only. A ordem Control→tenant é importante para receipts de revogação.
+
+## 1. Quadro de execução — apenas um estágio ativo por agente
+
+| ID | Prioridade | Dependências | Entrega operacional | Gate | Estado inicial |
+|---|---|---|---|---|---|
+| MO-REL-00 | P0 | Nenhuma | Inventário de código, deploy, issues e matriz factual G-1..G-6 | Critérios reproduzíveis, riscos abertos explicitados | TODO |
+| MO-REL-01 | P0 | 00 | Auditar/corrigir isolamento em workers, ingress, exports, read/search, SSE e history_sync | G-2 + parte G-5 | TODO |
+| MO-REL-02 | P0 | 00, 01 | Service opt-in em Host de staging, installer/Control ENABLED, FGA exato, IAM07D Control+tenant e least privilege | G-1/G-2 | TODO |
+| MO-REL-03 | P0 | 00 | Signup backend: tenant+DB iniciais, founder, Org+Workspace, Keycloak+Control+FGA, saga retomável | G-3 | TODO |
+| MO-REL-04 | P0 | 01, 02, 03 | Ambiente staging reproduzível, CI/CD e segredos/roles somente via Actions, Core singleton validado | G-3/G-5 | TODO |
+| MO-REL-05 | P0 | 04 | E2E HTTP+DB+IdP+FGA+workers/streams, matriz negativa e concorrência de revogação | G-1/G-2/G-3/G-5 | TODO |
+| MO-REL-06 | P0 | 05 | Backup/restore + cutover SQL002 somente em staging; reconciliação Control/tenant/KC/FGA e rollback real | G-4 | TODO |
+| MO-REL-07 | P1 | 03, 05 | APIs do signup e wizard responsivo integrados (somente funções reais) | Aceite UC-SIGNUP-01 | TODO |
+| MO-REL-08 | P0 | 05, 06, 07 | Release piloto por tenant via GitHub Actions e aprovação explícita do operador | G-6 + Product Gate | BLOCKED |
+
+`TODO` significa ausência de aceite específico **neste programa**, não inexistência de implementação anterior. No máximo **três entregas simultâneas**, porém um agente executa **uma por vez**. Cada uma requer PR próprio, CI central, evidências e atualização da WBS/issues.
+
+## 2. Pacotes de trabalho, testes obrigatórios e condição de saída
+
+### MO-REL-00 — Reconciliação do baseline
+
+**Arquivos principais:** `AGENTS.md`, AGENTS locais, issue #193, #160, #189, `MULTIORG-RELEASE-SECURITY-GATES-20261118.md`, `docs/engineering/WBS-KEYCLOAK-ORGANIZATIONS-CAPABILITIES-20261117.md`, `apps/core-host/config/modules.json`, `scripts/ci/plan.mjs`, workflows, PRs #200–203.
+
+**Fazer:** inventário via `git grep`/source e READ-ONLY de endpoints, queries de ownership, workers, SSE e operações sinalizadas 403; reconciliar G-1..G-6 com commits e resultados reais; classificar cada item `IMPLEMENTED/INTEGRATED/TESTED/PROVEN/DEPLOYED/BLOCKED`. Verificar PR #200 e integrar somente após gate verde. Registrar evidências (SHA, job, markers, cenários); decidir piloto com `history_sync` 403 documentado ou implementar MO-REL-01 sem ampliar escopo silenciosamente.
+
+**Saída:** inventário de rotas e contratos que evidencie o que falta, issue-mãe atualizada; nenhum SQL/realm operacional modificado.
+
+### MO-REL-01 — Isolamento integral e efeitos externos
+
+**Arquivos principais:** `modules/inbox/src/`, `modules/core-crm/src/`, `modules/whatsapp/src/`, `modules/whatsapp/gateway/whatsmeow/`, `packages/core-kernel/src/`, `packages/platform-events/` (se existir; descobrir owner real), `tests/platform/`.
+
+**Fazer:** auditar rotas GET/list/search/export/CSV, CRM people/tags/channels, inbox events/SSE, contexto de mudanças entre Organizations, WhatsApp webhook, inbound projection, outbound relay, retries/dead-letter, consumer/service principals, suspensão de Org/Workspace, fuga de IDs e paginação antes de filtros; corrigir cada ponto com scopes de dados e grants. Para `history_sync`, escolher formalmente: `403` com teste+UX explícita para piloto **ou** comando persistido/idempotente com autorização atual no dispatch, reprocessamento seguro e auditoria, sem chamar o gateway dentro de tx.
+
+**Testar:** ao menos 2 tenants, 2 orgs no mesmo tenant, 2 workspaces por org, revogações e retomada, consulta por ID conhecido de outro escopo, permutações de worker e erro de provider; negar sem efeito colateral quando org arquivada. Confirmar que processamento externo já iniciado não é falsamente apresentado como reversível.
+
+**Saída:** matriz por endpoint/worker com teste CI e nenhuma rota tenant-wide em multi-org; política SSE single-host ou broker comprovada.
+
+### MO-REL-02 — Service e IAM07D instalados e utilizáveis
+
+**Arquivos principais:** `modules/service-management/`, `apps/core-host/config/modules.json`, `apps/core-host/src/module-host.ts`, `apps/core-host/src/service-release.ts`, `scripts/service-management/readiness_preflight.py`, `infra/postgres/bootstrap/`, `modules/organizations/sql/`, `catalog/iam-capabilities.v1.json`.
+
+**Fazer:** ensaiar installer de Service 001–003, Workforce 007, catalog/entitlement Control ENABLED, grants FGA exatos por recurso/funil/equipe, memberships e callback pinned; alinhar modelo fine FGA. Executar primeiro Control IAM07D 010, depois tenant 010. Só inscrever plugin Service no perfil **especificamente autorizado** de staging, não generalizar globalmente ou adicionar menus falsos; preflight é read-only, não attestation de instalação.
+
+**Testar:** operações HTTP reais do Service e Inbox, todos os grants/denials, bootstrap de Org, revisão de FGA coarse+fine, fail-closed ao remover cada privilégio e relançar depois de revogação; tenant com e sem Service habilitado.
+
+**Saída:** Host de staging sobe com catálogo/instalação/entitlement coerentes; nenhum serviço administrativo ganha grants de atendimento implicitamente.
+
+### MO-REL-03 — Signup tenant inicial (não apenas org adicional)
+
+**Arquivos principais:** `docs/product/UC-SIGNUP-TENANT-ORGANIZATION-WORKSPACE-WIZARD-20261118.md`, `apps/core-host/src/iam-org-provisioning-operator.ts`, `apps/core-host/src/iam-org-provisioning-adapters.ts`, Control tenant registry, installer, organizações e issue #189.
+
+**Fazer:** criar intenção de **tenant inicial** e ownership do fundador identificado por Keycloak; reservar tenant ID/DB internamente (browser jamais escolhe DSN), criar DB por instalador de privilégio mínimo, first Org Keycloak + primeira Platform Org + Workspace default (zero funis), link 1:1 Control, entitlements e **grants mínimos explícitos** FGA. Idempotency key e checkpoints duráveis. A saga de Organization adicional continua distinta. Controlar concorrência de duas abas; `ready` somente após prova de consistência, `reconcile_required` em erros.
+
+**Testar:** perda da resposta de criação Keycloak/DB/FGA, replay, subject diferente, Manager token, founder não autorizado, suspensão e revogação após `ready` (não regrant), falhas parciais e retomada.
+
+**Saída:** API/serviço backend com contrato estável e teste E2E real, sem UI ainda e sem credenciais fora do IdP.
+
+### MO-REL-04 — Staging confiável e runner CI/CD
+
+**Arquivos principais:** `.github/workflows/syndes-ci.yml`, `.github/workflows/syndes-core-host-devserver01.yml`, `scripts/deploy/`, `scripts/ci/` e runbooks de infra já existentes.
+
+**Fazer:** definir staging segregado de produção com Keycloak, OpenFGA, Control, tenant PostgreSQL e Core/Service; segredos protegidos, client admin KC restrito, leitura por operador e privilégios SQL mínimos. GitHub Actions como único executante de provision/deploy; preflight read-only separado da etapa de alteração explicitamente aprovada. Fixar SHA e digests de imagem/migrations. Verificar singleton Core pela sessão PG e ausência de producers externos SSE não cobertos. Nenhum `ssh` de mutação manual ou `docker compose up` direto no servidor.
+
+**Saída:** inventário e preflight automático rastreável em Actions, staging funcional, rollback de aplicação documentado; não produção.
+
+### MO-REL-05 — Suite de homologação negativa e concorrente
+
+**Fazer:** E2E em staging com Keycloak 26.8.1 real, Control/tenant PostgreSQL17, OpenFGA real e Host Nest real; duas identidades (incluindo mesmo subject em A/B), tenant A e B, Orgs A/B, Workspaces A1/A2/B1/B2 e funis distintos. Exercitar Inbox CRM WhatsApp Service via HTTP/worker/streams, seleção de escopo, FGA fine e coarse, idempotência, SSE reconnect, revogação concorrente, retries de provedor. Toda escrita e emissão deve carregar tenant/org/ws, quando aplicável funnel. Verificar trilha auditável no banco e zero concessões cruzadas. Proibir testes que simulem o resultado do Kernel sem passar pelo Host real como prova final.
+
+**Saída:** CI verde com matrices positivas/negativas e evidências de revogação antes/durante/apos transação, provider down=deny; G-1/2/3/5 comprovados no mesmo release SHA.
+
+### MO-REL-06 — Backup, restore e cutover SQL002 SOMENTE STAGING
+
+**Arquivos principais:** `modules/organizations/sql/manual/activate_multiple_organizations.sql`, 008/009/010, `infra/postgres/bootstrap/control-iam07d-capabilities-010.schema`, scripts de backup/restore e verificações de integridade.
+
+**Fazer:** backup criptografado e **testado por restauração** de Control e cada tenant-alvo, retenção/hash/ledger + referências externas Keycloak/FGA; usar staging e fixture com dados históricos; instalar Control 010 e tenant 010, ensaiar cutover com `psql --single-transaction -v ON_ERROR_STOP=1` e controle externo de aprovação. Verificar 008/009/010 em ambos estados completos e negar estado parcial. Criar Org B, reexecutar segurança e restaurar Control/tenant em bancos novos; reconciliar Keycloak/FGA sem emitir grants invisíveis. **Rollback pós-múltiplas orgs não pode recriar SQL002 sem antes voltar a um estado de dados compatível**; retornar ao backup consistente ou impedir rollback destrutivo.
+
+**Saída:** dry-run e recovery assinados por operador, RPO/RTO medidos, hashes/contagens e invariantes verificados; nenhum banco de produção alterado.
+
+### MO-REL-07 — Wizard de signup com dados de verdade
+
+**Fazer:** após backend E2E, criar telas somente em frontend confiável existente (`apps/workspace-web` ou entrada pública aprovada pela arquitetura; não criar frontend novo por módulo). Identidade com Keycloak OIDC/PKCE; passos conta→Organization→Workspace→revisão→status real→conclusão; rascunho/idempotency key, back/forward e mobile. Nenhum botão apontando endpoint não implantado ou concedendo módulos não contratados.
+
+**Testar:** E2E desktop/mobile, acessibilidade, abandono/retomada, reenvio de confirmação, erros de identidade e duas abas, replay e status `reconcile_required`.
+
+**Saída:** UC-SIGNUP-01 e issue #189 com aceite por user story, sem declarar produção ativada.
+
+### MO-REL-08 — Piloto em PRODUÇÃO, condicionado
+
+**Pré-entrada:** G-1..G-6 aprovados em staging com SHA e registros, Service/IdP/Control/FGA/tenant instalados, backups restauráveis, operador responsável e janela de manutenção. **O agente não pode autoaprovar Product Gate nem inventar attestations.**
+
+**Fazer após autorização operacional explícita:** release seletivo de UM tenant via GitHub Actions; preflight read-only; lock single-host, implantação de imagem/digests fixados, cutover por tenant com backup e transação controlados; smoke tests reais de A/B e fail-closed. Monitorar e validar rollback da aplicação ou recuperação de dados sem regressão de ownership. Só então considerar ampliação gradual.
+
+**Saída:** URL de workflow, SHA, artifacts/restore, evidência sem segredos, decisão GO/NO-GO. Se faltar um gate, registrar `NO-GO` e manter SQL002/flag operacionais intactos.
+
+## 3. Checklist de evidências por PR
+
+- [ ] Issue ou `MO-REL-xx` identificada e dependência resolvida.
+- [ ] Código proprietário localizado e AGENTS locais lidos; nenhuma implementação duplicada.
+- [ ] Critérios positivos e negativos automatizados; teste de regressão histórico preservado.
+- [ ] CI `Syndes Mainline CI` e `Syndes CI Gate` realmente `success` no **head SHA**.
+- [ ] Migrations candidatas testadas em PG17 descartável, com replay, cutover parcial negado e rollback/restore de fixture.
+- [ ] Nenhuma alteração de tenant comercial, realm operacional, grants ou secrets sem workflow autorizado.
+- [ ] Evidência em PR/issue: commit, run/job, comandos (sem dados sigilosos), resultados, lacunas.
+- [ ] Atualizar estado da linha MO-REL, G-1..G-6, `AGENTS.md` local quando contrato mudou, e README técnico; nunca marcar `READY` por inferência.
+
+## 4. Fonte de verdade e reporte
+
+Este arquivo é a **WBS das etapas**. A issue [#193](https://github.com/delmacy/syndes-system/issues/193) acompanha o Product Gate e possui os links de issues filhas. A issue [#189](https://github.com/delmacy/syndes-system/issues/189) acompanha o signup; a [#160](https://github.com/delmacy/syndes-system/issues/160) acompanha IAM. Estados são mantidos nos issues/PRs e **sincronizados com esta WBS**. Ordem de precedência: código/CI/infra comprovados `>` status de issue `>` texto histórico; discrepâncias devem ser abertas como tarefa, não apagadas.
