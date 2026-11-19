@@ -23,6 +23,7 @@ import {Iam07dRevokeFirstPilot}
  from "../../apps/core-host/dist/iam07d-revoke-first-pilot.js";
 import {Iam07dInboxBusinessPilot}
  from "../../apps/core-host/dist/iam07d-inbox-business-pilot.js";
+import {InboxHost} from "../../modules/inbox/dist/inbox.controller.js";
 import {IamTopologyInboxClaimController,IAM_TOPOLOGY_CLAIM_DEPS}
  from "../../apps/core-host/dist/iam-topology-inbox-claim-http-pilot.js";
 import {OrganizationProvisioningSaga,PgOrgProvisionIntentStore,
@@ -320,6 +321,79 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
    "SELECT count(*)::int AS n FROM platform_iam_revocation_outbox"+
    " WHERE operation_id=$1 AND organization_id=$2",
    [op,orgB])).rows[0].n,1);
+  // TOPO-07C: the ACTUAL operational InboxHost.mutateExact SQL and audit
+  // with two REAL Keycloak Organizations, one PG17 tenant and exact FGA.
+  const capability="inbox.message.note";
+  await f.tenantDb.query(await readFile(new URL(
+   "../../modules/organizations/sql/010_iam07d_cutover_capabilities_candidate.sql",
+   import.meta.url),"utf8"));
+  const ctxNoteA=await admission.resolve(f.bearer,{
+   ...scope(ORG_A,wsA2),capability,
+  });
+  const ctxNoteB=await admission.resolve(f.bearer,{
+   ...scope(orgB,wsB1),capability,
+  });
+  assert.notEqual(iam07dFineObject(ctxNoteA,capability),
+   iam07dFineObject(ctxNoteB,capability));
+  await f.fgaWrite("POST","/stores/"+store.id+"/write",{
+   writes:{tuple_keys:[{
+    user:"user:"+f.actorId,relation:"grantee",
+    object:iam07dFineObject(ctxNoteA,capability),
+   }]},
+  });
+  for(const [org,ws] of [[ORG_A,wsA2],[orgB,wsB1]]){
+   await f.tenantDb.query("INSERT INTO platform_iam_capability_fences"+
+    "(tenant_id,organization_id,workspace_id,principal_id,capability,epoch,state)"+
+    " VALUES($1,$2,$3,$4,$5,1,'active')",
+    [TENANT,org,ws,f.actorId,capability]);
+  }
+  const operationalInbox=Object.create(InboxHost.prototype);
+  operationalInbox.exact={
+   executeMutation:async(bearer,selected,cap,funnel,effect)=>{
+    assert.equal(funnel,undefined);
+    const ticket=await protectedIam.issue(bearer,{
+     ...selected,capability:cap,
+    });
+    return protectedIam.execute(ticket,(tx,verified)=>effect(tx,verified.actor));
+   },
+  };
+  const activeContext=(org,ws)=>({
+   tenantId:TENANT,organizationId:org,workspaceId:ws,
+   actor:{kind:"user",id:f.actorId},scopeWriteAllowed:true,
+  });
+  const noteA=await operationalInbox.mutateExact(
+   activeContext(ORG_A,wsA2),f.bearer,capability,chatA,
+   {body:"A private internal note"});
+  assert.equal(noteA?.conversationId,chatA);
+  assert.equal(noteA?.direction,"internal");
+  await assert.rejects(operationalInbox.mutateExact(
+   activeContext(orgB,wsB1),f.bearer,capability,chatB,
+   {body:"B must not inherit A's fine grant"}),AccessDeniedError);
+  const cross=await operationalInbox.mutateExact(
+   activeContext(ORG_A,wsA2),f.bearer,capability,chatB,
+   {body:"Cross-org attempt"});
+  assert.equal(cross,null,"Valid A grant cannot change B conversation");
+  const checks=await f.tenantDb.query(
+   "SELECT (SELECT count(*)::int FROM inbox_messages"+
+   " WHERE conversation_id=$1 AND direction='internal') AS messages,"+
+   " (SELECT count(*)::int FROM inbox_events"+
+   " WHERE conversation_id=$1 AND action='note') AS audits,"+
+   " (SELECT count(*)::int FROM inbox_messages"+
+   " WHERE conversation_id=$2 AND direction='internal') AS leaked",
+   [chatA,chatB]);
+  assert.deepEqual(checks.rows,[{messages:1,audits:1,leaked:0}]);
+  assert.equal(await protectedIam.revoke({
+   operationId:randomUUID(),tenantId:TENANT,organizationId:ORG_A,
+   workspaceId:wsA2,principalId:f.actorId,
+   capability,expectedEpoch:1,
+  }),2);
+  await assert.rejects(operationalInbox.mutateExact(
+   activeContext(ORG_A,wsA2),f.bearer,capability,chatA,
+   {body:"Must reject after tenant-first revoke"}),AccessDeniedError);
+  assert.equal((await f.tenantDb.query(
+   "SELECT count(*)::int AS n FROM inbox_messages WHERE conversation_id=$1"+
+   " AND direction='internal'",[chatA])).rows[0].n,1);
+  console.log("IAM_TOPO07C_REAL_INBOX_MUTATION_TWO_ORGS_FINE_FGA_EPOCH_AUDIT_PASS");
   // TOPO-06B: the SAME disposable Keycloak 26.8.1 realm, Control PG17
   // and tenant DB. No independent synthetic identity copies are used.
   const controlIntentSchema=await readFile(new URL(
