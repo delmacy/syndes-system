@@ -5,12 +5,13 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {spawnSync} from "node:child_process";
 const source="scripts/ci/multiorg-staging-readonly.sh";
-const workflow=".github/workflows/syndes-multiorg-staging-readonly.yml";
+const workflow=".github/workflows/syndes-ci.yml";
 
 test("MO-REL-04 staging preflight is manual, SHA-gated and rejects production host",async()=>{
  const text=await readFile(workflow,"utf8");
  assert.match(text,/workflow_dispatch:/);
- assert.doesNotMatch(text,/\n  push:|\n  pull_request:/);
+ assert.match(text,/staging-readonly:/);
+ assert.match(text,/github.event_name == 'workflow_dispatch'/);
  assert.match(text,/environment: multi-org-staging/);
  assert.match(text,/STAGING_PEER.*!= 'delmacy-desktoppc\.tayra-delta\.ts\.net'/);
  assert.match(text,/APPROVED_SHA.*SOURCE_SHA/);
