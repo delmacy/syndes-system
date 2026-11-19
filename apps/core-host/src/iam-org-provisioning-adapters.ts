@@ -46,13 +46,26 @@ export class KeycloakOrganizationWriter implements TrustedKeycloakOrgWriter{
   });
  }
  private async find(alias:string,name:string):Promise<string|null>{
-  const list=await this.call("?search="+encodeURIComponent(alias)+"&max=100","GET");
-  if(list.status!==200)throw new AccessDeniedError();
-  const values:unknown=await list.json();
-  if(!Array.isArray(values)||values.length>100)throw new AccessDeniedError();
-  const matches=values.filter(x=>x&&typeof x==="object"&&
-   (x as {alias?:unknown}).alias===alias);
-  if(matches.length>1)throw new AccessDeniedError();
+  // Keycloak 26 Organizations search filters NAME or DOMAIN, not alias.
+  // Query exact human name, then match our immutable deterministic alias.
+  // Page through homonyms; never silently miss an older organization and
+  // create a duplicate after losing the original POST response.
+  const matches:unknown[]=[];
+  for(let first=0;first<=1000;first+=100){
+   const path="?search="+encodeURIComponent(name)+
+    "&exact=true&briefRepresentation=false&first="+first+"&max=100";
+   const list=await this.call(path,"GET");
+   if(list.status!==200)throw new AccessDeniedError();
+   const values:unknown=await list.json();
+   if(!Array.isArray(values)||values.length>100)throw new AccessDeniedError();
+   for(const value of values){
+    if(value&&typeof value==="object"&&(value as {alias?:unknown}).alias===alias)
+     matches.push(value);
+   }
+   if(matches.length>1)throw new AccessDeniedError();
+   if(values.length<100)break;
+   if(first===1000)throw new AccessDeniedError();
+  }
   if(!matches.length)return null;
   const found=matches[0] as {id?:unknown;name?:unknown;enabled?:unknown};
   if(typeof found.id!=="string"||!UUID.test(found.id)||
