@@ -29,12 +29,33 @@ export async function runIamMultiOrgTopologyPg17Lab(f){
   const singleFenceSql=await readFile(new URL(
    "../../modules/organizations/sql/008_iam07d_revoke_first_candidate.sql",
    import.meta.url),"utf8");
+  const expandedCapsSql=await readFile(new URL(
+   "../../modules/organizations/sql/010_iam07d_cutover_capabilities_candidate.sql",
+   import.meta.url),"utf8");
+  // Existing 008 tables remain installed across the 002 cutover. 010 is an
+  // ADDITIVE transition: it preserves all old rows, does not grant access,
+  // and runs both with both SQL002 indexes and with neither.
+  await conn.query(expandedCapsSql);
+  await conn.query(expandedCapsSql);
+  const pre=await conn.query("SELECT state,epoch::text AS epoch FROM "+
+   "platform_iam_capability_fences WHERE tenant_id=$1 AND organization_id=$2 "+
+   "AND workspace_id=$3 AND principal_id=$4 AND capability=$5",
+   [TENANT,ORG_A,WS_A1,f.actorId,"inbox.conversation.claim"]);
+  assert.equal(pre.rows.length,1);
+  assert.ok(["active","revoked"].includes(pre.rows[0].state),
+   "Previous IAM07D revocation must be preserved, not reactivated");
+  console.log("IAM07D010_PG17_PRE_CUTOVER_ADDITIVE_REPLAY_PASS");
   // A half-cutover or legacy single-context DB MUST refuse the new installer.
   await conn.query("SAVEPOINT legacy_fence_denial");
   await assert.rejects(conn.query(multiFenceSql),error=>error.code==="55000");
   await conn.query("ROLLBACK TO SAVEPOINT legacy_fence_denial");
   await conn.query("RELEASE SAVEPOINT legacy_fence_denial");
   await conn.query("DROP INDEX platform_legacy_single_organization");
+  await conn.query("SAVEPOINT partial_010_denial");
+  await assert.rejects(conn.query(expandedCapsSql),error=>error.code==="55000",
+   "Never apply capability migration during a half-cutover");
+  await conn.query("ROLLBACK TO SAVEPOINT partial_010_denial");
+  await conn.query("RELEASE SAVEPOINT partial_010_denial");
   await conn.query("SAVEPOINT partial_fence_denial");
   await assert.rejects(conn.query(multiFenceSql),error=>error.code==="55000");
   await conn.query("ROLLBACK TO SAVEPOINT partial_fence_denial");
@@ -48,6 +69,28 @@ export async function runIamMultiOrgTopologyPg17Lab(f){
   // 009 uses the SAME scoped fence/outbox definitions as 008 and is manually
   // re-applicable after complete SQL002 cutover, without weakening 008.
   await conn.query(multiFenceSql);
+  await conn.query(expandedCapsSql);
+  const fenceState=await conn.query("SELECT epoch::text AS epoch,state "+
+   "FROM platform_iam_capability_fences WHERE tenant_id=$1 AND "+
+   "organization_id=$2 AND workspace_id=$3 AND principal_id=$4 AND capability=$5",
+   [TENANT,ORG_A,WS_A1,f.actorId,"inbox.conversation.claim"]);
+  assert.deepEqual(fenceState.rows,pre.rows,"No grants or epochs mutate at cutover");
+  const newCapability=await conn.query(
+   "SELECT count(*)::int n FROM platform_iam_capability_fences "+
+   "WHERE capability='inbox.message.reply'");
+  assert.equal(newCapability.rows[0].n,0,"New capability NEVER auto-granted");
+  await conn.query("INSERT INTO platform_iam_capability_fences("+
+   "tenant_id,organization_id,workspace_id,principal_id,capability,epoch,state)"+
+   " VALUES($1,$2,$3,$4,$5,1,'active')",
+   [TENANT,ORG_A,WS_A1,f.actorId,"inbox.message.reply"]);
+  await conn.query("SAVEPOINT reject_capability");
+  await assert.rejects(conn.query("INSERT INTO platform_iam_capability_fences("+
+   "tenant_id,organization_id,workspace_id,principal_id,capability,epoch,state)"+
+   " VALUES($1,$2,$3,$4,$5,1,'active')",
+   [TENANT,ORG_A,WS_A1,f.actorId,"inbox.unknown.admin"]),error=>error.code==="23514");
+  await conn.query("ROLLBACK TO SAVEPOINT reject_capability");
+  await conn.query("RELEASE SAVEPOINT reject_capability");
+  console.log("IAM07D010_PG17_POST_CUTOVER_FENCE_FK_AND_NO_AUTO_GRANT_PASS");
   const fenceColumns=await conn.query("SELECT column_name FROM information_schema.columns"+
    " WHERE table_schema=current_schema() AND table_name='platform_iam_capability_fences'");
   for(const column of ["tenant_id","organization_id","workspace_id",

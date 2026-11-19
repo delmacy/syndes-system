@@ -16,7 +16,7 @@ test("IAM capability catalog is a versioned inventory, not a second grant store"
   assert.ok(Array.isArray(catalog.entries) && catalog.entries.length>=7);
   const ids=new Set();
   for(const e of catalog.entries){
-    assert.match(e.id,/^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*){2,3}$/);
+    assert.match(e.id,/^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9_]*){2,3}$/);
     assert.equal(e.id.split(".")[0],e.module);
     assert.ok(!ids.has(e.id),"duplicate "+e.id);
     ids.add(e.id);
@@ -38,16 +38,39 @@ test("IAM capability catalog is a versioned inventory, not a second grant store"
   }
 });
 
-test("experimental UMA adapter only accepts explicit catalog capabilities and correct scope",()=>{
-  const source=readFileSync("apps/core-host/src/keycloak-authorization-pilot.ts","utf8");
-  for(const id of ["inbox.conversation.read","inbox.message.send","inbox.conversation.claim",
-                   "inbox.conversation.transfer","service.funnel.operate"]){
-    const entry=catalog.entries.find(x=>x.id===id);
-    assert.ok(entry,"pilot capability absent in catalog: "+id);
-    assert.ok(source.includes('"'+id+'": "'+entry.resourceKind+'"'),"kind mismatch for "+id);
-  }
-  assert.ok(source.includes("response_mode: \"decision\""));
-  assert.ok(source.includes("submit_request: \"false\""));
-  assert.ok(!source.includes("client_secret"));
-  assert.ok(!source.includes("create-policy"));
+test("UMA and fine-FGA resolve every explicit catalog capability without a legacy grant",()=>{
+ const source=readFileSync("apps/core-host/src/keycloak-authorization-pilot.ts","utf8");
+ const exact=readFileSync("apps/core-host/src/iam07d-capability-catalog.ts","utf8");
+ const context=readFileSync("apps/core-host/src/iam-organization-context-pilot.ts","utf8");
+ const old=["inbox.conversation.read","inbox.message.send"];
+ for(const id of old){
+  const entry=catalog.entries.find(x=>x.id===id);
+  assert.ok(entry,"legacy pilot capability absent: "+id);
+  assert.ok(source.includes('"'+id+'":"'+entry.resourceKind+'"')||
+   source.includes('"'+id+'": "'+entry.resourceKind+'"'),
+   "legacy kind mismatch: "+id);
+ }
+ assert.match(source,/Object\.fromEntries\(IAM07D_CAPABILITIES\.map/);
+ assert.match(context,/Object\.fromEntries\(IAM07D_CAPABILITIES\.map/);
+ const candidates=catalog.entries.filter(x=>x.status==="proposed"&&
+   ["inbox","service"].includes(x.module));
+ const catalogStart=exact.indexOf("export const IAM07D_CAPABILITIES=Object.freeze(");
+ const opening=exact.indexOf("[",catalogStart);
+ const closing=exact.indexOf("] as const",opening);
+ assert.ok(catalogStart>=0&&opening>catalogStart&&closing>opening,
+  "Typed capability array must be explicit");
+ const known=JSON.parse(exact.slice(opening,closing+1));
+ assert.equal(known.length,19,"Every exact mutation has one typed name");
+ assert.equal(new Set(known).size,19);
+ for(const id of known){
+  const entry=catalog.entries.find(x=>x.id===id);
+  assert.ok(entry&&entry.status==="proposed","No implicit grants: "+id);
+ }
+ for(const entry of candidates)
+  assert.ok(known.includes(entry.id),"Inventory missing exact capability: "+entry.id);
+ assert.ok(exact.includes('"service.attendance.team_transfer"'));
+ assert.ok(source.includes("response_mode: \"decision\""));
+ assert.ok(source.includes("submit_request: \"false\""));
+ assert.ok(!source.includes("client_secret"));
+ assert.ok(!source.includes("create-policy"));
 });

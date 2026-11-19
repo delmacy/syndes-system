@@ -23,6 +23,62 @@
       }
     },
     {
+      "id": "inbox.conversation.assign",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "inbox.conversation.claim",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "inbox.conversation.create",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "inbox.conversation.favorite",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "inbox.conversation.handoff",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "inbox.conversation.history_sync",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "inbox.conversation.link_contact",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "inbox.conversation.mark_read",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
       "id": "inbox.conversation.read",
       "module": "inbox",
       "resourceKind": "workspace",
@@ -33,17 +89,7 @@
       }
     },
     {
-      "id": "inbox.message.send",
-      "module": "inbox",
-      "resourceKind": "workspace",
-      "status": "declared_legacy",
-      "legacy": {
-        "resource": "inbox:messages",
-        "action": "write"
-      }
-    },
-    {
-      "id": "inbox.conversation.claim",
+      "id": "inbox.conversation.status",
       "module": "inbox",
       "resourceKind": "workspace",
       "status": "proposed",
@@ -57,6 +103,79 @@
       "legacy": null
     },
     {
+      "id": "inbox.message.note",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "inbox.message.reply",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "inbox.message.send",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "declared_legacy",
+      "legacy": {
+        "resource": "inbox:messages",
+        "action": "write"
+      }
+    },
+    {
+      "id": "inbox.message.simulate",
+      "module": "inbox",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "service.attendance.assign",
+      "module": "service",
+      "resourceKind": "funnel",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "service.attendance.close",
+      "module": "service",
+      "resourceKind": "funnel",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "service.attendance.open",
+      "module": "service",
+      "resourceKind": "funnel",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "service.attendance.team_transfer",
+      "module": "service",
+      "resourceKind": "funnel",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "service.funnel.operate",
+      "module": "service",
+      "resourceKind": "funnel",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
+      "id": "service.funnel.publish",
+      "module": "service",
+      "resourceKind": "workspace",
+      "status": "proposed",
+      "legacy": null
+    },
+    {
       "id": "service.funnel.read",
       "module": "service",
       "resourceKind": "funnel",
@@ -65,13 +184,6 @@
         "resource": "service:funnels",
         "action": "read"
       }
-    },
-    {
-      "id": "service.funnel.operate",
-      "module": "service",
-      "resourceKind": "funnel",
-      "status": "proposed",
-      "legacy": null
     },
     {
       "id": "whatsapp.account.manage",

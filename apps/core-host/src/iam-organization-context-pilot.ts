@@ -11,6 +11,7 @@ import {
   type Actor,type ModuleAccessPort,type TenancyPort,
   type TrustedTenantDatabaseProvider,
 } from "@syndes/core-kernel";
+import {IAM07D_CAPABILITIES,iam07dModule,iam07dScopeKind} from "./iam07d-capability-catalog.js";
 import {pilotResourceName,type TrustedKeycloakPilotContext,
   type KeycloakPilotCapability} from "./keycloak-authorization-pilot.js";
 
@@ -18,12 +19,12 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 const REALM=/^[a-z][a-z0-9_-]{1,80}$/;
 const CLIENT=/^[a-z][a-z0-9-]{2,127}$/;
 const CAPABILITIES=Object.freeze({
-  "inbox.conversation.read":{moduleId:"inbox",write:false,kind:"workspace"},
-  "inbox.message.send":{moduleId:"inbox",write:true,kind:"workspace"},
-  "inbox.conversation.claim":{moduleId:"inbox",write:true,kind:"workspace"},
-  "inbox.conversation.transfer":{moduleId:"inbox",write:true,kind:"workspace"},
-  "service.funnel.operate":{moduleId:"service",write:true,kind:"funnel"},
-} as const);
+ "inbox.conversation.read":{moduleId:"inbox",write:false,kind:"workspace"},
+ "inbox.message.send":{moduleId:"inbox",write:true,kind:"workspace"},
+ ...Object.fromEntries(IAM07D_CAPABILITIES.map(cap=>[cap,{
+  moduleId:iam07dModule(cap),write:true,kind:iam07dScopeKind(cap),
+ }]))
+} as Record<KeycloakPilotCapability,{moduleId:"inbox"|"service";write:boolean;kind:"workspace"|"funnel"}>);
 
 export type OrganizationIdentityLink=Readonly<{
   realm:string;

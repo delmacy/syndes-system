@@ -5,14 +5,13 @@
  * module admission remain separate mandatory preconditions.
  */
 import {createHash} from "node:crypto";
+import {iam07dIsCapability,iam07dScopeKind,iam07dModule} from "./iam07d-capability-catalog.js";
 import type {ResolvedIamPilotContext} from "./iam-organization-context-pilot.js";
 import type {SpecificIam07dCapability,SpecificIam07dPolicy}
  from "./iam07d-revoke-first-pilot.js";
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const CAPS=new Set<SpecificIam07dCapability>([
- "inbox.conversation.claim","inbox.conversation.transfer","service.funnel.operate",
-]);
+
 const SCOPE_PREFIX="syndes:v1:tenant:";
 const equalString=(value:unknown):value is string=>typeof value==="string"&&value.length>0;
 /** Pure deterministic object key for a trusted tenant grant catalog.
@@ -25,11 +24,11 @@ export function iam07dFineObjectForScope(input:Readonly<{
 }>):string{
  if(!input||![input.tenantId,input.organizationId,input.workspaceId]
     .every(x=>typeof x==="string"&&UUID.test(x))||
-    !CAPS.has(input.capability))
+    !iam07dIsCapability(input.capability))
   throw Error("Invalid fine capability scope");
  const base=SCOPE_PREFIX+input.tenantId+":org:"+input.organizationId+
   ":workspace:"+input.workspaceId;
- if(input.capability==="service.funnel.operate"){
+ if(iam07dScopeKind(input.capability)==="funnel"){
   if(typeof input.resourceName!=="string"||
     !input.resourceName.startsWith(base+":funnel:")||
     !UUID.test(input.resourceName.slice((base+":funnel:").length)))
@@ -51,9 +50,9 @@ export function iam07dFineObject(context:ResolvedIamPilotContext,
    !UUID.test(context.actor.id)||
    ![context.tenantId,context.organizationId,context.workspaceId,
       context.keycloakOrganizationId].every(v=>typeof v==="string"&&UUID.test(v))||
-   !CAPS.has(capability)||context.capability!==capability||
+   !iam07dIsCapability(capability)||context.capability!==capability||
    context.scopeWriteAllowed!==true||
-   context.moduleId!==(capability==="service.funnel.operate"?"service":"inbox")||
+   context.moduleId!==iam07dModule(capability)||
    !equalString(context.realm))
   throw Error("Untrusted fine capability identity");
  return iam07dFineObjectForScope({
