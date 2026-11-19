@@ -41,7 +41,7 @@ test("UC-SIGNUP-01C: real PG17 reserved tenant SQL context via tenant-owner, not
    WHERE rolname='syndes_core') THEN CREATE ROLE syndes_core NOLOGIN; END IF;END$$`);
   // PostgreSQL formats the trusted ephemeral role/password identifiers.
   const createRole=await admin.query(
-   "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L',$1,$2) AS command",
+   "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L',$1::text,$2::text) AS command",
    [tenantRole,tenantPass]);
   await admin.query(createRole.rows[0].command);
   roleCreated=true;
