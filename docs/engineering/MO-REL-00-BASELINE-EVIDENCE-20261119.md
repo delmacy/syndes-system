@@ -47,3 +47,31 @@
 - [ ] Publicar CI central verde para o PR deste inventário e sincronizar #205/#193 com link do run; só então avaliar aceite formal de MO-REL-00.
 
 **Próxima entrega elegível:** MO-REL-01 (#206) após aceite MO-REL-00; MO-REL-03 (#189) também depende de 00. **Nenhuma mutação** em SQL002, realm, grants, secrets, servidor ou produção foi autorizada por este documento.
+
+
+## Complemento auditado na HEAD `2d6eac02a14086bd940c2773bb9572363a418642` — rotas e ownership
+
+Consultado `git/trees?recursive=1` via GitHub (2928 entries, `truncated=false`) e conteúdo-fonte dos controllers, repositories, workers e query scopes. Os pontos abaixo são **inventário estático**, não teste de integração.
+
+| Superfície (arquivo e linhas) | Rotas/operações | Implementação e risco residual |
+|---|---|---|
+| CRM `modules/core-crm/src/crm.controller.ts:67-216` | 25 decorators: capabilities, people CRUD, CRM organizations CRUD, vínculos, tags, notas, channels, employees, timeline, duplicates, `imports/csv`, `exports/csv` | `postgres.ts` usa `crmOwnerQuery` com markers `/*ORG:...*/`; `scope-query.ts:16-32` nega query não escopada quando flag multi-org ativa. Exigir CSV/extra/relação A/B real e SQL002 removido **somente em laboratório**. |
+| Inbox `modules/inbox/src/inbox.controller.ts:334-444` | 18 decorators: SSE, list/get/messages, create, claim, assign, status, handoff, transfer workspace, favorite, read, contact, history, reply, note, simulate, metrics | `postgres.ts` usa `inboxScopedQuery` com markers org+workspace; `scope-query.ts:13-27` nega ausência de scope. Controller faz `mutateExact` para ações finas; `requestHistory` chama `legacyWrite` e nega 403 em multi-org. Testar SSE reconnect, métricas, paginação/decoração e troca de workspace com A/B. |
+| WhatsApp HTTP `modules/whatsapp/src/http.ts:96-199` | 11 decorators: list/get/create/pair/disconnect/enable/connect, contact-name, avatar, group GET/PATCH | Guard de Organization live no host; necessita testes por rota, IDs alheios, status e erro de provider. |
+| WhatsApp ingresso `modules/whatsapp/src/inbound-http.ts:60-64` | `POST api/v1/internal/whatsapp/events/:tenantId` com Bearer de webhook e validação de envelope | **Falha identificada em main**: `inbound-http.ts:25-30` e caminho de duplicata `:39-41` exigem `service_enabled` e `platform_organization_id IS NOT NULL`, mas não verificam `platform_organizations.status='active'` nem workspace active. Um webhook pode inserir sob org arquivada. PR #200 corrige parte deste risco; não considerar protegido até merge+testes. |
+| WhatsApp relay `modules/whatsapp/src/outbound-relay.ts:12-41` | `deliverNext` busca outbox em tenant, escolhe account, chama `gateway.sendQueued` e consulta status | **Falha identificada em main**: predicate `:20-32` não valida status active de Organization; antes da chamada externa `:36-41` existe janela de revogação. PR #200 implementa filtros, mas reconhece concorrência com envio externo in-flight. P0 MO-REL-01. |
+| WhatsApp dispatcher `modules/whatsapp/src/dispatch-worker.ts:27-41` | tick percorre tenant_registry ativo e aciona projetor/relay | Escopo de admissão por tenant **não** substitui validação org/ws em cada efeito. Provar reprocessamento e archive entre pick e dispatch. |
+| Service `modules/service-management/src/controller.ts:160-233` | 12 decorators: funnels read/publish, board, teams, attendances open/inspector/get/events/stage/assign/team/close | `service.ts:123-180,205-420` inclui WHERE tenant+org+ws e team checks; `controller.ts:85-120` contém paths exact pinned. **Plugin segue ausente** de `apps/core-host/config/modules.json`. Testar Host real, grants e installer staging. |
+| Core `apps/core-host/src/main.ts:45-159` | healthz, readyz, modules config, authorization | Há `MultiOrgSingleHostLease` no composition root e `multiorg-single-host-lease.ts`; não há demonstração topológica staging. |
+
+**Contagens de decorators observados:** CRM 25, Inbox 18, WhatsApp HTTP 11, WhatsApp internal 1, Service 12 = **67**; não equivale a 67 endpoints operantes, pois Service é opt-in e há subrouters de Organizations/Support e callbacks/event consumers fora deste subtotal. A próxima auditoria precisa ampliar a matriz a Organizations/Support/Go gateway e callbacks de eventos, com testes reais.
+
+### Casos negativos mínimos vinculados aos caminhos
+
+- CRM: ids de person/tag/org CRM de Platform Org B conhecidos por A; `GET people`, `GET people/:id`, `GET exports/csv`, `POST imports/csv`, paginação/duplicatas; nenhuma linha de B, escrita, contagem lateral ou erro revelador.
+- Inbox: list/messages/metrics/SSE com A/B, transfer A1→A2 permitido somente com grants exatos; A→B negado; `history` 403 sem chamada gateway.
+- WhatsApp: account de Org B arquivada e workspace inativa recusam webhook novo **e duplicate ack**, outbound novo e retry; archive entre seleção e chamada externa deve ser testado sem alegar atomicidade externa.
+- Service: leitura de funil, board, attendance, events e alterações de equipe exigem tenant/org/ws/funnel coerentes; testar FGA deny, revogação antes/durante write, Control entitlement off e ausência de plugin.
+- Reexecutar os casos com IdP/FGA indisponíveis e ledger de auditoria, especialmente em caminhos de workers sem JWT humano. Prova funcional só em MO-REL-01/02/05.
+
+**Conclusão deste complemento:** inventário de controllers principais realizado, mas ainda não foi demonstrada cobertura de todos os endpoints/callbacks, nem testes de cenários A/B ou CI deste incremento. MO-REL-00 permanece **IN PROGRESS**, sem falso aceite.
