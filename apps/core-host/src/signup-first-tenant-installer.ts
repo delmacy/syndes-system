@@ -136,22 +136,6 @@ export class PgFirstTenantOperatorInstaller implements FirstTenantInstallPort{
    intent.founderId,intent.organizationName,intent.workspaceName]);
   return rows.rows.length===1;
  }
- async activate(intent:SignupReservation):Promise<void>{
-  const target=expected(intent);
-  // Never reactivate SUSPENDED accounts. Only the already provisioned,
-  // fully verified initial tenant may transition to ACTIVE.
-  if(!await this.verifyDatabase(intent)||
-     !await this.verifyDefaultContext(intent))throw new AccessDeniedError();
-  await this.control.query(`
-   UPDATE public.tenant_registry t SET state='active'
-   WHERE t.tenant_id=$1::uuid AND t.state='provisioned'
-     AND t.database_name=$3 AND t.role_name=$4
-     AND EXISTS(SELECT 1 FROM public.tenant_memberships m
-       WHERE m.tenant_id=t.tenant_id AND m.principal_id=$2
-         AND m.state='active')
-  `,[intent.tenantId,intent.founderId,target.name,target.role]);
-  if(!await this.verifyActive(intent))throw new AccessDeniedError();
- }
  async verifyActive(intent:SignupReservation):Promise<boolean>{
   const target=expected(intent);
   const rows=await this.control.query(`
