@@ -35,7 +35,7 @@
 |---|---|---|
 | G-1 | Inbox/Service **todas** as mutações montadas no Host real usam FGA exato e fence, não o coarse FGA | NÃO COMPROVADO |
 | G-2 | Workers e exports CRM/WhatsApp/Inbox com dados de duas Organizations, revogação e isolamento | NÃO COMPROVADO INTEGRALMENTE |
-| G-3 | Saga de criação de Organization Keycloak + SQL + Control Link, idempotente, sem órfãos | NÃO IMPLEMENTADA |
+| G-3 | Saga de criação de Organization Keycloak + SQL + Control Link, idempotente, sem órfãos | COMPONENTES DE ORG ADICIONAL IMPLEMENTADOS (TOPO-06B); PROVA E2E STAGING NÃO COMPROVADA; SIGNUP TENANT INICIAL PENDENTE |
 | G-4 | Restore e rollback de staging com dados multi-org, checklist assinado | NÃO COMPROVADO |
 | G-5 | Comunicação SSE multi-host, ou restrição de topologia single-host validada | NÃO COMPROVADA |
 | G-6 | Aprovação e implantação da migration de cutover em tenant controlado exclusivamente via CI/CD | NÃO EXECUTADA |
@@ -100,3 +100,8 @@
 - `infra/postgres/bootstrap/control-iam07d-capabilities-010.schema` amplia **a constraint de recibos do Control**, preserva registros, valida a nova CHECK antes de remover a antiga, é idempotente e não concede grants; aplicada somente por operador via CI/staging. `modules/organizations/sql/010_iam07d_cutover_capabilities_candidate.sql` amplia **a constraint tenant**, igualmente sem FGA grants. Ambas são necessárias para o catálogo de 19 operações.
 - Ordem de liberação: (1) backup verificável Control+tenant; (2) Control 010 em transação e verificação; (3) tenant 010 em transação e verificação; (4) provisionar explicitamente fences/grants específicos por principal, Organization, Workspace e, conforme cabível, Funnel; (5) ativar operações apenas depois da revogação real em ambas as bases passar; (6) só então considerar o cutover SQL002 com plano de recuperação. Não há migration automática dessas estruturas e nenhum `PRODUCTION_GATE` foi aprovado nesta entrega.
 - Teste PG17 real instala Control 010 duas vezes, verifica CHECK validada e prova revogação de `inbox.message.note` em tenant+Control sem reativação ou vazamento cross-org. Esperar o CI completo antes de marcar esse teste aprovado.
+
+
+## MO-REL-00 — leitura reconciliada de G-3
+
+A descrição antiga `NÃO IMPLEMENTADA` foi substituída por status que distingue **componentes de operador implementados para Organization adicional** (TOPO-06B) de um **G-3 comprovado**. A saga de **tenant/DB fundador** (UC-SIGNUP-01) ainda não está homologada e não pode ser inferida da saga adicional. O inventário do programa está em `MO-REL-00-BASELINE-EVIDENCE-20261119.md`, e os demais gates G-1..G-6 permanecem pendentes. Não aplicar Control/tenant 010, SQL002 ou grants operacionais com base nesta correção documental.
