@@ -9,6 +9,7 @@ import {WhatsAppInboxProjection} from "../dist/dispatch.js";
 import {WhatsAppInboundStore} from "../dist/inbound-http.js";
 import {WhatsAppReplyQueue} from "../dist/outbound-reply.js";
 import {WhatsAppOutboundRelay} from "../dist/outbound-relay.js";
+import {PgCrmRepository,PgCrmExtras,contactsToCsv} from "../../core-crm/dist/index.js";
 
 const require=createRequire(new URL("../../../apps/core-host/package.json",import.meta.url));
 const {Client}=require("pg");
@@ -61,6 +62,29 @@ test("Whatsmeow account/projection/reply/worker isolate two organizations within
    const result=await c.query(sql,[...args]);
    return {rows:result.rows,rowCount:result.rowCount};
   }};
+  // MO-REL-01 CRM: A/B Organizations share ONE tenant PostgreSQL database.
+  // Tests exercise actual repositories and CSV source query, not mocked SQL.
+  const crmA=new PgCrmRepository(db,oa),crmB=new PgCrmRepository(db,ob);
+  const extraA=new PgCrmExtras(db,oa),extraB=new PgCrmExtras(db,ob);
+  const sharedEmail="same@example.com";
+  const personA=await crmA.createPerson(T,"alice",randomUUID(),
+    {name:"Alpha Private",email:sharedEmail,phone:null});
+  const personB=await crmB.createPerson(T,"bob",randomUUID(),
+    {name:"Beta Private",email:sharedEmail,phone:null});
+  assert.equal(await crmA.getPerson(T,personB.id),null,"A cannot read B by known ID");
+  assert.equal(await crmB.getPerson(T,personA.id),null,"B cannot read A by known ID");
+  assert.deepEqual((await crmA.listPeople(T,"Private",20)).map(x=>x.id),[personA.id]);
+  assert.deepEqual((await crmB.listPeople(T,"Private",20)).map(x=>x.id),[personB.id]);
+  assert.deepEqual((await extraA.duplicates(T,sharedEmail,null,null)).map(x=>x.id),[personA.id]);
+  assert.deepEqual((await extraB.duplicates(T,sharedEmail,null,null)).map(x=>x.id),[personB.id]);
+  const csvA=contactsToCsv(await extraA.listExportPeople(T,1000));
+  const csvB=contactsToCsv(await extraB.listExportPeople(T,1000));
+  assert.match(csvA,/Alpha Private/);assert.doesNotMatch(csvA,/Beta Private/);
+  assert.match(csvB,/Beta Private/);assert.doesNotMatch(csvB,/Alpha Private/);
+  assert.equal(await extraA.updatePerson(T,"alice",personB.id,
+    {name:"Foreign write",email:null,phone:null}),null);
+  assert.equal((await crmB.getPerson(T,personB.id)).name,"Beta Private");
+  console.log("IAM_MO_REL01_PG17_CRM_SAME_TENANT_ORG_CSV_SEARCH_DENY_PASS");
   const accounts=new WhatsAppAccounts(async()=>db);
   const aa=await accounts.list(alice);
   const ab=await accounts.list(bob);
