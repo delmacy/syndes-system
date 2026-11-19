@@ -47,3 +47,20 @@ esac
   assert.match(res.stdout,/MO_REL04_STAGING_PREFLIGHT=BLOCKED/);
  }finally{await rm(root,{recursive:true,force:true})}
 });
+
+test("MO-REL-04 authorized DevServer01 preflight is post-gate, read-only, not a deploy",async()=>{
+ const text=await readFile(workflow,"utf8");
+ const start=text.indexOf("  devserver01-multiorg-staging-readonly:");
+ assert.ok(start>0,"DevServer01 staging inventory job is required");
+ const body=text.slice(start);
+ assert.match(body,/if:.*github.event_name == 'push'/);
+ assert.match(body,/needs: \[gate\]/);
+ assert.match(body,/environment: devserver01/);
+ assert.match(body,/DEVSERVER_PEER.*vars.SYNDES_DEV_SSH_HOST/);
+ assert.match(body,/\[\[ "\$\{DEVSERVER_PEER\}" == 'delmacy-desktoppc\.tayra-delta\.ts\.net' \]\]/);
+ assert.match(body,/SYNDES_USER=delmacy/);
+ assert.match(body,/SYNDES_HOST=DevServer01/);
+ assert.match(body,/SYNDES_STAGING_REMOTE_MODE=read-only-v1/);
+ assert.match(body,/scripts\/ci\/multiorg-staging-readonly\.sh/);
+ assert.doesNotMatch(body,/docker\s+(?:run|exec|compose|stop|rm)|psql|pg_restore|\bdeploy\s+syndes|\bCREATE\s+DATABASE/i);
+});
