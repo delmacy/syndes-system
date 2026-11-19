@@ -39,18 +39,11 @@ test("UC-SIGNUP-01C: real PG17 reserved tenant SQL context via tenant-owner, not
  try{
   await admin.query(`DO $$BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles
    WHERE rolname='syndes_core') THEN CREATE ROLE syndes_core NOLOGIN; END IF;END$$`);
-  await admin.query('CREATE ROLE "'+tenantRole+'" LOGIN PASSWORD $1',[tenantPass])
-   .catch(async err=>{
-    // CREATE ROLE has no parameter binding for utility statement; use
-    // format with server-side escaping and a known synthetic password.
-    if(err.code!=="42P02"&&err.code!=="42601")throw err;
-    await admin.query("SELECT format('CREATE ROLE %I LOGIN PASSWORD %L',$1,$2) AS sql",
-     [tenantRole,tenantPass]).then(async res=>{
-      // SQL text is constructed only by PostgreSQL format(%I/%L) and not
-      // exposed as logs or to any browser.
-      await admin.query(res.rows[0].sql);
-    });
-   });
+  // PostgreSQL formats the trusted ephemeral role/password identifiers.
+  const createRole=await admin.query(
+   "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L',$1,$2) AS command",
+   [tenantRole,tenantPass]);
+  await admin.query(createRole.rows[0].command);
   roleCreated=true;
   await admin.query('CREATE DATABASE "'+tenantDb+'" OWNER "'+tenantRole+'"');
   tenantCreated=true;
