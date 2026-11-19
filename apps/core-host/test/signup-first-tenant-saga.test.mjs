@@ -27,7 +27,7 @@ function fixture(fail=""){
    get:async()=>({...intent,state,keycloakOrganizationId:intent.keycloakOrganizationId}),
    markReady:async(_,__,id)=>{events.push("ready");blocked("markReady");
      if(state==="ready"&&intent.keycloakOrganizationId!==id)throw Error("conflict");
-     state="ready";intent.keycloakOrganizationId=id;revisions++},
+     state="ready";active=true;intent.keycloakOrganizationId=id;revisions++},
    markReconcileRequired:async()=>{events.push("reconcile");
       if(state!=="ready")state="reconcile_required"},
   },
@@ -36,7 +36,6 @@ function fixture(fail=""){
    verifyDatabase:async()=>db,
    ensureDefaultContext:async()=>{events.push("context");blocked("context");context=true},
    verifyDefaultContext:async()=>context,
-   activate:async()=>{events.push("activate");blocked("activate");active=true},
    verifyActive:async()=>active,
   },
   keycloak:{
@@ -86,7 +85,7 @@ test("UC-SIGNUP-01C operator and request ownership reject before any provider",a
  await assert.rejects(x.saga.resume({...x.req,accountName:"Other"}));
  assert.deepEqual(x.events,["reserve"]);
 });
-for(const failure of ["database","kc-org","kc-member","context","link","grant","activate","markReady"]){
+for(const failure of ["database","kc-org","kc-member","context","link","grant","markReady"]){
  test("UC-SIGNUP-01C failure at "+failure+" is reconcile_required and never READY",async()=>{
   const x=fixture(failure);
   await assert.rejects(x.saga.resume(x.req));
