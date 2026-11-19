@@ -1,5 +1,11 @@
 # AGENTS.md — Syndes Global
 
+## Entrada canônica de execução multi-org — MO-REL (2026-11-19)
+
+O programa para **homologação e release de múltiplas Platform Organizations por tenant** está em `docs/engineering/WBS-MULTIORG-PRODUCTION-READINESS-20261119.md` e o contrato do agente em `docs/engineering/MULTIORG-AGENT-EXECUTION-20261119.md`.
+
+**Antes de retomar multi-org, é obrigatório buscar esses arquivos na `main` atual, ler issues #193/#160/#189, conferir CI/PRs e avançar somente na menor etapa MO-REL-xx ainda sem evidência de aceite.** `PRODUCTION_GATE=BLOCKED` até aprovação documentada; SQL002 operacional intacto. As instruções da WBS não sobrepõem gates de segurança nem autorizam deploy/cutover sem aceite explícito.
+
 ## Missão
 
 Entregar o MVP da Syndes até produção e primeiro cliente externo pagante, sem reabrir continuamente o escopo.
