@@ -7,6 +7,7 @@ import pg from "pg";
 import {PINNED_TENANT_TRANSACTION} from "@syndes/core-kernel";
 import {PgFirstTenantOperatorInstaller} from "../dist/signup-first-tenant-installer.js";
 import {PgFirstTenantSignupKeycloakLink} from "../dist/signup-initial-link.js";
+import {PgSignupReservationStore} from "../dist/signup-control-intents.js";
 
 const raw=process.env.SYNDES_IAM04_PG_URL;
 const allowed=process.env.SYNDES_IAM04_DISPOSABLE_PG==="IAM04B_PG17_ONLY"&&
@@ -41,6 +42,7 @@ test("UC-SIGNUP-01C PG17: initial default Org/Workspace, Control registry and SQ
   await control.query(await file("../../../infra/postgres/bootstrap/control-iam-org-links.schema"));
   await control.query(await file("../../../infra/postgres/bootstrap/control-signup-intents-candidate.schema"));
   await control.query(await file("../../../infra/postgres/bootstrap/control-signup-initial-link-candidate.schema"));
+  await control.query(await file("../../../infra/postgres/bootstrap/control-signup-finalize-candidate.schema"));
   await tenant.query(await file("../../../modules/organizations/sql/001_account_hierarchy.sql"));
   await tenant.query(await file("../../../modules/organizations/sql/002_legacy_single_context_gate.sql"));
   await control.query(`INSERT INTO tenant_registry(
@@ -108,13 +110,24 @@ test("UC-SIGNUP-01C PG17: initial default Org/Workspace, Control registry and SQ
   await assert.rejects(adapter.ensureDefaultContext(
    {...intent,organizationId:randomUUID()}));
   await assert.rejects(adapter.ensureDatabase({...intent,founderId:randomUUID()}));
-  await adapter.activate(intent);
+  const store=new PgSignupReservationStore(control,
+    async principal=>principal===intent.founderId,control);
+  assert.equal((await store.get(intent.requestId,intent.founderId)).state,"reserved");
+  // Control tenant activation + durable READY are ONE Control SQL transaction.
+  await store.markReady(intent.requestId,intent.founderId,kcId);
   assert.equal(await adapter.verifyActive(intent),true);
+  assert.equal((await store.get(intent.requestId,intent.founderId)).state,"ready");
+  await store.markReady(intent.requestId,intent.founderId,kcId);
+  await assert.rejects(store.markReady(intent.requestId,intent.founderId,randomUUID()));
   assert.equal(await link.verify(intent,kcId),true);
   await assert.rejects(link.ensure(intent,kcId));
+  const finalAudit=(await control.query(`SELECT revision,event
+    FROM platform_signup_intent_audit WHERE request_id=$1 ORDER BY revision`,
+    [intent.requestId])).rows;
+  assert.deepEqual(finalAudit,[{revision:"2",event:"ready"}]);
   await control.query("UPDATE tenant_registry SET state='suspended' WHERE tenant_id=$1",[id]);
   assert.equal(await adapter.verifyActive(intent),false);
-  await assert.rejects(adapter.activate(intent));
+  await assert.rejects(store.markReady(intent.requestId,intent.founderId,kcId));
   assert.equal(ensured,2,"No implicit alternate tenant provision from foreign founder");
   console.log("UC_SIGNUP01C_PG17_FIRST_CONTEXT_SQL002_CONTROL_ACTIVATION_PASS");
  }finally{
