@@ -30,7 +30,7 @@ Arquitetura irrenunciável:
 
 | ID | Prioridade | Dependências | Entrega operacional | Gate | Estado inicial |
 |---|---|---|---|---|---|
-| MO-REL-00 | P0 | Nenhuma | Inventário de código, deploy, issues e matriz factual G-1..G-6 | Critérios reproduzíveis, riscos abertos explicitados | TODO |
+| MO-REL-00 | P0 | Nenhuma | Inventário de código, deploy, issues e matriz factual G-1..G-6 | Critérios reproduzíveis, riscos abertos explicitados | IN_REVIEW — PR de evidências e CI aguardados |
 | MO-REL-01 | P0 | 00 | Auditar/corrigir isolamento em workers, ingress, exports, read/search, SSE e history_sync | G-2 + parte G-5 | TODO |
 | MO-REL-02 | P0 | 00, 01 | Service opt-in em Host de staging, installer/Control ENABLED, FGA exato, IAM07D Control+tenant e least privilege | G-1/G-2 | TODO |
 | MO-REL-03 | P0 | 00 | Signup backend: tenant+DB iniciais, founder, Org+Workspace, Keycloak+Control+FGA, saga retomável | G-3 | TODO |
@@ -146,3 +146,8 @@ Arquitetura irrenunciável:
 ## 4. Fonte de verdade e reporte
 
 Este arquivo é a **WBS das etapas**. A issue [#193](https://github.com/delmacy/syndes-system/issues/193) acompanha o Product Gate e possui os links de issues filhas. A issue [#189](https://github.com/delmacy/syndes-system/issues/189) acompanha o signup; a [#160](https://github.com/delmacy/syndes-system/issues/160) acompanha IAM. Estados são mantidos nos issues/PRs e **sincronizados com esta WBS**. Ordem de precedência: código/CI/infra comprovados `>` status de issue `>` texto histórico; discrepâncias devem ser abertas como tarefa, não apagadas.
+
+
+### Reconciliação MO-REL-00 — evidências incrementais (2026-11-19)
+
+PRs #212 e #213 **integrados** na main: `2d6eac02a14086bd940c2773bb9572363a418642` e `cde786a20c98efaeaa61a17a1962006946271a88`, ambos com Syndes CI Gate success nos respectivos heads (runs `44540988891`, `44542158764`). A matriz factual e a contagem estática de 84 decorators nos seis controllers de produto examinados estão em `MO-REL-00-BASELINE-EVIDENCE-20261119.md`; a extensão Organizations/Support/Go gateway/event workers está sob revisão no PR subsequente. Não chamar isso de testes reais de segurança A/B ou aceite de G-1..G-6. `PRODUCTION_GATE=BLOCKED`. Após CI e aceite de MO-REL-00, a execução seguinte é MO-REL-01 (#206), com PR #200 ainda conflitado e dependente de rebase/reteste.
