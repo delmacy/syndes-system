@@ -105,3 +105,13 @@
 ## MO-REL-00 — leitura reconciliada de G-3
 
 A descrição antiga `NÃO IMPLEMENTADA` foi substituída por status que distingue **componentes de operador implementados para Organization adicional** (TOPO-06B) de um **G-3 comprovado**. A saga de **tenant/DB fundador** (UC-SIGNUP-01) ainda não está homologada e não pode ser inferida da saga adicional. O inventário do programa está em `MO-REL-00-BASELINE-EVIDENCE-20261119.md`, e os demais gates G-1..G-6 permanecem pendentes. Não aplicar Control/tenant 010, SQL002 ou grants operacionais com base nesta correção documental.
+
+## MO-REL-03 / UC-SIGNUP-01C — primeira conta (2026-11-19)
+
+A [PR #219](https://github.com/delmacy/syndes-system/pull/219), merge `80106ae4074fbc54fc64c0d5e6c3a079a1c0f116`, passou no [run 44567560783](https://github.com/delmacy/syndes-system/actions/runs/44567560783). Três fronteiras de confiança são **distintas**:
+
+1. A reserva Control `platform_signup_intents` é de `syndes_signup_operator` NOLOGIN, sem permissão para conceder FGA, administrar Keycloak ou ativar `tenant_registry`.
+2. O instalador provisório utiliza credencial independente e DB/role derivados do UUID reservado; a primeira Organization/Workspace são criadas em SQL com ambos índices SQL002 presentes, auditadas uma vez; somente o operador do Control pode inscrever o fundador.
+3. O vínculo Keycloak inicial usa `platform_signup_bind_initial_keycloak_org` (operador segregado) **apenas** enquanto o tenant está `provisioned`. A função histórica `transition_platform_keycloak_org_link` continua exigindo tenant ativo; não enfraquecê-la. A finalização `platform_signup_finalize` efetua **numa mesma transação Control** `tenant_registry.state='active'`, `signup_intent.state='ready'` e audit. Retentar `ready` não restitui membership Keycloak ou grant OpenFGA revogados. A admissão operacional sempre consulta as autoridades vivas.
+
+**G-3 continua não homologado.** O CI até aqui testou PostgreSQL 17 real descartável e contratos de provedor, mas não um provisionamento integrado com clientes Keycloak/OpenFGA restritos, administração de segredos, role SQL efetivamente aplicada no staging, instalador do primeiro database via GitHub Actions, reconciliação após quedas, ou restauração do ambiente operacional. Nem `PRODUCTION_GATE` nem SQL002 devem mudar por este registro. O Product Gate continua `BLOCKED`.
