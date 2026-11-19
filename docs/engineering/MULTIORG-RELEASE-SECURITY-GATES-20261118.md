@@ -74,3 +74,12 @@
 - Perda da sessão reservada provoca encerramento imediato do processo para evitar que outro Host assuma o lock enquanto o antigo continua servindo SSE local ou permissões cacheadas.
 - Teste unitário cobre duas instâncias, retry/release e erro de conexão; suite real PG17 valida exclusão mútua com duas conexões.
 - Isso permite *propor* rollout single-host, NÃO comprova ainda topologia deploy real nem protege producers externos que publiquem SSE somente em outro processo. Broker distribuído continua requisito antes de replicar o Core Host. `PRODUCTION_GATE=BLOCKED`.
+
+
+## IAM07D-010 — Catálogo de 19 operações e compatibilidade com SQL002 (2026-11-19)
+
+- Contrato único `apps/core-host/src/iam07d-capability-catalog.ts`: 13 operações Inbox e 6 Service, com objeto OpenFGA *exato* por capability e escopo workspace/funil, sem herdar grants de módulo. O resolvedor Keycloak Organizations usa membership atual e ownership do funil antes da decisão.
+- `modules/organizations/sql/010_iam07d_cutover_capabilities_candidate.sql` é migração **aditiva, manual/CI**, aplicável a IAM07D 008 antes do cutover ou IAM07D 009 depois do cutover, e também replay após 008 instalado antes de remover SQL002. Rejeita estado **parcial** (apenas 1 índice SQL002), ausência de tabelas/FKs compostas ou ownership de workspace pós-cutover.
+- A migration cria e valida a constraint nova ANTES de retirar a constraint antiga, preservando fences, epochs, outbox, auditoria e linhas anteriores. Não cria nenhum fence novo, não concede FGA e não reativa usuário revogado. O operador deve executar numa única transação, nunca plugin bootstrap automático.
+- Teste real PG17 em `tests/platform/iam-multiorg-structural-pg17-ci.mjs`: replay com SQL002 intacto, negação no corte parcial, 009/010 após corte completo, preservação exata de epoch/estado, ausência de auto-grants e negação de capability desconhecida.
+- A expansão do catálogo **NÃO equivale a cobertura de mutações já liberadas**: cada endpoint precisa integrar o business effect e sua auditoria na MESMA transação pinned. Operações não migradas continuam 403. `PRODUCTION_GATE=BLOCKED`.
