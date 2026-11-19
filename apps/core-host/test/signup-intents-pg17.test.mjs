@@ -39,6 +39,12 @@ test("UC-SIGNUP-01B Control PG17: founder-bound first-tenant reservation and imm
    'public.platform_signup_intents','SELECT') AS allowed`)).rows[0].allowed,true);
   assert.equal((await db.query(`SELECT has_table_privilege('syndes_signup_operator',
    'public.tenant_registry','INSERT') AS allowed`)).rows[0].allowed,false);
+  assert.equal((await db.query(`SELECT has_table_privilege('syndes_signup_tenant_operator',
+   'public.tenant_registry','UPDATE') AS allowed`)).rows[0].allowed,true);
+  assert.equal((await db.query(`SELECT has_table_privilege('syndes_signup_tenant_operator',
+   'public.tenant_memberships','INSERT') AS allowed`)).rows[0].allowed,true);
+  assert.equal((await db.query(`SELECT has_table_privilege('syndes_signup_operator',
+   'public.tenant_memberships','INSERT') AS allowed`)).rows[0].allowed,false);
   const founder=randomUUID(),intruder=randomUUID(),requestId=randomUUID();
   const rawInput={requestId,founderId:founder,accountName:"Company",
     organizationName:"First Org",workspaceName:"First Workspace"};
