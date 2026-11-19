@@ -60,6 +60,10 @@ GRANT SELECT,UPDATE(state) ON public.tenant_registry
  TO syndes_signup_tenant_operator;
 GRANT SELECT,INSERT ON public.tenant_memberships
  TO syndes_signup_tenant_operator;
+-- The dedicated pending-tenant SQL provider verifies the FULL immutable
+-- reservation before connecting; this role receives SELECT only, no UPDATE.
+GRANT SELECT ON public.platform_signup_intents
+ TO syndes_signup_tenant_operator;
 -- Database CREATE and privileged migration execution stay in separate
 -- pre-approved operator-only provisioning infrastructure. No runtime grants.
 
