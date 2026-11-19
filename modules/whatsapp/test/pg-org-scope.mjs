@@ -213,6 +213,35 @@ test("Whatsmeow account/projection/reply/worker isolate two organizations within
   assert.equal(sent.length,1,"No cross-organization WhatsApp delivery");
   const counts=await c.query("SELECT count(*)::int n FROM inbox_messages WHERE tenant_id=$1 AND conversation_id=$2",[T,cb]);
   assert.equal(counts.rows[0].n,1,"Foreign organization message untouched");
+
+  // MO-REL-01: Organization archival denies at EVERY boundary, including
+  // duplicate callback acknowledgements, before any durable event or send.
+  await c.query("UPDATE whatsapp_outbox SET next_attempt_at=clock_timestamp()+interval '1 hour' WHERE tenant_id=$1 AND account_id=$2 AND status='processing'",[T,accountA]);
+  await c.query("UPDATE inbox_conversations SET assigned_to='bob',handoff='human' WHERE id=$1",[cb]);
+  const betaReply=await replies.enqueue(bob,cb,"Beta outbound to be held");
+  assert.equal(betaReply?.direction,"outbound");
+  assert.equal((await c.query("SELECT status FROM whatsapp_outbox WHERE inbox_message_id=$1",[betaReply.id])).rows[0].status,"pending");
+  await c.query("UPDATE platform_organizations SET status='archived' WHERE tenant_id=$1 AND id=$2",[T,ob]);
+  assert.equal(await relay.deliverNext(T),"empty");
+  assert.equal(sent.length,1,"No outbound provider delivery for archived Organization B");
+  const archivedInput=gatewayInput(accountB,"5511999992222@s.whatsapp.net","B-archived","Blocked inbound");
+  await assert.rejects(store.persist(T,archivedInput),e=>e.status===404);
+  const archivedEvents=await c.query("SELECT count(*)::int n FROM whatsapp_inbound_events WHERE tenant_id=$1 AND account_id=$2 AND external_message_id='B-archived'",[T,accountB]);
+  assert.equal(archivedEvents.rows[0].n,0,"Archived ingress never writes an event");
+  await assert.rejects(store.persist(T,gatewayInput(accountB,"5511999992222@s.whatsapp.net","B-1","Duplicate")),(e)=>e.status===404);
+  await c.query("UPDATE platform_organizations SET status='active' WHERE tenant_id=$1 AND id=$2",[T,ob]);
+  await c.query("UPDATE platform_workspaces SET status='archived' WHERE tenant_id=$1 AND id=$2",[T,wb]);
+  await assert.rejects(store.persist(T,archivedInput),(e)=>e.status===404);
+  assert.equal(await relay.deliverNext(T),"empty","Inactive default workspace denies outbound");
+  await c.query("UPDATE platform_workspaces SET status='active' WHERE tenant_id=$1 AND id=$2",[T,wb]);
+  assert.equal((await store.persist(T,archivedInput)).accepted,true);
+  assert.equal(await projection.deliverNext(T),"delivered");
+  assert.equal(notifications.at(-1).organizationId,ob);
+  assert.equal(await relay.deliverNext(T),"queued");
+  assert.equal(sent.length,2);
+  assert.equal(sent[1].accountId,accountB);
+  console.log("IAM_MO_REL01_PG17_WHATSAPP_ORG_ARCHIVED_INBOUND_OUTBOUND_DENY_PASS");
+
  }finally{
   await c.query("ROLLBACK");
   await c.end();

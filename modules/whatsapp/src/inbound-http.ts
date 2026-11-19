@@ -26,7 +26,13 @@ export class WhatsAppInboundStore{
     (tenant_id,account_id,external_message_id,event_type,payload)
     SELECT a.tenant_id,a.id,$3,$4,$5::jsonb FROM whatsapp_accounts a
     WHERE a.tenant_id=$1::uuid AND a.id=$2::uuid AND a.service_enabled=true
-      AND a.platform_organization_id IS NOT NULL
+      AND a.platform_organization_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM platform_organizations o
+        JOIN platform_workspaces w ON w.tenant_id=o.tenant_id
+          AND w.organization_id=o.id AND w.is_default AND w.status='active'
+        WHERE o.tenant_id=a.tenant_id AND o.id=a.platform_organization_id
+          AND o.status='active'
+      )
     ON CONFLICT(tenant_id,account_id,external_message_id) DO NOTHING
     RETURNING id`,[tenantId,event.accountId,
      event.type==="whatsapp.chat.snapshot"?"chat:"+createHash("sha256").update(
@@ -38,7 +44,13 @@ export class WhatsAppInboundStore{
   if(result.rows.length===1)return {accepted:true,duplicate:false};
   const existing=await db.query(`SELECT 1 FROM whatsapp_inbound_events WHERE tenant_id=$1::uuid
    AND account_id=$2::uuid AND external_message_id=$3
-     AND EXISTS (SELECT 1 FROM whatsapp_accounts a WHERE a.tenant_id=whatsapp_inbound_events.tenant_id AND a.id=whatsapp_inbound_events.account_id AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL)`,[tenantId,event.accountId,
+     AND EXISTS (SELECT 1 FROM whatsapp_accounts a WHERE a.tenant_id=whatsapp_inbound_events.tenant_id AND a.id=whatsapp_inbound_events.account_id AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM platform_organizations o
+        JOIN platform_workspaces w ON w.tenant_id=o.tenant_id
+          AND w.organization_id=o.id AND w.is_default AND w.status='active'
+        WHERE o.tenant_id=a.tenant_id AND o.id=a.platform_organization_id
+          AND o.status='active'
+      ))`,[tenantId,event.accountId,
      event.type==="whatsapp.chat.snapshot"?"chat:"+createHash("sha256").update(
        event.chat.chatExternalId+"|"+(event.chat.name??"")+"|"+String(event.chat.unreadCount??0)+"|"+String(event.chat.archived??false)).digest("hex"):
      event.type==="whatsapp.message.receipt"?"receipt:"+createHash("sha256").update(event.receipt.providerMessageId+"|"+event.receipt.status).digest("hex"):

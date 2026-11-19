@@ -30,8 +30,8 @@ Arquitetura irrenunciável:
 
 | ID | Prioridade | Dependências | Entrega operacional | Gate | Estado inicial |
 |---|---|---|---|---|---|
-| MO-REL-00 | P0 | Nenhuma | Inventário de código, deploy, issues e matriz factual G-1..G-6 | Critérios reproduzíveis, riscos abertos explicitados | IN_REVIEW — PR de evidências e CI aguardados |
-| MO-REL-01 | P0 | 00 | Auditar/corrigir isolamento em workers, ingress, exports, read/search, SSE e history_sync | G-2 + parte G-5 | TODO |
+| MO-REL-00 | P0 | Nenhuma | Inventário de código, deploy, issues e matriz factual G-1..G-6 | Critérios reproduzíveis, riscos abertos explicitados | DONE — inventário factual #212/#213/#214; gates de produto continuam BLOCKED |
+| MO-REL-01 | P0 | 00 | Auditar/corrigir isolamento em workers, ingress, exports, read/search, SSE e history_sync | G-2 + parte G-5 | IN_PROGRESS — segurança WhatsApp parcial; demais caminhos ainda pendentes |
 | MO-REL-02 | P0 | 00, 01 | Service opt-in em Host de staging, installer/Control ENABLED, FGA exato, IAM07D Control+tenant e least privilege | G-1/G-2 | TODO |
 | MO-REL-03 | P0 | 00 | Signup backend: tenant+DB iniciais, founder, Org+Workspace, Keycloak+Control+FGA, saga retomável | G-3 | TODO |
 | MO-REL-04 | P0 | 01, 02, 03 | Ambiente staging reproduzível, CI/CD e segredos/roles somente via Actions, Core singleton validado | G-3/G-5 | TODO |
@@ -151,3 +151,8 @@ Este arquivo é a **WBS das etapas**. A issue [#193](https://github.com/delmacy/
 ### Reconciliação MO-REL-00 — evidências incrementais (2026-11-19)
 
 PRs #212 e #213 **integrados** na main: `2d6eac02a14086bd940c2773bb9572363a418642` e `cde786a20c98efaeaa61a17a1962006946271a88`, ambos com Syndes CI Gate success nos respectivos heads (runs `44540988891`, `44542158764`). A matriz factual e a contagem estática de 84 decorators nos seis controllers de produto examinados estão em `MO-REL-00-BASELINE-EVIDENCE-20261119.md`; a extensão Organizations/Support/Go gateway/event workers está sob revisão no PR subsequente. Não chamar isso de testes reais de segurança A/B ou aceite de G-1..G-6. `PRODUCTION_GATE=BLOCKED`. Após CI e aceite de MO-REL-00, a execução seguinte é MO-REL-01 (#206), com PR #200 ainda conflitado e dependente de rebase/reteste.
+
+
+### MO-REL-00 — aceite de baseline / início MO-REL-01
+
+MO-REL-00 é reconciliação factual, **não** aprovação de segurança multi-org. PR #214 merged SHA `2dd31d47453a3a8b997eb718e233867577882d50`, [run 44544575705](https://github.com/delmacy/syndes-system/actions/runs/44544575705) `Syndes CI Gate=success`; matrizes, 84 rotas e limites registrados em `MO-REL-00-BASELINE-EVIDENCE-20261119.md`. A contagem e o inventário são estáticos: não demonstram isolamento em staging. MO-REL-01 corrige primeiro a aceitação inbound e o despacho outbound de WhatsApp quando Organization/Workspace estão inativas, usando PG17 descartável e deixando explicitamente aberta a janela de envio externo Go in-flight. A revisão do PR #200 está supersedida por uma implementação reconciliada sobre HEAD atual, sem forçar merge de branch conflitante. CRM exports, Inbox SSE, outras mutações, worker/eventos e topologia ainda requerem prova, portanto G-2/G-5 e `PRODUCTION_GATE=BLOCKED` permanecem.

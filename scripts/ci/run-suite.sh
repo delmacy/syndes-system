@@ -88,6 +88,14 @@ case "$suite" in
     build_kernel
     install modules/whatsapp
     (cd modules/whatsapp && npm run check && npm test && npm pack --dry-run)
+    # MO-REL-01: execute the actual cross-Organization SQL regression, not just
+    # unit tests. This is a disposable PostgreSQL 17 instance, never a tenant DB.
+    install apps/core-host
+    pg_container="syndes-whatsapp-org-scope-pg17-ci"
+    start_pg "$pg_container" 32781 "ci-only-disposable-wa-org-ci" "17-alpine" "wa-multiorg-pg17"
+    (cd modules/whatsapp &&
+      SYNDES_INBOX_SCOPE_TEST_PG_URL="postgresql://postgres:ci-only-disposable-wa-org-ci@127.0.0.1:32781/postgres" \
+      node --test test/pg-org-scope.mjs)
     ;;
   whatsapp-go)
     cd modules/whatsapp/gateway/whatsmeow

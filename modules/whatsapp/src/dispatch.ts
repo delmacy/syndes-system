@@ -26,6 +26,8 @@ export class WhatsAppInboxProjection {
   const pending=await db.query(`SELECT e.id,e.payload FROM whatsapp_inbound_events e
     JOIN whatsapp_accounts a ON a.tenant_id=e.tenant_id AND a.id=e.account_id
      AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL
+     JOIN platform_organizations o ON o.tenant_id=a.tenant_id
+       AND o.id=a.platform_organization_id AND o.status='active'
     JOIN platform_workspaces w ON w.tenant_id=a.tenant_id
       AND w.organization_id=a.platform_organization_id AND w.is_default AND w.status='active'
     WHERE e.tenant_id=$1::uuid AND e.processed_at IS NULL AND e.failed_at IS NULL
@@ -63,6 +65,8 @@ export class WhatsAppInboxProjection {
         w.id AS initial_workspace_id FROM whatsapp_inbound_events e
        JOIN whatsapp_accounts a ON a.tenant_id=e.tenant_id AND a.id=e.account_id
          AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL
+     JOIN platform_organizations o ON o.tenant_id=a.tenant_id
+       AND o.id=a.platform_organization_id AND o.status='active'
        JOIN platform_workspaces w ON w.tenant_id=a.tenant_id
          AND w.organization_id=a.platform_organization_id AND w.is_default AND w.status='active'
        WHERE e.tenant_id=$1::uuid AND e.id=$2 AND e.processed_at IS NULL FOR UPDATE
@@ -95,6 +99,8 @@ export class WhatsAppInboxProjection {
        w.id AS initial_workspace_id FROM whatsapp_inbound_events e
      JOIN whatsapp_accounts a ON a.tenant_id=e.tenant_id AND a.id=e.account_id
        AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL
+     JOIN platform_organizations o ON o.tenant_id=a.tenant_id
+       AND o.id=a.platform_organization_id AND o.status='active'
      JOIN platform_workspaces w ON w.tenant_id=a.tenant_id
        AND w.organization_id=a.platform_organization_id AND w.is_default AND w.status='active'
      WHERE e.tenant_id=$1::uuid AND e.id=$2 AND e.processed_at IS NULL FOR UPDATE
@@ -131,6 +137,8 @@ export class WhatsAppInboxProjection {
         w.id AS initial_workspace_id FROM whatsapp_inbound_events e
      JOIN whatsapp_accounts a ON a.tenant_id=e.tenant_id AND a.id=e.account_id
        AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL
+     JOIN platform_organizations o ON o.tenant_id=a.tenant_id
+       AND o.id=a.platform_organization_id AND o.status='active'
      JOIN platform_workspaces w ON w.tenant_id=a.tenant_id
        AND w.organization_id=a.platform_organization_id AND w.is_default AND w.status='active'
      WHERE e.tenant_id=$1::uuid AND e.id=$2 AND e.processed_at IS NULL FOR UPDATE
@@ -195,6 +203,8 @@ export class WhatsAppInboxProjection {
     FROM whatsapp_inbound_events e
     JOIN whatsapp_accounts a ON a.tenant_id=e.tenant_id AND a.id=e.account_id
       AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL
+     JOIN platform_organizations o ON o.tenant_id=a.tenant_id
+       AND o.id=a.platform_organization_id AND o.status='active'
     JOIN platform_workspaces w ON w.tenant_id=a.tenant_id
       AND w.organization_id=a.platform_organization_id AND w.is_default AND w.status='active'
     WHERE e.tenant_id=$1::uuid
