@@ -6,14 +6,35 @@ import {ModuleRegistry,type SyndesPlugin} from "@syndes/core-kernel";
 type InstalledConfig={modules:readonly string[]};
 const configFile=new URL("../config/modules.json",import.meta.url);
 
+/** Explicit staging-only Service admission. This selects the trusted
+ * compiled package; it never installs SQL or grants authorization.
+ * Entitlement, tenant migrations and IAM07D remain independent gates. */
+export function serviceStagingOptIn(env:Readonly<Record<string,string|undefined>>=process.env):boolean{
+ const enabled=env.SYNDES_SERVICE_STAGING_OPT_IN;
+ if(enabled===undefined||enabled==="false")return false;
+ if(enabled!=="true"||env.SYNDES_DEPLOYMENT_ENV!=="staging"||
+    env.SYNDES_MULTI_ORG_ENABLED!=="true"||
+    env.SYNDES_CRM_MODULE_GATE!=="enforce"||
+    env.SYNDES_INBOX_MODULE_GATE!=="enforce")
+   throw new Error("Service opt-in requires explicitly enforced multi-org staging");
+ return true;
+}
+
+
 /** Only explicitly approved, installed package names are loaded.
  * This is NOT a runtime marketplace or an untrusted plugin sandbox. */
 export async function loadInstalledPlugins():Promise<readonly SyndesPlugin<Type<unknown>>[]>{
   const raw=JSON.parse(await readFile(configFile,"utf8")) as InstalledConfig;
   if(!Array.isArray(raw.modules)||new Set(raw.modules).size!==raw.modules.length)
     throw new Error("Invalid or duplicated installed modules");
+  const modules=[...raw.modules];
+  if(serviceStagingOptIn()){
+    if(modules.includes("@syndes/service/plugin"))
+      throw new Error("Service staging opt-in conflicts with static module list");
+    modules.push("@syndes/service/plugin");
+  }
   const plugins:SyndesPlugin<Type<unknown>>[]=[];
-  for(const specifier of raw.modules){
+  for(const specifier of modules){
     if(typeof specifier!=="string"||!/^@syndes\/[a-z][a-z0-9-]*\/plugin$/.test(specifier))
       throw new Error("Only trusted installed Syndes packages are supported");
     const imported=await import(specifier) as {syndesPlugin?:SyndesPlugin};

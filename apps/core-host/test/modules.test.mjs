@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {ModuleRegistry} from "@syndes/core-kernel";
-import {loadInstalledPlugins,installModuleAssets} from "../dist/module-host.js";
+import {loadInstalledPlugins,installModuleAssets,serviceStagingOptIn} from "../dist/module-host.js";
 
 test("Core Host mounts CRM, Inbox, WhatsApp, Organizations and Support from trusted descriptors",async()=>{
   const plugins=await loadInstalledPlugins();
@@ -47,4 +47,40 @@ test("generic asset middleware responds only to exact declared routes",async()=>
  assert.equal((await request("/crm/private.txt")).next,true);
  assert.equal((await request("/crm/app.js/../whatever")).next,true);
  assert.equal((await request("/crm", "POST")).statusCode,405);
+});
+
+test("Service optional plugin refuses every non-staging or unenforced configuration",async()=>{
+ const valid={
+  SYNDES_SERVICE_STAGING_OPT_IN:"true",SYNDES_DEPLOYMENT_ENV:"staging",
+  SYNDES_MULTI_ORG_ENABLED:"true",SYNDES_CRM_MODULE_GATE:"enforce",
+  SYNDES_INBOX_MODULE_GATE:"enforce",
+ };
+ assert.equal(serviceStagingOptIn(valid),true);
+ assert.equal(serviceStagingOptIn({...valid,SYNDES_SERVICE_STAGING_OPT_IN:undefined}),false);
+ assert.equal(serviceStagingOptIn({...valid,SYNDES_SERVICE_STAGING_OPT_IN:"false"}),false);
+ for(const change of [
+  {SYNDES_DEPLOYMENT_ENV:"production"},
+  {SYNDES_MULTI_ORG_ENABLED:"false"},
+  {SYNDES_CRM_MODULE_GATE:"legacy"},
+  {SYNDES_INBOX_MODULE_GATE:"legacy"},
+  {SYNDES_SERVICE_STAGING_OPT_IN:"maybe"},
+ ]){
+  assert.throws(()=>serviceStagingOptIn({...valid,...change}),/staging/);
+ }
+ // Exercise the actual installed @syndes/service/plugin and ModuleRegistry.
+ const names=Object.keys(valid);
+ const before=Object.fromEntries(names.map(k=>[k,process.env[k]]));
+ try{
+  for(const [k,v] of Object.entries(valid))process.env[k]=v;
+  const plugins=await loadInstalledPlugins();
+  assert.deepEqual(plugins.map(p=>p.definition.id),
+   ["crm","inbox","whatsapp","organizations","support","service"]);
+  assert.equal(plugins.at(-1).definition.version,"0.3.0");
+  assert.equal(plugins.at(-1).migrations.length,3);
+  assert.ok(plugins.at(-1).definition.dependencies.includes("inbox"));
+ }finally{
+  for(const [k,v] of Object.entries(before)){
+   if(v===undefined)delete process.env[k];else process.env[k]=v;
+  }
+ }
 });
