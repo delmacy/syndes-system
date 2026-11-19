@@ -6,6 +6,7 @@ import {execFileSync} from "node:child_process";
 import pg from "pg";
 import {PINNED_TENANT_TRANSACTION} from "@syndes/core-kernel";
 import {PgFirstTenantOperatorInstaller} from "../dist/signup-first-tenant-installer.js";
+import {PgFirstTenantSignupKeycloakLink} from "../dist/signup-initial-link.js";
 
 const raw=process.env.SYNDES_IAM04_PG_URL;
 const allowed=process.env.SYNDES_IAM04_DISPOSABLE_PG==="IAM04B_PG17_ONLY"&&
@@ -37,6 +38,9 @@ test("UC-SIGNUP-01C PG17: initial default Org/Workspace, Control registry and SQ
   control=new pg.Client({connectionString:url(cdb)});await control.connect();
   tenant=new pg.Pool({connectionString:url(tdb),max:2});
   await control.query(await file("../../../infra/postgres/bootstrap/control.schema"));
+  await control.query(await file("../../../infra/postgres/bootstrap/control-iam-org-links.schema"));
+  await control.query(await file("../../../infra/postgres/bootstrap/control-signup-intents-candidate.schema"));
+  await control.query(await file("../../../infra/postgres/bootstrap/control-signup-initial-link-candidate.schema"));
   await tenant.query(await file("../../../modules/organizations/sql/001_account_hierarchy.sql"));
   await tenant.query(await file("../../../modules/organizations/sql/002_legacy_single_context_gate.sql"));
   await control.query(`INSERT INTO tenant_registry(
@@ -69,6 +73,27 @@ test("UC-SIGNUP-01C PG17: initial default Org/Workspace, Control registry and SQ
   assert.equal(await adapter.verifyActive(intent),false);
   await adapter.ensureDefaultContext(intent);
   await adapter.ensureDefaultContext(intent);
+
+  // The operator binds exact Keycloak Organization while tenant is PROVISIONED.
+  await control.query(`INSERT INTO platform_signup_intents(
+    request_id,founder_id,tenant_id,organization_id,workspace_id,
+    account_name,organization_name,workspace_name,keycloak_alias)
+   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+   [intent.requestId,intent.founderId,intent.tenantId,intent.organizationId,
+    intent.workspaceId,intent.accountName,intent.organizationName,
+    intent.workspaceName,"syndes-"+intent.tenantId.replaceAll("-","")+"-"+
+    intent.requestId.replaceAll("-","")]);
+  const kcId=randomUUID(),link=new PgFirstTenantSignupKeycloakLink(control,"syndes");
+  assert.equal(await link.verify(intent,kcId),false);
+  await link.ensure(intent,kcId);
+  assert.equal(await link.verify(intent,kcId),true);
+  await link.ensure(intent,kcId);
+  await assert.rejects(link.ensure(intent,randomUUID()));
+  await assert.rejects(link.ensure({...intent,founderId:randomUUID()},kcId));
+  assert.equal((await control.query(`SELECT count(*)::int AS n
+   FROM platform_keycloak_org_link_audit WHERE request_id=$1`,
+   [intent.requestId])).rows[0].n,1);
+
   assert.equal(await adapter.verifyDefaultContext(intent),true);
   const counts=(await tenant.query(`SELECT
    (SELECT count(*)::int FROM platform_organizations) AS orgs,
@@ -85,6 +110,8 @@ test("UC-SIGNUP-01C PG17: initial default Org/Workspace, Control registry and SQ
   await assert.rejects(adapter.ensureDatabase({...intent,founderId:randomUUID()}));
   await adapter.activate(intent);
   assert.equal(await adapter.verifyActive(intent),true);
+  assert.equal(await link.verify(intent,kcId),true);
+  await assert.rejects(link.ensure(intent,kcId));
   await control.query("UPDATE tenant_registry SET state='suspended' WHERE tenant_id=$1",[id]);
   assert.equal(await adapter.verifyActive(intent),false);
   await assert.rejects(adapter.activate(intent));
