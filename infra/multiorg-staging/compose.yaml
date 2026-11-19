@@ -1,0 +1,82 @@
+# MO-REL-04: development-host isolated staging foundation, NOT operational Core.
+# No public port, no production Docker network, no production bind mount.
+name: syndes-multiorg-staging
+services:
+  control-postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/staging_pg_admin_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    secrets: [staging_pg_admin_password, staging_kc_db_password]
+    volumes:
+      - staging_control_pg17:/var/lib/postgresql/data
+      - ./init-staging-postgres.sh:/docker-entrypoint-initdb.d/10-staging-databases.sh:ro
+    networks: [staging_internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 4s
+      retries: 12
+      start_period: 30s
+    security_opt: [no-new-privileges:true]
+    labels:
+      syndes.environment: multi-org-staging
+      syndes.component: control-postgres
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        export KC_DB_PASSWORD="$$(cat /run/secrets/staging_kc_db_password)"
+        export KC_BOOTSTRAP_ADMIN_PASSWORD="$$(cat /run/secrets/staging_kc_admin_password)"
+        exec /opt/keycloak/bin/kc.sh start-dev --http-enabled=true --hostname-strict=false
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://control-postgres:5432/syndes_staging_keycloak
+      KC_DB_USERNAME: syndes_staging_keycloak
+      KC_BOOTSTRAP_ADMIN_USERNAME: syndes-stage-admin
+      KC_HEALTH_ENABLED: "true"
+    secrets: [staging_kc_db_password, staging_kc_admin_password]
+    depends_on:
+      control-postgres: {condition: service_healthy}
+    networks: [staging_internal]
+    mem_limit: 1024m
+    security_opt: [no-new-privileges:true]
+    labels:
+      syndes.environment: multi-org-staging
+      syndes.component: keycloak
+
+  openfga:
+    image: openfga/openfga:v1.22.1
+    # Ephemeral FGA only: G-4 backup/restore is expressly NOT qualified.
+    command: ["run", "--datastore-engine", "memory",
+              "--authn-method", "none", "--playground-enabled=false",
+              "--metrics-enabled=false"]
+    restart: unless-stopped
+    networks: [staging_internal]
+    mem_limit: 512m
+    security_opt: [no-new-privileges:true]
+    labels:
+      syndes.environment: multi-org-staging
+      syndes.component: openfga
+
+secrets:
+  staging_pg_admin_password: {file: /run/syndes/multiorg-staging/secrets/pg-admin}
+  staging_kc_db_password: {file: /run/syndes/multiorg-staging/secrets/keycloak-db}
+  staging_kc_admin_password: {file: /run/syndes/multiorg-staging/secrets/keycloak-admin}
+
+networks:
+  staging_internal:
+    internal: true
+    labels:
+      syndes.environment: multi-org-staging
+
+volumes:
+  staging_control_pg17:
+    labels:
+      syndes.environment: multi-org-staging
