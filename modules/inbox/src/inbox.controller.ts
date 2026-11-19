@@ -98,14 +98,17 @@ export class InboxHost{
   if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true"||!this.exact||
      !context.organizationId||!context.workspaceId||!bearer)
    throw new AccessDeniedError();
-  return this.exact.claim(bearer,context,conversationId);
+  return this.exact.claim(bearer,{tenantId:context.tenantId,
+   organizationId:context.organizationId,workspaceId:context.workspaceId},conversationId);
  }
  async transferExact(context:InboxContext,bearer:string|undefined,
   conversationId:string,destination:string){
   if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true"||!this.exact||
      !context.organizationId||!context.workspaceId||!bearer)
    throw new AccessDeniedError();
-  return this.exact.transfer(bearer,context,conversationId,destination);
+  return this.exact.transfer(bearer,{tenantId:context.tenantId,
+   organizationId:context.organizationId,workspaceId:context.workspaceId},
+   conversationId,destination);
  }
  async revalidateStream(context:InboxContext,bearer:string|undefined,selection?:RequestedOperationalScope):Promise<boolean>{
   // Module suspension and a stale JWT revoke an already-connected SSE stream.
