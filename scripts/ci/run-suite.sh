@@ -86,6 +86,9 @@ case "$suite" in
     ;;
   whatsapp-ts)
     build_kernel
+    # Cross-org regression also exercises real CRM repositories in the
+    # disposable shared tenant fixture, so build the source being tested.
+    build modules/core-crm
     install modules/whatsapp
     (cd modules/whatsapp && npm run check && npm test && npm pack --dry-run)
     # MO-REL-01: execute the actual cross-Organization SQL regression, not just
