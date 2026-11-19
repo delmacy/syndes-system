@@ -233,9 +233,20 @@ test("SM-03C: official PgModuleInstaller applies actual Service SQL atomically o
    }finally{await client.query("RESET ROLE");client.release()}
   });
  }finally{
-  for(const pool of pools.values())await pool.end().catch(()=>{});
-  for(const database of created.reverse())await admin.query(
-   'DROP DATABASE "'+database+'" WITH (FORCE)').catch(()=>{});
-  await admin.end();
+  // Close all fixture clients BEFORE dropping their databases. PostgreSQL's
+  // WITH (FORCE) terminates idle node-postgres clients asynchronously and
+  // turns a successful migration test into an uncaught client 'error'.
+  // Plain DROP detects leaked sessions instead of masking them.
+  const cleanupErrors=[];
+  for(const pool of pools.values()){
+   try{await pool.end()}catch(error){cleanupErrors.push(error)}
+  }
+  for(const database of created.reverse()){
+   try{await admin.query('DROP DATABASE "'+database+'"')}
+   catch(error){cleanupErrors.push(error)}
+  }
+  try{await admin.end()}catch(error){cleanupErrors.push(error)}
+  if(cleanupErrors.length)throw new AggregateError(
+    cleanupErrors,"Disposable Service PG17 fixture teardown failed");
  }
 });
