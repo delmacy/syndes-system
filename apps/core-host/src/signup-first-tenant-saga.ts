@@ -88,7 +88,17 @@ export class FirstTenantSignupSaga{
       intent.keycloakAlias,intent.organizationName);
     if(!UUID.test(kcId)||(intent.keycloakOrganizationId&&
        intent.keycloakOrganizationId!==kcId))throw new AccessDeniedError();
-    await this.ports.keycloak.ensureMember(kcId,intent.founderId);
+    if(intent.state==="reconcile_required"){
+     // Never re-enroll a HUMAN removed since the previous attempt. A
+     // reconcile_required intent may resume only with live memberships and
+     // grants that already exist; otherwise it needs an explicit operator
+     // investigation, not silent re-authorization.
+     if(!await this.ports.keycloak.isActiveMember(kcId,intent.founderId)||
+        !await this.ports.grants.verifyMinimum(intent))
+      throw new AccessDeniedError();
+    }else{
+     await this.ports.keycloak.ensureMember(kcId,intent.founderId);
+    }
     if(!await this.ports.keycloak.isActiveMember(kcId,intent.founderId))
      throw new AccessDeniedError();
     await this.ports.installer.ensureDefaultContext(intent);
@@ -96,7 +106,8 @@ export class FirstTenantSignupSaga{
      throw new AccessDeniedError();
     await this.ports.links.ensure(intent,kcId);
     if(!await this.ports.links.verify(intent,kcId))throw new AccessDeniedError();
-    await this.ports.grants.ensureMinimum(intent);
+    if(intent.state!=="reconcile_required")
+     await this.ports.grants.ensureMinimum(intent);
     if(!await this.ports.grants.verifyMinimum(intent))throw new AccessDeniedError();
     // Before finalize, tenant.state MUST stay PROVISIONED so no runtime
     // route can use its Keycloak link or FGA tuples to admit a caller.
