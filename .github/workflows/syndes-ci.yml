@@ -208,7 +208,7 @@ jobs:
     # Explicit user authorization permits staging on the existing DevServer01.
     # On a successful main push, inspect ONLY staging-labeled Docker metadata.
     # Do not deploy, create containers, run SQL or change the runtime.
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.SYNDES_MULTIORG_STAGING_FULL_INVENTORY_ENABLED == 'true' }}
     needs: [gate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -256,3 +256,78 @@ jobs:
           timeout 75s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
             'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- preflight' \
             < scripts/ci/multiorg-staging-readonly.sh
+
+  devserver01-multiorg-stage-foundation:
+    name: MO-REL-04 DevServer01 isolated staging foundation — one-shot CD
+    # Explicit user-authorized DevServer01 staging preparation.
+    # One-shot reviewed PR marker; NEVER a general main/branch deploy.
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-DEVSERVER-STAGE-INFRA-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify one-shot main merge SHA and staging-only contract
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "${SOURCE_SHA}" ]]
+          [[ "${DEPLOY_HOST}" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "${TAILSCALE_TAG}" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-multiorg-staging-infra.sh
+          bash -n scripts/ci/multiorg-staging-readonly.sh
+          bash -n infra/multiorg-staging/init-staging-postgres.sh
+          echo 'MO_REL04_STAGE_FOUNDATION_CI_CONTRACT_PASS'
+      - name: Join already-authorized DevServer01 Tailnet using GitHub OIDC
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Verify DevServer01 identity and safe staging capacity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "${DEPLOY_HOST}" >/dev/null
+          identity="$(timeout 25s tailscale ssh "delmacy@${DEPLOY_HOST}" 'printf "SYNDES_USER="; id -un; printf "SYNDES_HOST="; hostname -s')"
+          [[ "${identity}" == *'SYNDES_USER=delmacy'* && "${identity}" == *'SYNDES_HOST=DevServer01'* ]]
+          timeout 70s tailscale ssh "delmacy@${DEPLOY_HOST}" \
+            'bash -s -- preflight' < scripts/deploy/devserver01-multiorg-staging-infra.sh
+      - name: Transfer only reviewed staging files to a dedicated private directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          root='/home/delmacy/.local/share/syndes-multiorg-staging'
+          # The remote preflight already rejected symlink roots and collisions.
+          tar -C infra/multiorg-staging -cf - compose.yaml init-staging-postgres.sh |
+            timeout 90s tailscale ssh "delmacy@${DEPLOY_HOST}" \
+              "install -d -m 0700 '$root' && tar -C '$root' --no-same-owner -xf -"
+      - name: Install isolated PG17, Keycloak and OpenFGA — never product Core
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          compose_sha="$(sha256sum infra/multiorg-staging/compose.yaml | awk '{print $1}')"
+          init_sha="$(sha256sum infra/multiorg-staging/init-staging-postgres.sh | awk '{print $1}')"
+          timeout 900s tailscale ssh "delmacy@${DEPLOY_HOST}" \
+            "SYNDES_STAGE_INFRA_APPLY=MO_REL04_CI_APPROVED SYNDES_STAGE_COMPOSE_SHA256=$compose_sha SYNDES_STAGE_INIT_SHA256=$init_sha bash -s -- apply" \
+            < scripts/deploy/devserver01-multiorg-staging-infra.sh
+      - name: Read-only verify all 3 staged components; Core Gate remains closed
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          timeout 75s tailscale ssh "delmacy@${DEPLOY_HOST}" \
+            'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- foundation' \
+            < scripts/ci/multiorg-staging-readonly.sh
+          echo 'MO_REL04_FOUNDATION_INSTALLED_NO_CORE_NO_CUTOVER'
