@@ -58,3 +58,11 @@
 - As mutações legadas Inbox (criação, assignment genérico, status, handoff, favorite, read, contact, requestHistory, replies, notes, simulator) e Service (publish funnel, open, assign, team transfer, close) NEGAM 403 explicitamente em multi-org até terem capabilities e fences próprias; não há fallback para `inbox:messages/write` ou `service:attendances/write` no modo multi-org.
 - Configurações adicionais obrigatórias em modo multi-org: `CORE_IAM_TENANT_OIDC_CLIENT_ID` e `CORE_IAM07D_FINE_FGA_STORE_ID`, além do leitor Keycloak. O store fino deve ter modelo `iam_capability` e grants/restrictive fences provisionados por operador; ausentes => DENY, nunca ALLOW.
 - **G-1 continua PENDENTE:** write coverage completa implica dar suporte fino também às operações bloqueadas, CI integrado com Host principal e Service instalado, provider reconciliation, restore operacional e migração. Não anunciar produto funcional com multi-org só por existir uma rota claim funcional.
+
+
+## TOPO-06C — Control PG17 singleton lease para SSE local
+
+- `MultiOrgSingleHostLease` reserva **sessão PostgreSQL Control** exclusiva via `pg_try_advisory_lock(20506,20261118)`. O Core Host com `SYNDES_MULTI_ORG_ENABLED=true` só publica serviço após possuir a sessão; uma segunda réplica falha no startup. A sessão NÃO volta ao pool enquanto o Host está ativo e é liberada no shutdown.
+- Perda da sessão reservada provoca encerramento imediato do processo para evitar que outro Host assuma o lock enquanto o antigo continua servindo SSE local ou permissões cacheadas.
+- Teste unitário cobre duas instâncias, retry/release e erro de conexão; suite real PG17 valida exclusão mútua com duas conexões.
+- Isso permite *propor* rollout single-host, NÃO comprova ainda topologia deploy real nem protege producers externos que publiquem SSE somente em outro processo. Broker distribuído continua requisito antes de replicar o Core Host. `PRODUCTION_GATE=BLOCKED`.
