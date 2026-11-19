@@ -324,9 +324,11 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
   // TOPO-07C: the ACTUAL operational InboxHost.mutateExact SQL and audit
   // with two REAL Keycloak Organizations, one PG17 tenant and exact FGA.
   const capability="inbox.message.note";
+  console.log("IAM_TOPO07C_STAGE_START");
   await f.tenantDb.query(await readFile(new URL(
    "../../modules/organizations/sql/010_iam07d_cutover_capabilities_candidate.sql",
    import.meta.url),"utf8"));
+  console.log("IAM_TOPO07C_STAGE_SCHEMA_READY");
   const ctxNoteA=await admission.resolve(f.bearer,{
    ...scope(ORG_A,wsA2),capability,
   });
@@ -341,6 +343,11 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
     object:iam07dFineObject(ctxNoteA,capability),
    }]},
   });
+  assert.equal(await fine.canPerform(ctxNoteA,capability),true,
+   "Exact note grant must exist only in A2");
+  assert.equal(await fine.canPerform(ctxNoteB,capability),false,
+   "B1 must not inherit A2 fine grant");
+  console.log("IAM_TOPO07C_STAGE_FGA_SCOPED");
   for(const [org,ws] of [[ORG_A,wsA2],[orgB,wsB1]]){
    await f.tenantDb.query("INSERT INTO platform_iam_capability_fences"+
     "(tenant_id,organization_id,workspace_id,principal_id,capability,epoch,state)"+
@@ -361,9 +368,11 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
    tenantId:TENANT,organizationId:org,workspaceId:ws,
    actor:{kind:"user",id:f.actorId},scopeWriteAllowed:true,
   });
+  console.log("IAM_TOPO07C_STAGE_FENCE_READY");
   const noteA=await operationalInbox.mutateExact(
    activeContext(ORG_A,wsA2),f.bearer,capability,chatA,
    {body:"A private internal note"});
+  console.log("IAM_TOPO07C_STAGE_A_NOTE_SUCCESS");
   assert.equal(noteA?.conversationId,chatA);
   assert.equal(noteA?.direction,"internal");
   await assert.rejects(operationalInbox.mutateExact(
