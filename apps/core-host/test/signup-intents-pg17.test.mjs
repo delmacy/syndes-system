@@ -33,6 +33,7 @@ test("UC-SIGNUP-01B Control PG17: founder-bound first-tenant reservation and imm
   const schema=await file("../../../infra/postgres/bootstrap/control-signup-intents-candidate.schema");
   await db.query(schema);
   await db.query(schema);
+  await db.query(await file("../../../infra/postgres/bootstrap/control-signup-finalize-candidate.schema"));
   assert.equal((await db.query(`SELECT has_table_privilege('syndes_core',
    'public.platform_signup_intents','SELECT') AS allowed`)).rows[0].allowed,false);
   assert.equal((await db.query(`SELECT has_table_privilege('syndes_signup_operator',
@@ -40,7 +41,7 @@ test("UC-SIGNUP-01B Control PG17: founder-bound first-tenant reservation and imm
   assert.equal((await db.query(`SELECT has_table_privilege('syndes_signup_operator',
    'public.tenant_registry','INSERT') AS allowed`)).rows[0].allowed,false);
   assert.equal((await db.query(`SELECT has_column_privilege('syndes_signup_tenant_operator',
-   'public.tenant_registry','state','UPDATE') AS allowed`)).rows[0].allowed,true);
+   'public.tenant_registry','state','UPDATE') AS allowed`)).rows[0].allowed,false);
   assert.equal((await db.query(`SELECT has_table_privilege('syndes_signup_tenant_operator',
    'public.tenant_memberships','INSERT') AS allowed`)).rows[0].allowed,true);
   assert.equal((await db.query(`SELECT has_table_privilege('syndes_signup_operator',
@@ -92,24 +93,9 @@ test("UC-SIGNUP-01B Control PG17: founder-bound first-tenant reservation and imm
   assert.deepEqual(auditAfter.rows,[{revision:"1",event:"reserved"},
     {revision:"2",event:"reconcile_required"}]);
   await assert.rejects(store.markReconcileRequired(requestId,intruder));
-  const keycloakOrganizationId=randomUUID();
-  await store.markReady(requestId,founder,keycloakOrganizationId);
-  const ready=await store.get(requestId,founder);
-  assert.equal(ready.state,"ready");
-  assert.equal(ready.keycloakOrganizationId,keycloakOrganizationId);
-  await store.markReady(requestId,founder,keycloakOrganizationId);
-  await assert.rejects(store.markReady(requestId,founder,randomUUID()));
-  await assert.rejects(store.markReconcileRequired(requestId,founder));
-  const auditFinal=await db.query(`SELECT revision,event
-    FROM public.platform_signup_intent_audit WHERE request_id=$1 ORDER BY revision`,[requestId]);
-  assert.deepEqual(auditFinal.rows,[
-   {revision:"1",event:"reserved"},
-   {revision:"2",event:"reconcile_required"},
-   {revision:"3",event:"ready"},
-  ]);
-  assert.equal(ready.keycloakAlias,
-    "syndes-"+first.tenantId.replaceAll("-","")+"-"+requestId.replaceAll("-",""));
-
+  await assert.rejects(store.markReady(requestId,founder,randomUUID()),
+   "Generic reserve role cannot finalize a tenant without a trusted finalizer");
+  assert.equal((await store.get(requestId,founder)).state,"reconcile_required");
   await assert.rejects(db.query("DELETE FROM public.platform_signup_intents"));
   await db.query("RESET ROLE");
   const registry=(await db.query("SELECT count(*)::int AS n FROM tenant_registry")).rows[0].n;
