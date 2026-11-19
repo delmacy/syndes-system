@@ -1,0 +1,61 @@
+-- IAM07D 010 CONTROL-side capability expansion.
+-- MANUAL operator/CI ONLY, install BEFORE enabling new tenant capabilities.
+-- The tenant's 010 alone is NOT enough: without this, the Control receipt
+-- constraint would reject new scope revocations AFTER tenant deny commit.
+-- This is additive and repeatable; it cannot grant a permission.
+DO $preflight$ BEGIN
+ IF to_regclass('public.platform_iam07d_revocation_receipts') IS NULL
+ OR NOT EXISTS(
+  SELECT 1 FROM pg_constraint WHERE
+   conrelid='public.platform_iam07d_revocation_receipts'::regclass
+   AND contype='u'
+ ) THEN
+  RAISE EXCEPTION 'Control IAM07D 010 requires installed revocation receipts and uniqueness'
+   USING ERRCODE='55000';
+ END IF;
+END $preflight$;
+
+DO $expand$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE
+  conrelid='public.platform_iam07d_revocation_receipts'::regclass
+   AND conname='platform_iam07d_revocation_receipts_capability_v2_check') THEN
+  ALTER TABLE public.platform_iam07d_revocation_receipts
+    ADD CONSTRAINT platform_iam07d_revocation_receipts_capability_v2_check
+    CHECK (capability IN (
+     'inbox.conversation.claim',
+     'inbox.conversation.transfer',
+     'inbox.conversation.create',
+     'inbox.conversation.assign',
+     'inbox.conversation.status',
+     'inbox.conversation.handoff',
+     'inbox.conversation.favorite',
+     'inbox.conversation.mark_read',
+     'inbox.conversation.link_contact',
+     'inbox.message.reply',
+     'inbox.message.note',
+     'inbox.conversation.history_sync',
+     'inbox.message.simulate',
+     'service.funnel.operate',
+     'service.funnel.publish',
+     'service.attendance.open',
+     'service.attendance.assign',
+     'service.attendance.team_transfer',
+     'service.attendance.close'
+    )) NOT VALID;
+ END IF;
+END $expand$;
+
+ALTER TABLE public.platform_iam07d_revocation_receipts
+ VALIDATE CONSTRAINT platform_iam07d_revocation_receipts_capability_v2_check;
+ALTER TABLE public.platform_iam07d_revocation_receipts
+ DROP CONSTRAINT IF EXISTS platform_iam07d_revocation_receipts_capability_check;
+
+DO $verify$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE
+  conrelid='public.platform_iam07d_revocation_receipts'::regclass
+   AND conname='platform_iam07d_revocation_receipts_capability_v2_check'
+   AND convalidated) THEN
+  RAISE EXCEPTION 'Control IAM07D 010 capability constraint unavailable'
+   USING ERRCODE='55000';
+ END IF;
+END $verify$;
