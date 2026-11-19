@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS public.platform_iam_org_provision_audit(
 REVOKE ALL ON public.platform_iam_org_provision_intents,
  public.platform_iam_org_provision_audit FROM PUBLIC,syndes_core;
 GRANT USAGE ON SCHEMA public TO syndes_iam_org_provision_operator;
+GRANT SELECT ON public.tenant_registry,public.tenant_memberships
+ TO syndes_iam_org_provision_operator;
 GRANT SELECT,INSERT,UPDATE ON public.platform_iam_org_provision_intents
  TO syndes_iam_org_provision_operator;
 GRANT SELECT,INSERT ON public.platform_iam_org_provision_audit
