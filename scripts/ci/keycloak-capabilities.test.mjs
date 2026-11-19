@@ -74,3 +74,27 @@ test("UMA and fine-FGA resolve every explicit catalog capability without a legac
  assert.ok(!source.includes("client_secret"));
  assert.ok(!source.includes("create-policy"));
 });
+
+test("IAM07D control receipts and tenant fences accept the SAME 19 exact capabilities",()=>{
+ const source=readFileSync("apps/core-host/src/iam07d-capability-catalog.ts","utf8");
+ const begin=source.indexOf("export const IAM07D_CAPABILITIES=Object.freeze(");
+ const opening=source.indexOf("[",begin),closing=source.indexOf("] as const",opening);
+ assert.ok(begin>=0&&opening>begin&&closing>opening);
+ const known=JSON.parse(source.slice(opening,closing+1));
+ assert.equal(known.length,19);
+ const locations=[
+  "infra/postgres/bootstrap/control-iam07d-capabilities-010.schema",
+  "modules/organizations/sql/010_iam07d_cutover_capabilities_candidate.sql",
+ ];
+ for(const path of locations){
+  const sql=readFileSync(path,"utf8");
+  const start=sql.indexOf("CHECK (capability IN (");
+  const end=sql.indexOf(")) NOT VALID",start);
+  assert.ok(start>=0&&end>start,path+" must use a restrictive CHECK");
+  const listed=[...sql.slice(start,end).matchAll(/'((?:inbox|service)\\.[a-z_]+\\.[a-z_]+)'/g)]
+   .map(match=>match[1]);
+  assert.equal(listed.length,19,path+" must enumerate 19 capabilities");
+  assert.deepEqual(new Set(listed),new Set(known),
+   path+" must not drift from application capability catalog");
+ }
+});
