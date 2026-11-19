@@ -71,7 +71,8 @@ done
 mkdir -p -m 0700 "$secrets"
 [[ ! -L "$secrets" ]] || exit 5
 create_secret() {
- local name="$1" path="$secrets/$name"
+ local name="$1"
+ local path="$secrets/$name"
  [[ "$name" =~ ^(pg-admin|keycloak-db|keycloak-admin)$ ]] || exit 5
  if [[ -e "$path" || -L "$path" ]]; then
   [[ -f "$path" && ! -L "$path" && -r "$path" &&
