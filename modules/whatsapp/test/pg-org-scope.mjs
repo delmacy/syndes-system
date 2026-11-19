@@ -167,6 +167,30 @@ test("Whatsmeow account/projection/reply/worker isolate two organizations within
   assert.equal(sent.length,1,"No cross-organization WhatsApp delivery");
   const counts=await c.query("SELECT count(*)::int n FROM inbox_messages WHERE tenant_id=$1 AND conversation_id=$2",[T,cb]);
   assert.equal(counts.rows[0].n,1,"Foreign organization message untouched");
+  // TOPO-06D: a still-enabled WhatsApp account must not bypass an ARCHIVED
+  // Organization. No provider send or inbound projection while archived.
+  await c.query("UPDATE inbox_conversations SET assigned_to='bob',handoff='human' WHERE id=$1",[cb]);
+  const betaReply=await replies.enqueue(bob,cb,"Beta authorized outbound");
+  assert.equal(betaReply?.direction,"outbound");
+  assert.equal((await c.query("SELECT status FROM whatsapp_outbox WHERE inbox_message_id=$1",
+    [betaReply.id])).rows[0].status,"pending");
+  await c.query("UPDATE platform_organizations SET status='archived' WHERE tenant_id=$1 AND id=$2",[T,ob]);
+  assert.equal(await relay.deliverNext(T),"empty");
+  assert.equal(sent.length,1,"No outbound provider delivery for archived B");
+  const betaEvent=gatewayInput(accountB,"5511999992222@s.whatsapp.net",
+   "B-archived","Must be held until Organization resumes");
+  assert.equal((await store.persist(T,betaEvent)).accepted,true);
+  assert.equal(await projection.deliverNext(T),"empty",
+   "Archived Organization cannot project B inbound messages");
+  assert.equal((await c.query("SELECT processed_at FROM whatsapp_inbound_events WHERE account_id=$1 AND payload->'message'->>'externalMessageId'='B-archived'",
+   [accountB])).rows[0].processed_at,null);
+  await c.query("UPDATE platform_organizations SET status='active' WHERE tenant_id=$1 AND id=$2",[T,ob]);
+  assert.equal(await projection.deliverNext(T),"delivered");
+  assert.equal(notifications.at(-1).organizationId,ob);
+  assert.equal(await relay.deliverNext(T),"queued");
+  assert.equal(sent.length,2);
+  assert.equal(sent[1].accountId,accountB);
+  console.log("IAM_TOPO06D_PG17_WHATSAPP_ARCHIVED_ORG_INBOUND_OUTBOUND_GATE_PASS");
  }finally{
   await c.query("ROLLBACK");
   await c.end();
