@@ -34,7 +34,7 @@ test("UC-SIGNUP-01C: real PG17 reserved tenant SQL context via tenant-owner, not
   keycloakAlias:"syndes-"+suffix+"-"+randomUUID().replaceAll("-"),
   keycloakOrganizationId:null,state:"reserved",revision:1};
  const admin=new pg.Client({connectionString:raw});await admin.connect();
- let control,provider,tenant;
+ let control,operatorControl,provider,tenant;
  let roleCreated=false,tenantCreated=false,controlCreated=false;
  try{
   await admin.query(`DO $$BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles
@@ -64,8 +64,17 @@ test("UC-SIGNUP-01C: real PG17 reserved tenant SQL context via tenant-owner, not
     intent.workspaceId,intent.accountName,intent.organizationName,
     intent.workspaceName,"syndes-"+suffix+"-"+intent.requestId.replaceAll("-",""),
    ]);
+  assert.equal((await control.query(`SELECT has_table_privilege(
+   'syndes_signup_tenant_operator','public.platform_signup_intents','SELECT') AS yes`
+  )).rows[0].yes,true);
+  assert.equal((await control.query(`SELECT has_table_privilege(
+   'syndes_signup_tenant_operator','public.platform_signup_intents','INSERT') AS yes`
+  )).rows[0].yes,false);
+  operatorControl=new pg.Client({connectionString:dbUrl(controlDb)});
+  await operatorControl.connect();
+  await operatorControl.query("SET ROLE syndes_signup_tenant_operator");
   let opened=0;
-  provider=new PgSignupProvisionedTenantProvider(intent,control,{
+  provider=new PgSignupProvisionedTenantProvider(intent,operatorControl,{
    open:async(db,role)=>{
     assert.equal(db,tenantDb);assert.equal(role,tenantRole);opened++;
     return new pg.Pool({connectionString:dbUrl(db,role,tenantPass),max:2});
@@ -78,7 +87,7 @@ test("UC-SIGNUP-01C: real PG17 reserved tenant SQL context via tenant-owner, not
   await assert.rejects(provider.resolve(randomUUID()));
   await tenant.query(await file("../../../modules/organizations/sql/001_account_hierarchy.sql"),[]);
   await tenant.query(await file("../../../modules/organizations/sql/002_legacy_single_context_gate.sql"),[]);
-  const installer=new PgFirstTenantOperatorInstaller(control,provider,{
+  const installer=new PgFirstTenantOperatorInstaller(operatorControl,provider,{
    ensure:async()=>{},verify:async()=>true,
   });
   assert.equal(await installer.verifyDatabase(intent),true);
@@ -99,6 +108,7 @@ test("UC-SIGNUP-01C: real PG17 reserved tenant SQL context via tenant-owner, not
   console.log("UC_SIGNUP01C_PG17_PROVISIONED_TENANT_OWNER_CONTEXT_DENY_PASS");
  }finally{
   if(provider)await provider.close().catch(()=>{});
+  if(operatorControl)await operatorControl.end().catch(()=>{});
   if(control)await control.end().catch(()=>{});
   if(tenantCreated)await admin.query('DROP DATABASE "'+tenantDb+'"').catch(()=>{});
   if(controlCreated)await admin.query('DROP DATABASE "'+controlDb+'"').catch(()=>{});
