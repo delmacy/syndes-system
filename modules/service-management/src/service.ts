@@ -195,7 +195,7 @@ export class ServiceFunnelService{
  /** Exact IAM07D callback: no new tenant DB transaction is opened. */
  async publishSimpleFunnelPinned(ctx:FunnelContext,input:Readonly<{
   code:string;name:string;stages:readonly FunnelStage[];
- }>),tx:TenantTransaction){
+ }>,tx:TenantTransaction){
   if(!input||typeof input.code!=="string"||!CODE.test(input.code)||!good(input.name))
      throw new ServiceFunnelInputError("Invalid funnel definition");
     guardStages(input.stages);
@@ -243,7 +243,7 @@ export class ServiceFunnelService{
  /** Exact IAM07D callback: no new tenant DB transaction is opened. */
  async openPinned(ctx:FunnelContext,input:Readonly<{
   funnelId:string;conversationId?:string|null;idempotencyKey:string;
- }>),tx:TenantTransaction){
+ }>,tx:TenantTransaction){
   if(!uid(input?.funnelId)||typeof input.idempotencyKey!=="string"||
      !REQUEST_KEY.test(input.idempotencyKey)||(
      input.conversationId!=null&&!uid(input.conversationId)))
@@ -345,7 +345,7 @@ export class ServiceFunnelService{
  /** Exact IAM07D callback: no new tenant DB transaction is opened. */
  async assignPinned(ctx:FunnelContext,input:Readonly<{
   attendanceId:string;assigneeId:string;expectedVersion:number;
- }>),tx:TenantTransaction){
+ }>,tx:TenantTransaction){
   if(!uid(input?.attendanceId)||typeof input.assigneeId!=="string"||
      !input.assigneeId.trim()||input.assigneeId.length>256)
      throw new ServiceFunnelInputError("Invalid assignee");
@@ -392,7 +392,7 @@ export class ServiceFunnelService{
  /** Exact IAM07D callback: no new tenant DB transaction is opened. */
  async closePinned(ctx:FunnelContext,input:Readonly<{
   attendanceId:string;expectedVersion:number;result:string;
- }>),tx:TenantTransaction){
+ }>,tx:TenantTransaction){
   if(!uid(input?.attendanceId)||!good(input.result,240))
      throw new ServiceFunnelInputError("Invalid close result");
     requireVersion(input.expectedVersion);
