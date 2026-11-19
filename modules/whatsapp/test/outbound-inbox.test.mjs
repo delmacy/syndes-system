@@ -188,7 +188,9 @@ test("multi-org reply and durable WhatsApp outbox must share a trusted IAM07D pi
   assert.match(executed[1].sql,/INSERT INTO inbox_messages/);
   assert.match(executed[1].sql,/INSERT INTO whatsapp_outbox/);
   assert.match(executed[1].sql,/INSERT INTO inbox_events/);
-  assert.match(executed[1].sql,/WSCOPE:AND c\.platform_organization_id/);
+  assert.match(executed[1].sql,/c\.platform_organization_id=\$7::uuid/);
+  assert.equal(executed[1].params.at(-2),ws.organizationId);
+  assert.equal(executed[1].params.at(-1),ws.workspaceId);
   assert.equal(poolLeases,0);
  }finally{
   if(previous===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
