@@ -167,6 +167,7 @@ test("Whatsmeow account/projection/reply/worker isolate two organizations within
   assert.equal(sent.length,1,"No cross-organization WhatsApp delivery");
   const counts=await c.query("SELECT count(*)::int n FROM inbox_messages WHERE tenant_id=$1 AND conversation_id=$2",[T,cb]);
   assert.equal(counts.rows[0].n,1,"Foreign organization message untouched");
+  await c.query("UPDATE whatsapp_outbox SET next_attempt_at=clock_timestamp()+interval '1 hour' WHERE tenant_id=$1 AND account_id=$2 AND status='processing'",[T,accountA]);
   // TOPO-06D: a still-enabled WhatsApp account must not bypass an ARCHIVED
   // Organization. No provider send or inbound projection while archived.
   await c.query("UPDATE inbox_conversations SET assigned_to='bob',handoff='human' WHERE id=$1",[cb]);
