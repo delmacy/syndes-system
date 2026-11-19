@@ -35,11 +35,17 @@ export class MultiOrgSingleHostLease{
    // A session-level lock cannot be held by an ordinary pool.query.
    // Never release this client into the pool while serving requests.
    this.client=client;
-   client.on("error",()=>{
+   const notifyLost=()=>{
+    // PostgreSQL can emit a clean 'end' with no 'error' on shutdown.
+    // Never keep serving after that session has released its lock.
+    // Ignore intentional close(), which clears the active client first.
+    if(this.client!==client||this.lost)return;
     this.lost=true;
     this.client=undefined;
     try{this.onLost()}catch{/* Core process handles fatal exit */}
-   });
+   };
+   client.on("error",notifyLost);
+   client.on("end",notifyLost);
   }catch(error){
    client.release(true);
    throw error;
