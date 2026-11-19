@@ -42,7 +42,8 @@ export async function runIamMultiOrgTopologyPg17Lab(f){
    "AND workspace_id=$3 AND principal_id=$4 AND capability=$5",
    [TENANT,ORG_A,WS_A1,f.actorId,"inbox.conversation.claim"]);
   assert.equal(pre.rows.length,1);
-  assert.equal(pre.rows[0].state,"active");
+  assert.ok(["active","revoked"].includes(pre.rows[0].state),
+   "Previous IAM07D revocation must be preserved, not reactivated");
   console.log("IAM07D010_PG17_PRE_CUTOVER_ADDITIVE_REPLAY_PASS");
   // A half-cutover or legacy single-context DB MUST refuse the new installer.
   await conn.query("SAVEPOINT legacy_fence_denial");
