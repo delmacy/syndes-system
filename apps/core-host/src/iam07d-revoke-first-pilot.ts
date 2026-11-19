@@ -14,20 +14,16 @@ import {
  AccessDeniedError,PINNED_TENANT_TRANSACTION,
  type TenantTransaction,type TrustedTenantTransactionProvider,
 } from "@syndes/core-kernel";
+export type {SpecificIam07dCapability} from "./iam07d-capability-catalog.js";
+import {iam07dIsCapability,iam07dModule,iam07dScopeKind,
+ type SpecificIam07dCapability} from "./iam07d-capability-catalog.js";
 import type {
  OrganizationContextAdmissionPilot,RequestedIamPilotContext,
  ResolvedIamPilotContext,
 } from "./iam-organization-context-pilot.js";
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-export type SpecificIam07dCapability=
- |"inbox.conversation.claim"
- |"inbox.conversation.transfer"
- |"service.funnel.operate";
-const SPECIFIC=new Set<string>([
- "inbox.conversation.claim","inbox.conversation.transfer",
- "service.funnel.operate",
-]);
+
 const scope=(s:RequestedIamPilotContext)=>[
  s.tenantId,s.organizationId,s.workspaceId,s.capability,
 ];
@@ -41,7 +37,7 @@ const epochNumber=(value:unknown):number=>{
  return Number(n);
 };
 function valid(cap:unknown):cap is SpecificIam07dCapability{
- return typeof cap==="string"&&SPECIFIC.has(cap);
+ return iam07dIsCapability(cap);
 }
 export type Iam07dTicket=Readonly<{
  actor:ResolvedIamPilotContext["actor"];
@@ -88,7 +84,7 @@ export class Iam07dRevokeFirstPilot{
    if(!requested||!valid(requested.capability)||
       ![requested.tenantId,requested.organizationId,requested.workspaceId]
        .every(x=>typeof x==="string"&&UUID.test(x))||
-      (requested.capability==="service.funnel.operate")!==UUID.test(requested.funnelId??"")||
+      (iam07dScopeKind(requested.capability)==="funnel")!==UUID.test(requested.funnelId??"")||
       typeof bearer!=="string"||!bearer.startsWith("Bearer "))
     throw new AccessDeniedError();
    const context=await this.admission.resolve(bearer,requested);
@@ -97,7 +93,7 @@ export class Iam07dRevokeFirstPilot{
       context.organizationId!==requested.organizationId||
       context.workspaceId!==requested.workspaceId||
       context.capability!==requested.capability||
-      context.moduleId!==(requested.capability==="service.funnel.operate"?"service":"inbox")||
+      context.moduleId!==iam07dModule(requested.capability)||
       context.scopeWriteAllowed!==true)
     throw new AccessDeniedError();
    // Missing exact fine-grained policy => DENY; never borrow coarse FGA.
