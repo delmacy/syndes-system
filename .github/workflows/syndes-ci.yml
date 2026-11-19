@@ -153,3 +153,52 @@ jobs:
           check_selected_parity "Support Browser" "$SUPPORT_REQUIRED" "$SUPPORT_BROWSER"
           check_selected_parity "Platform Manager" "$PLATFORM_REQUIRED" "$PLATFORM_MANAGER"
           echo "Syndes CI Gate: PASS (all selected domains + real identity parity)"
+
+  staging-readonly:
+    name: Multi-org staging read-only evidence — manual only
+    if: ${{ github.event_name == 'workflow_dispatch' && vars.SYNDES_MULTIORG_STAGING_PREFLIGHT_ENABLED == 'true' }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: multi-org-staging
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      APPROVED_SHA: ${{ vars.SYNDES_MULTIORG_STAGING_PREFLIGHT_SHA }}
+      STAGING_PEER: ${{ vars.SYNDES_MULTIORG_STAGING_HOST }}
+      STAGING_USER: ${{ vars.SYNDES_MULTIORG_STAGING_SSH_USER }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify exact main SHA and distinct staging Tailnet peer
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${APPROVED_SHA}" == "${SOURCE_SHA}" ]]
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "${SOURCE_SHA}" ]]
+          [[ "${STAGING_PEER}" =~ ^[a-z0-9-]+\.tayra-delta\.ts\.net$ ]]
+          [[ "${STAGING_PEER}" != 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "${STAGING_USER}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]
+          [[ "${TAILSCALE_TAG}" == "tag:syndes-ci" ]]
+          bash -n scripts/ci/multiorg-staging-readonly.sh
+          echo 'MO_REL04_STAGING_SHA_AND_TARGET_VERIFIED'
+      - name: Join dedicated staging Tailnet using GitHub OIDC
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Inspect staging components read-only
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "${STAGING_PEER}" >/dev/null
+          timeout 70s tailscale ssh "${STAGING_USER}@${STAGING_PEER}" \
+            'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- preflight' \
+            < scripts/ci/multiorg-staging-readonly.sh
