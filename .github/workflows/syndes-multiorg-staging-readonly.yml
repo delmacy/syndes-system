@@ -1,0 +1,61 @@
+name: Syndes Multi-Org Staging Read-Only Preflight
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: syndes-multiorg-staging-readonly
+  cancel-in-progress: false
+
+jobs:
+  staging-inventory:
+    name: Staging identity and topology inventory — NO MUTATIONS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: multi-org-staging
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      PREFLIGHT_ENABLED: ${{ vars.SYNDES_MULTIORG_STAGING_PREFLIGHT_ENABLED }}
+      APPROVED_SHA: ${{ vars.SYNDES_MULTIORG_STAGING_PREFLIGHT_SHA }}
+      STAGING_PEER: ${{ vars.SYNDES_MULTIORG_STAGING_HOST }}
+      STAGING_USER: ${{ vars.SYNDES_MULTIORG_STAGING_SSH_USER }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Enforce exact main SHA and physically separate staging target
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${PREFLIGHT_ENABLED}" == "true" ]]
+          [[ "${APPROVED_SHA}" == "${SOURCE_SHA}" ]]
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "${SOURCE_SHA}" ]]
+          [[ "${STAGING_PEER}" =~ ^[a-z0-9-]+\\.tayra-delta\\.ts\\.net$ ]]
+          [[ "${STAGING_PEER}" != 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "${STAGING_USER}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]
+          [[ "${TAILSCALE_TAG}" == "tag:syndes-ci" ]]
+          bash -n scripts/ci/multiorg-staging-readonly.sh
+          echo "MO_REL04_STAGING_TARGET_CONTRACT_PASS"
+      - name: Join staging Tailnet via GitHub OIDC
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Run read-only inventory — no SQL or service mutation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "${STAGING_PEER}" >/dev/null
+          timeout 70s tailscale ssh "${STAGING_USER}@${STAGING_PEER}" \
+            'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- preflight' \
+            < scripts/ci/multiorg-staging-readonly.sh
