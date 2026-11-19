@@ -42,6 +42,18 @@ Arquitetura irrenunciável:
 
 `TODO` significa ausência de aceite específico **neste programa**, não inexistência de implementação anterior. No máximo **três entregas simultâneas**, porém um agente executa **uma por vez**. Cada uma requer PR próprio, CI central, evidências e atualização da WBS/issues.
 
+### Tickets de execução (issues específicas; não duplicar signup)
+
+| Etapa | Issue | Etapa | Issue |
+|---|---|---|---|
+| MO-REL-00 | [#205](https://github.com/delmacy/syndes-system/issues/205) | MO-REL-01 | [#206](https://github.com/delmacy/syndes-system/issues/206) |
+| MO-REL-02 | [#207](https://github.com/delmacy/syndes-system/issues/207) | MO-REL-03 | [#189](https://github.com/delmacy/syndes-system/issues/189) (signup backend) |
+| MO-REL-04 | [#208](https://github.com/delmacy/syndes-system/issues/208) | MO-REL-05 | [#209](https://github.com/delmacy/syndes-system/issues/209) |
+| MO-REL-06 | [#210](https://github.com/delmacy/syndes-system/issues/210) | MO-REL-07 | [#189](https://github.com/delmacy/syndes-system/issues/189) (wizard + E2E) |
+| MO-REL-08 | [#211](https://github.com/delmacy/syndes-system/issues/211) | Gate-mãe | [#193](https://github.com/delmacy/syndes-system/issues/193) |
+
+**Política de execução:** MO-REL-03 e MO-REL-07 são duas entregas **distintas na mesma issue existente #189**. Não criar nova issue de signup; referenciar o subitem B/C ou D/E correspondente no PR e no comentário. As demais issues permanecem abertas até terem aceite factual. Não abrir todas as etapas em paralelo.
+
 ## 2. Pacotes de trabalho, testes obrigatórios e condição de saída
 
 ### MO-REL-00 — Reconciliação do baseline
