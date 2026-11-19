@@ -25,6 +25,11 @@ import {Iam07dInboxBusinessPilot}
  from "../../apps/core-host/dist/iam07d-inbox-business-pilot.js";
 import {IamTopologyInboxClaimController,IAM_TOPOLOGY_CLAIM_DEPS}
  from "../../apps/core-host/dist/iam-topology-inbox-claim-http-pilot.js";
+import {OrganizationProvisioningSaga,PgOrgProvisionIntentStore,
+ PgTenantOrganizationWriter}
+ from "../../apps/core-host/dist/iam-org-provisioning-operator.js";
+import {KeycloakOrganizationWriter,PgOrganizationProvisionLinkWriter}
+ from "../../apps/core-host/dist/iam-org-provisioning-adapters.js";
 
 const require=createRequire(new URL("../../apps/core-host/package.json",import.meta.url));
 require("reflect-metadata");
@@ -315,6 +320,84 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
    "SELECT count(*)::int AS n FROM platform_iam_revocation_outbox"+
    " WHERE operation_id=$1 AND organization_id=$2",
    [op,orgB])).rows[0].n,1);
+  // TOPO-06B: the SAME disposable Keycloak 26.8.1 realm, Control PG17
+  // and tenant DB. No independent synthetic identity copies are used.
+  const controlIntentSchema=await readFile(new URL(
+   "../../infra/postgres/bootstrap/control-iam-org-provision-intents.schema",
+   import.meta.url),"utf8");
+  await f.control.query(controlIntentSchema);
+  await f.tenantDb.query(await readFile(new URL(
+   "../../modules/organizations/sql/006_context_creation_audit.sql",
+   import.meta.url),"utf8"));
+  // The original CI actor was an editor. Explicitly elevate in THIS
+  // disposable tenant only to test the verified founder-admin precondition.
+  await f.tenantDb.query(`
+    UPDATE platform_org_memberships SET role='admin'
+    WHERE tenant_id=$1 AND organization_id=$2 AND principal_id=$3`,
+    [TENANT,ORG_A,f.actorId]);
+  await f.tenantDb.query(`
+    UPDATE platform_workspace_memberships SET role='admin'
+    WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3
+      AND principal_id=$4`,
+    [TENANT,ORG_A,WS_A1,f.actorId]);
+  const testInput={
+   requestId:randomUUID(),tenantId:TENANT,founderId:f.actorId,
+   organizationName:"TOPO06B Third Company",workspaceName:"Customer Operations",
+  };
+  const kcWriter=new KeycloakOrganizationWriter(
+   "http://127.0.0.1:18088",REALM,{getToken:async()=>f.adminToken});
+  const intentStore=new PgOrgProvisionIntentStore(f.control);
+  const tenantWriter=new PgTenantOrganizationWriter(tenantProvider);
+  const linkWriter=new PgOrganizationProvisionLinkWriter(f.control,REALM);
+  const saga=new OrganizationProvisioningSaga({
+   authorizeOperator:async input=>{
+    const principal=await f.verifier.verifyClient(f.bearer,"syndes-iam-lab-ui");
+    return principal.kind==="user"&&principal.id===input.founderId;
+   },
+   intents:intentStore,keycloak:kcWriter,tenant:tenantWriter,links:linkWriter,
+  });
+  assert.equal(await tenantWriter.founderIsAdmin(TENANT,f.actorId),true);
+  const third=await saga.resume(testInput);
+  assert.equal(third.ready,true);
+  assert.deepEqual(await saga.resume(testInput),third);
+  assert.equal((await f.tenantDb.query(`
+   SELECT count(*)::int n FROM platform_organizations
+   WHERE tenant_id=$1 AND id=$2 AND display_name=$3
+  `,[TENANT,third.organizationId,testInput.organizationName])).rows[0].n,1);
+  assert.equal((await f.tenantDb.query(`
+   SELECT count(*)::int n FROM platform_workspaces
+   WHERE tenant_id=$1 AND organization_id=$2 AND id=$3
+    AND is_default AND name=$4
+  `,[TENANT,third.organizationId,third.workspaceId,
+     testInput.workspaceName])).rows[0].n,1);
+  assert.equal(await linkWriter.verify({
+   ...testInput,organizationId:third.organizationId,workspaceId:third.workspaceId,
+   keycloakAlias:"syndes-"+TENANT.replaceAll("-","")+"-"+
+     testInput.requestId.replaceAll("-",""),
+   keycloakOrganizationId:third.keycloakOrganizationId,
+   state:"ready",revision:1,
+  },third.keycloakOrganizationId),true);
+  const expectedAudit=await f.control.query(`
+    SELECT event FROM public.platform_iam_org_provision_audit
+    WHERE request_id=$1::uuid ORDER BY revision`,[testInput.requestId]);
+  assert.deepEqual(expectedAudit.rows.map(r=>r.event),[
+   "reserved","keycloak_linked","ready",
+  ]);
+  assert.equal(await kcWriter.isActiveMember(
+   third.keycloakOrganizationId,f.actorId),true);
+  // A completed saga is a historical fact, NEVER a standing grant.
+  await f.changeMembership("DELETE",third.keycloakOrganizationId,
+   f.actorId,f.adminToken);
+  assert.equal(await kcWriter.isActiveMember(
+   third.keycloakOrganizationId,f.actorId),false);
+  await assert.rejects(saga.resume(testInput),AccessDeniedError,
+   "A retry must never re-grant a revoked founder");
+  const operationalThird=new OperationalOrganizationMembershipGate(
+   REALM,f.links,f.members);
+  await assert.rejects(operationalThird.requireActive(
+    TENANT,third.organizationId,f.actorId),AccessDeniedError);
+  await operationalThird.requireActive(TENANT,ORG_A,f.actorId);
+  console.log("IAM_TOPO06B_REAL_KEYCLOAK_CONTROL_PG17_THIRD_ORG_SAGA_REVOKE_NO_REGRANT_PASS");
   console.log("IAM_TOPO04B_REAL_MULTI_ORG_INBOX_CLAIM_SQL_AUDIT_AND_SCOPED_REVOKE_PASS");
   console.log("IAM_TOPO04_REAL_TWO_KC_ORGS_SAME_TENANT_HTTP_FINE_FGA_ISOLATION_PASS");
   console.log("IAM_TOPO04_REAL_KC_ORG_B_REVOKE_A_STAYS_ACTIVE_PASS");
