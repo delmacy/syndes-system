@@ -261,7 +261,7 @@ jobs:
     name: MO-REL-04 DevServer01 isolated staging foundation — one-shot CD
     # Explicit user-authorized DevServer01 staging preparation.
     # One-shot reviewed PR marker; NEVER a general main/branch deploy.
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request #') && contains(github.event.head_commit.message, 'MO-REL04-DEVSERVER-STAGE-INFRA-APPROVED') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-DEVSERVER-STAGE-INFRA-APPROVED') }}
     needs: [gate]
     runs-on: ubuntu-latest
     timeout-minutes: 35
