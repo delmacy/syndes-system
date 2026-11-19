@@ -20,11 +20,9 @@ test("UC-SIGNUP-01C: composed first tenant PG17 Control intent, provisioned SQL0
   encoding:"utf8",timeout:5000}))[0];
  assert.equal(info.Config.Image,"postgres:17-alpine");
  assert.equal(info.Config.Labels["syndes.disposable"],"iam04b-pg17");
- const requestId=randomUUID(),founderId=randomUUID(),tenantId=randomUUID();
- const suffix=tenantId.replaceAll("-","");
- const dbName="syndes_tenant_"+suffix,role="syndes_t_"+suffix,
-  controlName="signup_compose_ctrl_"+suffix.slice(0,16),
-  password="ci-only-signup-composition-"+suffix;
+ const requestId=randomUUID(),founderId=randomUUID();
+ const controlName="signup_compose_ctrl_"+randomUUID().replaceAll("-","").slice(0,16);
+ let tenantId,dbName,role,password;
  const input={requestId,founderId,accountName:"Customer One",
   organizationName:"First Business",workspaceName:"Main Office"};
  const kcId=randomUUID();
@@ -34,12 +32,7 @@ test("UC-SIGNUP-01C: composed first tenant PG17 Control intent, provisioned SQL0
  try{
   await admin.query(`DO $$BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles
    WHERE rolname='syndes_core') THEN CREATE ROLE syndes_core NOLOGIN; END IF;END$$`);
-  const roleSql=(await admin.query(
-   "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L',$1::text,$2::text) AS q",
-   [role,password])).rows[0].q;
-  await admin.query(roleSql);madeRole=true;
   await admin.query('CREATE DATABASE "'+controlName+'"');madeControl=true;
-  await admin.query('CREATE DATABASE "'+dbName+'" OWNER "'+role+'"');madeDb=true;
   control=new pg.Pool({connectionString:dsn(controlName),max:6});
   await control.query(await sql("../../../infra/postgres/bootstrap/control.schema"));
   await control.query(await sql("../../../infra/postgres/bootstrap/control-iam-org-links.schema"));
@@ -55,9 +48,19 @@ test("UC-SIGNUP-01C: composed first tenant PG17 Control intent, provisioned SQL0
   };
   const provisioner={
    ensure:async intent=>{
-    assert.equal(intent.tenantId,tenantId);
+    if(tenantId&&intent.tenantId!==tenantId)throw Error("Foreign tenant");
     ensures++;
     if(prepared)return;
+    tenantId=intent.tenantId;
+    const suffix=tenantId.replaceAll("-","");
+    dbName="syndes_tenant_"+suffix;
+    role="syndes_t_"+suffix;
+    password="ci-only-signup-composition-"+suffix;
+    const roleSql=(await admin.query(
+     "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L',$1::text,$2::text) AS q",
+     [role,password])).rows[0].q;
+    await admin.query(roleSql);madeRole=true;
+    await admin.query('CREATE DATABASE "'+dbName+'" OWNER "'+role+'"');madeDb=true;
     const tenant=new pg.Client({connectionString:dsn(dbName,role,password)});
     try{
      await tenant.connect();
