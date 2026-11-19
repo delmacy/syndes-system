@@ -91,7 +91,7 @@ test("IAM07D control receipts and tenant fences accept the SAME 19 exact capabil
   const start=sql.indexOf("CHECK (capability IN (");
   const end=sql.indexOf(")) NOT VALID",start);
   assert.ok(start>=0&&end>start,path+" must use a restrictive CHECK");
-  const listed=[...sql.slice(start,end).matchAll(/'((?:inbox|service)\\.[a-z_]+\\.[a-z_]+)'/g)]
+  const listed=[...sql.slice(start,end).matchAll(/'([^']+)'/g)]
    .map(match=>match[1]);
   assert.equal(listed.length,19,path+" must enumerate 19 capabilities");
   assert.deepEqual(new Set(listed),new Set(known),
