@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {randomUUID} from "node:crypto";
+import {PINNED_TENANT_TRANSACTION} from "@syndes/core-kernel";
 import {readFile} from "node:fs/promises";
 import {createRequire} from "node:module";
 import {WhatsAppAccounts} from "../dist/accounts.js";
@@ -133,6 +134,46 @@ test("Whatsmeow account/projection/reply/worker isolate two organizations within
   assert.equal(reply?.body,"Alpha outbound");
   const outbound=await c.query("SELECT account_id,inbox_message_id,status FROM whatsapp_outbox WHERE inbox_message_id=$1",[reply.id]);
   assert.equal(outbound.rows[0].account_id,accountA);
+  const oldMulti=process.env.SYNDES_MULTI_ORG_ENABLED;
+  process.env.SYNDES_MULTI_ORG_ENABLED="true";
+  try{
+   const pinned={tenantId:T,[PINNED_TENANT_TRANSACTION]:true,query:(sql,args)=>c.query(sql,args??[])};
+   await assert.rejects(replies.enqueue(alice,ca,"No standalone send"));
+   await assert.rejects(replies.enqueuePinned(alice,ca,"Fake transaction",{
+    tenantId:T,query:(sql,args)=>c.query(sql,args??[]),
+   }));
+   await c.query("SAVEPOINT pinned_rollback");
+   const transient=await replies.enqueuePinned(alice,ca,"Rolled back under epoch",pinned);
+   assert.ok(transient?.id);
+   assert.equal((await c.query("SELECT count(*)::int n FROM whatsapp_outbox"+
+     " WHERE inbox_message_id=$1",[transient.id])).rows[0].n,1);
+   await c.query("ROLLBACK TO SAVEPOINT pinned_rollback");
+   assert.equal((await c.query("SELECT count(*)::int n FROM inbox_messages"+
+     " WHERE id=$1",[transient.id])).rows[0].n,0);
+   assert.equal((await c.query("SELECT count(*)::int n FROM whatsapp_outbox"+
+     " WHERE inbox_message_id=$1",[transient.id])).rows[0].n,0);
+   const committed=await replies.enqueuePinned(alice,ca,"Atomic pinned WhatsApp reply",pinned);
+   assert.equal(committed?.body,"Atomic pinned WhatsApp reply");
+   const proof=await c.query(`
+    SELECT
+      (SELECT count(*)::int FROM inbox_messages WHERE id=$1) AS message,
+      (SELECT count(*)::int FROM whatsapp_outbox WHERE inbox_message_id=$1) AS intent,
+      (SELECT count(*)::int FROM inbox_events WHERE conversation_id=$2
+        AND actor_id='alice' AND action='reply_queued') AS audited
+   `,[committed.id,ca]);
+   assert.equal(proof.rows[0].message,1);
+   assert.equal(proof.rows[0].intent,1);
+   assert.ok(proof.rows[0].audited>=2);
+   await assert.rejects(replies.enqueuePinned(alice,cb,
+    "Do not cross organization",pinned),/route unavailable/);
+   assert.equal((await c.query("SELECT count(*)::int n FROM inbox_messages"+
+     " WHERE conversation_id=$1",[cb])).rows[0].n,1);
+   console.log("IAM_TOPO07C_PG17_PINNED_WHATSAPP_REPLY_OUTBOX_AUDIT_ROLLBACK_PASS");
+  }finally{
+   if(oldMulti===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
+   else process.env.SYNDES_MULTI_ORG_ENABLED=oldMulti;
+  }
+
   const malicious=randomUUID(),unmappedMessage=randomUUID();
   // The outbox enforces a unique inbox_message_id, so create a distinct
   // local message to test malicious cross-owner enqueue without violating
