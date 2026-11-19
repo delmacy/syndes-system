@@ -4,12 +4,10 @@
  * Callers must verify the user JWT and active tenant/org/workspace
  * against trusted data BEFORE passing any token/context here.
  */
+import {IAM07D_CAPABILITIES,iam07dScopeKind,type SpecificIam07dCapability} from "./iam07d-capability-catalog.js";
+
 export type KeycloakPilotCapability =
-  | "inbox.conversation.read"
-  | "inbox.message.send"
-  | "inbox.conversation.claim"
-  | "inbox.conversation.transfer"
-  | "service.funnel.operate";
+ | "inbox.conversation.read" | "inbox.message.send" | SpecificIam07dCapability;
 
 type ScopedKind = "workspace" | "funnel";
 export type TrustedKeycloakPilotContext = Readonly<{
@@ -21,13 +19,11 @@ export type TrustedKeycloakPilotContext = Readonly<{
 }>;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const PILOT_SCOPES: Readonly<Record<KeycloakPilotCapability, ScopedKind>> = Object.freeze({
-  "inbox.conversation.read": "workspace",
-  "inbox.message.send": "workspace",
-  "inbox.conversation.claim": "workspace",
-  "inbox.conversation.transfer": "workspace",
-  "service.funnel.operate": "funnel",
-});
+const PILOT_SCOPES:Readonly<Record<KeycloakPilotCapability,ScopedKind>>=Object.freeze({
+ "inbox.conversation.read":"workspace",
+ "inbox.message.send":"workspace",
+ ...Object.fromEntries(IAM07D_CAPABILITIES.map(cap=>[cap,iam07dScopeKind(cap)]))
+} as Record<KeycloakPilotCapability,ScopedKind>);
 
 /** A registered Keycloak resource MUST have exactly this name; UMA sends its server-issued ID. */
 export function pilotResourceName(context: TrustedKeycloakPilotContext): string {
