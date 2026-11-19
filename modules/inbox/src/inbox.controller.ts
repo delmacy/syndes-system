@@ -183,8 +183,8 @@ export class InboxHost{
    case "inbox.conversation.mark_read":break;
    case "inbox.conversation.link_contact":
     validated={personId:id(body.personId,"CRM person")};
-    await this.core.kernel.execute({
-     actor:context.actor,tenantId:context.tenantId,
+    await this.core.kernel.executeModule({
+     actor:context.actor,tenantId:context.tenantId,moduleId:"crm",
      action:"read",resource:"crm:people",
     },async()=>{});
     break;
@@ -237,6 +237,12 @@ export class InboxHost{
       if(!conversation)return null;
       if(conversation.channel==="whatsapp"){
        if(!this.whatsappReply?.enqueuePinned)throw new AccessDeniedError();
+       // A reply must not bypass current WhatsApp entitlement or its own
+       // coarse per-account grant, even when Inbox fine-grant is valid.
+       await this.core.kernel.executeModule({
+        actor,tenantId:tenant,moduleId:"whatsapp",
+        action:"write",resource:"whatsapp:accounts",
+       },async()=>{});
        return this.whatsappReply.enqueuePinned(
         {...context,actor,organizationId:scope.organizationId,
          workspaceId:scope.workspaceId},key!,selected.body,tx);
