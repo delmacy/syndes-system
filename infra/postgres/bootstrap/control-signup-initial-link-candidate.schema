@@ -89,8 +89,8 @@ REVOKE ALL ON FUNCTION public.platform_signup_bind_initial_keycloak_org(
  UUID,TEXT,UUID,UUID) FROM PUBLIC,syndes_core;
 GRANT USAGE ON SCHEMA public TO syndes_signup_link_operator;
 GRANT SELECT ON public.platform_signup_intents,
- public.tenant_registry,public.platform_keycloak_org_links
- TO syndes_signup_link_operator;
+ public.tenant_registry,public.platform_keycloak_org_links,
+ public.platform_keycloak_org_link_audit TO syndes_signup_link_operator;
 GRANT EXECUTE ON FUNCTION public.platform_signup_bind_initial_keycloak_org(
  UUID,TEXT,UUID,UUID) TO syndes_signup_link_operator;
 -- No direct INSERT/UPDATE/DELETE on links or audit for this operator role.
