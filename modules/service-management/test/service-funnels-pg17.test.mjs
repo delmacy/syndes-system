@@ -825,7 +825,7 @@ test("PG17 disposable service management: tenant/workspace scope, funnel and pro
     console.log("IAM_TOPO05F_PG17_MULTI_ORG_PGDUMP_RESTORE_REVOCATION_AND_FK_PASS");
    }finally{
     if(restored)await restored.end();
-    if(createdRestore)await admin.query('DROP DATABASE "'+restoreDb+'" WITH (FORCE)');
+    if(createdRestore)await admin.query('DROP DATABASE "'+restoreDb+'"');
    }
   });
 

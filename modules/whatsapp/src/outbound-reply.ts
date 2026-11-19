@@ -1,7 +1,8 @@
 import {createHash,randomUUID} from "node:crypto";
 import {Inject,Injectable} from "@nestjs/common";
 import {WhatsAppGatewayClient} from "./gateway-client.js";
-import type {TrustedTenantDatabaseProvider,TenantDatabase} from "@syndes/core-kernel";
+import {PINNED_TENANT_TRANSACTION,
+ type TrustedTenantDatabaseProvider,type TenantDatabase,type TenantTransaction} from "@syndes/core-kernel";
 import {whatsappScopedQuery,validScope,type WhatsAppScope} from "./scope.js";
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -170,13 +171,30 @@ export class WhatsAppReplyQueue{
   });
  }
  async enqueue(ctx:Context,conversationId:string,input:unknown):Promise<Reply|null>{
+  // In multi-org the original standalone enqueue could commit outside the
+  // tenant-first IAM07D epoch lock. Only the pinned variant is permitted.
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true")
+   throw new WhatsAppRouteError();
+  resolveScope(ctx);
+  if(!UUID.test(ctx.tenantId))throw new WhatsAppRouteError();
+  const db=await this.pools.resolve(ctx.tenantId);
+  return this.enqueueDatabase(ctx,conversationId,input,db);
+ }
+ async enqueuePinned(ctx:Context,conversationId:string,input:unknown,
+  tx:TenantTransaction):Promise<Reply|null>{
+  if(!tx||tx.tenantId!==ctx?.tenantId||
+     tx[PINNED_TENANT_TRANSACTION]!==true)
+   throw new WhatsAppRouteError();
+  return this.enqueueDatabase(ctx,conversationId,input,tx);
+ }
+ private async enqueueDatabase(ctx:Context,conversationId:string,
+  input:unknown,db:TenantDatabase):Promise<Reply|null>{
   const {scope}=resolveScope(ctx);
   if(ctx.scopeWriteAllowed===false)throw new WhatsAppRouteError();
   if(!UUID.test(ctx.tenantId)||!UUID.test(conversationId)||typeof ctx.actor.id!=="string"||!ctx.actor.id.trim())
    throw new WhatsAppRouteError();
   if(typeof input!=="string"||!input.trim()||input.length>5000)throw Error("Invalid reply body");
   const body=input.trim();
-  const db=await this.pools.resolve(ctx.tenantId);
   if(db.tenantId!==ctx.tenantId)throw Error("Tenant database mismatch");
   const existing=await whatsappScopedQuery(db,scope,`SELECT 1 FROM whatsapp_conversation_routes
     WHERE tenant_id=$1::uuid AND conversation_id=$2::uuid

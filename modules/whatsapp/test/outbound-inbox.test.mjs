@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
+import {PINNED_TENANT_TRANSACTION} from "@syndes/core-kernel";
 import {WhatsAppReplyQueue} from "../dist/outbound-reply.js";
 import {WhatsAppOutboundRelay} from "../dist/outbound-relay.js";
 const tenantId="00000000-0000-4000-8000-000000000001";
@@ -144,4 +145,55 @@ test("explicitly saved WhatsApp name takes priority over synced name",async()=>{
  const [record]=await new WhatsAppReplyQueue(provider).decorateConversations(tenantId,[{id:conversationId,channel:"whatsapp"}]);
  assert.equal(record.displayName,"Maria Cadastrada");
  assert.equal(record.contactNameSyncStatus,"submitted");
+});
+
+test("multi-org reply and durable WhatsApp outbox must share a trusted IAM07D pinned transaction",async()=>{
+ const previous=process.env.SYNDES_MULTI_ORG_ENABLED;
+ process.env.SYNDES_MULTI_ORG_ENABLED="true";
+ const ws={tenantId,
+  organizationId:"22222222-2222-4222-8222-222222222222",
+  workspaceId:"33333333-3333-4333-8333-333333333333",
+  actor:{id:owner},scopeWriteAllowed:true};
+ let poolLeases=0;
+ const provider={resolve:async()=>{poolLeases++;throw Error("Tenant pool must never be leased")}};
+ const executed=[];
+ const tx={
+  tenantId,
+  [PINNED_TENANT_TRANSACTION]:true,
+  query:async(sql,params=[])=>{
+   executed.push({sql,params});
+   if(sql.includes("SELECT 1 FROM whatsapp_conversation_routes"))
+    return {rows:[{exists:1}],rowCount:1};
+   return {rows:[{
+    id:messageId,tenant_id:tenantId,conversation_id:conversationId,
+    direction:"outbound",body:"Secure scoped reply",author_id:owner,
+    created_at:new Date("2026-11-19T12:00:00Z"),
+   }],rowCount:1};
+  },
+ };
+ const queue=new WhatsAppReplyQueue(provider);
+ try{
+  await assert.rejects(queue.enqueue(ws,conversationId,"Never outside epoch"));
+  await assert.rejects(queue.enqueuePinned(ws,conversationId,"Missing marker",{
+   tenantId,query:tx.query,
+  }));
+  await assert.rejects(queue.enqueuePinned(ws,conversationId,"Foreign tenant",{
+   ...tx,tenantId:"11111111-1111-4111-8111-111111111111",
+  }));
+  assert.equal(poolLeases,0);
+  assert.equal(executed.length,0);
+  const returned=await queue.enqueuePinned(ws,conversationId,"Secure scoped reply",tx);
+  assert.equal(returned.body,"Secure scoped reply");
+  assert.equal(executed.length,2);
+  assert.match(executed[1].sql,/INSERT INTO inbox_messages/);
+  assert.match(executed[1].sql,/INSERT INTO whatsapp_outbox/);
+  assert.match(executed[1].sql,/INSERT INTO inbox_events/);
+  assert.match(executed[1].sql,/c\.platform_organization_id=\$7::uuid/);
+  assert.equal(executed[1].params.at(-2),ws.organizationId);
+  assert.equal(executed[1].params.at(-1),ws.workspaceId);
+  assert.equal(poolLeases,0);
+ }finally{
+  if(previous===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
+  else process.env.SYNDES_MULTI_ORG_ENABLED=previous;
+ }
 });
