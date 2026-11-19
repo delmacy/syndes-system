@@ -126,6 +126,7 @@ test("UC-SIGNUP-01C: composed first tenant PG17 Control intent, provisioned SQL0
    "Revoked human Keycloak Organization membership cannot be re-enrolled");
   assert.equal(member,false);
   assert.equal(ensures,1);
+  member=true; // isolate the FGA-revocation negative from Keycloak revocation
   granted=false;
   await assert.rejects(operator.resume(input),
    "Missing FGA grant cannot be restored by READY replay");
