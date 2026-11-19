@@ -6,6 +6,7 @@ import {fileURLToPath} from "node:url";
 import pg from "pg";
 import {PgOrganizationIdentityLinks} from "../dist/iam-organization-adapters.js";
 import {OrganizationContextAdmissionPilot} from "../dist/iam-organization-context-pilot.js";
+import {PgOrgProvisionIntentStore} from "../dist/iam-org-provisioning-operator.js";
 import {MultiOrgSingleHostLease} from "../dist/multiorg-single-host-lease.js";
 
 const raw=process.env.SYNDES_IAM04_PG_URL;
@@ -164,6 +165,61 @@ test("IAM-04B manual Control schema: PostgreSQL 17 ACL, 1:1, CAS, audit, concurr
       assert.equal(consultedTenantDB,1,"revoked control link denies before tenant SQL");
       assert.equal(Number(await operator(cmd(tenantA,orgA,kcA,"active",4))),5);
       assert.equal((await pilot.resolve(bearer,request)).realm,"syndes-iam-lab-ci");
+    });
+    await t.test("TOPO-06B Control PG17 durable founder intent, operator ACL and concurrent idempotency",async()=>{
+      const ddl=await load("control-iam-org-provision-intents.schema");
+      await scoped.query(ddl);await scoped.query(ddl);
+      const principal=randomUUID(),kc=randomUUID(),requestId=randomUUID();
+      const request={
+        requestId,tenantId:tenantA,founderId:principal,
+        organizationName:"Acme Serviços",workspaceName:"Atendimento",
+      };
+      await scoped.query(`INSERT INTO public.tenant_memberships(tenant_id,principal_id)
+       VALUES($1,$2)`,[tenantA,principal]);
+      await scoped.query("SET ROLE syndes_core");
+      try{
+       await assert.rejects(scoped.query(
+        "SELECT * FROM public.platform_iam_org_provision_intents"),e=>e.code==="42501");
+       await assert.rejects(scoped.query(
+        "UPDATE public.platform_iam_org_provision_intents SET state='ready'"),e=>e.code==="42501");
+      }finally{await scoped.query("RESET ROLE")}
+      const provision=await pool.connect();
+      try{
+       await provision.query("SET ROLE syndes_iam_org_provision_operator");
+       const intents=new PgOrgProvisionIntentStore(provision);
+       const first=await intents.reserve(request);
+       const second=await intents.reserve(request);
+       assert.equal(first.organizationId,second.organizationId);
+       assert.equal(first.workspaceId,second.workspaceId);
+       assert.equal(first.keycloakAlias,second.keycloakAlias);
+       assert.equal(first.state,"reserved");
+       await assert.rejects(intents.reserve({...request,organizationName:"Different"}),
+        e=>e.name==="AccessDeniedError");
+       await assert.rejects(intents.reserve({...request,founderId:randomUUID()}),
+        e=>e.name==="AccessDeniedError");
+       await intents.bindKeycloak(requestId,kc);
+       await intents.bindKeycloak(requestId,kc);
+       await assert.rejects(intents.bindKeycloak(requestId,randomUUID()),
+        e=>e.name==="AccessDeniedError");
+       await intents.markReconcileRequired(requestId);
+       assert.equal((await intents.reserve(request)).state,"reconcile_required");
+       await intents.markReady(requestId,kc);
+       await intents.markReady(requestId,kc);
+       await intents.markReconcileRequired(requestId);
+       assert.equal((await intents.reserve(request)).state,"ready");
+      }finally{
+       await provision.query("RESET ROLE").catch(()=>{});
+       provision.release(true);
+      }
+      const logged=await scoped.query(`SELECT event FROM public.platform_iam_org_provision_audit
+       WHERE request_id=$1::uuid ORDER BY revision`,[requestId]);
+      assert.deepEqual(logged.rows.map(x=>x.event),[
+       "reserved","keycloak_linked","reconcile_required","ready",
+      ]);
+      assert.equal((await scoped.query(`SELECT count(*)::int n
+       FROM public.platform_iam_org_provision_intents
+       WHERE tenant_id=$1`,[tenantA])).rows[0].n,1);
+      console.log("IAM_TOPO06B_CONTROL_PG17_ORG_INTENT_IDEMPOTENCY_ACL_AUDIT_PASS");
     });
     await t.test("TOPO-06C real PostgreSQL17 session lease enforces ONE Core Host",async()=>{
       const owner=new MultiOrgSingleHostLease(pool);

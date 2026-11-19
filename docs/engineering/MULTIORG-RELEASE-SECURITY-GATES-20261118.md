@@ -59,6 +59,14 @@
 - Configurações adicionais obrigatórias em modo multi-org: `CORE_IAM_TENANT_OIDC_CLIENT_ID` e `CORE_IAM07D_FINE_FGA_STORE_ID`, além do leitor Keycloak. O store fino deve ter modelo `iam_capability` e grants/restrictive fences provisionados por operador; ausentes => DENY, nunca ALLOW.
 - **G-1 continua PENDENTE:** write coverage completa implica dar suporte fino também às operações bloqueadas, CI integrado com Host principal e Service instalado, provider reconciliation, restore operacional e migração. Não anunciar produto funcional com multi-org só por existir uma rota claim funcional.
 
+## TOPO-06B — saga de uma segunda Organization (operador confiável)
+
+- `iam-org-provisioning-operator.ts` contém `OrganizationProvisioningSaga` e os adapters PG17 `PgOrgProvisionIntentStore` e `PgTenantOrganizationWriter`. Não é controller HTTP e não pode ser chamado pela UI ou por um Manager token.
+- `control-iam-org-provision-intents.schema` é DDL Control **manual operador-only**, com reserva idempotente `request_id`, IDs tenant/org/workspace imutáveis, alias Keycloak determinístico, estados `reserved/reconcile_required/ready` e auditoria append-only. Runtime `syndes_core` não recebe acesso; operador precisa de role específica e autorização prévia.
+- `KeycloakOrganizationWriter` usa Organizations Admin API 26.8.1 com client_credentials confidencial próprio, `GET organizations?search=<alias>` seguido de `POST` somente quando não existente e membership do fundador por UUID. Recupera a mesma Organization mesmo que o POST tenha sido confirmado e o cliente perca a resposta; conflito de alias/dados nega. A identidade fica EXCLUSIVAMENTE no Keycloak.
+- Após provar fundador admin do tenant default e autorização externa de operador, a saga reserva intenção, garante Organization+membership Keycloak, executa INSERT atômico de Organization+workspace+membros+auditoria no tenant DB (somente após SQL002 físico removido no tenant), grava link 1:1 Control via operator CAS e só marca `ready` após checks atuais de KC/Control/tenant.
+- Retry após `ready` NUNCA chama `ensureMember`, portanto revogação humana posterior não é desfeita por replay. Qualquer falha antes de `ready` exige reconciliação explícita, não abre autorização parcial.
+- **Limites:** esta entrega implementa componentes de operador + schema candidato + testes, não instala roles em ambiente operacional, não cria cliente Keycloak admin/provisioner, não habilita endpoint de nova Organization e não elimina SQL002. G-3 só é aprovado com CI real de Keycloak + Control + tenant DB no mesmo fluxo, operador/installer separados, verificação de reprocessamento após queda e cleanup de recursos não reconciliáveis. `PRODUCTION_GATE=BLOCKED`.
 
 ## TOPO-06C — Control PG17 singleton lease para SSE local
 
