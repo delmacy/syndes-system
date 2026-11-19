@@ -48,7 +48,7 @@ BEGIN
  IF NOT FOUND THEN RAISE EXCEPTION 'Signup intent unavailable' USING ERRCODE='23514'; END IF;
 
  IF v.state='ready' THEN
-  IF v.tenant_state<>'active' OR v.keycloak_organization_id<>p_keycloak
+  IF v.tenant_state<>'active' OR v.keycloak_organization_id IS DISTINCT FROM p_keycloak
   THEN RAISE EXCEPTION 'Stale signup READY' USING ERRCODE='23514'; END IF;
   RETURN v.revision;
  END IF;
