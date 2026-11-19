@@ -19,7 +19,7 @@ build_kernel() { build packages/core-kernel; }
 
 build_host_modules() {
   build_kernel
-  for dir in modules/organizations modules/core-crm modules/inbox modules/whatsapp modules/support; do
+  for dir in modules/organizations modules/core-crm modules/inbox modules/whatsapp modules/support modules/service-management; do
     if [[ -f "$dir/package-lock.json" ]]; then build "$dir"; fi
   done
 }
