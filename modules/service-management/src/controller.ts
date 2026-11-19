@@ -2,7 +2,8 @@ import {
  Body,Controller,Get,Headers,HttpException,Inject,Injectable,Module,Optional,Param,Patch,Post,
 } from "@nestjs/common";
 import {
- AccessDeniedError,type Actor,type CoreKernel,type TrustedTenantTransactionProvider,
+ AccessDeniedError,type Actor,type CoreKernel,type TenantTransaction,
+ type TrustedTenantTransactionProvider,
 } from "@syndes/core-kernel";
 import {
  ServiceFunnelService,ServiceFunnelInputError,ServiceFunnelConflictError,
@@ -38,6 +39,12 @@ export class ServiceManagementHost{
   @Inject("SYNDES_TENANT_DB") provider:TrustedTenantTransactionProvider,
   @Optional() @Inject("SYNDES_IAM07D_OPS")
   private readonly exact?:{
+   executeMutation<T>(bearer:string,
+    scope:{tenantId:string;organizationId:string;workspaceId:string},
+    capability:"service.funnel.publish"|"service.attendance.open"|
+      "service.attendance.assign"|"service.attendance.team_transfer"|
+      "service.attendance.close",funnelId:string|undefined,
+    effect:(tx:TenantTransaction,actor:Actor)=>Promise<T>):Promise<T>;
    advance(bearer:string,scope:{tenantId:string;organizationId:string;workspaceId:string},
     funnelId:string,service:ServiceFunnelService,input:{
      attendanceId:string;nextStageId:string;expectedVersion:number;
@@ -56,6 +63,62 @@ export class ServiceManagementHost{
    throw new AccessDeniedError();
   return this.exact.advance(bearer,ctx,attendance.funnelId,this.service,
    {attendanceId,nextStageId,expectedVersion});
+ }
+ private async exactWrite<T>(ctx:FunnelContext,bearer:string|undefined,
+  capability:"service.funnel.publish"|"service.attendance.open"|
+   "service.attendance.assign"|"service.attendance.team_transfer"|
+   "service.attendance.close",
+  funnelId:string|undefined,
+  work:(ctx:FunnelContext,tx:TenantTransaction)=>Promise<T>):Promise<T>{
+  if(!this.exact||!bearer)throw new AccessDeniedError();
+  return this.exact.executeMutation(bearer,ctx,capability,funnelId,async(tx,actor)=>{
+   if(actor.kind!==ctx.actor.kind||actor.id!==ctx.actor.id)
+    throw new AccessDeniedError();
+   return work({...ctx,actor},tx);
+  });
+ }
+ private async funnelOf(ctx:FunnelContext,attendanceId:string):Promise<string>{
+  const attendance=await this.service.get(ctx,attendanceId);
+  if(!attendance||!UUID.test(attendance.funnelId))throw new AccessDeniedError();
+  return attendance.funnelId;
+ }
+ async publishExact(ctx:FunnelContext,bearer:string|undefined,
+  input:Parameters<ServiceFunnelService["publishSimpleFunnel"]>[1]){
+  if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true")
+   return this.service.publishSimpleFunnel(ctx,input);
+  return this.exactWrite(ctx,bearer,"service.funnel.publish",undefined,
+   (authorized,tx)=>this.service.publishSimpleFunnelPinned(authorized,input,tx));
+ }
+ async openExact(ctx:FunnelContext,bearer:string|undefined,
+  input:Parameters<ServiceFunnelService["open"]>[1]){
+  if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true")
+   return this.service.open(ctx,input);
+  return this.exactWrite(ctx,bearer,"service.attendance.open",input?.funnelId,
+   (authorized,tx)=>this.service.openPinned(authorized,input,tx));
+ }
+ async assignExact(ctx:FunnelContext,bearer:string|undefined,
+  input:Parameters<ServiceFunnelService["assign"]>[1]){
+  if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true")
+   return this.service.assign(ctx,input);
+  const funnel=await this.funnelOf(ctx,input?.attendanceId);
+  return this.exactWrite(ctx,bearer,"service.attendance.assign",funnel,
+   (authorized,tx)=>this.service.assignPinned(authorized,input,tx));
+ }
+ async transferTeamExact(ctx:FunnelContext,bearer:string|undefined,
+  input:Parameters<ServiceFunnelService["transferTeam"]>[1]){
+  if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true")
+   return this.service.transferTeam(ctx,input);
+  const funnel=await this.funnelOf(ctx,input?.attendanceId);
+  return this.exactWrite(ctx,bearer,"service.attendance.team_transfer",funnel,
+   (authorized,tx)=>this.service.transferTeamPinned(authorized,input,tx));
+ }
+ async closeExact(ctx:FunnelContext,bearer:string|undefined,
+  input:Parameters<ServiceFunnelService["close"]>[1]){
+  if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true")
+   return this.service.close(ctx,input);
+  const funnel=await this.funnelOf(ctx,input?.attendanceId);
+  return this.exactWrite(ctx,bearer,"service.attendance.close",funnel,
+   (authorized,tx)=>this.service.closePinned(authorized,input,tx));
  }
  async run<T>(
   tenantId:string,auth:string|undefined,organizationId:unknown,workspaceId:unknown,
@@ -103,7 +166,7 @@ export class ServiceManagementController{
  createFunnel(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
   @Body()body:{code:string;name:string;stages:{code:string;label:string}[]}){
-  return this.legacyWrite(t,a,o,w,ctx=>this.host.service.publishSimpleFunnel(ctx,body));
+  return this.run(t,a,o,w,ctx=>this.host.publishExact(ctx,a,body));
  }
  @Get("funnels/:funnelId/board")
  board(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
@@ -120,7 +183,7 @@ export class ServiceManagementController{
  open(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
   @Body()body:{funnelId:string;conversationId?:string|null;idempotencyKey:string}){
-  return this.legacyWrite(t,a,o,w,ctx=>this.host.service.open(ctx,body));
+  return this.run(t,a,o,w,ctx=>this.host.openExact(ctx,a,body));
  }
  @Get("conversations/:conversationId/attendances")
  byConversation(@Param("tenantId")t:string,
@@ -157,21 +220,21 @@ export class ServiceManagementController{
  assign(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
   @Param("id")id:string,@Body()body:{assigneeId:string;expectedVersion:number}){
-  return this.legacyWrite(t,a,o,w,ctx=>this.host.service.assign(ctx,{...body,attendanceId:id}));
+  return this.run(t,a,o,w,ctx=>this.host.assignExact(ctx,a,{...body,attendanceId:id}));
  }
  @Patch("attendances/:id/team")
  transferTeam(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
   @Param("id")id:string,
   @Body()body:{destinationTeamId:string;expectedVersion:number;reason:string}){
-  return this.legacyWrite(t,a,o,w,ctx=>this.host.service.transferTeam(ctx,{
+  return this.run(t,a,o,w,ctx=>this.host.transferTeamExact(ctx,a,{
    ...body,attendanceId:id}));
  }
  @Post("attendances/:id/close")
  close(@Param("tenantId")t:string,@Headers("authorization")a:string|undefined,
   @Headers("x-syndes-organization-id")o:unknown,@Headers("x-syndes-workspace-id")w:unknown,
   @Param("id")id:string,@Body()body:{result:string;expectedVersion:number}){
-  return this.legacyWrite(t,a,o,w,ctx=>this.host.service.close(ctx,{...body,attendanceId:id}));
+  return this.run(t,a,o,w,ctx=>this.host.closeExact(ctx,a,{...body,attendanceId:id}));
  }
 }
 

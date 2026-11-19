@@ -109,7 +109,8 @@ export class ServiceFunnelService{
   * No second transaction is opened, unlike calling public advance().
   */
  private async runPinned<T>(ctx:FunnelContext,tx:TenantTransaction,
-  resource:"service:attendances",action:"write",permission:"editor",
+  resource:"service:attendances"|"service:funnels",action:"write",
+  permission:"editor"|"admin",
   work:(tx:TenantTransaction)=>Promise<T>):Promise<T>{
   validateContext(ctx);
   return this.kernel.executeModule({actor:ctx.actor,tenantId:ctx.tenantId,
@@ -188,35 +189,47 @@ export class ServiceFunnelService{
   if(!input||typeof input.code!=="string"||!CODE.test(input.code)||!good(input.name))
    throw new ServiceFunnelInputError("Invalid funnel definition");
   guardStages(input.stages);
-  return this.run(ctx,"service:funnels","write","admin",async tx=>{
-   const id=randomUUID(),scope=[ctx.tenantId,ctx.organizationId,ctx.workspaceId];
-   const created=await tx.query(`
-    INSERT INTO service.service_funnels(tenant_id,organization_id,workspace_id,
-     id,code,name,created_by)
-    VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7)
-    RETURNING id::text
-   `,[...scope,id,input.code,input.name.trim(),ctx.actor.id]);
-   if(created.rows.length!==1)throw new ServiceFunnelConflictError();
-   for(let i=0;i<input.stages.length;i++){
-    const stage=input.stages[i];
-    await tx.query(`
-     INSERT INTO service.service_funnel_stages(tenant_id,organization_id,workspace_id,
-      funnel_id,id,code,label,position,terminal)
-     VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::uuid,$6,$7,$8,$9)
-    `,[...scope,id,randomUUID(),stage.code,stage.label.trim(),i+1,
-       i===input.stages.length-1]);
-   }
-   const published=await tx.query(`
-    UPDATE service.service_funnels SET state='published',published_at=clock_timestamp()
-    WHERE tenant_id=$1::uuid AND organization_id=$2::uuid
-     AND workspace_id=$3::uuid AND id=$4::uuid AND state='draft'
-    RETURNING id::text,code,name,state,revision
-   `,[...scope,id]);
-   if(published.rows.length!==1)throw new ServiceFunnelConflictError();
-   return {id,code:input.code,name:input.name.trim(),state:"published",revision:1};
-  });
+  return this.run(ctx,"service:funnels","write","admin",
+   tx=>this.publishSimpleFunnelMutation(ctx,input,tx));
  }
-
+ /** Exact IAM07D callback: no new tenant DB transaction is opened. */
+ async publishSimpleFunnelPinned(ctx:FunnelContext,input:Readonly<{
+  code:string;name:string;stages:readonly FunnelStage[];
+ }>,tx:TenantTransaction){
+  if(!input||typeof input.code!=="string"||!CODE.test(input.code)||!good(input.name))
+     throw new ServiceFunnelInputError("Invalid funnel definition");
+    guardStages(input.stages);
+  return this.runPinned(ctx,tx,"service:funnels","write","admin",
+   pinned=>this.publishSimpleFunnelMutation(ctx,input,pinned));
+ }
+ private async publishSimpleFunnelMutation(ctx:FunnelContext,input:Parameters<ServiceFunnelService["publishSimpleFunnel"]>[1],
+  tx:TenantTransaction){
+  const id=randomUUID(),scope=[ctx.tenantId,ctx.organizationId,ctx.workspaceId];
+     const created=await tx.query(`
+      INSERT INTO service.service_funnels(tenant_id,organization_id,workspace_id,
+       id,code,name,created_by)
+      VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7)
+      RETURNING id::text
+     `,[...scope,id,input.code,input.name.trim(),ctx.actor.id]);
+     if(created.rows.length!==1)throw new ServiceFunnelConflictError();
+     for(let i=0;i<input.stages.length;i++){
+      const stage=input.stages[i];
+      await tx.query(`
+       INSERT INTO service.service_funnel_stages(tenant_id,organization_id,workspace_id,
+        funnel_id,id,code,label,position,terminal)
+       VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::uuid,$6,$7,$8,$9)
+      `,[...scope,id,randomUUID(),stage.code,stage.label.trim(),i+1,
+         i===input.stages.length-1]);
+     }
+     const published=await tx.query(`
+      UPDATE service.service_funnels SET state='published',published_at=clock_timestamp()
+      WHERE tenant_id=$1::uuid AND organization_id=$2::uuid
+       AND workspace_id=$3::uuid AND id=$4::uuid AND state='draft'
+      RETURNING id::text,code,name,state,revision
+     `,[...scope,id]);
+     if(published.rows.length!==1)throw new ServiceFunnelConflictError();
+     return {id,code:input.code,name:input.name.trim(),state:"published",revision:1};
+ }
  async open(ctx:FunnelContext,input:Readonly<{
   funnelId:string;conversationId?:string|null;idempotencyKey:string;
  }>){
@@ -224,41 +237,54 @@ export class ServiceFunnelService{
    !REQUEST_KEY.test(input.idempotencyKey)||(
    input.conversationId!=null&&!uid(input.conversationId)))
    throw new ServiceFunnelInputError("Invalid funnel/conversation/idempotency reference");
-  return this.run(ctx,"service:attendances","write","editor",async tx=>{
-   const id=randomUUID(),scope=[ctx.tenantId,ctx.organizationId,ctx.workspaceId];
-   const r=await tx.query(`
-    INSERT INTO service.service_attendances(tenant_id,organization_id,workspace_id,
-     id,funnel_id,stage_id,inbox_conversation_id,created_by,request_key)
-    SELECT f.tenant_id,f.organization_id,f.workspace_id,$4::uuid,f.id,s.id,
-       $6::uuid,$7,$8 FROM service.service_funnels f JOIN service.service_funnel_stages s
-      ON s.tenant_id=f.tenant_id AND s.organization_id=f.organization_id
-       AND s.workspace_id=f.workspace_id AND s.funnel_id=f.id AND s.position=1
-    WHERE f.tenant_id=$1::uuid AND f.organization_id=$2::uuid
-     AND f.workspace_id=$3::uuid AND f.id=$5::uuid AND f.state='published'
-     AND ($6::uuid IS NULL OR EXISTS(
-      SELECT 1 FROM public.inbox_conversations c
-      WHERE c.tenant_id=f.tenant_id AND c.id=$6::uuid
-       AND c.platform_organization_id=f.organization_id
-       AND c.platform_current_workspace_id=f.workspace_id))
-    ON CONFLICT(tenant_id,organization_id,workspace_id,request_key) DO NOTHING
-    RETURNING *
-   `,[...scope,id,input.funnelId,input.conversationId??null,ctx.actor.id,input.idempotencyKey]);
-   if(r.rows.length===1)return asAttendance(r.rows[0]);
-   // A network retry gets the same protocol; changing the payload/actor under
-   // an existing key is a conflict and never alters the previous attendance.
-   const prior=await tx.query(`
-    SELECT * FROM service.service_attendances WHERE tenant_id=$1::uuid
-      AND organization_id=$2::uuid AND workspace_id=$3::uuid
-      AND request_key=$4 AND funnel_id=$5::uuid
-      AND inbox_conversation_id IS NOT DISTINCT FROM $6::uuid
-      AND created_by=$7
-   `,[...scope,input.idempotencyKey,input.funnelId,
-     input.conversationId??null,ctx.actor.id]);
-   if(prior.rows.length!==1)throw new ServiceFunnelConflictError();
-   return asAttendance(prior.rows[0]);
-  });
+  return this.run(ctx,"service:attendances","write","editor",
+   tx=>this.openMutation(ctx,input,tx));
  }
-
+ /** Exact IAM07D callback: no new tenant DB transaction is opened. */
+ async openPinned(ctx:FunnelContext,input:Readonly<{
+  funnelId:string;conversationId?:string|null;idempotencyKey:string;
+ }>,tx:TenantTransaction){
+  if(!uid(input?.funnelId)||typeof input.idempotencyKey!=="string"||
+     !REQUEST_KEY.test(input.idempotencyKey)||(
+     input.conversationId!=null&&!uid(input.conversationId)))
+     throw new ServiceFunnelInputError("Invalid funnel/conversation/idempotency reference");
+  return this.runPinned(ctx,tx,"service:attendances","write","editor",
+   pinned=>this.openMutation(ctx,input,pinned));
+ }
+ private async openMutation(ctx:FunnelContext,input:Parameters<ServiceFunnelService["open"]>[1],
+  tx:TenantTransaction){
+  const id=randomUUID(),scope=[ctx.tenantId,ctx.organizationId,ctx.workspaceId];
+     const r=await tx.query(`
+      INSERT INTO service.service_attendances(tenant_id,organization_id,workspace_id,
+       id,funnel_id,stage_id,inbox_conversation_id,created_by,request_key)
+      SELECT f.tenant_id,f.organization_id,f.workspace_id,$4::uuid,f.id,s.id,
+         $6::uuid,$7,$8 FROM service.service_funnels f JOIN service.service_funnel_stages s
+        ON s.tenant_id=f.tenant_id AND s.organization_id=f.organization_id
+         AND s.workspace_id=f.workspace_id AND s.funnel_id=f.id AND s.position=1
+      WHERE f.tenant_id=$1::uuid AND f.organization_id=$2::uuid
+       AND f.workspace_id=$3::uuid AND f.id=$5::uuid AND f.state='published'
+       AND ($6::uuid IS NULL OR EXISTS(
+        SELECT 1 FROM public.inbox_conversations c
+        WHERE c.tenant_id=f.tenant_id AND c.id=$6::uuid
+         AND c.platform_organization_id=f.organization_id
+         AND c.platform_current_workspace_id=f.workspace_id))
+      ON CONFLICT(tenant_id,organization_id,workspace_id,request_key) DO NOTHING
+      RETURNING *
+     `,[...scope,id,input.funnelId,input.conversationId??null,ctx.actor.id,input.idempotencyKey]);
+     if(r.rows.length===1)return asAttendance(r.rows[0]);
+     // A network retry gets the same protocol; changing the payload/actor under
+     // an existing key is a conflict and never alters the previous attendance.
+     const prior=await tx.query(`
+      SELECT * FROM service.service_attendances WHERE tenant_id=$1::uuid
+        AND organization_id=$2::uuid AND workspace_id=$3::uuid
+        AND request_key=$4 AND funnel_id=$5::uuid
+        AND inbox_conversation_id IS NOT DISTINCT FROM $6::uuid
+        AND created_by=$7
+     `,[...scope,input.idempotencyKey,input.funnelId,
+       input.conversationId??null,ctx.actor.id]);
+     if(prior.rows.length!==1)throw new ServiceFunnelConflictError();
+     return asAttendance(prior.rows[0]);
+ }
  private async advanceMutation(ctx:FunnelContext,input:Readonly<{
   attendanceId:string;nextStageId:string;expectedVersion:number;
  }>,tx:TenantTransaction){
@@ -313,63 +339,86 @@ export class ServiceFunnelService{
    !input.assigneeId.trim()||input.assigneeId.length>256)
    throw new ServiceFunnelInputError("Invalid assignee");
   requireVersion(input.expectedVersion);
-  return this.run(ctx,"service:attendances","write","editor",async tx=>{
-   const r=await tx.query(`
-    UPDATE service.service_attendances a
-    SET assigned_to=$6,version=a.version+1,updated_at=clock_timestamp()
-    WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
-     AND a.workspace_id=$3::uuid AND a.id=$4::uuid
-     AND a.version=$5 AND a.state='open'
-     AND a.assigned_to IS DISTINCT FROM $6
-     AND service.service_team_can_read(a.tenant_id,a.organization_id,a.workspace_id,a.team_id,$7)
-     AND (a.team_id IS NULL OR service.service_team_can_read(a.tenant_id,
-       a.organization_id,a.workspace_id,a.team_id,$6))
-     AND EXISTS(
-      SELECT 1 FROM public.platform_workspace_memberships wm
-      JOIN public.platform_org_memberships om
-       ON om.tenant_id=wm.tenant_id AND om.organization_id=wm.organization_id
-        AND om.principal_id=wm.principal_id
-      WHERE wm.tenant_id=a.tenant_id AND wm.organization_id=a.organization_id
-       AND wm.workspace_id=a.workspace_id AND wm.principal_id=$6
-       AND wm.state='active' AND om.state='active'
-       AND wm.role IN ('admin','editor') AND om.role IN ('admin','editor'))
-    RETURNING *
-   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,input.attendanceId,
-       input.expectedVersion,input.assigneeId,ctx.actor.id]);
-   if(r.rows.length!==1)throw new ServiceFunnelConflictError();
-   return asAttendance(r.rows[0]);
-  });
+  return this.run(ctx,"service:attendances","write","editor",
+   tx=>this.assignMutation(ctx,input,tx));
  }
-
+ /** Exact IAM07D callback: no new tenant DB transaction is opened. */
+ async assignPinned(ctx:FunnelContext,input:Readonly<{
+  attendanceId:string;assigneeId:string;expectedVersion:number;
+ }>,tx:TenantTransaction){
+  if(!uid(input?.attendanceId)||typeof input.assigneeId!=="string"||
+     !input.assigneeId.trim()||input.assigneeId.length>256)
+     throw new ServiceFunnelInputError("Invalid assignee");
+    requireVersion(input.expectedVersion);
+  return this.runPinned(ctx,tx,"service:attendances","write","editor",
+   pinned=>this.assignMutation(ctx,input,pinned));
+ }
+ private async assignMutation(ctx:FunnelContext,input:Parameters<ServiceFunnelService["assign"]>[1],
+  tx:TenantTransaction){
+  const r=await tx.query(`
+      UPDATE service.service_attendances a
+      SET assigned_to=$6,version=a.version+1,updated_at=clock_timestamp()
+      WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
+       AND a.workspace_id=$3::uuid AND a.id=$4::uuid
+       AND a.version=$5 AND a.state='open'
+       AND a.assigned_to IS DISTINCT FROM $6
+       AND service.service_team_can_read(a.tenant_id,a.organization_id,a.workspace_id,a.team_id,$7)
+       AND (a.team_id IS NULL OR service.service_team_can_read(a.tenant_id,
+         a.organization_id,a.workspace_id,a.team_id,$6))
+       AND EXISTS(
+        SELECT 1 FROM public.platform_workspace_memberships wm
+        JOIN public.platform_org_memberships om
+         ON om.tenant_id=wm.tenant_id AND om.organization_id=wm.organization_id
+          AND om.principal_id=wm.principal_id
+        WHERE wm.tenant_id=a.tenant_id AND wm.organization_id=a.organization_id
+         AND wm.workspace_id=a.workspace_id AND wm.principal_id=$6
+         AND wm.state='active' AND om.state='active'
+         AND wm.role IN ('admin','editor') AND om.role IN ('admin','editor'))
+      RETURNING *
+     `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,input.attendanceId,
+         input.expectedVersion,input.assigneeId,ctx.actor.id]);
+     if(r.rows.length!==1)throw new ServiceFunnelConflictError();
+     return asAttendance(r.rows[0]);
+ }
  async close(ctx:FunnelContext,input:Readonly<{
   attendanceId:string;expectedVersion:number;result:string;
  }>){
   if(!uid(input?.attendanceId)||!good(input.result,240))
    throw new ServiceFunnelInputError("Invalid close result");
   requireVersion(input.expectedVersion);
-  return this.run(ctx,"service:attendances","write","editor",async tx=>{
-   const r=await tx.query(`
-    UPDATE service.service_attendances a
-    SET state='closed',result=$6,closed_at=clock_timestamp(),
-      version=a.version+1,updated_at=clock_timestamp()
-    WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
-     AND a.workspace_id=$3::uuid AND a.id=$4::uuid
-     AND a.version=$5 AND a.state='open'
-     AND service.service_team_can_read(a.tenant_id,a.organization_id,a.workspace_id,a.team_id,$7)
-     AND EXISTS(SELECT 1 FROM service.service_funnel_stages s
-      WHERE s.tenant_id=a.tenant_id AND s.organization_id=a.organization_id
-       AND s.workspace_id=a.workspace_id AND s.funnel_id=a.funnel_id
-       AND s.id=a.stage_id AND s.terminal)
-    RETURNING *
-   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,input.attendanceId,
-       input.expectedVersion,input.result.trim(),ctx.actor.id]);
-   if(r.rows.length!==1)throw new ServiceFunnelConflictError();
-   return asAttendance(r.rows[0]);
-  });
+  return this.run(ctx,"service:attendances","write","editor",
+   tx=>this.closeMutation(ctx,input,tx));
  }
-
- /** Teams are owned by Organizations/Workforce. This read-only projection
-  * exposes only staffed teams in the caller's workspace, never creates roles. */
+ /** Exact IAM07D callback: no new tenant DB transaction is opened. */
+ async closePinned(ctx:FunnelContext,input:Readonly<{
+  attendanceId:string;expectedVersion:number;result:string;
+ }>,tx:TenantTransaction){
+  if(!uid(input?.attendanceId)||!good(input.result,240))
+     throw new ServiceFunnelInputError("Invalid close result");
+    requireVersion(input.expectedVersion);
+  return this.runPinned(ctx,tx,"service:attendances","write","editor",
+   pinned=>this.closeMutation(ctx,input,pinned));
+ }
+ private async closeMutation(ctx:FunnelContext,input:Parameters<ServiceFunnelService["close"]>[1],
+  tx:TenantTransaction){
+  const r=await tx.query(`
+      UPDATE service.service_attendances a
+      SET state='closed',result=$6,closed_at=clock_timestamp(),
+        version=a.version+1,updated_at=clock_timestamp()
+      WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
+       AND a.workspace_id=$3::uuid AND a.id=$4::uuid
+       AND a.version=$5 AND a.state='open'
+       AND service.service_team_can_read(a.tenant_id,a.organization_id,a.workspace_id,a.team_id,$7)
+       AND EXISTS(SELECT 1 FROM service.service_funnel_stages s
+        WHERE s.tenant_id=a.tenant_id AND s.organization_id=a.organization_id
+         AND s.workspace_id=a.workspace_id AND s.funnel_id=a.funnel_id
+         AND s.id=a.stage_id AND s.terminal)
+      RETURNING *
+     `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,input.attendanceId,
+         input.expectedVersion,input.result.trim(),ctx.actor.id]);
+     if(r.rows.length!==1)throw new ServiceFunnelConflictError();
+     return asAttendance(r.rows[0]);
+ }
  async listTeams(ctx:FunnelContext){
   return this.run(ctx,"service:teams","read","viewer",async tx=>{
    const r=await tx.query(`
@@ -443,6 +492,65 @@ export class ServiceFunnelService{
      input.expectedVersion,destinationTeamId,ctx.actor.id]);
    if(r.rows.length!==1)throw new ServiceFunnelConflictError();
    return asAttendance(r.rows[0]);
+  });
+ }
+
+ /** Multi-org team transfer within the SAME IAM07D epoch transaction.
+  * Keep prior-team selection + version CAS under a row lock. FGA team
+  * rights are independently required; neither team role grants the exact
+  * attendance capability nor bypasses the SQL workspace ownership gate.
+  */
+ async transferTeamPinned(ctx:FunnelContext,input:Readonly<{
+  attendanceId:string;destinationTeamId:string;expectedVersion:number;reason:string;
+ }>,tx:TenantTransaction){
+  if(!uid(input?.attendanceId)||!uid(input.destinationTeamId)||
+      !good(input.reason,240)||input.reason.trim().length<4)
+   throw new ServiceFunnelInputError("Invalid destination or transfer reason");
+  requireVersion(input.expectedVersion);
+  return this.runPinned(ctx,tx,"service:attendances","write","admin",async pinned=>{
+   const destination=input.destinationTeamId.toLowerCase();
+   const old=await pinned.query(`
+    SELECT a.team_id::text AS team_id
+    FROM service.service_attendances a
+    WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
+      AND a.workspace_id=$3::uuid AND a.id=$4::uuid
+      AND a.version=$5 AND a.state='open'
+      AND service.service_team_can_read(a.tenant_id,a.organization_id,
+       a.workspace_id,a.team_id,$6)
+    FOR UPDATE OF a
+   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,
+      input.attendanceId,input.expectedVersion,ctx.actor.id]);
+   if(old.rows.length!==1)throw new ServiceFunnelConflictError();
+   const current=old.rows[0].team_id as string|null;
+   if(current===destination)throw new ServiceFunnelConflictError();
+   for(const teamId of [...(current?[current]:[]),destination]){
+    await this.kernel.executeModule({actor:ctx.actor,tenantId:ctx.tenantId,
+      moduleId:"service",resource:"service:team:"+teamId,action:"write"},
+      async()=>{});
+   }
+   await this.kernel.executeModule({actor:ctx.actor,tenantId:ctx.tenantId,
+     moduleId:"service",resource:"service:teams",action:"write"},async()=>{});
+   await pinned.query("SELECT set_config('syndes.service_transfer_reason',$1,true)",
+    [input.reason.trim()]);
+   const updated=await pinned.query(`
+    UPDATE service.service_attendances a
+    SET team_id=$6::uuid,assigned_to=NULL,version=a.version+1,
+      updated_at=clock_timestamp()
+    WHERE a.tenant_id=$1::uuid AND a.organization_id=$2::uuid
+      AND a.workspace_id=$3::uuid AND a.id=$4::uuid
+      AND a.version=$5 AND a.state='open'
+      AND a.team_id IS DISTINCT FROM $6::uuid
+      AND service.service_team_is_supervisor(a.tenant_id,a.organization_id,
+        a.workspace_id,$7)
+      AND service.service_team_can_read(a.tenant_id,a.organization_id,
+        a.workspace_id,a.team_id,$7)
+      AND service.service_team_is_staffed(a.tenant_id,a.organization_id,
+        a.workspace_id,$6::uuid)
+    RETURNING *
+   `,[ctx.tenantId,ctx.organizationId,ctx.workspaceId,input.attendanceId,
+      input.expectedVersion,destination,ctx.actor.id]);
+   if(updated.rows.length!==1)throw new ServiceFunnelConflictError();
+   return asAttendance(updated.rows[0]);
   });
  }
 
