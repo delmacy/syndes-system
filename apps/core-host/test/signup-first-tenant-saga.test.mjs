@@ -17,7 +17,7 @@ function fixture(fail=""){
  const ports={
   authorizeOperator:async x=>x.founderId===req.founderId,
   withRequestLock:async(_,work)=>{if(lock)throw Error("Concurrent lock denied");
-   lock=true;try{return await work()}finally{lock=false}},
+   lock=true;try{return await work(async()=>{if(!lock)throw Error('Lock lost')})}finally{lock=false}},
   intents:{
    reserve:async x=>{
     events.push("reserve");
