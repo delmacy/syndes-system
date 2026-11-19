@@ -14,6 +14,7 @@ import {PgModuleLifecycle} from "./module-lifecycle.js";
 import {PgEffectiveModuleAccess} from "./module-effective-access.js";
 import {crmModuleGateMode,inboxModuleGateMode} from "./module-gate-rollout.js";
 import {loadCoreSecrets,openBaoSourceFromEnv,type CoreRuntimeSecrets} from "./secrets.js";
+import {MultiOrgSingleHostLease} from "./multiorg-single-host-lease.js";
 import {OperationalIam07dOperations,IAM07D_OPS} from "./iam07d-operational-ops.js";
 
 function env(k:string):string{const v=process.env[k];if(!v?.trim())throw new Error("Missing "+k);return v}
@@ -29,6 +30,7 @@ class CoreService implements OnModuleDestroy{
  readonly crmModuleGateMode:"legacy"|"enforce";
  readonly inboxModuleGateMode:"legacy"|"enforce";
  readonly organizationAccess?:OperationalOrganizationMembershipGate;
+ private readonly singleton?:MultiOrgSingleHostLease;
  constructor(@Inject(RUNTIME_SECRETS) credentials:CoreRuntimeSecrets,
              @Inject("SYNDES_MODULE_DEFINITIONS") modules:readonly ModuleDefinition[]) {
   this.crmModuleGateMode=crmModuleGateMode(process.env.SYNDES_CRM_MODULE_GATE);
@@ -41,6 +43,12 @@ class CoreService implements OnModuleDestroy{
   // must have a read-only Keycloak Organizations service account and Control
   // immutable-link schema. Missing configuration prevents boot entirely.
   if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"){
+   this.singleton=new MultiOrgSingleHostLease(this.db,()=>{
+    // Loss of the pinned advisory-lock session must never leave this process
+    // serving SSE or stale authorization after another replica takes over.
+    process.stderr.write("Multi-org singleton lease lost; shutting down Core Host\n");
+    process.exit(1);
+   });
    if(this.crmModuleGateMode!=="enforce"||this.inboxModuleGateMode!=="enforce")
     throw Error("Multi-org requires CRM and Inbox enforced module gates");
    const issuer=new URL(env("CORE_KEYCLOAK_ISSUER"));
@@ -63,12 +71,17 @@ class CoreService implements OnModuleDestroy{
  }
  async ready():Promise<void>{
   await this.db.query("SELECT 1");
+  await this.singleton?.acquire();
+  this.singleton?.assertHeld();
   if(this.organizationAccess)
    await this.db.query("SELECT realm,keycloak_organization_id,state,revision "+
     "FROM public.platform_keycloak_org_links LIMIT 0");
   await this.kernel.start();
  }
- async onModuleDestroy():Promise<void>{await this.db.end()}
+ async onModuleDestroy():Promise<void>{
+  await this.singleton?.close();
+  await this.db.end();
+ }
 }
 
 @Controller()
