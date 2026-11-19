@@ -331,3 +331,100 @@ jobs:
             'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- foundation' \
             < scripts/ci/multiorg-staging-readonly.sh
           echo 'MO_REL04_FOUNDATION_INSTALLED_NO_CORE_NO_CUTOVER'
+
+  devserver01-multiorg-stage-evidence:
+    name: MO-REL-04 staging evidence — issue 208 / read-only
+    # One-shot AFTER successful mainline CI. Never expose Docker env/secrets,
+    # tenant IDs, host addresses or Keycloak/OpenFGA tokens in the issue.
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-DEVSERVER-STAGE-VERIFY-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify SHA and allowlisted DevServer01 identity
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "${SOURCE_SHA}" ]]
+          [[ "${DEVSERVER_PEER}" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "${TAILSCALE_TAG}" == 'tag:syndes-ci' ]]
+          bash -n scripts/ci/multiorg-staging-readonly.sh
+      - name: Join existing DevServer01 Tailnet with GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Verify DevServer01 remote Linux identity
+        id: identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "${DEVSERVER_PEER}" >/dev/null
+          identity="$(timeout 25s tailscale ssh "delmacy@${DEVSERVER_PEER}" 'printf "SYNDES_USER="; id -un; printf "SYNDES_HOST="; hostname -s')"
+          [[ "${identity}" == *'SYNDES_USER=delmacy'* && "${identity}" == *'SYNDES_HOST=DevServer01'* ]]
+      - name: Inspect three staged foundation services only
+        id: foundation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          timeout 75s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- foundation' \
+            < scripts/ci/multiorg-staging-readonly.sh
+      - name: Observe full four-service topology; do not mark product READY
+        id: full_inventory
+        if: ${{ steps.foundation.outcome == 'success' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          timeout 75s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- preflight' \
+            < scripts/ci/multiorg-staging-readonly.sh
+      - name: Publish sanitized staging evidence to MO-REL-04 issue
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE_RESULT: ${{ steps.scope.outcome }}
+          TAILNET_RESULT: ${{ steps.tailnet.outcome }}
+          IDENTITY_RESULT: ${{ steps.identity.outcome }}
+          FOUNDATION_RESULT: ${{ steps.foundation.outcome }}
+          FULL_RESULT: ${{ steps.full_inventory.outcome }}
+        run: |
+          set -Eeuo pipefail
+          # GitHub step outcomes are fixed enums; validate before publishing.
+          for value in "$SCOPE_RESULT" "$TAILNET_RESULT" "$IDENTITY_RESULT" "$FOUNDATION_RESULT" "$FULL_RESULT"; do
+            [[ "$value" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          if [[ "$FOUNDATION_RESULT" == success ]]; then
+            stage='FOUNDATION_VERIFIED'
+          else
+            stage='FOUNDATION_BLOCKED'
+          fi
+          if [[ "$FULL_RESULT" == success ]]; then
+            full='FOUR_COMPONENT_INVENTORY_PASS_NOT_PRODUCT_GATE'
+          else
+            full='FOUR_COMPONENT_INVENTORY_BLOCKED'
+          fi
+          body="$(printf 'MO-REL-04 DevServer01 staging read-only attestation. Source main SHA: %s. Actions run: https://github.com/%s/actions/runs/%s. Scope=%s; Tailnet=%s; Host identity=%s; PG17+Keycloak+OpenFGA=%s; Core topology=%s. Stage=%s; Full=%s. No SQL, grants, deployment, migration, secrets, principal identifiers or cutover performed by this verification job. PRODUCTION_GATE=BLOCKED.\n' \
+            "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
+            "$SCOPE_RESULT" "$TAILNET_RESULT" "$IDENTITY_RESULT" \
+            "$FOUNDATION_RESULT" "$FULL_RESULT" "$stage" "$full")"
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
