@@ -46,15 +46,17 @@ test("UMA and fine-FGA resolve every explicit catalog capability without a legac
  for(const id of old){
   const entry=catalog.entries.find(x=>x.id===id);
   assert.ok(entry,"legacy pilot capability absent: "+id);
-  assert.match(source,new RegExp('"'+id+'"\\\\s*:\\\\s*"'+entry.resourceKind+'"'),
+  assert.ok(source.includes('"'+id+'":"'+entry.resourceKind+'"')||
+   source.includes('"'+id+'": "'+entry.resourceKind+'"'),
    "legacy kind mismatch: "+id);
  }
  assert.match(source,/Object\.fromEntries\(IAM07D_CAPABILITIES\.map/);
  assert.match(context,/Object\.fromEntries\(IAM07D_CAPABILITIES\.map/);
  const candidates=catalog.entries.filter(x=>x.status==="proposed"&&
    ["inbox","service"].includes(x.module));
- const known=[...exact.matchAll(/"(?:inbox|service)\.[a-z_]+\.[a-z_]+"/g)]
-  .map(x=>x[0].slice(1,-1));
+ const captured=exact.match(/export const IAM07D_CAPABILITIES=Object\\.freeze\\((\\[[\\s\\S]*?\\]) as const\\)/);
+ assert.ok(captured,"Typed capability array must be explicit");
+ const known=JSON.parse(captured[1]);
  assert.equal(known.length,19,"Every exact mutation has one typed name");
  assert.equal(new Set(known).size,19);
  for(const id of known){
