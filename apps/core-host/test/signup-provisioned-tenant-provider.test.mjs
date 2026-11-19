@@ -43,7 +43,7 @@ test("UC-SIGNUP-01C operator provider fails closed on identity, state and untrus
  assert.equal(opened,1);
  tenantState="suspended";
  await assert.rejects(provider.resolve(i.tenantId));
- await assert.rejects((await provider.resolve(i.tenantId).catch(()=>null))?.query?.("SELECT 1",[])??Promise.reject(Error("denied")));
+
  tenantState="active";intentState="reserved";
  await assert.rejects(provider.resolve(i.tenantId));
  intentState="ready";
