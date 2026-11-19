@@ -25,6 +25,7 @@ import {OrganizationContextAdmissionPilot,type RequestedIamPilotContext}
  from "./iam-organization-context-pilot.js";
 import {OpenFgaFineCapabilityPolicy} from "./iam07d-fine-fga-policy.js";
 import {Iam07dRevokeFirstPilot} from "./iam07d-revoke-first-pilot.js";
+import {iam07dIsCapability,type SpecificIam07dCapability} from "./iam07d-capability-catalog.js";
 import {Iam07dInboxBusinessPilot} from "./iam07d-inbox-business-pilot.js";
 import {Iam07dServiceFunnelBusinessPilot} from "./iam07d-service-funnel-business-pilot.js";
 import type {CoreRuntimeSecrets} from "./secrets.js";
@@ -96,6 +97,14 @@ export class OperationalIam07dOperations{
    secrets.openfgaToken);
   this.gate=new Iam07dRevokeFirstPilot(admission,specific,tenants,core.db);
   this.inbox=new Iam07dInboxBusinessPilot(this.gate);
+ }
+ async executeMutation<T>(bearer:string,scope:Selected,
+  capability:SpecificIam07dCapability,funnelId:string|undefined,
+  effect:(tx:TenantTransaction,actor:Actor)=>Promise<T>):Promise<T>{
+  if(!this.gate||!iam07dIsCapability(capability)||typeof effect!=="function")
+   throw new AccessDeniedError();
+  const ticket=await this.gate.issue(bearer,request(scope,capability,funnelId));
+  return this.gate.execute(ticket,(tx,verified)=>effect(tx,verified.actor));
  }
  async claim(bearer:string,scope:Selected,conversationId:string){
   if(!this.inbox)throw new AccessDeniedError();
