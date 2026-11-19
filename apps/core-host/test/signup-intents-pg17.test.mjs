@@ -5,6 +5,7 @@ import {readFile} from "node:fs/promises";
 import {execFileSync} from "node:child_process";
 import pg from "pg";
 import {PgSignupReservationStore} from "../dist/signup-control-intents.js";
+import {PgFirstTenantSignupLock} from "../dist/signup-request-lock.js";
 
 const raw=process.env.SYNDES_IAM04_PG_URL;
 const permitted=process.env.SYNDES_IAM04_DISPOSABLE_PG==="IAM04B_PG17_ONLY"&&
@@ -44,6 +45,29 @@ test("UC-SIGNUP-01B Control PG17: founder-bound first-tenant reservation and imm
   await db.query("SET ROLE syndes_signup_operator");
   const store=new PgSignupReservationStore(db,async id=>id===founder);
   const first=await store.reserve(rawInput);
+  // Session-pinned advisory lock excludes the SAME signup request, while
+  // separate intent IDs can proceed. This must be real PG17, not an in-memory mutex.
+  const lockPool=new pg.Pool({connectionString:next(),max:3});
+  try{
+   const lock=new PgFirstTenantSignupLock(lockPool);
+   let entered,release;
+   const inLock=new Promise(done=>{entered=done});
+   const hold=new Promise(done=>{release=done});
+   const active=lock.withRequestLock(requestId,async assertHeld=>{
+    await assertHeld();entered();await hold;await assertHeld();return "first";
+   });
+   await inLock;
+   await assert.rejects(lock.withRequestLock(requestId,async()=>{throw Error("reentered")}));
+   assert.equal(await lock.withRequestLock(randomUUID(),async assertHeld=>{
+    await assertHeld();return "independent";
+   }),"independent");
+   release();
+   assert.equal(await active,"first");
+   assert.equal(await lock.withRequestLock(requestId,async assertHeld=>{
+    await assertHeld();return "reacquired";
+   }),"reacquired");
+  }finally{await lockPool.end()}
+
   assert.equal(first.state,"reserved");
   assert.ok(first.tenantId!==first.organizationId&&first.workspaceId!==first.organizationId);
   assert.deepEqual(await store.reserve(rawInput),first);
