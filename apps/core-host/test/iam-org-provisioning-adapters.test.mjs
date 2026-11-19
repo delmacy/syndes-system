@@ -10,7 +10,12 @@ test("Keycloak Organization writer recovers known alias and adds only specified 
  let created=false,member=false,posts=0;
  const requests=[];
  const send=async(url,init)=>{
-  const path=new URL(url).pathname,method=init.method;
+  const parsed=new URL(url),path=parsed.pathname,method=init.method;
+  if(method==="GET"&&path.endsWith("/organizations")){
+   assert.equal(parsed.searchParams.get("search"),name);
+   assert.equal(parsed.searchParams.get("exact"),"true");
+   assert.equal(parsed.searchParams.get("briefRepresentation"),"false");
+  }
   requests.push([method,path,init.body??null]);
   if(method==="GET"&&path.endsWith("/organizations"))
    return Response.json(created?[{id:K,alias,name,enabled:true}]:[],{status:200});
