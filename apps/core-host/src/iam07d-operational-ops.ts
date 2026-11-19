@@ -98,6 +98,10 @@ export class OperationalIam07dOperations{
   this.gate=new Iam07dRevokeFirstPilot(admission,specific,tenants,core.db);
   this.inbox=new Iam07dInboxBusinessPilot(this.gate);
  }
+ /** Trusted module-only entry point. The caller provides a hard-coded exact
+  * capability; its effect executes inside the SAME epoch-lock transaction.
+  * Neither tenant DB handle nor an arbitrary FGA object comes from HTTP.
+  */
  async executeMutation<T>(bearer:string,scope:Selected,
   capability:SpecificIam07dCapability,funnelId:string|undefined,
   effect:(tx:TenantTransaction,actor:Actor)=>Promise<T>):Promise<T>{
