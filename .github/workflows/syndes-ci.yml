@@ -428,3 +428,72 @@ jobs:
             "$SCOPE_RESULT" "$TAILNET_RESULT" "$IDENTITY_RESULT" \
             "$FOUNDATION_RESULT" "$FULL_RESULT" "$stage" "$full")"
           gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-multiorg-real-services-smoke:
+    name: MO-REL-04 actual PG Keycloak FGA smoke — stage only
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-REAL-STAGING-SMOKE-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify exact main SHA and staging-only smoke
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "${SOURCE_SHA}" ]]
+          [[ "${DEVSERVER_PEER}" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "${TAILSCALE_TAG}" == 'tag:syndes-ci' ]]
+          bash -n scripts/ci/multiorg-staging-services-smoke.sh
+      - name: Join existing stage Tailnet through GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Verify actual staging PostgreSQL and Keycloak/OpenFGA HTTP
+        id: service_smoke
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "${DEVSERVER_PEER}" >/dev/null
+          timeout 75s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- verify' \
+            < scripts/ci/multiorg-staging-services-smoke.sh
+      - name: Record safe live service evidence in MO-REL-04 issue
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE_RESULT: ${{ steps.scope.outcome }}
+          TAILNET_RESULT: ${{ steps.tailnet.outcome }}
+          SMOKE_RESULT: ${{ steps.service_smoke.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for outcome in "$SCOPE_RESULT" "$TAILNET_RESULT" "$SMOKE_RESULT"; do
+            [[ "$outcome" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          if [[ "$SMOKE_RESULT" == success ]]; then
+            status='REAL_STAGE_PG_KC_FGA_SERVICE_SMOKE_PASS_NOT_CORE_E2E'
+          else
+            status='REAL_STAGE_SERVICE_SMOKE_BLOCKED'
+          fi
+          body="$(printf 'MO-REL-04 actual DevServer01 staging service smoke. Main SHA=%s. Run=https://github.com/%s/actions/runs/%s. Scope=%s; Tailnet=%s; Real PG17 Keycloak OIDC OpenFGA HTTP=%s; result=%s. Read-only synthetic staging probe; no Core Host, no signup E2E, no SQL002 cutover, no data/grants/secrets exposed. PRODUCTION_GATE=BLOCKED.' \
+            "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
+            "$SCOPE_RESULT" "$TAILNET_RESULT" "$SMOKE_RESULT" "$status")"
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
