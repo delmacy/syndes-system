@@ -14,7 +14,7 @@ readonly project="syndes-multiorg-staging"
 [[ "$(id -un)" == delmacy && "$(hostname -s)" == DevServer01 ]] || {
  echo 'MO_REL04_STAGE_INFRA_DENY=wrong_host'; exit 2;
 }
-for binary in docker df sha256sum openssl awk; do
+for binary in docker df sha256sum openssl awk stat mktemp mkdir chmod mv; do
  command -v "$binary" >/dev/null || {
   echo 'MO_REL04_STAGE_INFRA_BLOCKED=missing_dependency';exit 3;
  }
