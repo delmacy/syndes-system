@@ -22,6 +22,13 @@ export class WhatsAppOutboundRelay {
       WHERE a.tenant_id=whatsapp_outbox.tenant_id
         AND a.id=whatsapp_outbox.account_id
         AND a.service_enabled=true AND a.platform_organization_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM platform_organizations o
+          JOIN platform_workspaces w ON w.tenant_id=o.tenant_id
+            AND w.organization_id=o.id AND w.is_default AND w.status='active'
+          WHERE o.tenant_id=a.tenant_id AND o.id=a.platform_organization_id
+            AND o.status='active'
+        )
         AND (whatsapp_outbox.inbox_message_id IS NULL OR EXISTS (
           SELECT 1 FROM inbox_messages m
           JOIN inbox_conversations c ON c.tenant_id=m.tenant_id AND c.id=m.conversation_id
