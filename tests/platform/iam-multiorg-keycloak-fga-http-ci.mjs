@@ -383,10 +383,15 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
   await assert.rejects(operationalInbox.mutateExact(
    activeContext(orgB,wsB1),f.bearer,capability,chatB,
    {body:"B must not inherit A's fine grant"}),AccessDeniedError);
+  console.log("IAM_TOPO07C_STAGE_B_FINE_DENY_PASS");
   const cross=await operationalInbox.mutateExact(
    activeContext(ORG_A,wsA2),f.bearer,capability,chatB,
-   {body:"Cross-org attempt"});
-  assert.equal(cross,null,"Valid A grant cannot change B conversation");
+   {body:"Cross-org attempt"}).catch(error=>{
+    if(!(error instanceof AccessDeniedError))throw error;
+    return null;
+   });
+  assert.equal(cross,null,"A grant must never change a B conversation");
+  console.log("IAM_TOPO07C_STAGE_CROSS_ORG_DENY_PASS");
   const checks=await f.tenantDb.query(
    "SELECT (SELECT count(*)::int FROM inbox_messages"+
    " WHERE conversation_id=$1 AND direction='internal') AS messages,"+
@@ -396,11 +401,13 @@ export async function runIamMultiOrgKeycloakFgaHttpLab(f){
    " WHERE conversation_id=$2 AND direction='internal') AS leaked",
    [chatA,chatB]);
   assert.deepEqual(checks.rows,[{messages:1,audits:1,leaked:0}]);
+  console.log("IAM_TOPO07C_STAGE_SQL_AUDIT_VERIFIED");
   assert.equal(await protectedIam.revoke({
    operationId:randomUUID(),tenantId:TENANT,organizationId:ORG_A,
    workspaceId:wsA2,principalId:f.actorId,
    capability,expectedEpoch:1,
   }),2);
+  console.log("IAM_TOPO07C_STAGE_REVOKE_COMMITTED");
   await assert.rejects(operationalInbox.mutateExact(
    activeContext(ORG_A,wsA2),f.bearer,capability,chatA,
    {body:"Must reject after tenant-first revoke"}),AccessDeniedError);
