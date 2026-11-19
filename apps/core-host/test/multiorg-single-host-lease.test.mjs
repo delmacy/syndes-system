@@ -23,6 +23,7 @@ function fake(){
    on(name,fn){events.set(name,fn)},
    release(){if(owner===id)owner=null},
    simulateLoss(){if(owner===id)owner=null;events.get("error")?.(Error("connection lost"))},
+   simulateEnd(){if(owner===id)owner=null;events.get("end")?.()},
   };
  }};
  return pool;
@@ -50,4 +51,18 @@ test("lost singleton session fails closed and cannot silently reacquire",async()
  assert.throws(()=>first.assertHeld(),/singleton unavailable/);
  await assert.rejects(first.acquire(),/previously lost/);
  await first.close();
+});
+
+test("a graceful but UNEXPECTED PostgreSQL session end also revokes singleton readiness",async()=>{
+ const pool=fake(),clients=[];
+ const connect=pool.connect;
+ pool.connect=async()=>{const c=await connect();clients.push(c);return c};
+ let lost=0;
+ const lease=new MultiOrgSingleHostLease(pool,()=>lost++);
+ await lease.acquire();
+ clients[0].simulateEnd();
+ assert.equal(lost,1);
+ assert.throws(()=>lease.assertHeld(),/singleton unavailable/);
+ await assert.rejects(lease.acquire(),/previously lost/);
+ await lease.close();
 });
