@@ -14,6 +14,7 @@ import {PgModuleLifecycle} from "./module-lifecycle.js";
 import {PgEffectiveModuleAccess} from "./module-effective-access.js";
 import {crmModuleGateMode,inboxModuleGateMode} from "./module-gate-rollout.js";
 import {loadCoreSecrets,openBaoSourceFromEnv,type CoreRuntimeSecrets} from "./secrets.js";
+import {OperationalIam07dOperations,IAM07D_OPS} from "./iam07d-operational-ops.js";
 
 function env(k:string):string{const v=process.env[k];if(!v?.trim())throw new Error("Missing "+k);return v}
 const RUNTIME_SECRETS = "SYNDES_CORE_RUNTIME_SECRETS";
@@ -118,8 +119,10 @@ function createHostModule(plugins:readonly SyndesPlugin<Type<unknown>>[]){
       {provide:"SYNDES_CORE_API",useExisting:CoreService},
       TenantPgProvider,
       {provide:"SYNDES_TENANT_DB",useExisting:TenantPgProvider},
+      OperationalIam07dOperations,
+      {provide:IAM07D_OPS,useExisting:OperationalIam07dOperations},
     ],
-    exports:[CoreService,"SYNDES_CORE_API","SYNDES_TENANT_DB","SYNDES_PLUGINS"],
+    exports:[CoreService,"SYNDES_CORE_API","SYNDES_TENANT_DB","SYNDES_PLUGINS",IAM07D_OPS],
   })
   class HostRuntimeModule{}
   @Module({

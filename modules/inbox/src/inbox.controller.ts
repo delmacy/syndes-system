@@ -29,7 +29,14 @@ export class InboxHost{
    requestHistory(ctx:InboxContext,conversationId:string):Promise<{requested:boolean;note:string}>;
    decorate(ctx:InboxContext,messages:readonly {id:string;direction:string}[]):Promise<readonly unknown[]>;
    decorateConversations(ctx:InboxContext,conversations:readonly {id:string;channel:string}[]):Promise<readonly unknown[]>;
-  }
+  },
+  @Optional() @Inject("SYNDES_IAM07D_OPS")
+  private readonly exact?:{
+   claim(bearer:string,scope:{tenantId:string;organizationId:string;workspaceId:string},
+    conversationId:string):Promise<{id:string}>;
+   transfer(bearer:string,scope:{tenantId:string;organizationId:string;workspaceId:string},
+    conversationId:string,destination:string):Promise<{id:string}>;
+  },
  ){
   this.events=events;
   // A multi-org tenant cannot keep a legacy SSE stream with only the
@@ -87,6 +94,22 @@ export class InboxHost{
   await this.core.organizationAccess.requireActive(
    context.tenantId,context.organizationId,context.actor.id);
  }
+ async claimExact(context:InboxContext,bearer:string|undefined,conversationId:string){
+  if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true"||!this.exact||
+     !context.organizationId||!context.workspaceId||!bearer)
+   throw new AccessDeniedError();
+  return this.exact.claim(bearer,{tenantId:context.tenantId,
+   organizationId:context.organizationId,workspaceId:context.workspaceId},conversationId);
+ }
+ async transferExact(context:InboxContext,bearer:string|undefined,
+  conversationId:string,destination:string){
+  if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true"||!this.exact||
+     !context.organizationId||!context.workspaceId||!bearer)
+   throw new AccessDeniedError();
+  return this.exact.transfer(bearer,{tenantId:context.tenantId,
+   organizationId:context.organizationId,workspaceId:context.workspaceId},
+   conversationId,destination);
+ }
  async revalidateStream(context:InboxContext,bearer:string|undefined,selection?:RequestedOperationalScope):Promise<boolean>{
   // Module suspension and a stale JWT revoke an already-connected SSE stream.
   // Never reuse a user-supplied scope without checking both memberships again.
@@ -133,6 +156,13 @@ export class InboxController{
   selection?:RequestedOperationalScope):Promise<T>{
   return this.host.run(tenant,header,handler,selection);
  }
+ private legacyWrite<T>(tenant:string,header:string|undefined,
+  handler:(ctx:InboxContext)=>Promise<T>,selection?:RequestedOperationalScope):Promise<T>{
+  // No tenant-wide legacy mutation can borrow FGA coarse grants in multi-org.
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true")
+   throw new HttpException("Exact write capability required",403);
+  return this.run(tenant,header,handler,selection);
+ }
  @Get("events")
  async eventsStream(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
     @Res()response:SseSink):Promise<void>{
@@ -158,7 +188,7 @@ export class InboxController{
  @Post("conversations")
  create(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
         @Body()b:CreateConversation){
-  return this.run(t,h,async c=>{const result=await this.host.inbox.create(c,b);this.host.events.publish(c);return result;},selection);
+  return this.legacyWrite(t,h,async c=>{const result=await this.host.inbox.create(c,b);this.host.events.publish(c);return result;},selection);
  }
  @Get("conversations/:id")
  get(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,@Param("id")key:string){
@@ -169,27 +199,39 @@ export class InboxController{
           @Param("id")key:string,@Query("limit")l:string|undefined){
   return this.run(t,h,async c=>found(await this.host.messages(c,key,l===undefined?100:Number(l))),selection);
  }
+ @Post("conversations/:id/claim")
+ claim(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,
+  @SelectedScope()selection:RequestedOperationalScope|undefined,
+  @Param("id")key:string){
+  return this.run(t,h,async c=>{
+   const result=found(await this.host.claimExact(c,h,key));
+   this.host.events.publish(c);
+   return result;
+  },selection);
+ }
  @Patch("conversations/:id/assignment")
  assign(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
         @Param("id")key:string,@Body()b:{assigneeId?:string|null}){
-  return this.run(t,h,async c=>{const result=found(await this.host.inbox.assign(c,key,b?.assigneeId));this.host.events.publish(c);return result;},selection);
+  return this.legacyWrite(t,h,async c=>{const result=found(await this.host.inbox.assign(c,key,b?.assigneeId));this.host.events.publish(c);return result;},selection);
  }
  @Patch("conversations/:id/status")
  status(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
         @Param("id")key:string,@Body()b:{status:ConversationStatus}){
-  return this.run(t,h,async c=>{const result=found(await this.host.inbox.status(c,key,b?.status));this.host.events.publish(c);return result;},selection);
+  return this.legacyWrite(t,h,async c=>{const result=found(await this.host.inbox.status(c,key,b?.status));this.host.events.publish(c);return result;},selection);
  }
  @Patch("conversations/:id/handoff")
  handoff(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
          @Param("id")key:string,@Body()b:{mode:HandoffMode}){
-  return this.run(t,h,async c=>{const result=found(await this.host.inbox.handoff(c,key,b?.mode));this.host.events.publish(c);return result;},selection);
+  return this.legacyWrite(t,h,async c=>{const result=found(await this.host.inbox.handoff(c,key,b?.mode));this.host.events.publish(c);return result;},selection);
  }
  @Patch("conversations/:id/workspace")
  transferWorkspace(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
    @Param("id")key:string,@Body()b:{workspaceId?:string}){
   return this.run(t,h,async ctx=>{
    const target=id(b?.workspaceId??"","destination workspace");
-   const moved=found(await this.host.inbox.transferWorkspace(ctx,key,target));
+   const moved=found(process.env.SYNDES_MULTI_ORG_ENABLED==="true"
+    ?await this.host.transferExact(ctx,h,key,target)
+    :await this.host.inbox.transferWorkspace(ctx,key,target));
    // Invalidate BOTH authorized snapshots. The service verifies that actor
    // can operate in the source and target workspaces before this emission.
    this.host.events.publish(ctx);
@@ -200,14 +242,14 @@ export class InboxController{
  @Patch("conversations/:id/favorite")
  favorite(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
    @Param("id")key:string,@Body()b:{favorite:boolean}){
-   return this.run(t,h,async c=>{
+   return this.legacyWrite(t,h,async c=>{
     const result=found(await this.host.inbox.favorite(c,key,b?.favorite));
     this.host.events.publish(c);return result;
    },selection);
  }
  @Patch("conversations/:id/read")
  read(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,@Param("id")key:string){
-   return this.run(t,h,async c=>{
+   return this.legacyWrite(t,h,async c=>{
     const result=found(await this.host.inbox.markRead(c,key));
     this.host.events.publish(c);return result;
    },selection);
@@ -215,7 +257,7 @@ export class InboxController{
  @Patch("conversations/:id/contact")
  contact(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
          @Param("id")key:string,@Body()b:{personId?:string}){
-  return this.run(t,h,async c=>{
+  return this.legacyWrite(t,h,async c=>{
    const result=found(await this.host.inbox.linkContact(c,key,b?.personId??""));
    this.host.events.publish(c);
    return this.host.get(c,key);
@@ -224,22 +266,22 @@ export class InboxController{
  @Post("conversations/:id/history")
  requestHistory(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
    @Param("id")key:string){
-   return this.run(t,h,c=>this.host.history(c,key),selection);
+   return this.legacyWrite(t,h,c=>this.host.history(c,key),selection);
  }
  @Post("conversations/:id/replies")
  reply(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
        @Param("id")key:string,@Body()b:{body:string}){
-  return this.run(t,h,async c=>{const result=found(await this.host.reply(c,key,b?.body));this.host.events.publish(c);return result;},selection);
+  return this.legacyWrite(t,h,async c=>{const result=found(await this.host.reply(c,key,b?.body));this.host.events.publish(c);return result;},selection);
  }
  @Post("conversations/:id/notes")
  note(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
       @Param("id")key:string,@Body()b:{body:string}){
-  return this.run(t,h,async c=>{const result=found(await this.host.inbox.note(c,key,b?.body));this.host.events.publish(c);return result;},selection);
+  return this.legacyWrite(t,h,async c=>{const result=found(await this.host.inbox.note(c,key,b?.body));this.host.events.publish(c);return result;},selection);
  }
  @Post("conversations/:id/simulator/inbound")
  simulate(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
           @Param("id")key:string,@Body()b:{body:string;externalMessageId:string}){
-  return this.run(t,h,async c=>{const result=found(await this.host.simulator.receive(c,{channel:"simulation",conversationId:key,body:b?.body,externalMessageId:b?.externalMessageId}));this.host.events.publish(c);return result;},selection);
+  return this.legacyWrite(t,h,async c=>{const result=found(await this.host.simulator.receive(c,{channel:"simulation",conversationId:key,body:b?.body,externalMessageId:b?.externalMessageId}));this.host.events.publish(c);return result;},selection);
  }
  @Get("metrics")
  metrics(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined){

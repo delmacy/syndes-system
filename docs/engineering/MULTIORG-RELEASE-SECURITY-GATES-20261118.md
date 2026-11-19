@@ -51,6 +51,14 @@
 - Esta prova **não** constitui G-4: staging com credenciais reais, backup externo/versionado, controle de acesso, restauração de Control + tenant e reconciliação de Keycloak/FGA ainda precisam de execução aprovada via GitHub Actions. `PRODUCTION_GATE=BLOCKED`.
 
 
+## TOPO-06A — IAM07D no Host: integração parcial com deny explícito
+
+- O Host agora oferece `SYNDES_IAM07D_OPS` (opcional fora de multi-org), montado SOMENTE com verifier OIDC de client autorizado, membership Keycloak Organizations atual, tenant Control ativo, module entitlement, link 1:1 Control, escopo SQL e ownership por funil, capability **exata** em store OpenFGA dedicada e tenant-first epoch fence com transação pinned.
+- Em multi-org, `POST /v1/tenants/:id/inbox/conversations/:id/claim` chama o **mesmo** `Iam07dInboxBusinessPilot.claim` testado no laboratório; transfer de workspace usa `transfer` com grant exato, e `PATCH /service-management/attendances/:id/stage` usa `advance` após lookup scoped do funil no Service.
+- As mutações legadas Inbox (criação, assignment genérico, status, handoff, favorite, read, contact, requestHistory, replies, notes, simulator) e Service (publish funnel, open, assign, team transfer, close) NEGAM 403 explicitamente em multi-org até terem capabilities e fences próprias; não há fallback para `inbox:messages/write` ou `service:attendances/write` no modo multi-org.
+- Configurações adicionais obrigatórias em modo multi-org: `CORE_IAM_TENANT_OIDC_CLIENT_ID` e `CORE_IAM07D_FINE_FGA_STORE_ID`, além do leitor Keycloak. O store fino deve ter modelo `iam_capability` e grants/restrictive fences provisionados por operador; ausentes => DENY, nunca ALLOW.
+- **G-1 continua PENDENTE:** write coverage completa implica dar suporte fino também às operações bloqueadas, CI integrado com Host principal e Service instalado, provider reconciliation, restore operacional e migração. Não anunciar produto funcional com multi-org só por existir uma rota claim funcional.
+
 ## TOPO-06B — saga de uma segunda Organization (operador confiável)
 
 - `iam-org-provisioning-operator.ts` contém `OrganizationProvisioningSaga` e os adapters PG17 `PgOrgProvisionIntentStore` e `PgTenantOrganizationWriter`. Não é controller HTTP e não pode ser chamado pela UI ou por um Manager token.
