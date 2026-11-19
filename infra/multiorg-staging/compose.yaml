@@ -66,9 +66,9 @@ services:
       syndes.component: openfga
 
 secrets:
-  staging_pg_admin_password: {file: /run/syndes/multiorg-staging/secrets/pg-admin}
-  staging_kc_db_password: {file: /run/syndes/multiorg-staging/secrets/keycloak-db}
-  staging_kc_admin_password: {file: /run/syndes/multiorg-staging/secrets/keycloak-admin}
+  staging_pg_admin_password: {file: /home/delmacy/.local/share/syndes-multiorg-staging/secrets/pg-admin}
+  staging_kc_db_password: {file: /home/delmacy/.local/share/syndes-multiorg-staging/secrets/keycloak-db}
+  staging_kc_admin_password: {file: /home/delmacy/.local/share/syndes-multiorg-staging/secrets/keycloak-admin}
 
 networks:
   staging_internal:
