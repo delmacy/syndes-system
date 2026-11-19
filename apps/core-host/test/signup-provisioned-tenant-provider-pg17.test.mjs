@@ -24,7 +24,7 @@ test("UC-SIGNUP-01C: real PG17 reserved tenant SQL context via tenant-owner, not
   "inspect","syndes-iam04b-pg17-ci"],{encoding:"utf8",timeout:5000}))[0];
  assert.equal(inspection.Config.Image,"postgres:17-alpine");
  assert.equal(inspection.Config.Labels["syndes.disposable"],"iam04b-pg17");
- const id=randomUUID(),suffix=id.replaceAll("-"),
+ const id=randomUUID(),suffix=id.replaceAll("-",""),
   tenantDb="syndes_tenant_"+suffix,tenantRole="syndes_t_"+suffix,
   controlDb="signup_pending_ctrl_"+suffix.slice(0,16),
   tenantPass="ci-only-signup-provisioned-"+suffix;
