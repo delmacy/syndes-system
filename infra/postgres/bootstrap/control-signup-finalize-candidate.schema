@@ -1,0 +1,106 @@
+-- UC-SIGNUP-01C: atomic READY + Control tenant activation.
+-- This is the ONLY path for a newly reserved first tenant to become ACTIVE.
+-- Candidate operator-only migration; requires the signup intent and initial
+-- Keycloak link candidate schemas. Keycloak/FGA checks occur in the trusted
+-- external saga just before this finalizer; operational admission rechecks live.
+DO $role$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='syndes_signup_finalize_operator')
+ THEN CREATE ROLE syndes_signup_finalize_operator NOLOGIN; END IF;
+END $role$;
+
+CREATE OR REPLACE FUNCTION public.platform_signup_mark_reconcile(
+ p_request UUID,p_founder UUID
+) RETURNS BIGINT
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $fn$
+DECLARE v_revision BIGINT;
+BEGIN
+ IF p_request IS NULL OR p_founder IS NULL THEN
+  RAISE EXCEPTION 'Invalid signup reconciliation identity' USING ERRCODE='22023';
+ END IF;
+ UPDATE public.platform_signup_intents
+   SET state='reconcile_required',revision=revision+1,
+       changed_at=clock_timestamp()
+ WHERE request_id=p_request AND founder_id=p_founder AND state='reserved'
+ RETURNING revision INTO v_revision;
+ IF v_revision IS NOT NULL THEN
+  INSERT INTO public.platform_signup_intent_audit(request_id,revision,event)
+  VALUES(p_request,v_revision,'reconcile_required');
+ END IF;
+ RETURN coalesce(v_revision,0);
+END $fn$;
+
+CREATE OR REPLACE FUNCTION public.platform_signup_finalize(
+ p_request UUID,p_founder UUID,p_keycloak UUID
+) RETURNS BIGINT
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $fn$
+DECLARE v RECORD;v_revision BIGINT;v_changed INTEGER;
+BEGIN
+ IF p_request IS NULL OR p_founder IS NULL OR p_keycloak IS NULL THEN
+  RAISE EXCEPTION 'Invalid signup finalization identity' USING ERRCODE='22023';
+ END IF;
+ SELECT i.tenant_id,i.organization_id,i.state,i.revision,
+        i.keycloak_organization_id,t.state AS tenant_state
+ INTO v
+ FROM public.platform_signup_intents i
+ JOIN public.tenant_registry t ON t.tenant_id=i.tenant_id
+ WHERE i.request_id=p_request AND i.founder_id=p_founder
+ FOR UPDATE OF i,t;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Signup intent unavailable' USING ERRCODE='23514'; END IF;
+
+ IF v.state='ready' THEN
+  IF v.tenant_state<>'active' OR v.keycloak_organization_id IS DISTINCT FROM p_keycloak
+  THEN RAISE EXCEPTION 'Stale signup READY' USING ERRCODE='23514'; END IF;
+  RETURN v.revision;
+ END IF;
+ IF v.state NOT IN ('reserved','reconcile_required') OR
+    v.tenant_state<>'provisioned' OR v.keycloak_organization_id IS NOT NULL OR
+    NOT EXISTS(SELECT 1 FROM public.tenant_memberships m
+      WHERE m.tenant_id=v.tenant_id AND m.principal_id=p_founder::text
+        AND m.state='active') OR
+    EXISTS(SELECT 1 FROM public.tenant_memberships m
+      WHERE m.tenant_id=v.tenant_id AND m.principal_id<>p_founder::text) OR
+    NOT EXISTS(SELECT 1 FROM public.platform_keycloak_org_links l
+      JOIN public.platform_keycloak_org_link_audit a
+       ON a.tenant_id=l.tenant_id AND a.organization_id=l.organization_id
+        AND a.keycloak_organization_id=l.keycloak_organization_id
+      WHERE l.tenant_id=v.tenant_id AND l.organization_id=v.organization_id
+       AND l.keycloak_organization_id=p_keycloak
+       AND l.state='active' AND l.revision=1
+       AND a.request_id=p_request AND a.operation='provisioned'
+       AND a.result_state='active' AND a.result_revision=1)
+ THEN RAISE EXCEPTION 'Incomplete initial tenant evidence' USING ERRCODE='23514'; END IF;
+
+ UPDATE public.tenant_registry SET state='active'
+ WHERE tenant_id=v.tenant_id AND state='provisioned';
+ GET DIAGNOSTICS v_changed=ROW_COUNT;
+ IF v_changed<>1 THEN RAISE EXCEPTION 'Tenant activation conflict' USING ERRCODE='40001'; END IF;
+ UPDATE public.platform_signup_intents
+  SET state='ready',keycloak_organization_id=p_keycloak,
+      revision=revision+1,changed_at=clock_timestamp()
+ WHERE request_id=p_request AND founder_id=p_founder
+   AND state IN ('reserved','reconcile_required')
+ RETURNING revision INTO v_revision;
+ IF v_revision IS NULL THEN
+  RAISE EXCEPTION 'Signup READY race' USING ERRCODE='40001';
+ END IF;
+ INSERT INTO public.platform_signup_intent_audit(request_id,revision,event)
+ VALUES(p_request,v_revision,'ready');
+ RETURN v_revision;
+END $fn$;
+
+-- Remove direct mutation even from the reservation role: only the typed,
+-- audited, SECURITY DEFINER transitions above can change signup state.
+REVOKE UPDATE(state,revision,changed_at,keycloak_organization_id)
+ ON public.platform_signup_intents FROM syndes_signup_operator;
+REVOKE UPDATE(state) ON public.tenant_registry
+ FROM syndes_signup_tenant_operator;
+REVOKE ALL ON FUNCTION public.platform_signup_mark_reconcile(UUID,UUID)
+ FROM PUBLIC,syndes_core;
+REVOKE ALL ON FUNCTION public.platform_signup_finalize(UUID,UUID,UUID)
+ FROM PUBLIC,syndes_core;
+GRANT USAGE ON SCHEMA public TO syndes_signup_operator,syndes_signup_finalize_operator;
+GRANT EXECUTE ON FUNCTION public.platform_signup_mark_reconcile(UUID,UUID)
+ TO syndes_signup_operator;
+GRANT EXECUTE ON FUNCTION public.platform_signup_finalize(UUID,UUID,UUID)
+ TO syndes_signup_finalize_operator;
+-- Neither role can write Keycloak links directly or grant any OpenFGA tuple.

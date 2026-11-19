@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS public.platform_signup_intents (
  organization_name TEXT NOT NULL CHECK(length(btrim(organization_name)) BETWEEN 2 AND 160),
  workspace_name TEXT NOT NULL CHECK(length(btrim(workspace_name)) BETWEEN 2 AND 160),
  keycloak_alias TEXT NOT NULL UNIQUE CHECK(keycloak_alias ~ '^syndes-[0-9a-f]{32}-[0-9a-f]{32}$'),
+ keycloak_organization_id UUID UNIQUE,
  state TEXT NOT NULL DEFAULT 'reserved'
    CHECK(state IN ('reserved','reconcile_required','ready')),
  revision BIGINT NOT NULL DEFAULT 1 CHECK(revision>0),
@@ -42,9 +43,23 @@ REVOKE ALL ON SEQUENCE public.platform_signup_intent_audit_event_id_seq
  FROM PUBLIC,syndes_core;
 GRANT USAGE ON SCHEMA public TO syndes_signup_operator;
 GRANT SELECT,INSERT ON public.platform_signup_intents TO syndes_signup_operator;
-GRANT UPDATE(state,revision,changed_at) ON public.platform_signup_intents
+GRANT UPDATE(state,revision,changed_at,keycloak_organization_id) ON public.platform_signup_intents
  TO syndes_signup_operator;
 GRANT SELECT,INSERT ON public.platform_signup_intent_audit TO syndes_signup_operator;
 GRANT USAGE,SELECT ON SEQUENCE public.platform_signup_intent_audit_event_id_seq
  TO syndes_signup_operator;
--- No tenant DB creation, Keycloak/FGA grants or Control tenant_registry writes.
+-- The FIRST tenant installer is a different trusted NOLOGIN operator.
+-- Only this role can enroll the verified founder and activate a PROVISIONED
+-- Control registry row. It never owns the database or any Keycloak/FGA grant.
+DO $role$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='syndes_signup_tenant_operator')
+ THEN CREATE ROLE syndes_signup_tenant_operator NOLOGIN; END IF;
+END $role$;
+GRANT USAGE ON SCHEMA public TO syndes_signup_tenant_operator;
+GRANT SELECT,UPDATE(state) ON public.tenant_registry
+ TO syndes_signup_tenant_operator;
+GRANT SELECT,INSERT ON public.tenant_memberships
+ TO syndes_signup_tenant_operator;
+-- Database CREATE and privileged migration execution stay in separate
+-- pre-approved operator-only provisioning infrastructure. No runtime grants.
+

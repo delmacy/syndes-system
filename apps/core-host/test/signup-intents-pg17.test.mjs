@@ -5,6 +5,7 @@ import {readFile} from "node:fs/promises";
 import {execFileSync} from "node:child_process";
 import pg from "pg";
 import {PgSignupReservationStore} from "../dist/signup-control-intents.js";
+import {PgFirstTenantSignupLock} from "../dist/signup-request-lock.js";
 
 const raw=process.env.SYNDES_IAM04_PG_URL;
 const permitted=process.env.SYNDES_IAM04_DISPOSABLE_PG==="IAM04B_PG17_ONLY"&&
@@ -32,18 +33,48 @@ test("UC-SIGNUP-01B Control PG17: founder-bound first-tenant reservation and imm
   const schema=await file("../../../infra/postgres/bootstrap/control-signup-intents-candidate.schema");
   await db.query(schema);
   await db.query(schema);
+  await db.query(await file("../../../infra/postgres/bootstrap/control-signup-finalize-candidate.schema"));
   assert.equal((await db.query(`SELECT has_table_privilege('syndes_core',
    'public.platform_signup_intents','SELECT') AS allowed`)).rows[0].allowed,false);
   assert.equal((await db.query(`SELECT has_table_privilege('syndes_signup_operator',
    'public.platform_signup_intents','SELECT') AS allowed`)).rows[0].allowed,true);
   assert.equal((await db.query(`SELECT has_table_privilege('syndes_signup_operator',
    'public.tenant_registry','INSERT') AS allowed`)).rows[0].allowed,false);
+  assert.equal((await db.query(`SELECT has_column_privilege('syndes_signup_tenant_operator',
+   'public.tenant_registry','state','UPDATE') AS allowed`)).rows[0].allowed,false);
+  assert.equal((await db.query(`SELECT has_table_privilege('syndes_signup_tenant_operator',
+   'public.tenant_memberships','INSERT') AS allowed`)).rows[0].allowed,true);
+  assert.equal((await db.query(`SELECT has_table_privilege('syndes_signup_operator',
+   'public.tenant_memberships','INSERT') AS allowed`)).rows[0].allowed,false);
   const founder=randomUUID(),intruder=randomUUID(),requestId=randomUUID();
   const rawInput={requestId,founderId:founder,accountName:"Company",
     organizationName:"First Org",workspaceName:"First Workspace"};
   await db.query("SET ROLE syndes_signup_operator");
   const store=new PgSignupReservationStore(db,async id=>id===founder);
   const first=await store.reserve(rawInput);
+  // Session-pinned advisory lock excludes the SAME signup request, while
+  // separate intent IDs can proceed. This must be real PG17, not an in-memory mutex.
+  const lockPool=new pg.Pool({connectionString:next(),max:3});
+  try{
+   const lock=new PgFirstTenantSignupLock(lockPool);
+   let entered,release;
+   const inLock=new Promise(done=>{entered=done});
+   const hold=new Promise(done=>{release=done});
+   const active=lock.withRequestLock(requestId,async assertHeld=>{
+    await assertHeld();entered();await hold;await assertHeld();return "first";
+   });
+   await inLock;
+   await assert.rejects(lock.withRequestLock(requestId,async()=>{throw Error("reentered")}));
+   assert.equal(await lock.withRequestLock(randomUUID(),async assertHeld=>{
+    await assertHeld();return "independent";
+   }),"independent");
+   release();
+   assert.equal(await active,"first");
+   assert.equal(await lock.withRequestLock(requestId,async assertHeld=>{
+    await assertHeld();return "reacquired";
+   }),"reacquired");
+  }finally{await lockPool.end()}
+
   assert.equal(first.state,"reserved");
   assert.ok(first.tenantId!==first.organizationId&&first.workspaceId!==first.organizationId);
   assert.deepEqual(await store.reserve(rawInput),first);
@@ -62,6 +93,9 @@ test("UC-SIGNUP-01B Control PG17: founder-bound first-tenant reservation and imm
   assert.deepEqual(auditAfter.rows,[{revision:"1",event:"reserved"},
     {revision:"2",event:"reconcile_required"}]);
   await assert.rejects(store.markReconcileRequired(requestId,intruder));
+  await assert.rejects(store.markReady(requestId,founder,randomUUID()),
+   "Generic reserve role cannot finalize a tenant without a trusted finalizer");
+  assert.equal((await store.get(requestId,founder)).state,"reconcile_required");
   await assert.rejects(db.query("DELETE FROM public.platform_signup_intents"));
   await db.query("RESET ROLE");
   const registry=(await db.query("SELECT count(*)::int AS n FROM tenant_registry")).rows[0].n;

@@ -19,6 +19,7 @@ export type SignupReservationInput=Readonly<{
 export type SignupReservation=Readonly<SignupReservationInput&{
  tenantId:string;organizationId:string;workspaceId:string;
  state:"reserved"|"reconcile_required"|"ready";revision:number;
+ keycloakAlias:string;keycloakOrganizationId:string|null;
 }>;
 
 function validate(raw:SignupReservationInput):SignupReservationInput{
@@ -36,6 +37,10 @@ function decode(row:Record<string,unknown>):SignupReservation{
  if(!["request_id","founder_id","tenant_id","organization_id","workspace_id"].every(
    k=>typeof row[k]==="string"&&UUID.test(row[k] as string))||
    !NAME(row.account_name)||!NAME(row.organization_name)||!NAME(row.workspace_name)||
+   typeof row.keycloak_alias!=="string"||
+   row.keycloak_alias!==("syndes-"+String(row.tenant_id).replaceAll("-","")+"-"+String(row.request_id).replaceAll("-",""))||
+   (row.keycloak_organization_id!==null&&
+    (typeof row.keycloak_organization_id!=="string"||!UUID.test(row.keycloak_organization_id)))||
    !["reserved","reconcile_required","ready"].includes(String(row.state))||
    !Number.isSafeInteger(revision)||revision<1)
    throw new AccessDeniedError();
@@ -46,6 +51,8 @@ function decode(row:Record<string,unknown>):SignupReservation{
   organizationName:row.organization_name as string,
   workspaceName:row.workspace_name as string,
   state:row.state as SignupReservation["state"],revision,
+  keycloakAlias:row.keycloak_alias as string,
+  keycloakOrganizationId:row.keycloak_organization_id as string|null,
  });
 }
 
@@ -55,7 +62,9 @@ function decode(row:Record<string,unknown>):SignupReservation{
  */
 export class PgSignupReservationStore{
  constructor(private readonly control:PgQuery,
-  private readonly authorizeFounder:(founderId:string)=>Promise<boolean>){
+  private readonly authorizeFounder:(founderId:string)=>Promise<boolean>,
+  /** Distinct privileged Control pool, only the finalize NOLOGIN role. */
+  private readonly finalizer?:PgQuery){
   if(!control?.query||typeof authorizeFounder!=="function")throw new AccessDeniedError();
  }
  private async authorized(founder:string){
@@ -94,28 +103,39 @@ export class PgSignupReservationStore{
   const result=await this.control.query(`
    SELECT request_id::text,founder_id::text,tenant_id::text,
           organization_id::text,workspace_id::text,account_name,
-          organization_name,workspace_name,state,revision
+          organization_name,workspace_name,keycloak_alias,
+          keycloak_organization_id::text,state,revision
    FROM public.platform_signup_intents
    WHERE request_id=$1::uuid AND founder_id=$2::uuid
   `,[request,founder]);
   if(result.rows.length!==1)throw new AccessDeniedError();
   return decode(result.rows[0]);
  }
+ /** This transition is only called by the trusted saga AFTER checking live
+  * Keycloak/Control/tenant/FGA evidence. The database stores a receipt but
+  * NEVER infers grants, tokens or membership from it. */
+ async markReady(requestId:string,founderId:string,kcId:string):Promise<void>{
+  if(!UUID.test(requestId)||!UUID.test(founderId)||!UUID.test(kcId)||
+    !this.finalizer)throw new AccessDeniedError();
+  await this.authorized(founderId.toLowerCase());
+  // The trusted Control SECURITY DEFINER function validates link+founder
+  // and atomically activates tenant_registry with signup READY+audit.
+  const outcome=await this.finalizer.query(
+   "SELECT public.platform_signup_finalize($1::uuid,$2::uuid,$3::uuid) AS revision",
+   [requestId,founderId,kcId]);
+  if(outcome.rows.length!==1||
+     !Number.isSafeInteger(Number(outcome.rows[0].revision))||
+     Number(outcome.rows[0].revision)<2)throw new AccessDeniedError();
+  const final=await this.get(requestId,founderId);
+  if(final.state!=="ready"||final.keycloakOrganizationId!==kcId)
+   throw new AccessDeniedError();
+ }
  async markReconcileRequired(requestId:string,founderId:string):Promise<void>{
   if(!UUID.test(requestId)||!UUID.test(founderId))throw new AccessDeniedError();
   await this.authorized(founderId.toLowerCase());
-  const changed=await this.control.query(`
-   WITH updated AS (
-    UPDATE public.platform_signup_intents
-      SET state='reconcile_required',revision=revision+1,
-       changed_at=clock_timestamp()
-    WHERE request_id=$1::uuid AND founder_id=$2::uuid AND state='reserved'
-    RETURNING request_id,revision
-   ) INSERT INTO public.platform_signup_intent_audit(request_id,revision,event)
-     SELECT request_id,revision,'reconcile_required' FROM updated
-     RETURNING event_id
-  `,[requestId,founderId]);
-  if(changed.rows.length>1)throw new AccessDeniedError();
+  await this.control.query(
+   "SELECT public.platform_signup_mark_reconcile($1::uuid,$2::uuid) AS revision",
+   [requestId,founderId]);
   const state=await this.get(requestId,founderId);
   if(state.state!=="reconcile_required")throw new AccessDeniedError();
  }

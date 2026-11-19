@@ -1,0 +1,96 @@
+-- UC-SIGNUP-01C: INITIAL TENANT link while registry is PROVISIONED.
+-- This is distinct from normal transition_platform_keycloak_org_link(),
+-- which correctly refuses links in provisioned tenants.
+-- Candidate Control-only migration; NOT installed by Host or on production.
+-- Requires control.schema, control-iam-org-links.schema and
+-- control-signup-intents-candidate.schema. No Keycloak credentials in SQL.
+DO $role$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='syndes_signup_link_operator')
+ THEN CREATE ROLE syndes_signup_link_operator NOLOGIN; END IF;
+END $role$;
+
+CREATE OR REPLACE FUNCTION public.platform_signup_bind_initial_keycloak_org(
+ p_request UUID,p_realm TEXT,p_keycloak UUID,p_founder UUID
+) RETURNS BIGINT
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $fn$
+DECLARE
+ v_intent RECORD;
+ v_existing RECORD;
+ v_audit RECORD;
+ v_hash TEXT;
+BEGIN
+ IF p_request IS NULL OR p_founder IS NULL OR p_keycloak IS NULL
+    OR p_realm IS NULL OR p_realm !~ '^[a-z][a-z0-9_-]{1,80}$'
+ THEN RAISE EXCEPTION 'Invalid initial Keycloak link' USING ERRCODE='22023'; END IF;
+ SELECT i.tenant_id,i.organization_id,i.founder_id,i.state
+ INTO v_intent
+ FROM public.platform_signup_intents i
+ JOIN public.tenant_registry t ON t.tenant_id=i.tenant_id
+ WHERE i.request_id=p_request AND i.founder_id=p_founder
+   AND i.state IN ('reserved','reconcile_required')
+   AND t.state='provisioned'
+ FOR UPDATE OF i;
+ IF NOT FOUND THEN
+  RAISE EXCEPTION 'Untrusted or already finalized signup intent'
+   USING ERRCODE='23514';
+ END IF;
+
+ -- Exactly the same two lock domains/order used by the normal IAM link
+ -- transition, so a concurrent operator cannot forge a duplicate owner.
+ PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+  'iam-link-platform:'||v_intent.tenant_id::text||':'||v_intent.organization_id::text,0));
+ PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+  'iam-link-keycloak:'||p_realm||':'||p_keycloak::text,0));
+
+ SELECT * INTO v_existing FROM public.platform_keycloak_org_links
+  WHERE tenant_id=v_intent.tenant_id AND organization_id=v_intent.organization_id
+  FOR UPDATE;
+ IF FOUND THEN
+  IF v_existing.realm<>p_realm OR
+     v_existing.keycloak_organization_id<>p_keycloak OR
+     v_existing.state<>'active' OR v_existing.revision<>1 THEN
+   RAISE EXCEPTION 'Immutable signup link conflict' USING ERRCODE='23505';
+  END IF;
+ ELSE
+  INSERT INTO public.platform_keycloak_org_links(
+   tenant_id,organization_id,realm,keycloak_organization_id,state,revision)
+  VALUES(v_intent.tenant_id,v_intent.organization_id,
+   p_realm,p_keycloak,'active',1);
+ END IF;
+
+ SELECT * INTO v_audit FROM public.platform_keycloak_org_link_audit
+ WHERE request_id=p_request;
+ IF FOUND THEN
+  IF v_audit.tenant_id<>v_intent.tenant_id OR
+     v_audit.organization_id<>v_intent.organization_id OR
+     v_audit.realm<>p_realm OR
+     v_audit.keycloak_organization_id<>p_keycloak OR
+     v_audit.result_state<>'active' OR v_audit.result_revision<>1 OR
+     v_audit.operation<>'provisioned' THEN
+    RAISE EXCEPTION 'Signup link audit conflict' USING ERRCODE='23505';
+  END IF;
+ ELSE
+  v_hash:=pg_catalog.md5(pg_catalog.jsonb_build_object(
+    'request',p_request,'tenant',v_intent.tenant_id,
+    'organization',v_intent.organization_id,'realm',p_realm,
+    'keycloak',p_keycloak,'founder',p_founder)::text);
+  INSERT INTO public.platform_keycloak_org_link_audit(
+   request_id,tenant_id,organization_id,realm,keycloak_organization_id,
+   payload_hash,actor_id,reason,operation,previous_state,result_state,
+   previous_revision,result_revision)
+  VALUES(p_request,v_intent.tenant_id,v_intent.organization_id,
+   p_realm,p_keycloak,v_hash,p_founder::text,'Initial signup operator',
+   'provisioned',NULL,'active',NULL,1);
+ END IF;
+ RETURN 1;
+END $fn$;
+
+REVOKE ALL ON FUNCTION public.platform_signup_bind_initial_keycloak_org(
+ UUID,TEXT,UUID,UUID) FROM PUBLIC,syndes_core;
+GRANT USAGE ON SCHEMA public TO syndes_signup_link_operator;
+GRANT SELECT ON public.platform_signup_intents,
+ public.tenant_registry,public.platform_keycloak_org_links,
+ public.platform_keycloak_org_link_audit TO syndes_signup_link_operator;
+GRANT EXECUTE ON FUNCTION public.platform_signup_bind_initial_keycloak_org(
+ UUID,TEXT,UUID,UUID) TO syndes_signup_link_operator;
+-- No direct INSERT/UPDATE/DELETE on links or audit for this operator role.
