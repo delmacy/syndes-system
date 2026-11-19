@@ -1,0 +1,53 @@
+-- Operator-only Control Plane migration candidate; MUST be installed by
+-- a reviewed CI/CD release, never on automatic Host module bootstrap.
+-- The runtime syndes_core role cannot read or write these intents.
+-- Tenant creation belongs to the separate Signup/Installer saga.
+DO $role$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='syndes_iam_org_provision_operator')
+ THEN CREATE ROLE syndes_iam_org_provision_operator NOLOGIN; END IF;
+END $role$;
+
+CREATE TABLE IF NOT EXISTS public.platform_iam_org_provision_intents(
+ request_id UUID PRIMARY KEY,
+ tenant_id UUID NOT NULL REFERENCES public.tenant_registry(tenant_id) ON DELETE RESTRICT,
+ founder_id TEXT NOT NULL CHECK(length(founder_id) BETWEEN 1 AND 256),
+ organization_id UUID NOT NULL UNIQUE,
+ workspace_id UUID NOT NULL UNIQUE,
+ organization_name TEXT NOT NULL CHECK(length(btrim(organization_name)) BETWEEN 2 AND 160),
+ workspace_name TEXT NOT NULL CHECK(length(btrim(workspace_name)) BETWEEN 2 AND 160),
+ keycloak_alias TEXT NOT NULL UNIQUE CHECK(keycloak_alias ~ '^syndes-[0-9a-f-]{20,90}$'),
+ keycloak_organization_id UUID UNIQUE,
+ state TEXT NOT NULL DEFAULT 'reserved'
+   CHECK(state IN ('reserved','reconcile_required','ready')),
+ revision BIGINT NOT NULL DEFAULT 1 CHECK(revision>0),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ changed_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+);
+CREATE INDEX IF NOT EXISTS platform_iam_org_provision_pending
+ ON public.platform_iam_org_provision_intents(tenant_id,created_at,request_id)
+ WHERE state<>'ready';
+
+CREATE TABLE IF NOT EXISTS public.platform_iam_org_provision_audit(
+ event_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ request_id UUID NOT NULL REFERENCES public.platform_iam_org_provision_intents(request_id)
+   ON DELETE RESTRICT,
+ revision BIGINT NOT NULL,
+ event TEXT NOT NULL CHECK(event IN(
+  'reserved','keycloak_linked','reconcile_required','ready'
+ )),
+ occurred_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ UNIQUE(request_id,revision)
+);
+REVOKE ALL ON public.platform_iam_org_provision_intents,
+ public.platform_iam_org_provision_audit FROM PUBLIC,syndes_core;
+GRANT USAGE ON SCHEMA public TO syndes_iam_org_provision_operator;
+GRANT SELECT,INSERT,UPDATE ON public.platform_iam_org_provision_intents
+ TO syndes_iam_org_provision_operator;
+GRANT SELECT,INSERT ON public.platform_iam_org_provision_audit
+ TO syndes_iam_org_provision_operator;
+GRANT USAGE,SELECT ON SEQUENCE public.platform_iam_org_provision_audit_event_id_seq
+ TO syndes_iam_org_provision_operator;
+-- The operator role has no superuser, LOGIN, DROP, tenant data or grants.
+-- Its workflow uses a SEPARATE limited tenant installer DB role to create
+-- the default Organization/Workspace. No runtime, browser or Keycloak
+-- membership role receives a Control SQL permission here.
