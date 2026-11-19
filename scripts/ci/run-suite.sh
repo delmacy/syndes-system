@@ -139,7 +139,11 @@ case "$suite" in
       node --test test/iam-organization-links-pg17.test.mjs &&
       SYNDES_IAM04_DISPOSABLE_PG=IAM04B_PG17_ONLY \
       SYNDES_IAM04_PG_URL="postgresql://postgres:ci-only-disposable-iam-ci@127.0.0.1:32779/postgres" \
-      node --test test/iam07d-revoke-first-pg17.test.mjs)
+      node --test test/iam07d-revoke-first-pg17.test.mjs &&
+      # First-tenant signup Control reservation: real PG17, never runtime.
+      SYNDES_IAM04_DISPOSABLE_PG=IAM04B_PG17_ONLY \
+      SYNDES_IAM04_PG_URL="postgresql://postgres:ci-only-disposable-iam-ci@127.0.0.1:32779/postgres" \
+      node --test test/signup-intents-pg17.test.mjs)
     docker build --file apps/core-host/Dockerfile --tag syndes-core-host:ci .
     ;;
   workspace)
