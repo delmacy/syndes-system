@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {randomUUID} from "node:crypto";
+import {IAM07D_CAPABILITIES,iam07dScopeKind,iam07dModule}
+ from "../dist/iam07d-capability-catalog.js";
 import {iam07dFineObject,iam07dFineObjectForScope,
  OpenFgaFineCapabilityPolicy,OpenFgaFineGrantRevoker}
  from "../dist/iam07d-fine-fga-policy.js";
@@ -94,4 +96,32 @@ test("IAM07D2 exact revoker uses only tuple grantee and verifies actual removal"
  await assert.rejects(admin.revokeExact(actor,"resource:legacy"));
  broken=true;
  await assert.rejects(admin.revokeExact(actor,object));
+});
+
+test("IAM07D exact business mutation catalog is complete, non-aliased and scope-bound",()=>{
+ assert.equal(IAM07D_CAPABILITIES.length,19);
+ assert.equal(new Set(IAM07D_CAPABILITIES).size,IAM07D_CAPABILITIES.length);
+ const f=randomUUID(),g=randomUUID();
+ const names=[];
+ for(const capability of IAM07D_CAPABILITIES){
+  const kind=iam07dScopeKind(capability);
+  const ctx={...context(capability),moduleId:iam07dModule(capability),
+   resourceName:kind==="funnel"?resource+":funnel:"+f:resource};
+  const object=iam07dFineObject(ctx,capability);
+  assert.match(object,/^iam_capability:[0-9a-f]{64}$/);
+  names.push(object);
+  assert.throws(()=>iam07dFineObject({...ctx,
+   moduleId:iam07dModule(capability)==="inbox"?"service":"inbox"},
+   capability));
+  assert.throws(()=>iam07dFineObject({...ctx,
+   resourceName:kind==="funnel"?resource:resource+":funnel:"+f},
+   capability));
+  if(kind==="funnel"){
+   const changed=iam07dFineObject({...ctx,resourceName:resource+":funnel:"+g},
+    capability);
+   assert.notEqual(object,changed);
+  }
+ }
+ assert.equal(new Set(names).size,names.length,
+  "A grant for one action must never imply another mutation");
 });
