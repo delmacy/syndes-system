@@ -1,17 +1,24 @@
 import {Body,Controller,Get,Headers,HttpException,Inject,Injectable,Optional,Param,Patch,Post,Query,Res} from "@nestjs/common";
-import {AccessDeniedError,type RequestedOperationalScope} from "@syndes/core-kernel";
+import {AccessDeniedError,type Actor,type TenantTransaction,
+ type RequestedOperationalScope} from "@syndes/core-kernel";
 import {SelectedScope} from "./selection-header.js";
 import {InboxService} from "./service.js";
 import {SimulatedChannelAdapter} from "./channels.js";
-import {InboxConflictError,PgInboxRepositoryFactory} from "./postgres.js";
+import {InboxConflictError,PgInboxRepository,PgInboxRepositoryFactory} from "./postgres.js";
 import {InboxTenantMismatchError,InboxValidationError} from "./contracts.js";
-import type {ConversationStatus,ConversationQueue,ChatScope,HandoffMode,InboxContext,CreateConversation} from "./contracts.js";
-import {id} from "./validation.js";
+import type {ConversationStatus,ConversationQueue,ChatScope,HandoffMode,InboxContext,CreateConversation,Conversation,Message} from "./contracts.js";
+import {id,text,optionalExternal,assignee} from "./validation.js";
 import {InboxChangeBus,type SseSink} from "./realtime.js";
 import {InboxDefaultContextGuard} from "./context-guard.js";
 import {CORE_RUNTIME,TENANT_DATABASES,type InboxHostRuntime} from "./runtime.js";
 import type {TrustedTenantDatabaseProvider} from "@syndes/core-kernel";
 
+type PinnedInboxCapability=
+ |"inbox.conversation.create"|"inbox.conversation.assign"|
+ "inbox.conversation.status"|"inbox.conversation.handoff"|
+ "inbox.conversation.favorite"|"inbox.conversation.mark_read"|
+ "inbox.conversation.link_contact"|"inbox.message.reply"|
+ "inbox.message.note"|"inbox.message.simulate";
 @Injectable()
 export class InboxHost{
  readonly inbox:InboxService;
@@ -26,6 +33,8 @@ export class InboxHost{
   @Optional() @Inject("SYNDES_WHATSAPP_REPLY")
   private readonly whatsappReply?:{
    enqueue(ctx:InboxContext,conversationId:string,body:unknown):Promise<unknown|null>;
+   enqueuePinned(ctx:InboxContext,conversationId:string,body:unknown,
+    tx:TenantTransaction):Promise<Message|null>;
    requestHistory(ctx:InboxContext,conversationId:string):Promise<{requested:boolean;note:string}>;
    decorate(ctx:InboxContext,messages:readonly {id:string;direction:string}[]):Promise<readonly unknown[]>;
    decorateConversations(ctx:InboxContext,conversations:readonly {id:string;channel:string}[]):Promise<readonly unknown[]>;
@@ -36,6 +45,10 @@ export class InboxHost{
     conversationId:string):Promise<{id:string}>;
    transfer(bearer:string,scope:{tenantId:string;organizationId:string;workspaceId:string},
     conversationId:string,destination:string):Promise<{id:string}>;
+   executeMutation<T>(bearer:string,
+    scope:{tenantId:string;organizationId:string;workspaceId:string},
+    capability:PinnedInboxCapability,funnelId:undefined,
+    effect:(tx:TenantTransaction,actor:Actor)=>Promise<T>):Promise<T>;
   },
  ){
   this.events=events;
