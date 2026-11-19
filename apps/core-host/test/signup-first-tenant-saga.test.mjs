@@ -8,12 +8,13 @@ const input=()=>({requestId:randomUUID(),founderId:randomUUID(),
  workspaceName:"Operations"});
 function fixture(fail=""){
  const req=input(),kcId=randomUUID(),events=[];
+ let failPoint=fail;
  let state="reserved",member=true,grant=true,db=false,context=false,
   active=false,linked=false,lock=false,revisions=1;
  const intent={...req,tenantId:randomUUID(),organizationId:randomUUID(),
   workspaceId:randomUUID(),keycloakAlias:"syndes-test-alias",
   keycloakOrganizationId:null,state,revision:revisions};
- const blocked=(key)=>{if(key===fail)throw Error("Injected provider failure: "+key)};
+ const blocked=(key)=>{if(key===failPoint)throw Error("Injected provider failure: "+key)};
  const ports={
   authorizeOperator:async x=>x.founderId===req.founderId,
   withRequestLock:async(_,work)=>{if(lock)throw Error("Concurrent lock denied");
@@ -54,7 +55,7 @@ function fixture(fail=""){
  };
  const saga=new FirstTenantSignupSaga(ports);
  return {req,events,ports,saga,revokeMember:()=>{member=false},
-  revokeGrant:()=>{grant=false},setFail:()=>{},
+  revokeGrant:()=>{grant=false},setFail:point=>{failPoint=point},
   state:()=>state,resources:()=>({db,context,active,linked,grant})};
 }
 test("UC-SIGNUP-01C establishes one first tenant, and ready replay never regrants",async()=>{
@@ -115,4 +116,39 @@ test("UC-SIGNUP-01C request-scoped serialization rejects concurrent retry",async
  mark();
  assert.equal((await first).ready,true);
  assert.equal(x.events.filter(y=>y==="grant").length,1);
+});
+
+test("UC-SIGNUP-01C reconcile retry never re-enrolls a revoked Keycloak member",async()=>{
+ const x=fixture("markReady");
+ await assert.rejects(x.saga.resume(x.req));
+ assert.equal(x.state(),"reconcile_required");
+ assert.equal(x.events.filter(y=>y==="kc-member").length,1);
+ x.setFail("");
+ x.revokeMember();
+ await assert.rejects(x.saga.resume(x.req));
+ assert.equal(x.events.filter(y=>y==="kc-member").length,1,
+  "Reconciliation MUST NOT undo a post-failure human revocation");
+ assert.equal(x.events.filter(y=>y==="ready").length,1);
+});
+test("UC-SIGNUP-01C reconcile retry never restores a revoked FGA grant",async()=>{
+ const x=fixture("markReady");
+ await assert.rejects(x.saga.resume(x.req));
+ assert.equal(x.state(),"reconcile_required");
+ assert.equal(x.events.filter(y=>y==="grant").length,1);
+ x.setFail("");
+ x.revokeGrant();
+ await assert.rejects(x.saga.resume(x.req));
+ assert.equal(x.events.filter(y=>y==="grant").length,1,
+  "Reconciliation MUST NOT issue a fresh FGA write after revocation");
+});
+test("UC-SIGNUP-01C reconcile retry can finalize already-existing valid grants",async()=>{
+ const x=fixture("markReady");
+ await assert.rejects(x.saga.resume(x.req));
+ assert.equal(x.state(),"reconcile_required");
+ x.setFail("");
+ const ready=await x.saga.resume(x.req);
+ assert.equal(ready.ready,true);
+ assert.equal(x.events.filter(y=>y==="kc-member").length,1);
+ assert.equal(x.events.filter(y=>y==="grant").length,1);
+ assert.equal(x.events.filter(y=>y==="ready").length,2);
 });
