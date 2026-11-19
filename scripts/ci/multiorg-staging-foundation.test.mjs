@@ -42,7 +42,7 @@ test("MO-REL-04 one-shot staging installer remains post-gate main-only, not gene
  assert.match(job,/SOURCE_SHA/);
  assert.match(job,/git ls-remote origin refs\/heads\/main/);
  assert.match(job,/SYNDES_STAGE_INFRA_APPLY=MO_REL04_CI_APPROVED/);
- assert.match(job,/syndes-multiorg-staging-infra\.sh/);
+ assert.match(job,/devserver01-multiorg-staging-infra\.sh/);
  assert.match(job,/-- foundation/);
  assert.doesNotMatch(job,/modules\/organizations\/sql\/manual\/activate_multiple_organizations|pg_restore/);
  assert.match(script,/MO_REL04_STAGE_INFRA_DENY=wrong_host/);
