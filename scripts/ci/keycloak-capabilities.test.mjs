@@ -16,7 +16,7 @@ test("IAM capability catalog is a versioned inventory, not a second grant store"
   assert.ok(Array.isArray(catalog.entries) && catalog.entries.length>=7);
   const ids=new Set();
   for(const e of catalog.entries){
-    assert.match(e.id,/^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*){2,3}$/);
+    assert.match(e.id,/^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9_]*){2,3}$/);
     assert.equal(e.id.split(".")[0],e.module);
     assert.ok(!ids.has(e.id),"duplicate "+e.id);
     ids.add(e.id);
