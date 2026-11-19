@@ -168,6 +168,11 @@ test("Whatsmeow account/projection/reply/worker isolate two organizations within
     "Do not cross organization",pinned),/route unavailable/);
    assert.equal((await c.query("SELECT count(*)::int n FROM inbox_messages"+
      " WHERE conversation_id=$1",[cb])).rows[0].n,1);
+   // Keep the legacy outbound worker regression deterministic: the extra
+   // committed candidate remains durable but is not due for dispatch yet.
+   await c.query("UPDATE whatsapp_outbox SET next_attempt_at="+
+    "clock_timestamp()+interval '1 hour' WHERE inbox_message_id=$1",
+    [committed.id]);
    console.log("IAM_TOPO07C_PG17_PINNED_WHATSAPP_REPLY_OUTBOX_AUDIT_ROLLBACK_PASS");
   }finally{
    if(oldMulti===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
