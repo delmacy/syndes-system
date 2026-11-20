@@ -1123,3 +1123,80 @@ jobs:
           if [[ "$APPLY" == success ]]; then result='STAGE_CONTROL_CATALOG_INSTALLED_NO_ENTITLEMENT_GRANTS'; fi
           body="$(printf 'MO-REL-04 GitHub Actions isolated Control module catalog/lifecycle PG17. Main=%s; run=https://github.com/%s/actions/runs/%s; scope=%s; Tailnet=%s; transactional catalog migration=%s; result=%s. No customer SQL, Core deployment or SQL002 cutover. PRODUCTION_GATE=BLOCKED.' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$APPLY" "$result")"
           gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-prod-control-additive:
+    name: MO-REL08 operational Control additive catalog — backed up
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL08-PROD-CONTROL-ADDITIVE-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The operational PostgreSQL resides on DevServer01. The environment
+    # controls the SSH/OIDC identity; this job never targets staging PostgreSQL.
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Pin production additive approval and immutable main
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-prod-control-additive.sh
+      - name: Connect to approved DevServer01 via GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Restore actual Control backup in isolated PostgreSQL, then apply additive catalog
+        id: deploy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "$DEVSERVER_PEER" >/dev/null
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "$bundle"' EXIT
+          chmod 700 "$bundle"
+          cp scripts/deploy/devserver01-prod-control-additive.sh "$bundle/runner.sh"
+          cp infra/postgres/bootstrap/control-module-catalog.schema "$bundle/"
+          cp infra/postgres/bootstrap/control-module-lifecycle.schema "$bundle/"
+          (cd "$bundle" && sha256sum runner.sh *.schema > MANIFEST.sha256)
+          # Packaged source SHA/digests, not a mutable server checkout.
+          # The backup remains on the operational host, never in GitHub logs.
+          result="$(tar -czf - -C "$bundle" . | timeout 360s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-prod-control.XXXXXXXX); chmod 700 \"\$dir\"; trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_PROD_CONTROL_RELEASE=CI_APPROVED_MO_REL08_ADDITIVE SYNDES_RELEASE_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply \"\$dir\"")"
+          printf '%s\n' "$result"
+          printf '%s\n' "$result" | grep -Eq '^MO_REL08_PROD_CONTROL_(ADDITIVE_CATALOG_LIFECYCLE_APPLIED_NO_TENANT_OR_AUTH_SWITCH|CATALOG_ALREADY_INSTALLED_NO_MULTI_ORG_CUTOVER)$'
+          if printf '%s\n' "$result" | grep -q 'ADDITIVE_CATALOG_LIFECYCLE_APPLIED'; then
+            printf '%s\n' "$result" | grep -q '^MO_REL08_PROD_CONTROL_REAL_BACKUP_RESTORE_AND_MIGRATION_REPLAY_PASS$'
+          fi
+      - name: Record operationally safe proof on MO-REL08
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          DEPLOY: ${{ steps.deploy.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for state in "$SCOPE" "$TAILNET" "$DEPLOY"; do
+            [[ "$state" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          result=PROD_CONTROL_ADDITIVE_BLOCKED
+          [[ "$DEPLOY" != success ]] || result=PROD_CONTROL_ADDITIVE_SCHEMA_APPLIED_NO_MULTIORG_CUTOVER
+          body="$(printf 'MO-REL08 authorized additive PRODUCTION Control PG17 change. main=%s; Actions=https://github.com/%s/actions/runs/%s; scope=%s; tailnet=%s; real Control backup+isolated restore+catalog DDL=%s; result=%s. Existing tenant untouched; no SQL002 cutover, no new organization, no IAM grants, no Core/Service flag. Multi-org PRODUCTION_GATE=BLOCKED pending real A/B E2E, recovery and release. ' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$DEPLOY" "$result")"
+          gh issue comment 211 --repo "$GITHUB_REPOSITORY" --body "$body"
