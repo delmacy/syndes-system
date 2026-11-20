@@ -73,7 +73,9 @@ SQL
 esac
 [[ "$(docker exec "$pg" psql -X -At -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
  "SELECT (SELECT count(*) FROM pg_roles WHERE rolname='syndes_staging_openfga')::text || ':' || (SELECT count(*) FROM pg_database WHERE datname='syndes_staging_openfga')::text")" == 1:1 ]] || exit 5
-# The config file is readable by the OpenFGA container uid 65532 via a\n# read-only Compose config. The entire hosting directory is 0700 so other\n# host users cannot traverse to the file; DB password file stays 0600.
+# The config file is readable by the OpenFGA container uid 65532 via a
+# read-only Compose config. The entire hosting directory is 0700 so other
+# host users cannot traverse to the file; DB password file stays 0600.
 if [[ ! -e "$cfg" && ! -L "$cfg" ]]; then
   tmp="$(mktemp "$root/secrets/.openfga-config.XXXXXXXX")"
   printf 'datastore:\n  engine: postgres\n  uri: "postgres://syndes_staging_openfga:%s@control-postgres:5432/syndes_staging_openfga?sslmode=disable"\nauthn:\n  method: none\nplayground:\n  enabled: false\nmetrics:\n  enabled: false\n' "$password" > "$tmp"
