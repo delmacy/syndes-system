@@ -942,9 +942,14 @@ jobs:
           set -Eeuo pipefail
           tailscale ping --c=2 --until-direct=false --timeout=8s "${DEVSERVER_PEER}" >/dev/null
           digest="$(sha256sum infra/multiorg-staging/compose.yaml | cut -d' ' -f1)"
-          timeout 240s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+          output="$(timeout 240s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
             "SYNDES_STAGE_FGA_RESTART_APPROVED=CI_APPROVED_MO_REL04 SYNDES_STAGE_FGA_COMPOSE_SHA256=$digest bash -s -- prove" \
-            < scripts/deploy/devserver01-multiorg-stage-fga-persistence-proof.sh
+            < scripts/deploy/devserver01-multiorg-stage-fga-persistence-proof.sh)"
+          grep -qx 'MO_REL04_FGA_REAL_STORE_SURVIVES_RESTART_PASS_NOT_RESTORE' <<< "$output" || {
+            echo 'MO_REL04_FGA_RESTART_BLOCKED=missing_final_marker'
+            exit 1
+          }
+          echo 'MO_REL04_FGA_RESTART_PROOF_VERIFIED'
       - name: Record sanitized real persistence evidence
         if: ${{ always() }}
         shell: bash
