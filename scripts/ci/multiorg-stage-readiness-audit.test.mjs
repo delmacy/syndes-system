@@ -42,8 +42,7 @@ case "$1" in
  inspect)
   case "$*" in
    *State.Running*) echo true;;
-   *Config.Env*) echo "";;
-   *Config.Cmd*) echo '["run","--datastore-engine","memory"]';;
+   *Mounts*) echo "";;
    *) exit 9;;
   esac;;
  *) exit 10;;
