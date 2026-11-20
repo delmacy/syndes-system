@@ -804,7 +804,7 @@ jobs:
 
   devserver01-multiorg-durable-openfga:
     name: MO-REL-04 durable OpenFGA stage-only CI deploy
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && (contains(github.event.head_commit.message, 'MO-REL04-FGA-PERSISTENCE-APPROVED') || contains(github.event.head_commit.message, 'MO-REL04-FGA-RECONCILE-APPROVED')) }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && (contains(github.event.head_commit.message, 'MO-REL04-FGA-PERSISTENCE-APPROVED') || contains(github.event.head_commit.message, 'MO-REL04-FGA-RECONCILE-APPROVED') || contains(github.event.head_commit.message, 'MO-REL04-FGA-STDIN-GUARD-APPROVED')) }}
     needs: [gate]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -863,9 +863,16 @@ jobs:
         run: |
           set -Eeuo pipefail
           digest="$(sha256sum infra/multiorg-staging/compose.yaml | cut -d' ' -f1)"
-          timeout 600s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+          # Never trust SSH exit=0 alone: streamed bash -s can be truncated if
+          # a child inherits stdin. Require a post-deploy-only attestation.
+          result="$(timeout 600s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
             "SYNDES_STAGE_FGA_DURABLE_APPROVAL=CI_APPROVED_MO_REL04 SYNDES_STAGE_FGA_COMPOSE_SHA256=$digest bash -s -- apply" \
-            < scripts/deploy/devserver01-multiorg-stage-fga-durable.sh
+            < scripts/deploy/devserver01-multiorg-stage-fga-durable.sh)"
+          grep -qx 'MO_REL04_FGA_POST_DEPLOY_CONFIG_HASH_MOUNT_SCHEMA_HTTP_PASS_NOT_RESTORE' <<< "$result" || {
+            echo 'MO_REL04_FGA_BLOCKED=missing_post_deploy_attestation'
+            exit 1
+          }
+          echo 'MO_REL04_FGA_STDIN_GUARD_AND_POST_DEPLOY_PASS'
       - name: Verify real stage HTTP without exporting credentials
         id: smoke
         shell: bash
