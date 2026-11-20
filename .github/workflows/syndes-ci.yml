@@ -804,7 +804,7 @@ jobs:
 
   devserver01-multiorg-durable-openfga:
     name: MO-REL-04 durable OpenFGA stage-only CI deploy
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-FGA-PERSISTENCE-APPROVED') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && (contains(github.event.head_commit.message, 'MO-REL04-FGA-PERSISTENCE-APPROVED') || contains(github.event.head_commit.message, 'MO-REL04-FGA-RECONCILE-APPROVED')) }}
     needs: [gate]
     runs-on: ubuntu-latest
     timeout-minutes: 30
