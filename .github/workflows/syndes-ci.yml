@@ -905,3 +905,73 @@ jobs:
             "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
             "$SCOPE" "$TAILNET" "$PREFLIGHT" "$APPLY" "$SMOKE" "$status")"
           gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-multiorg-fga-restart-proof:
+    name: MO-REL-04 durable FGA real store restart proof
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-FGA-RESTART-PROOF-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify main SHA, stage host and reviewed test runner
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "${SOURCE_SHA}" ]]
+          [[ "${DEVSERVER_PEER}" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "${TAILSCALE_TAG}" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-multiorg-stage-fga-persistence-proof.sh
+      - name: Join Tailnet with approved OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Prove OpenFGA PostgreSQL store survives one stage-only container recreation
+        id: proof
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "${DEVSERVER_PEER}" >/dev/null
+          digest="$(sha256sum infra/multiorg-staging/compose.yaml | cut -d' ' -f1)"
+          output="$(timeout 240s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            "SYNDES_STAGE_FGA_RESTART_APPROVED=CI_APPROVED_MO_REL04 SYNDES_STAGE_FGA_COMPOSE_SHA256=$digest bash -s -- prove" \
+            < scripts/deploy/devserver01-multiorg-stage-fga-persistence-proof.sh)"
+          grep -qx 'MO_REL04_FGA_REAL_STORE_SURVIVES_RESTART_PASS_NOT_RESTORE' <<< "$output" || {
+            echo 'MO_REL04_FGA_RESTART_BLOCKED=missing_final_marker'
+            exit 1
+          }
+          echo 'MO_REL04_FGA_RESTART_PROOF_VERIFIED'
+      - name: Record sanitized real persistence evidence
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          PROOF: ${{ steps.proof.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for x in "$SCOPE" "$TAILNET" "$PROOF"; do
+            [[ "$x" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          if [[ "$PROOF" == success ]]; then status='STAGE_FGA_REAL_STORE_SURVIVES_RESTART_PASS_NOT_RESTORE'
+          else status='STAGE_FGA_RESTART_PROOF_BLOCKED'; fi
+          body="$(printf 'MO-REL-04 stage-only persisted OpenFGA store/restart proof. Main=%s; Actions=https://github.com/%s/actions/runs/%s; Scope=%s; Tailnet=%s; Real store+container recreation+same ID=%s; result=%s. No production or customer SQL touched; this is not full backup/restore or multi-org Product Gate. PRODUCTION_GATE=BLOCKED.' \
+            "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$PROOF" "$status")"
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
