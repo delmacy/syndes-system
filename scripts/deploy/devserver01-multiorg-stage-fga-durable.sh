@@ -97,7 +97,32 @@ docker compose --project-name "$project" --file "$root/compose.yaml" \
   run --rm --no-deps openfga-migrate >/dev/null
 echo 'MO_REL04_FGA_POSTGRES_MIGRATION_PASS'
 # Recreate ONLY OpenFGA, never PG, Keycloak, operational core or other tenants.
+# Force recreation is scoped to the exact verified staging OpenFGA service.
+# Compose v5 may report up/health success while retaining an old memory-backed
+# container. Health alone MUST NEVER be accepted as durable configuration.
 docker compose --project-name "$project" --file "$root/compose.yaml" \
-  up -d --no-deps --wait openfga >/dev/null
+  up -d --force-recreate --no-deps --wait openfga >/dev/null
+mapfile -t running < <(docker ps -q \
+  --filter "label=com.docker.compose.project=$project" \
+  --filter "label=syndes.environment=multi-org-staging" \
+  --filter "label=syndes.component=openfga")
+[[ "${#running[@]}" == 1 ]] || {
+  echo 'MO_REL04_FGA_BLOCKED=post_deploy_container_count';exit 5;
+}
+current="${running[0]}"
+mount="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/etc/openfga/config.yaml"}}postgres_config{{end}}{{end}}' "$current")"
+[[ "$mount" == postgres_config ]] || {
+  echo 'MO_REL04_FGA_BLOCKED=post_deploy_config_mount';exit 5;
+}
+expected_hash="$(docker compose --project-name "$project" --file "$root/compose.yaml" config --hash openfga | awk '$1=="openfga" {print $2}')"
+actual_hash="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.config-hash"}}' "$current")"
+[[ "$expected_hash" =~ ^[0-9a-f]{64}$ && "$actual_hash" == "$expected_hash" ]] || {
+  echo 'MO_REL04_FGA_BLOCKED=post_deploy_config_hash';exit 5;
+}
+physical_tables="$(docker exec "$pg" psql -X -At -U postgres -d syndes_staging_openfga -v ON_ERROR_STOP=1 \
+  -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'")" || exit 5
+[[ "$physical_tables" =~ ^[0-9]+$ && "$physical_tables" -ge 5 ]] || {
+  echo 'MO_REL04_FGA_BLOCKED=post_deploy_schema';exit 5;
+}
 docker exec "$pg" sh -ec 'wget -q -T 10 -O - http://openfga:8080/healthz >/dev/null' || exit 5
-echo 'MO_REL04_FGA_PERSISTENT_HTTP_PASS_NOT_RESTORE'
+echo 'MO_REL04_FGA_POST_DEPLOY_CONFIG_HASH_MOUNT_SCHEMA_HTTP_PASS_NOT_RESTORE'
