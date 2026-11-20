@@ -51,12 +51,26 @@ services:
       syndes.environment: multi-org-staging
       syndes.component: keycloak
 
+  openfga-migrate:
+    image: openfga/openfga:v1.22.1
+    command: ["migrate"]
+    configs:
+      - source: staging_openfga_config
+        target: /etc/openfga/config.yaml
+    restart: "no"
+    networks: [staging_internal]
+    security_opt: [no-new-privileges:true]
+    labels:
+      syndes.environment: multi-org-staging
+      syndes.component: openfga-migrate
+
   openfga:
     image: openfga/openfga:v1.22.1
-    # Ephemeral FGA only: G-4 backup/restore is expressly NOT qualified.
-    command: ["run", "--datastore-engine", "memory",
-              "--authn-method", "none", "--playground-enabled=false",
-              "--metrics-enabled=false"]
+    # Datastore must be persisted before any live tenant grants are installed.
+    command: ["run"]
+    configs:
+      - source: staging_openfga_config
+        target: /etc/openfga/config.yaml
     restart: unless-stopped
     networks: [staging_internal]
     mem_limit: 512m
@@ -80,3 +94,9 @@ volumes:
   staging_control_pg17:
     labels:
       syndes.environment: multi-org-staging
+
+# Stored only on DevServer01 with 0600 host permissions; Compose mounts a
+# read-only config into the isolated OpenFGA containers, not into GitHub logs.
+configs:
+  staging_openfga_config:
+    file: /home/delmacy/.local/share/syndes-multiorg-staging/secrets/openfga-config.yaml

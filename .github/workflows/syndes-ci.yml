@@ -801,3 +801,100 @@ jobs:
           body="$(printf 'MO-REL-04 stage-only read-only readiness audit. Main=%s. Actions=https://github.com/%s/actions/runs/%s. Scope=%s; Tailnet=%s; FGA PostgreSQL config + Control schema + Core container=%s; result=%s. HTTP smoke alone is not durability, restore, E2E or SQL002 release evidence. No mutation or secret disclosure. PRODUCTION_GATE=BLOCKED.' \
             "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$AUDIT" "$status")"
           gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-multiorg-durable-openfga:
+    name: MO-REL-04 durable OpenFGA stage-only CI deploy
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-FGA-PERSISTENCE-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify immutable main and isolated staging scripts
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "${SOURCE_SHA}" ]]
+          [[ "${DEVSERVER_PEER}" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "${TAILSCALE_TAG}" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-multiorg-stage-fga-durable.sh
+          bash -n scripts/ci/multiorg-staging-services-smoke.sh
+      - name: Join existing Tailnet through GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Prove stage-only PG KC FGA and empty memory FGA preconditions
+        id: preflight
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "${DEVSERVER_PEER}" >/dev/null
+          timeout 75s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            'SYNDES_STAGE_FGA_DURABLE_APPROVAL=CI_APPROVED_MO_REL04 bash -s -- preflight' \
+            < scripts/deploy/devserver01-multiorg-stage-fga-durable.sh
+      - name: Transfer ONLY pinned stage compose (not operational stack)
+        id: transfer
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          root='/home/delmacy/.local/share/syndes-multiorg-staging'
+          tar -C infra/multiorg-staging -cf - compose.yaml |
+            timeout 75s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+              "tar -C '$root' --no-same-owner -xf -"
+      - name: Provision dedicated PostgreSQL FGA role and DB; migrate then switch stage FGA
+        id: apply
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          digest="$(sha256sum infra/multiorg-staging/compose.yaml | cut -d' ' -f1)"
+          timeout 600s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            "SYNDES_STAGE_FGA_DURABLE_APPROVAL=CI_APPROVED_MO_REL04 SYNDES_STAGE_FGA_COMPOSE_SHA256=$digest bash -s -- apply" \
+            < scripts/deploy/devserver01-multiorg-stage-fga-durable.sh
+      - name: Verify real stage HTTP without exporting credentials
+        id: smoke
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          timeout 75s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- verify' \
+            < scripts/ci/multiorg-staging-services-smoke.sh
+      - name: Record sanitized stage-only persistence evidence
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          PREFLIGHT: ${{ steps.preflight.outcome }}
+          APPLY: ${{ steps.apply.outcome }}
+          SMOKE: ${{ steps.smoke.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for x in "$SCOPE" "$TAILNET" "$PREFLIGHT" "$APPLY" "$SMOKE"; do
+            [[ "$x" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          if [[ "$APPLY" == success && "$SMOKE" == success ]]; then
+            status='STAGE_PERSISTENT_FGA_DB_MIGRATION_AND_HTTP_PASS_NOT_RESTORE'
+          else
+            status='STAGE_PERSISTENT_FGA_BLOCKED'
+          fi
+          body="$(printf 'MO-REL-04 authorized staged OpenFGA persistence. Main=%s; Actions=https://github.com/%s/actions/runs/%s; Scope=%s; Tailnet=%s; Empty-memory preflight=%s; PG role/DB + official migration + FGA switch=%s; HTTP smoke=%s; result=%s. Dedicated staging only. No customer SQL, no Core, no SQL002 cutover; restore and IAM E2E still required. PRODUCTION_GATE=BLOCKED.' \
+            "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
+            "$SCOPE" "$TAILNET" "$PREFLIGHT" "$APPLY" "$SMOKE" "$status")"
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"

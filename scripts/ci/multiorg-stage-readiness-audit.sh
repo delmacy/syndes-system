@@ -31,12 +31,20 @@ fga="$(one openfga)" || exit 4
 kc="$(one keycloak)" || exit 4
 # This checks configuration without ever printing the URI/secret-bearing env.
 # A memory store must NEVER be interpreted as durable authorization.
-engine="$(docker inspect -f '{{range .Config.Env}}{{if eq . "OPENFGA_DATASTORE_ENGINE=postgres"}}postgres{{end}}{{end}}' "$fga")" || exit 4
-cmd="$(docker inspect -f '{{json .Config.Cmd}}' "$fga")" || exit 4
-if [[ "$engine" != postgres ]] || [[ "$cmd" == *'datastore-engine","memory"'* ]] || [[ "$cmd" == *'--datastore-engine=memory'* ]]; then
+# A secret-derived OpenFGA config is mounted read-only at the canonical
+# v1.22 configuration path. The PostgreSQL schema must also exist.
+mounted="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/etc/openfga/config.yaml"}}postgres_config{{end}}{{end}}' "$fga")" || exit 4
+[[ "$mounted" == postgres_config ]] || {
   echo 'MO_REL04_READINESS_BLOCKED=fga_not_persistent'
   exit 4
-fi
+}
+durable="$(docker exec "$pg" psql --no-psqlrc -X -At -v ON_ERROR_STOP=1 \
+  --username postgres --dbname postgres \
+  --command "SELECT CASE WHEN EXISTS(SELECT 1 FROM pg_database WHERE datname='syndes_staging_openfga') AND EXISTS(SELECT 1 FROM pg_roles WHERE rolname='syndes_staging_openfga') THEN 'PRESENT' ELSE 'MISSING' END")" || exit 4
+[[ "$durable" == PRESENT ]] || {
+  echo 'MO_REL04_READINESS_BLOCKED=fga_pg_missing'
+  exit 4
+}
 echo 'MO_REL04_READINESS_FGA_CONFIG_POSTGRES_PASS'
 # Sanity check only, not evidence of FGA tuple durability or restored grants.
 control="$(docker exec "$pg" psql --no-psqlrc -X -At -v ON_ERROR_STOP=1 \

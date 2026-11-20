@@ -24,7 +24,10 @@ test("MO-REL-04 isolated foundation never exposes ports, prod volumes or network
  assert.doesNotMatch(spec,/\n\s*ports:|\n\s*network_mode:|\n\s*privileged:|\n\s*pid: host/);
  assert.doesNotMatch(spec,/syndes-data|syndes-secrets|syndes-master-data|syndes_core\b/);
  assert.doesNotMatch(spec,/\n\s*core-host:|\n\s*volumes:\s*\[.*:\/var\/run\/docker\.sock/);
- assert.match(spec,/datastore-engine", "memory"/);
+ assert.match(spec,/openfga-migrate:/);
+ assert.match(spec,/staging_openfga_config/);
+ assert.match(spec,/target: \/etc\/openfga\/config.yaml/);
+ assert.doesNotMatch(spec,/datastore-engine", "memory"/);
 });
 test("MO-REL-04 one-shot staging installer remains post-gate main-only, not general CD",async()=>{
  const [ci,script,init]=await Promise.all([
