@@ -10,6 +10,7 @@ for command in docker sha256sum openssl stat awk; do command -v "$command" >/dev
 root=/home/delmacy/.local/share/syndes-multiorg-staging
 project=syndes-multiorg-staging
 [[ -d "$root" && -d "$root/secrets" && ! -L "$root" && ! -L "$root/secrets" ]] || exit 4
+[[ "$(stat -c %a "$root")" == 700 && "$(stat -c %a "$root/secrets")" == 700 ]] || exit 4
 one() {
   local component="$1" cid
   local -a matches
@@ -72,15 +73,15 @@ SQL
 esac
 [[ "$(docker exec "$pg" psql -X -At -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
  "SELECT (SELECT count(*) FROM pg_roles WHERE rolname='syndes_staging_openfga')::text || ':' || (SELECT count(*) FROM pg_database WHERE datname='syndes_staging_openfga')::text")" == 1:1 ]] || exit 5
-# Populate the local 0600 config only, no other Docker project can see it.
+# The config file is readable by the OpenFGA container uid 65532 via a\n# read-only Compose config. The entire hosting directory is 0700 so other\n# host users cannot traverse to the file; DB password file stays 0600.
 if [[ ! -e "$cfg" && ! -L "$cfg" ]]; then
   tmp="$(mktemp "$root/secrets/.openfga-config.XXXXXXXX")"
   printf 'datastore:\n  engine: postgres\n  uri: "postgres://syndes_staging_openfga:%s@control-postgres:5432/syndes_staging_openfga?sslmode=disable"\nauthn:\n  method: none\nplayground:\n  enabled: false\nmetrics:\n  enabled: false\n' "$password" > "$tmp"
-  chmod 0600 "$tmp"
+  chmod 0644 "$tmp"
   mv -n "$tmp" "$cfg"
   [[ ! -e "$tmp" ]] || { rm -f "$tmp";exit 5; }
 fi
-[[ -f "$cfg" && ! -L "$cfg" && "$(stat -c %a "$cfg")" == 600 ]] || exit 5
+[[ -f "$cfg" && ! -L "$cfg" && "$(stat -c %a "$cfg")" == 644 ]] || exit 5
 # Compare secret-derived YAML without ever printing its contents.
 expected="$(printf 'datastore:\n  engine: postgres\n  uri: "postgres://syndes_staging_openfga:%s@control-postgres:5432/syndes_staging_openfga?sslmode=disable"\nauthn:\n  method: none\nplayground:\n  enabled: false\nmetrics:\n  enabled: false\n' "$password" | sha256sum | cut -d' ' -f1)"
 [[ "$(sha256sum "$cfg" | cut -d' ' -f1)" == "$expected" ]] || {
