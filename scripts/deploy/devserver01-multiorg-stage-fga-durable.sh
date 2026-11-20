@@ -92,16 +92,16 @@ expected="$(printf 'datastore:\n  engine: postgres\n  uri: "postgres://syndes_st
 unset password
 cd "$root"
 docker compose --project-name "$project" --file "$root/compose.yaml" config --quiet
-# Only schema migration against the new, dedicated staging OpenFGA DB.
+# Only schema migration against the new, dedicated staging OpenFGA DB.\n# The script arrives over bash -s stdin; Docker Compose MUST NOT inherit it.\n# Otherwise Compose consumes the remaining deployment instructions, silently\n# making a partial migration look like a successful deployment.
 docker compose --project-name "$project" --file "$root/compose.yaml" \
-  run --rm --no-deps openfga-migrate >/dev/null
+  run -T --rm --no-deps openfga-migrate </dev/null >/dev/null
 echo 'MO_REL04_FGA_POSTGRES_MIGRATION_PASS'
 # Recreate ONLY OpenFGA, never PG, Keycloak, operational core or other tenants.
 # Force recreation is scoped to the exact verified staging OpenFGA service.
 # Compose v5 may report up/health success while retaining an old memory-backed
 # container. Health alone MUST NEVER be accepted as durable configuration.
 docker compose --project-name "$project" --file "$root/compose.yaml" \
-  up -d --force-recreate --no-deps --wait openfga >/dev/null
+  up -d --force-recreate --no-deps --wait openfga </dev/null >/dev/null
 mapfile -t running < <(docker ps -q \
   --filter "label=com.docker.compose.project=$project" \
   --filter "label=syndes.environment=multi-org-staging" \
