@@ -17,8 +17,11 @@ test("MO-REL-04 durable FGA installer is stage-only and safeguards in-memory sto
  assert.match(script,/partial_pg_catalog/);
  assert.match(script,/SYNDES_STAGE_FGA_COMPOSE_SHA256/);
  assert.match(script,/docker compose --project-name/);
- assert.match(script,/up -d --no-deps --wait openfga/);
- assert.doesNotMatch(script,/DROP DATABASE|docker system prune|force-recreate|rm -rf|activate_multiple_organizations/);
+ assert.match(script,/up -d --force-recreate --no-deps --wait openfga/);
+ assert.match(script,/post_deploy_config_hash/);
+ assert.match(script,/post_deploy_config_mount/);
+ assert.match(script,/post_deploy_schema/);
+ assert.doesNotMatch(script,/DROP DATABASE|docker system prune|rm -rf|activate_multiple_organizations/);
  assert.match(compose,/openfga-migrate:/);
  assert.match(compose,/staging_openfga_config/);
  assert.doesNotMatch(compose,/datastore-engine", "memory"/);
