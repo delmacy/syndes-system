@@ -655,3 +655,81 @@ jobs:
             "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
             "$SCOPE" "$TAILNET" "$BOOTSTRAP" "$SMOKE" "$result")"
           gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-multiorg-stage-keycloak-recovery:
+    name: MO-REL-04 stage-only Keycloak restart and real service smoke
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-STAGE-KEYCLOAK-RECOVERY-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Pin approved main SHA, staging host and scripts
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "${SOURCE_SHA}" ]]
+          [[ "${DEVSERVER_PEER}" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "${TAILSCALE_TAG}" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-multiorg-stage-keycloak-recovery.sh
+          bash -n scripts/ci/multiorg-staging-services-smoke.sh
+      - name: Join existing Tailnet through GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Recover only stage-labeled Keycloak if OIDC is unavailable
+        id: keycloak
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "${DEVSERVER_PEER}" >/dev/null
+          timeout 190s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            'SYNDES_STAGE_KC_RECOVERY=CI_APPROVED_MO_REL04 bash -s -- recover' \
+            < scripts/deploy/devserver01-multiorg-stage-keycloak-recovery.sh
+      - name: Verify stage PostgreSQL Keycloak OIDC and OpenFGA HTTP
+        id: smoke
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          timeout 75s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- verify' \
+            < scripts/ci/multiorg-staging-services-smoke.sh
+      - name: Record sanitized stage recovery evidence in issue 208
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          KEYCLOAK: ${{ steps.keycloak.outcome }}
+          SMOKE: ${{ steps.smoke.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for outcome in "$SCOPE" "$TAILNET" "$KEYCLOAK" "$SMOKE"; do
+            [[ "$outcome" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          if [[ "$SMOKE" == success ]]; then
+            status='STAGING_REAL_PG_KC_FGA_PASS_NOT_CORE_E2E'
+          else
+            status='STAGING_REAL_SERVICE_SMOKE_BLOCKED'
+          fi
+          body="$(printf 'MO-REL-04 isolated stage Keycloak post-PG-bootstrap recovery. Main=%s. Run=https://github.com/%s/actions/runs/%s. Scope=%s; Tailnet=%s; stage-only Keycloak recovery=%s; read-only live PG+OIDC+FGA check=%s; result=%s. No production or user tenancy data touched, no Core Host, FGA durable store, backup restore or SQL002 cutover. PRODUCTION_GATE=BLOCKED.' \
+            "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
+            "$SCOPE" "$TAILNET" "$KEYCLOAK" "$SMOKE" "$status")"
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"

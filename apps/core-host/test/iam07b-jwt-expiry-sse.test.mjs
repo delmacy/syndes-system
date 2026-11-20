@@ -75,6 +75,14 @@ test("IAM07B_RS256: signed audience/issuer/client/sub and all tampering vectors 
     assert.deepEqual(await verifier.verifyClient("Bearer "+valid,CLIENT),
       {id:SUB,kind:"user"});
     const now=Math.floor(Date.now()/1000);
+    const segments=valid.split(".");
+    assert.equal(segments.length,3);
+    // Mutate a SIGNIFICANT base64url sextet. Flipping the trailing JWT
+    // character can alter only unused padding bits and decode to the same
+    // cryptographic signature; that produces a flaky false negative.
+    const signature=segments[2];
+    const changed=(signature[0]==="A"?"B":"A")+signature.slice(1);
+    const tamperedSignature=segments[0]+"."+segments[1]+"."+changed;
     const denied=[
       ["absent",undefined],
       ["wrong audience","Bearer "+await sign({audience:"other-api"})],
@@ -85,7 +93,7 @@ test("IAM07B_RS256: signed audience/issuer/client/sub and all tampering vectors 
       ["future nbf","Bearer "+await sign({nbf:now+300,exp:now+600})],
       ["foreign subject","Bearer "+await sign({subject:""})],
       ["foreign RS256 key","Bearer "+await sign({},alien)],
-      ["tampered signature","Bearer "+valid.slice(0,-2)+"zz"],
+      ["tampered signature","Bearer "+tamperedSignature],
     ];
     for(const [label,token] of denied)
       await assert.rejects(verifier.verifyClient(token,CLIENT),
