@@ -575,3 +575,83 @@ jobs:
            "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
            "$SCOPE" "$TAILNET" "$REPAIR" "$SMOKE" "$result")"
           gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-multiorg-empty-stage-pg-bootstrap:
+    name: MO-REL-04 empty stage PG catalog bootstrap and real API checks
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-EMPTY-STAGE-PG-BOOTSTRAP-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Require exact main SHA and fixed DevServer01 staging contracts
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "${SOURCE_SHA}" ]]
+          [[ "${DEVSERVER_PEER}" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "${TAILSCALE_TAG}" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-multiorg-stage-pg-bootstrap-recovery.sh
+          bash -n scripts/ci/multiorg-staging-services-smoke.sh
+          bash -n infra/multiorg-staging/init-staging-postgres.sh
+      - name: Join existing DevServer01 Tailnet with GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Safely bootstrap ONLY completely empty staging PG catalog
+        id: bootstrap
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "${DEVSERVER_PEER}" >/dev/null
+          init_sha="$(sha256sum infra/multiorg-staging/init-staging-postgres.sh | awk '{print $1}')"
+          timeout 90s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            "SYNDES_STAGE_PG_BOOTSTRAP=CI_APPROVED_MO_REL04 SYNDES_STAGE_INIT_SHA256=$init_sha bash -s -- bootstrap" \
+            < scripts/deploy/devserver01-multiorg-stage-pg-bootstrap-recovery.sh
+      - name: Verify real PostgreSQL OIDC Keycloak and OpenFGA HTTP
+        id: smoke
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          timeout 75s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- verify' \
+            < scripts/ci/multiorg-staging-services-smoke.sh
+      - name: Record sanitized stage catalog evidence to issue 208
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          BOOTSTRAP: ${{ steps.bootstrap.outcome }}
+          SMOKE: ${{ steps.smoke.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for outcome in "$SCOPE" "$TAILNET" "$BOOTSTRAP" "$SMOKE"; do
+            [[ "$outcome" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          if [[ "$SMOKE" == success ]]; then
+            result='STAGING_REAL_PG_KC_FGA_HTTP_PASS_NOT_CORE_E2E'
+          else
+            result='STAGING_REAL_SERVICE_SMOKE_BLOCKED'
+          fi
+          body="$(printf 'MO-REL-04 empty-catalog-only staging PostgreSQL bootstrap. Main=%s. Run=https://github.com/%s/actions/runs/%s. Scope=%s; Tailnet=%s; exact empty-catalog bootstrap=%s; real PG17 Keycloak OIDC OpenFGA HTTP=%s; result=%s. No production PG, customer tenant, runtime Core, privileges, SQL002 or cutover changed. PRODUCTION_GATE=BLOCKED.' \
+            "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
+            "$SCOPE" "$TAILNET" "$BOOTSTRAP" "$SMOKE" "$result")"
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
