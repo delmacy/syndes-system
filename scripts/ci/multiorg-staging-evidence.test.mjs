@@ -6,7 +6,11 @@ test("MO-REL-04 evidence job is one-shot, main-only, post-CI gate, read-only",as
  const text=await readFile(".github/workflows/syndes-ci.yml","utf8");
  const pos=text.indexOf("  devserver01-multiorg-stage-evidence:");
  assert.ok(pos>0);
- const job=text.slice(pos);
+ // Isolate only the evidence job; subsequent CI jobs may legitimately mutate
+ // an authorized staging environment. Never weaken the evidence-job deny list.
+ const rest=text.slice(pos+1);
+ const next=rest.search(/\n  [a-z][a-z0-9-]+:\n/);
+ const job=next<0?text.slice(pos):text.slice(pos,pos+1+next);
  assert.match(job,/github\.event_name == 'push'/);
  assert.match(job,/github\.ref == 'refs\/heads\/main'/);
  assert.match(job,/MO-REL04-DEVSERVER-STAGE-VERIFY-APPROVED/);
