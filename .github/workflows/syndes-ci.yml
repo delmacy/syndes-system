@@ -733,3 +733,71 @@ jobs:
             "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
             "$SCOPE" "$TAILNET" "$KEYCLOAK" "$SMOKE" "$status")"
           gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-multiorg-stage-readiness-audit:
+    name: MO-REL-04 stage storage Control Core read-only readiness
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-STAGE-READINESS-AUDIT-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify exact main SHA and stage-only read-only audit
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "${SOURCE_SHA}" ]]
+          [[ "${DEVSERVER_PEER}" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "${TAILSCALE_TAG}" == 'tag:syndes-ci' ]]
+          bash -n scripts/ci/multiorg-stage-readiness-audit.sh
+      - name: Join authorized staging Tailnet through GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Audit persistent FGA configuration, Control schema and staged Core
+        id: audit
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "${DEVSERVER_PEER}" >/dev/null
+          timeout 80s tailscale ssh "delmacy@${DEVSERVER_PEER}" \
+            'SYNDES_STAGING_REMOTE_MODE=read-only-v1 bash -s -- audit' \
+            < scripts/ci/multiorg-stage-readiness-audit.sh
+      - name: Record sanitized stage readiness result in issue 208
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          AUDIT: ${{ steps.audit.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for outcome in "$SCOPE" "$TAILNET" "$AUDIT"; do
+            [[ "$outcome" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          if [[ "$AUDIT" == success ]]; then
+            status='STATIC_STAGE_TOPOLOGY_PASS_NOT_PRODUCT_GATE'
+          else
+            status='STAGE_DURABLE_FGA_CONTROL_CORE_NOT_PROVEN'
+          fi
+          body="$(printf 'MO-REL-04 stage-only read-only readiness audit. Main=%s. Actions=https://github.com/%s/actions/runs/%s. Scope=%s; Tailnet=%s; FGA PostgreSQL config + Control schema + Core container=%s; result=%s. HTTP smoke alone is not durability, restore, E2E or SQL002 release evidence. No mutation or secret disclosure. PRODUCTION_GATE=BLOCKED.' \
+            "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$AUDIT" "$status")"
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
