@@ -24,4 +24,14 @@ count="$(docker exec "$container" psql -X -At -v ON_ERROR_STOP=1 -U postgres -d 
 [[ "$count" =~ ^[0-9]+$ && "$count" -ge 9 ]] || exit 5
 state="$(docker exec "$container" psql -X -At -v ON_ERROR_STOP=1 -U postgres -d syndes_staging_control -c "SELECT CASE WHEN to_regclass('public.platform_iam07d_revocation_receipts') IS NOT NULL AND to_regclass('public.platform_signup_intents') IS NOT NULL AND EXISTS(SELECT 1 FROM pg_constraint WHERE conname='platform_iam07d_revocation_receipts_capability_v2_check' AND convalidated) THEN 'PASS' ELSE 'FAIL' END")"
 [[ "$state" == PASS ]] || exit 5
+# Second, independently versioned Control batch. Repeat both DDL scripts
+# against the same PG17 database to prove replay/idempotence without grants.
+for iteration in 1 2; do
+  cat "$root/infra/postgres/bootstrap/control-module-catalog.schema" \
+      "$root/infra/postgres/bootstrap/control-module-lifecycle.schema" |
+    docker exec -i "$container" psql -X -q -v ON_ERROR_STOP=1 --single-transaction -U postgres -d syndes_staging_control >/dev/null
+done
+module_tables="$(docker exec "$container" psql -X -At -v ON_ERROR_STOP=1 -U postgres -d syndes_staging_control -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename IN ('module_catalog','module_catalog_versions','module_catalog_dependencies','tenant_module_entitlements','tenant_module_installs','tenant_module_audit')")"
+[[ "$module_tables" == 6 ]] || exit 5
+echo 'MO_REL04_STAGE_CONTROL_CATALOG_PG17_TRANSACTION_REPLAY_PASS'
 echo 'MO_REL04_STAGE_CONTROL_PG17_TRANSACTION_REPLAY_PASS'
