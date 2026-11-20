@@ -975,3 +975,77 @@ jobs:
           body="$(printf 'MO-REL-04 stage-only persisted OpenFGA store/restart proof. Main=%s; Actions=https://github.com/%s/actions/runs/%s; Scope=%s; Tailnet=%s; Real store+container recreation+same ID=%s; result=%s. No production or customer SQL touched; this is not full backup/restore or multi-org Product Gate. PRODUCTION_GATE=BLOCKED.' \
             "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$PROOF" "$status")"
           gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-multiorg-stage-control-bootstrap:
+    name: MO-REL-04 stage Control schema transaction and replay
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-STAGE-CONTROL-BOOTSTRAP-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Pin main source and stage-only operator inputs
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-multiorg-stage-control-bootstrap.sh
+          bash -n scripts/ci/multiorg-stage-control-pg17.sh
+      - name: Join approved DevServer01 Tailnet via GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Apply initial Control schemas to isolated staging PG17 only
+        id: apply
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "$DEVSERVER_PEER" >/dev/null
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "$bundle"' EXIT
+          chmod 700 "$bundle"
+          cp scripts/deploy/devserver01-multiorg-stage-control-bootstrap.sh "$bundle/runner.sh"
+          for name in control.schema control-iam-org-links.schema control-iam-org-provision-intents.schema control-signup-intents-candidate.schema control-signup-finalize-candidate.schema control-iam07d-revocation-receipts.schema control-iam07d-capabilities-010.schema; do
+            cp "infra/postgres/bootstrap/$name" "$bundle/$name"
+          done
+          (cd "$bundle" && sha256sum runner.sh *.schema > MANIFEST.sha256)
+          # Transfer only SHA-pinned artifact payload. Remote runner executes from a
+          # bounded temporary directory: no server checkout, no manual SSH mutation.
+          result="$(tar -czf - -C "$bundle" . | timeout 180s tailscale ssh "delmacy@$DEVSERVER_PEER" 'set -Eeuo pipefail; umask 077; dir=$(mktemp -d /tmp/syndes-control-stage.XXXXXXXX); chmod 700 "$dir"; trap "rm -rf $dir" EXIT; tar -xzf - -C "$dir"; SYNDES_STAGE_CONTROL_APPROVAL=CI_APPROVED_MO_REL04 bash "$dir/runner.sh" apply "$dir"')"
+          printf '%s\n' "$result"
+          printf '%s\n' "$result" | grep -Eq '^MO_REL04_CONTROL_(STAGE_INITIAL_SCHEMAS_TRANSACTIONAL_PASS_NOT_CORE_E2E|ALREADY_INSTALLED_VERIFIED)$'
+      - name: Record sanitized Control staging evidence in issue 208
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          APPLY: ${{ steps.apply.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for state in "$SCOPE" "$TAILNET" "$APPLY"; do
+            [[ "$state" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          result='STAGE_CONTROL_BOOTSTRAP_BLOCKED'
+          if [[ "$APPLY" == success ]]; then result='STAGE_CONTROL_INITIAL_SCHEMAS_PASS_NOT_CORE_E2E'; fi
+          body="$(printf 'MO-REL-04 GitHub Actions isolated Control PG17 bootstrap. Main=%s; run=https://github.com/%s/actions/runs/%s; scope=%s; Tailnet=%s; transactional migration=%s; result=%s. No customer SQL, Core deployment or SQL002 cutover. PRODUCTION_GATE=BLOCKED.' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$APPLY" "$result")"
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
