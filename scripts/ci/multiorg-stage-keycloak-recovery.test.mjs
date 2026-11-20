@@ -46,8 +46,8 @@ case "$1" in
   esac;;
  inspect)
   case "$*" in
-   *"stagepg"*"com.docker.compose.service"*) echo control-postgres;;
-   *"stagekc"*"com.docker.compose.service"*) echo keycloak;;
+   *"com.docker.compose.service"*"stagepg"*) echo control-postgres;;
+   *"com.docker.compose.service"*"stagekc"*) echo keycloak;;
    *"stagepg"*) echo true;;
    *) exit 12;;
   esac;;
