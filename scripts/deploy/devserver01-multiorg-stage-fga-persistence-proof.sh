@@ -53,7 +53,7 @@ fi
 }
 echo 'MO_REL04_FGA_STAGE_STORE_CREATED_OR_REUSED'
 docker compose --project-name "$project" --file "$root/compose.yaml" \
- up -d --force-recreate --no-deps --wait openfga >/dev/null
+ up -d --force-recreate --no-deps --wait openfga </dev/null >/dev/null
 after="$(list_stores | parse_id)" || exit 5
 [[ "$after" == "$before" ]] || {
  echo 'MO_REL04_FGA_RESTART_BLOCKED=store_not_persisted';exit 5;
