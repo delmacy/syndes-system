@@ -7,6 +7,20 @@ until "${compose[@]}" exec -T postgres pg_isready -U postgres -d postgres >/dev/
   if ((attempt >= 40)); then echo "PostgreSQL not ready" >&2; exit 1; fi
   sleep 2
 done
+# pg_isready becomes true before docker-entrypoint-initdb.d completes.
+# Wait for the exact declared CI catalogs, not merely socket accept/readiness.
+# Do not create databases here or hide a failed initializer.
+for attempt in $(seq 1 40); do
+  initialized="$("${compose[@]}" exec -T postgres psql --no-psqlrc \
+    -v ON_ERROR_STOP=1 -U postgres -d postgres -Atc \
+    "SELECT count(*) FROM pg_database WHERE datname IN ('syndes_control','syndes_keycloak','syndes_openfga')" 2>/dev/null || true)"
+  if [[ "$initialized" == 3 ]]; then break; fi
+  if (( attempt == 40 )); then
+    echo "PostgreSQL CI initialization incomplete: expected three catalogs" >&2
+    exit 1
+  fi
+  sleep 2
+done
 for db in syndes_control syndes_keycloak syndes_openfga; do
   "${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d "$db" -Atc 'SELECT current_database()' | grep -qx "$db"
 done
