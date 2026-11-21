@@ -25,10 +25,14 @@ for db in syndes_staging_control syndes_staging_keycloak syndes_staging_openfga 
   chmod 600 "$tmp";mv "$tmp" "$backup"
  fi
 done
+operator_bundle="$root/runtime/operator-$SOURCE_SHA"
+mkdir -p -m 700 "$operator_bundle"
+cp "$bundle"/* "$operator_bundle/"
+(cd "$operator_bundle" && sha256sum -c MANIFEST.sha256 --status) || exit 4
 operator(){
  docker run --rm --user 0 --network syndes-multiorg-staging_staging_internal \
  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m --cap-drop ALL --security-opt no-new-privileges \
- --mount "type=bind,src=$bundle,dst=/run/bundle,readonly" \
+ --mount "type=bind,src=$operator_bundle,dst=/run/bundle,readonly" \
  --mount "type=bind,src=$root/secrets,dst=/run/stage" \
  --mount "type=bind,src=$root/runtime,dst=/run/runtime" \
  -e NODE_EXTRA_CA_CERTS=/run/runtime/tls/server.crt \
