@@ -13,7 +13,11 @@ SELECT CASE WHEN
    WHERE tenant_id='1f5a8ce9-3f01-48cc-a013-2198d99e7510')=0
  AND (SELECT count(*) FROM public.platform_keycloak_org_links
    WHERE tenant_id='1f5a8ce9-3f01-48cc-a013-2198d99e7510')=0
- THEN 1 ELSE 1/0 END AS preflight;
+ THEN true ELSE false END AS preflight \gset
+\if :preflight
+\else
+  SELECT 1/0;
+\endif
 INSERT INTO public.tenant_memberships(tenant_id,principal_id,state)
 VALUES('1f5a8ce9-3f01-48cc-a013-2198d99e7510',:'founder','active');
 
@@ -67,5 +71,9 @@ SELECT CASE WHEN
  AND (SELECT count(*) FROM public.tenant_memberships WHERE
   tenant_id='1f5a8ce9-3f01-48cc-a013-2198d99e7510'
   AND state='active')=2
- THEN 1 ELSE 1/0 END AS verification;
+ THEN true ELSE false END AS verification \gset
+\if :verification
+\else
+  SELECT 1/0;
+\endif
 COMMIT;
