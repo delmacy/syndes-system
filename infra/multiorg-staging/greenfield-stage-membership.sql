@@ -18,7 +18,7 @@ VALUES
  ('1f5a8ce9-3f01-48cc-a013-2198d99e7510',
   'b4f80cc7-4c61-4f8e-8c39-d848dfbe10b2',:'founder','admin','active'),
  ('1f5a8ce9-3f01-48cc-a013-2198d99e7510',
-  'b4f80cc7-4c61-4f8e-8c39-d848dfbe10b2',:'restricted','viewer','active');
+  'b4f80cc7-4c61-4f8e-8c39-d848dfbe10b2', :'restricted','editor','active');
 INSERT INTO platform_workspace_memberships(
  tenant_id,organization_id,workspace_id,principal_id,role,state)
 SELECT w.tenant_id,w.organization_id,w.id,:'founder','admin','active'
@@ -26,7 +26,7 @@ SELECT w.tenant_id,w.organization_id,w.id,:'founder','admin','active'
  WHERE w.tenant_id='1f5a8ce9-3f01-48cc-a013-2198d99e7510';
 INSERT INTO platform_workspace_memberships(
  tenant_id,organization_id,workspace_id,principal_id,role,state)
-SELECT w.tenant_id,w.organization_id,w.id,:'restricted','viewer','active'
+SELECT w.tenant_id,w.organization_id,w.id, :'restricted','editor','active'
  FROM platform_workspaces w
  WHERE w.tenant_id='1f5a8ce9-3f01-48cc-a013-2198d99e7510'
   AND w.organization_id='b4f80cc7-4c61-4f8e-8c39-d848dfbe10b2';
