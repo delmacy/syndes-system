@@ -82,10 +82,19 @@ SET ROLE syndes_signup_finalize_operator;
 SELECT public.platform_signup_finalize(:'request'::uuid,:'founder'::uuid,:'kc'::uuid);
 SELECT public.platform_signup_finalize(:'request'::uuid,:'founder'::uuid,:'kc'::uuid);
 RESET ROLE;
--- Idempotent post-READY replay cannot reactivate or grant anything.
+-- After READY the dedicated initial operator is closed; only the
+-- finalized state read can be retried. No post-READY link rewrite or new grant.
 SET ROLE syndes_signup_link_operator;
-SELECT public.platform_signup_bind_initial_keycloak_org(
- :'request'::uuid,:'realm',:'kc'::uuid,:'founder'::uuid);
+DO $deny_ready$ BEGIN
+ BEGIN
+  PERFORM public.platform_signup_bind_initial_keycloak_org(
+    'ceab450f-14e5-4b2c-9e8b-000000000501','syndes_signup_ci',
+    'deab450f-14e5-4b2c-9e8b-000000000601',
+    'beab450f-14e5-4b2c-9e8b-000000000401');
+  RAISE EXCEPTION 'Signup link reopened after READY' USING ERRCODE='P0001';
+ EXCEPTION WHEN SQLSTATE '23514' THEN NULL;
+ END;
+END $deny_ready$;
 RESET ROLE;
 DO $completed$ BEGIN
  IF (SELECT state FROM public.tenant_registry
