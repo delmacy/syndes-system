@@ -32,6 +32,9 @@ trap cleanup EXIT
 echo "Validate stage Control candidate migrations transaction/replay on disposable PG17"
 SYNDES_DISPOSABLE_CONTROL_PG17=CI_ONLY bash scripts/ci/multiorg-stage-control-pg17.sh
 
+echo "Exercise the NEW multi-org tenant in disposable PostgreSQL17 while preserving legacy SQL002"
+SYNDES_GREENFIELD_DISPOSABLE=CI_ONLY bash scripts/ci/multiorg-greenfield-pg17.sh
+
 echo "Validate production-like network and secret isolation with CI-only fixtures"
 docker network inspect syndes-data >/dev/null 2>&1 || docker network create --internal syndes-data >/dev/null
 sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /run/syndes /run/syndes/runtime
