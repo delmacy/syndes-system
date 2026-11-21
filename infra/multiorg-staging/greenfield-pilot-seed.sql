@@ -37,19 +37,19 @@ FROM platform_workspaces;
 -- Two published, two-stage funnels per workspace; scope keys always explicit.
 INSERT INTO service.service_funnels(tenant_id,organization_id,workspace_id,id,code,name,created_by)
 SELECT w.tenant_id,w.organization_id,w.id,
- md5(w.id::text || ':' || v.code)::uuid,v.code,v.label,'system:greenfield-installer'
+ pg_catalog.gen_random_uuid(),v.code,v.label,'system:greenfield-installer'
 FROM platform_workspaces w CROSS JOIN
  (VALUES('vendas','Funil de vendas'),('suporte','Funil de suporte')) AS v(code,label);
 
 INSERT INTO service.service_funnel_stages(
  tenant_id,organization_id,workspace_id,funnel_id,id,code,label,position,terminal)
 SELECT f.tenant_id,f.organization_id,f.workspace_id,f.id,
- md5(f.id::text||':entrada')::uuid,'entrada','Entrada',1,false
+ pg_catalog.gen_random_uuid(),'entrada','Entrada',1,false
 FROM service.service_funnels f;
 INSERT INTO service.service_funnel_stages(
  tenant_id,organization_id,workspace_id,funnel_id,id,code,label,position,terminal)
 SELECT f.tenant_id,f.organization_id,f.workspace_id,f.id,
- md5(f.id::text||':finalizado')::uuid,'finalizado','Finalizado',2,true
+ pg_catalog.gen_random_uuid(),'finalizado','Finalizado',2,true
 FROM service.service_funnels f;
 
 UPDATE service.service_funnels SET state='published',published_at=clock_timestamp()
@@ -67,6 +67,46 @@ BEGIN
   OR EXISTS(SELECT 1 FROM
    (SELECT organization_id,workspace_id,count(*) AS n FROM service.service_funnels
     GROUP BY organization_id,workspace_id) x WHERE x.n<>2)
+  OR EXISTS(SELECT 1 FROM service.service_funnels WHERE id::text !~
+    '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}
+  OR EXISTS(SELECT 1 FROM inbox_conversations) THEN
+  RAISE EXCEPTION 'Greenfield pilot scope/funnel inventory incorrect' USING ERRCODE='55000';
+ END IF;
+ -- This must be rejected by composite Organization+Workspace ownership FK.
+ BEGIN
+  INSERT INTO service.service_funnels(
+   tenant_id,organization_id,workspace_id,id,code,name,created_by)
+  VALUES('1f5a8ce9-3f01-48cc-a013-2198d99e7510',
+   'b4f80cc7-4c61-4f8e-8c39-d848dfbe10b2',
+   'cae8c1e2-4a1d-4b69-9e02-0dd15b0d1001',
+   'd0000000-0000-4000-8000-000000000001',
+   'invalido','Vazamento de escopo','system:greenfield-installer');
+  RAISE EXCEPTION 'Scope FK did not reject cross-organization funnel'
+   USING ERRCODE='55000';
+ EXCEPTION WHEN foreign_key_violation THEN NULL;
+ END;
+END $verify$;
+)
+  OR EXISTS(SELECT 1 FROM service.service_funnel_stages WHERE id::text !~
+    '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}
+  OR EXISTS(SELECT 1 FROM inbox_conversations) THEN
+  RAISE EXCEPTION 'Greenfield pilot scope/funnel inventory incorrect' USING ERRCODE='55000';
+ END IF;
+ -- This must be rejected by composite Organization+Workspace ownership FK.
+ BEGIN
+  INSERT INTO service.service_funnels(
+   tenant_id,organization_id,workspace_id,id,code,name,created_by)
+  VALUES('1f5a8ce9-3f01-48cc-a013-2198d99e7510',
+   'b4f80cc7-4c61-4f8e-8c39-d848dfbe10b2',
+   'cae8c1e2-4a1d-4b69-9e02-0dd15b0d1001',
+   'd0000000-0000-4000-8000-000000000001',
+   'invalido','Vazamento de escopo','system:greenfield-installer');
+  RAISE EXCEPTION 'Scope FK did not reject cross-organization funnel'
+   USING ERRCODE='55000';
+ EXCEPTION WHEN foreign_key_violation THEN NULL;
+ END;
+END $verify$;
+)
   OR EXISTS(SELECT 1 FROM whatsapp_accounts)
   OR EXISTS(SELECT 1 FROM inbox_conversations) THEN
   RAISE EXCEPTION 'Greenfield pilot scope/funnel inventory incorrect' USING ERRCODE='55000';
