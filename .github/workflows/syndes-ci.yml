@@ -1200,3 +1200,187 @@ jobs:
           [[ "$DEPLOY" != success ]] || result=PROD_CONTROL_ADDITIVE_SCHEMA_APPLIED_NO_MULTIORG_CUTOVER
           body="$(printf 'MO-REL08 authorized additive PRODUCTION Control PG17 change. main=%s; Actions=https://github.com/%s/actions/runs/%s; scope=%s; tailnet=%s; real Control backup+isolated restore+catalog DDL=%s; result=%s. Existing tenant untouched; no SQL002 cutover, no new organization, no IAM grants, no Core/Service flag. Multi-org PRODUCTION_GATE=BLOCKED pending real A/B E2E, recovery and release. ' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$DEPLOY" "$result")"
           gh issue comment 211 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-multiorg-greenfield-pilot:
+    name: MO-REL-04 greenfield multi-org database — real isolated PG17
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-GREENFIELD-PILOT-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify exact main SHA and immutable stage-only scope
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-multiorg-greenfield.sh
+          bash -n scripts/ci/multiorg-greenfield-pg17.sh
+      - name: Join approved Tailnet using GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Bootstrap separate fresh tenant and physically test two Organizations
+        id: deploy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "$DEVSERVER_PEER" >/dev/null
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "$bundle"' EXIT
+          chmod 700 "$bundle"
+          cp scripts/deploy/devserver01-multiorg-greenfield.sh "$bundle/runner.sh"
+          cp infra/multiorg-staging/greenfield-pilot-seed.sql "$bundle/"
+          cp modules/organizations/sql/001_account_hierarchy.sql "$bundle/"
+          cp modules/organizations/sql/002_legacy_single_context_gate.sql "$bundle/"
+          cp modules/organizations/sql/008_iam07d_revoke_first_candidate.sql "$bundle/"
+          cp modules/core-crm/sql/001_crm_foundation.sql "$bundle/"
+          cp modules/core-crm/sql/002_crm_tags_notes.sql "$bundle/"
+          cp modules/core-crm/sql/003_crm_employees_channels.sql "$bundle/"
+          cp modules/inbox/sql/001_inbox_foundation.sql "$bundle/"
+          cp modules/whatsapp/sql/001_whatsapp_accounts.sql "$bundle/"
+          cp modules/organizations/sql/003_legacy_ownership.sql "$bundle/"
+          cp modules/service-management/sql/001_service_funnels.sql "$bundle/"
+          cp modules/organizations/sql/007_staff_roles_pre_release.sql "$bundle/"
+          cp modules/service-management/sql/002_service_team_transfer.sql "$bundle/"
+          cp modules/service-management/sql/003_service_conversation_inspector.sql "$bundle/"
+          cp modules/organizations/sql/006_context_creation_audit.sql "$bundle/"
+          cp modules/organizations/sql/009_iam_multiorg_fence_candidate.sql "$bundle/"
+          cp modules/organizations/sql/010_iam07d_cutover_capabilities_candidate.sql "$bundle/"
+          (cd "$bundle" && sha256sum runner.sh *.sql > MANIFEST.sha256)
+          # Only this stage-only PG17 container is mutated. The operational
+          # gateway, operational tenant, Control and SQL002 are untouched.
+          result="$(tar -czf - -C "$bundle" . | timeout 420s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-greenfield.XXXXXXXX); chmod 700 \"\$dir\"; trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_GREENFIELD_PILOT_APPROVAL=CI_APPROVED_GREENFIELD_MO SYNDES_GREENFIELD_MAIN_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply \"\$dir\"")"
+          printf '%s\n' "$result"
+          printf '%s\n' "$result" | grep -qx 'MO_GREENFIELD_REAL_PG17_NEW_TENANT_TWO_ORGS_FOUR_WS_EIGHT_FUNNELS_PASS'
+          printf '%s\n' "$result" | grep -qx 'MO_GREENFIELD_NO_WHATSAPP_GATEWAY_CHANGE_AND_NO_LEGACY_SQL002_CUTOVER'
+          printf '%s\n' "$result" | grep -qx 'MO_GREENFIELD_CONTROL_PROVISIONED_NOT_KC_FGA_OR_CORE_RELEASED'
+      - name: Record actual greenfield proof without credentials or principal IDs
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          DEPLOY: ${{ steps.deploy.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for state in "$SCOPE" "$TAILNET" "$DEPLOY"; do
+            [[ "$state" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          result=GREENFIELD_MULTIORG_STAGE_BLOCKED
+          if [[ "$DEPLOY" == success ]]; then
+            result=GREENFIELD_NEW_TENANT_2_ORGS_4_WS_8_FUNNELS_REAL_PG17_PASS
+          fi
+          body="$(printf 'MO-REL-04 pre-alpha greenfield multi-org: main=%s run=https://github.com/%s/actions/runs/%s scope=%s Tailnet=%s isolated new PG17 tenant=%s result=%s. Existing operational tenant SQL002 and WhatsApp gateway untouched. This proves real SQL topology ONLY, not Keycloak user, FGA store/grants or Core Host live admission; tenant remains provisioned. PRODUCTION_GATE=BLOCKED.' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$DEPLOY" "$result")"
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-multiorg-greenfield-production:
+    name: MO-REL-08 pre-alpha new production tenant — leave legacy alone
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-GREENFIELD-PILOT-APPROVED') }}
+    needs: [gate, devserver01-multiorg-greenfield-pilot]
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify exact main SHA and immutable stage-only scope
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-multiorg-greenfield-production.sh
+          bash -n scripts/ci/multiorg-greenfield-pg17.sh
+      - name: Join approved Tailnet using GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Install NEW production tenant after isolated stage gate succeeds
+        id: deploy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "$DEVSERVER_PEER" >/dev/null
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "$bundle"' EXIT
+          chmod 700 "$bundle"
+          cp scripts/deploy/devserver01-multiorg-greenfield-production.sh "$bundle/runner.sh"
+          cp infra/multiorg-staging/greenfield-pilot-seed.sql "$bundle/"
+          cp modules/organizations/sql/001_account_hierarchy.sql "$bundle/"
+          cp modules/organizations/sql/002_legacy_single_context_gate.sql "$bundle/"
+          cp modules/organizations/sql/008_iam07d_revoke_first_candidate.sql "$bundle/"
+          cp modules/core-crm/sql/001_crm_foundation.sql "$bundle/"
+          cp modules/core-crm/sql/002_crm_tags_notes.sql "$bundle/"
+          cp modules/core-crm/sql/003_crm_employees_channels.sql "$bundle/"
+          cp modules/inbox/sql/001_inbox_foundation.sql "$bundle/"
+          cp modules/whatsapp/sql/001_whatsapp_accounts.sql "$bundle/"
+          cp modules/organizations/sql/003_legacy_ownership.sql "$bundle/"
+          cp modules/service-management/sql/001_service_funnels.sql "$bundle/"
+          cp modules/organizations/sql/007_staff_roles_pre_release.sql "$bundle/"
+          cp modules/service-management/sql/002_service_team_transfer.sql "$bundle/"
+          cp modules/service-management/sql/003_service_conversation_inspector.sql "$bundle/"
+          cp modules/organizations/sql/006_context_creation_audit.sql "$bundle/"
+          cp modules/organizations/sql/009_iam_multiorg_fence_candidate.sql "$bundle/"
+          cp modules/organizations/sql/010_iam07d_cutover_capabilities_candidate.sql "$bundle/"
+          (cd "$bundle" && sha256sum runner.sh *.sql > MANIFEST.sha256)
+          # Only a NEW database in operational PG is created. Existing customer
+          # tenant, WhatsApp gateway, SQL002 and Core processes are untouched.
+          result="$(tar -czf - -C "$bundle" . | timeout 420s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-greenfield.XXXXXXXX); chmod 700 \"\$dir\"; trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_GREENFIELD_PROD_APPROVAL=CI_APPROVED_GREENFIELD_PRODUCTION SYNDES_GREENFIELD_MAIN_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply \"\$dir\"")"
+          printf '%s\n' "$result"
+          printf '%s\n' "$result" | grep -qx 'MO_GREENFIELD_PRODUCTION_NEW_TENANT_TWO_ORGS_FOUR_WS_EIGHT_FUNNELS_PASS'
+          printf '%s\n' "$result" | grep -qx 'MO_GREENFIELD_PRODUCTION_LEGACY_AND_WHATSAPP_GATEWAY_UNTOUCHED'
+          printf '%s\n' "$result" | grep -qx 'MO_GREENFIELD_PRODUCTION_PROVISIONED_NOT_KC_FGA_OR_CORE_RELEASED'
+      - name: Record actual greenfield proof without credentials or principal IDs
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          DEPLOY: ${{ steps.deploy.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for state in "$SCOPE" "$TAILNET" "$DEPLOY"; do
+            [[ "$state" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          result=GREENFIELD_MULTIORG_PRODUCTION_BLOCKED
+          if [[ "$DEPLOY" == success ]]; then
+            result=GREENFIELD_NEW_PRODUCTION_TENANT_2_ORGS_4_WS_8_FUNNELS_PG17_PASS
+          fi
+          body="$(printf 'MO-REL-08 pre-alpha new tenant database in PRODUCTION: main=%s run=https://github.com/%s/actions/runs/%s scope=%s Tailnet=%s isolated new PG17 tenant=%s result=%s. Existing operational tenant SQL002 and WhatsApp gateway untouched. This creates a real fresh production database only, not Keycloak user, FGA store/grants or Core Host live admission; tenant remains provisioned. PRODUCTION_GATE=BLOCKED.' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$DEPLOY" "$result")"
+          gh issue comment 211 --repo "$GITHUB_REPOSITORY" --body "$body"
