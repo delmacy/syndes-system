@@ -10,7 +10,11 @@ SELECT CASE WHEN
  (SELECT count(*) FROM platform_workspace_memberships)=0 AND
  (SELECT count(*) FROM whatsapp_accounts)=0 AND
  (SELECT count(*) FROM inbox_conversations)=0
- THEN 1 ELSE 1/0 END AS preflight;
+ THEN true ELSE false END AS preflight \gset
+\if :preflight
+\else
+  SELECT 1/0;
+\endif
 INSERT INTO platform_org_memberships(tenant_id,organization_id,principal_id,role,state)
 VALUES
  ('1f5a8ce9-3f01-48cc-a013-2198d99e7510',
@@ -39,5 +43,9 @@ SELECT CASE WHEN
  (SELECT count(*) FROM platform_workspace_memberships WHERE
   principal_id=:'restricted' AND organization_id=
   'a3f80cc7-4c61-4f8e-8c39-d848dfbe10a1')=0
- THEN 1 ELSE 1/0 END AS verification;
+ THEN true ELSE false END AS verification \gset
+\if :verification
+\else
+  SELECT 1/0;
+\endif
 COMMIT;
