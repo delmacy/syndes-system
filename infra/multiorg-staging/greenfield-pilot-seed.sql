@@ -37,19 +37,19 @@ FROM platform_workspaces;
 -- Two published, two-stage funnels per workspace; scope keys always explicit.
 INSERT INTO service.service_funnels(tenant_id,organization_id,workspace_id,id,code,name,created_by)
 SELECT w.tenant_id,w.organization_id,w.id,
- md5(w.id::text || ':' || v.code)::uuid,v.code,v.label,'system:greenfield-installer'
+ pg_catalog.gen_random_uuid(),v.code,v.label,'system:greenfield-installer'
 FROM platform_workspaces w CROSS JOIN
  (VALUES('vendas','Funil de vendas'),('suporte','Funil de suporte')) AS v(code,label);
 
 INSERT INTO service.service_funnel_stages(
  tenant_id,organization_id,workspace_id,funnel_id,id,code,label,position,terminal)
 SELECT f.tenant_id,f.organization_id,f.workspace_id,f.id,
- md5(f.id::text||':entrada')::uuid,'entrada','Entrada',1,false
+ pg_catalog.gen_random_uuid(),'entrada','Entrada',1,false
 FROM service.service_funnels f;
 INSERT INTO service.service_funnel_stages(
  tenant_id,organization_id,workspace_id,funnel_id,id,code,label,position,terminal)
 SELECT f.tenant_id,f.organization_id,f.workspace_id,f.id,
- md5(f.id::text||':finalizado')::uuid,'finalizado','Finalizado',2,true
+ pg_catalog.gen_random_uuid(),'finalizado','Finalizado',2,true
 FROM service.service_funnels f;
 
 UPDATE service.service_funnels SET state='published',published_at=clock_timestamp()
@@ -67,6 +67,10 @@ BEGIN
   OR EXISTS(SELECT 1 FROM
    (SELECT organization_id,workspace_id,count(*) AS n FROM service.service_funnels
     GROUP BY organization_id,workspace_id) x WHERE x.n<>2)
+  OR EXISTS(SELECT 1 FROM service.service_funnels WHERE id::text !~
+    '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+  OR EXISTS(SELECT 1 FROM service.service_funnel_stages WHERE id::text !~
+    '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
   OR EXISTS(SELECT 1 FROM whatsapp_accounts)
   OR EXISTS(SELECT 1 FROM inbox_conversations) THEN
   RAISE EXCEPTION 'Greenfield pilot scope/funnel inventory incorrect' USING ERRCODE='55000';
