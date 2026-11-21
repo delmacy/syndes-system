@@ -1976,10 +1976,14 @@ jobs:
           oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
           tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
-      - name: Verify exact Core image already loaded by foundation
+      - name: Pull exact source image on DevServer01 using GHCR (explicit job)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
-          timeout 30s tailscale ssh "delmacy@$DEVSERVER_PEER" "test \"\$(docker image inspect -f '{{index .Config.Labels \"org.opencontainers.image.revision\"}}' syndes/core-host:stage-$SOURCE_SHA)\" = '$SOURCE_SHA'"
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          timeout 30s tailscale ssh "delmacy@$DEVSERVER_PEER" 'test "$(id -un)" = delmacy && test "$(hostname -s)" = DevServer01'
+          printf '%s' "$GH_TOKEN" | timeout 600s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; config=\$(mktemp -d /home/delmacy/.local/share/syndes-multiorg-staging/runtime/core-registry-direct.XXXXXXXX); trap 'rm -rf \\\"\$config\\\"' EXIT; docker --config \\\"\$config\\\" login ghcr.io -u '$GITHUB_ACTOR' --password-stdin >/dev/null; docker --config \\\"\$config\\\" pull ghcr.io/$GITHUB_REPOSITORY/core-host:stage-$SOURCE_SHA >/dev/null; docker tag ghcr.io/$GITHUB_REPOSITORY/core-host:stage-$SOURCE_SHA syndes/core-host:stage-$SOURCE_SHA"
       - name: Prepare verified stage modules and deploy actual Core Host
         id: deploy
         run: |
