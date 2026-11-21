@@ -34,7 +34,7 @@ test("real first-user stage requires signed Keycloak26, exact FGA and signed-in 
  assert.match(runner,/--tmpfs \/tmp:rw,noexec,nosuid/);
  assert.match(runner,/pilot-b-only-password/);
  assert.doesNotMatch(runner,/--mount|dst=\/run\/secrets/);
- assert.match(js,/\/tmp\/pilot\/keycloak-admin/);
+ assert.match(js,/\/tmp\/pilot\/pilot-admin-service-secret/);
  assert.match(js,/\/tmp\/pilot\/pilot-founder-password/);
  assert.match(js,/\/tmp\/pilot\/fga-model.json/);
  assert.match(runner,/greenfield-stage-first-user.sql/);
