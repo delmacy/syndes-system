@@ -47,13 +47,9 @@ new_barriers="$(docker exec "$container" psql -X -At -v ON_ERROR_STOP=1 -U postg
 [[ "$legacy" == 2 && "$new_barriers" == 0 && "$fresh" == '2:4:8:0' ]] || exit 5
 valid_ids="$(docker exec "$container" psql -X -At -v ON_ERROR_STOP=1 -U postgres -d syndes_ci_fresh -c "
 SELECT (SELECT count(*) FROM service.service_funnels WHERE id::text ~
- '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}
-echo 'MO_GREENFIELD_LEGACY_SQL002_UNCHANGED_AND_WHATSAPP_EMPTY_PASS'
-)::text
+ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')::text
  || ':' || (SELECT count(*) FROM service.service_funnel_stages WHERE id::text ~
- '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}
-echo 'MO_GREENFIELD_LEGACY_SQL002_UNCHANGED_AND_WHATSAPP_EMPTY_PASS'
-)::text")"
+ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')::text")"
 [[ "$valid_ids" == 8:16 ]] || { echo 'MO_GREENFIELD_CI_BLOCKED=non_rfc4122_funnel_ids';exit 5; }
 echo 'MO_GREENFIELD_PG17_FINE_AUTHZ_VALID_UUIDS_8_FUNNELS_16_STAGES_PASS'
 echo 'MO_GREENFIELD_PG17_TWO_ORGS_FOUR_WORKSPACES_EIGHT_FUNNELS_PASS'
