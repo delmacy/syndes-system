@@ -1869,6 +1869,7 @@ jobs:
           gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "MO-REL04 stage runtime foundation. Main=$SOURCE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$DEPLOY. TLS issuer, restricted KC reader, minimal SQL login and isolated OpenBao AppRoles. No operational/customer SQL or Core HTTP deployment claimed. PRODUCTION_GATE=BLOCKED."
 
   devserver01-stage-core-runtime:
+    # Re-evaluate after foundation on every approved Core release.
     name: MO-REL04 actual Core Host singleton runtime
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-STAGE-CORE-RUNTIME-APPROVED') }}
     needs: [gate, devserver01-stage-runtime-foundation]
