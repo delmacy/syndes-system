@@ -1704,3 +1704,83 @@ jobs:
           fi
           body="$(printf 'MO-REL04 RFC4122 funnel IDs fixed in production separate NEW tenant PostgreSQL17. main=%s Actions=https://github.com/%s/actions/runs/%s scope=%s Tailnet=%s shadow database and archive=%s result=%s. Old synthetic database archived; 8 RFC4122 funnels, 16 stages, unchanged new Control mapping. WhatsApp gateway/legacy tenant and SQL002 untouched. No Keycloak identity, FGA grants, Core enablement. PRODUCTION_GATE=BLOCKED.' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$DEPLOY" "$result")"
           gh issue comment 211 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-greenfield-real-keycloak-fga:
+    name: MO-REL04 real stage founder JWT + two Organizations + exact FGA
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-REAL-FOUNDER-IDP-FGA-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify pinned main and isolated first-user stage artifacts
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-multiorg-stage-real-identity.sh
+          node --check scripts/deploy/stage-greenfield-keycloak-fga.mjs
+          node --test scripts/ci/greenfield-stage-real-identity.test.mjs
+      - name: Join trusted Tailnet using GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Real KC26 signed actors, two Org memberships, FGA scope checks and stage Control READY
+        id: deploy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "$DEVSERVER_PEER" >/dev/null
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "$bundle"' EXIT
+          chmod 700 "$bundle"
+          cp scripts/deploy/devserver01-multiorg-stage-real-identity.sh "$bundle/runner.sh"
+          cp scripts/deploy/stage-greenfield-keycloak-fga.mjs "$bundle/"
+          cp infra/security-access/fga-model-iam07d2-candidate.json "$bundle/fga-model.json"
+          cp infra/multiorg-staging/greenfield-stage-first-user.sql "$bundle/"
+          cp infra/multiorg-staging/greenfield-stage-membership.sql "$bundle/"
+          (cd "$bundle" && sha256sum runner.sh *.mjs *.json *.sql > MANIFEST.sha256)
+          # No password, JWT, user ID or FGA tuple is placed in GitHub logs.
+          result="$(tar -czf - -C "$bundle" . | timeout 540s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-real-identity.XXXXXXXX); chmod 700 \"\$dir\"; trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_STAGE_REAL_IDENTITY_APPROVAL=CI_APPROVED_GREENFIELD_IDP_FGA SYNDES_STAGE_REAL_IDENTITY_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply \"\$dir\"")"
+          printf '%s\n' "$result"
+          printf '%s\n' "$result" | grep -qx 'MO_REAL_IDENTITY_STAGE_KC26_TWO_SIGNED_USERS_TWO_ORGS_MEMBERSHIP_PASS'
+          printf '%s\n' "$result" | grep -qx 'MO_REAL_IDENTITY_STAGE_FGA_EXACT_FUNNEL_ALLOW_CROSS_ORG_DENY_PASS'
+          printf '%s\n' "$result" | grep -qx 'MO_REAL_IDENTITY_STAGE_CONTROL_READY_TWO_ORGS_SCOPED_PG17_PASS'
+          printf '%s\n' "$result" | grep -qx 'MO_REAL_IDENTITY_STAGE_LEGACY_WHATSAPP_AND_PRODUCTION_UNTOUCHED'
+      - name: Attest signed Keycloak and FGA stage without disclosing user credentials
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          DEPLOY: ${{ steps.deploy.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for state in "$SCOPE" "$TAILNET" "$DEPLOY"; do
+            [[ "$state" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          result=MO_GREENFIELD_REAL_IDENTITY_BLOCKED
+          if [[ "$DEPLOY" == success ]]; then
+            result=MO_GREENFIELD_STAGE_SIGNED_KC_USERS_TWO_ORGS_FGA_EXACT_AND_CONTROL_READY_PASS
+          fi
+          body="$(printf 'MO-REL04 real Keycloak26+OpenFGA greenfield staging founder. Main=%s Actions=https://github.com/%s/actions/runs/%s scope=%s Tailnet=%s signed users+KC Org memberships+exact FGA cross-org denial+Control READY+tenant SQL scope=%s result=%s. Passwords/tokens kept only in stage host secrets; no WhatsApp or operational Keycloak/PG mutation, no Core Host HTTP deployment claimed. PRODUCTION_GATE=BLOCKED.' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$DEPLOY" "$result")"
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
