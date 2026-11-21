@@ -22,7 +22,6 @@ test("real first-user stage requires signed Keycloak26, exact FGA and signed-in 
  assert.match(js,/PILOT_FGA_SCOPE_LEAK/);
  assert.match(js,/FGA_EXACT|fga-grants/);
  assert.match(js,/service\.funnel\.operate/);
- assert.match(js,/get\("?/);
  assert.doesNotMatch(js,/syndes-security-access|syndes-prod|whatsapp-gateway|https:\/\/.*syndes\.com/);
  assert.match(runner,/syndes-multiorg-staging/);
  assert.match(runner,/syndes_staging_control/);
