@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Real stage-only identity+authorization pilot, run in a fresh network-isolated
 // Node sidecar. No production Keycloak/FGA, no WhatsApp, no browser credentials.
-import {ensurePilotUser} from "./stage-pilot-user.mjs";
+import {ensurePilotUser,assertPilotIdentityRequest} from "./stage-pilot-user.mjs";
 import {readFile} from "node:fs/promises";
 import {createHash,createPublicKey,verify as verifySignature} from "node:crypto";
 
@@ -22,6 +22,8 @@ const aFunnel=mustUuid(process.env.PILOT_A_FUNNEL_ID);
 const bFunnel=mustUuid(process.env.PILOT_B_FUNNEL_ID);
 let phase="init";
 async function call(base,path,method="GET",body,token,statuses=[200]){
+ assertPilotIdentityRequest(process.env.PILOT_IDENTITY_MODE,
+  base===FGA?"fga":"keycloak",path,method);
  const headers={Accept:"application/json"};
  if(token)headers.Authorization="Bearer "+token;
  let payload;

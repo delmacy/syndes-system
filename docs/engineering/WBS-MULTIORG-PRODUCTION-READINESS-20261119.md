@@ -170,3 +170,28 @@ MO-REL-00 é reconciliação factual, **não** aprovação de segurança multi-o
 - **Não comprovado:** schema de Control/tenant instalado no staging, clientes e contas de serviço restritos, datastore OpenFGA persistente, Core Host com Service opt-in e singleton lease na topologia real, IAM07D Control→tenant 010, composição signup completa usando KC/FGA reais, restore ou SQL002 cutover. O [compose atual](../../infra/multiorg-staging/compose.yaml) configura `openfga` com `--datastore-engine memory`; logo HTTP saudável **não** implica autorizações duráveis.
 - **Próxima entrega mínima da MO-REL-04:** projetar e testar migração *somente no staging* de FGA volátil para datastore PostgreSQL segregado, com credenciais de privilégio mínimo, migrations oficiais, prova de reinicialização/persistência e backup/restore; depois instalar Control/tenant e Core de staging via CI aprovado por SHA. Sem sobrescrever dados existentes, sem promoção de produção e sem alterar SQL002 operacional. Só marcar MO-REL-04 `PROVEN` quando a composição exigida e os receipts de CI estiverem demonstrados.
 - **Acesso independente:** Desktop Commander DevServer01 indisponível nesta verificação; a fonte de evidência de execução é a attestation do workflow, não uma inspeção SSH nova. `PRODUCTION_GATE=BLOCKED`.
+
+### Retomada MO-REL-04 — 2026-11-21: identidade e isolamento de segredos
+
+- Baseline real `1663177c9233807dd02c70015afa06599e15d282`: o run
+  `44854884016` falhava em `PILOT_OIDC_HTTP_400` após bootstrap admin concluído.
+  [PR #251](https://github.com/delmacy/syndes-system/pull/251), merge
+  `061699c8a97f94725c86f56c91f7773591d68694`, corrigiu os campos de perfil
+  obrigatórios dos dois usuários sintéticos, inclusive os já criados. CI do head
+  `6775c112dfec9e7b46b66f1a8bd5291b93623ca2`, run `44882638743`, aprovado;
+  Keycloak26 real emitiu JWT após reparo/criação e comprovou replay sem troca
+  de senha e deny para identidade suspensa. Isso ainda não atesta Core HTTP.
+- [PR #252](https://github.com/delmacy/syndes-system/pull/252) propõe namespace
+  OpenBao `multi-org-staging` e hostname SQL de staging fixos, sem fallback para
+  produção. O CI do próprio SHA e os testes reais de ACL OpenBao são a fonte de
+  aceite; código local ou proposta de policy não instala serviços/AppRoles.
+- O provisionador de identidades precisa distinguir `provisioned` de `active`.
+  Ao retomar um tenant já ativo, executar apenas leituras, tokens de login e
+  checks FGA: qualquer tentativa de recriar usuário, membership, store, modelo
+  ou tuple deve falhar antes da chamada externa. Não restaurar grants humanos
+  revogados por um simples replay. Estado parcialmente ativo requer
+  reconciliação explícita; não preencher memberships SQL silenciosamente.
+- Core de staging ainda depende de OpenBao segregado/TLS/AppRoles, login SQL
+  mínimo, issuer HTTPS e reader Keycloak restrito, entitlements/ledger/grants
+  consistentes, singleton e E2E reais. Restore e piloto continuam pendentes.
+  `PRODUCTION_GATE=BLOCKED`; nenhuma aprovação operacional é inferida do CI.
