@@ -48,9 +48,9 @@ const kc=(path,method="GET",body,token,statuses=[200])=>
  call(KC,path,method,body,token,statuses);
 const fga=(path,method="GET",body,statuses=[200])=>
  call(FGA,path,method,body,undefined,statuses);
-const adminPassword=(await readFile("/run/secrets/kc-admin","utf8")).trim();
-const founderPassword=(await readFile("/run/secrets/founder-password","utf8")).trim();
-const restrictedPassword=(await readFile("/run/secrets/restricted-password","utf8")).trim();
+const adminPassword=(await readFile("/tmp/pilot/keycloak-admin","utf8")).trim();
+const founderPassword=(await readFile("/tmp/pilot/pilot-founder-password","utf8")).trim();
+const restrictedPassword=(await readFile("/tmp/pilot/pilot-b-only-password","utf8")).trim();
 for(const password of [adminPassword,founderPassword,restrictedPassword])
  if(!/^[a-f0-9]{64}$/.test(password))throw Error("PILOT_SECRET_FORMAT");
 async function tokenFor(realm,client,username,password){
@@ -188,7 +188,7 @@ if(all.length===0){
 }
 if(all.length!==1||typeof all[0].id!=="string")throw Error("PILOT_FGA_STORE_CONFLICT");
 const storeId=all[0].id;
-const model=JSON.parse(await readFile("/app/fga-model.json","utf8"));
+const model=JSON.parse(await readFile("/tmp/pilot/fga-model.json","utf8"));
 if(!Array.isArray(model.type_definitions)||
    !model.type_definitions.some(x=>x.type==="iam_capability"&&x.relations?.grantee))
  throw Error("PILOT_FGA_MODEL_SCHEMA");
