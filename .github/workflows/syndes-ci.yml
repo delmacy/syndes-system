@@ -1986,7 +1986,7 @@ jobs:
           for attempt in \$(seq 1 20); do
             if printf '%s' "$GH_TOKEN" | timeout 45s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; mkdir -p /tmp/syndes-stage-registry-$SOURCE_SHA; docker --config /tmp/syndes-stage-registry-$SOURCE_SHA login ghcr.io -u '$GITHUB_ACTOR' --password-stdin >/dev/null; docker --config /tmp/syndes-stage-registry-$SOURCE_SHA pull ghcr.io/$GITHUB_REPOSITORY/core-host:stage-$SOURCE_SHA >/dev/null; docker tag ghcr.io/$GITHUB_REPOSITORY/core-host:stage-$SOURCE_SHA syndes/core-host:stage-$SOURCE_SHA; rm -rf /tmp/syndes-stage-registry-$SOURCE_SHA"; then break; fi
             [[ "$attempt" != 20 ]] || exit 1; sleep 30
-          donee
+          done
       - name: Prepare verified stage modules and deploy actual Core Host
         id: deploy
         run: |
