@@ -29,6 +29,14 @@ test("real first-user stage requires signed Keycloak26, exact FGA and signed-in 
  assert.match(runner,/--network syndes-multiorg-staging_staging_internal/);
  assert.match(runner,/CI_APPROVED_GREENFIELD_IDP_FGA/);
  assert.match(runner,/sha256sum -c MANIFEST\.sha256 --status/);
+ assert.match(runner,/tar -czf - -C/);
+ assert.match(runner,/--entrypoint \/bin\/sh node:22-alpine/);
+ assert.match(runner,/--tmpfs \/tmp:rw,noexec,nosuid/);
+ assert.match(runner,/pilot-b-only-password/);
+ assert.doesNotMatch(runner,/--mount|dst=\/run\/secrets/);
+ assert.match(js,/\/tmp\/pilot\/keycloak-admin/);
+ assert.match(js,/\/tmp\/pilot\/pilot-founder-password/);
+ assert.match(js,/\/tmp\/pilot\/fga-model.json/);
  assert.match(runner,/greenfield-stage-first-user.sql/);
  assert.match(runner,/greenfield-stage-membership.sql/);
  assert.doesNotMatch(runner,/syndes_control\b|syndes-postgres|docker compose up|docker restart|SYNDES_MULTI_ORG_ENABLED/);
