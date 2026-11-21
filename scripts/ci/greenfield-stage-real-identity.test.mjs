@@ -40,7 +40,7 @@ test("real first-user stage requires signed Keycloak26, exact FGA and signed-in 
  assert.match(tenant,/platform_org_memberships/);
  assert.match(tenant,/platform_workspace_memberships/);
  assert.match(tenant,/principal_id=:'restricted'/);
- assert.match(tenant,/organization_id='a3f80cc7-4c61-4f8e-8c39-d848dfbe10a1'/);
+ assert.match(tenant,/principal_id=:'restricted' AND organization_id=\s*'a3f80cc7-4c61-4f8e-8c39-d848dfbe10a1'/);
  const pos=workflow.indexOf("  devserver01-greenfield-real-keycloak-fga:");
  assert.ok(pos>0);
  const tail=workflow.slice(pos),end=tail.search(/\n  [a-z][a-z0-9-]+:\n/);
