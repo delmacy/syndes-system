@@ -1536,3 +1536,171 @@ jobs:
           fi
           body="$(printf 'UC-SIGNUP-01C operational Control first signup link schemas: main=%s run=https://github.com/%s/actions/runs/%s scope=%s Tailnet=%s DDL=%s result=%s. New tenant remains PROVISIONED; no Keycloak membership, OpenFGA grant, tenant database or WhatsApp gateway modified. PRODUCTION_GATE=BLOCKED.' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$DEPLOY" "$result")"
           gh issue comment 211 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-greenfield-funnel-uuid-stage:
+    name: MO-REL04 stage greenfield RFC4122 funnel UUID rebuild
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-FUNNEL-UUID-REBUILD-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify exact main SHA and immutable stage-only scope
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-greenfield-funnel-uuid-rebuild.sh
+          bash -n scripts/ci/multiorg-greenfield-pg17.sh
+      - name: Join approved Tailnet using GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Build valid RFC4122 funnel IDs in stage shadow DB and archive old synthetic DB
+        id: deploy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "$DEVSERVER_PEER" >/dev/null
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "$bundle"' EXIT
+          chmod 700 "$bundle"
+          cp scripts/deploy/devserver01-greenfield-funnel-uuid-rebuild.sh "$bundle/runner.sh"
+          for name in 001_account_hierarchy.sql 002_legacy_single_context_gate.sql 008_iam07d_revoke_first_candidate.sql 001_crm_foundation.sql 002_crm_tags_notes.sql 003_crm_employees_channels.sql 001_inbox_foundation.sql 001_whatsapp_accounts.sql 003_legacy_ownership.sql 001_service_funnels.sql 007_staff_roles_pre_release.sql 002_service_team_transfer.sql 003_service_conversation_inspector.sql 006_context_creation_audit.sql 009_iam_multiorg_fence_candidate.sql 010_iam07d_cutover_capabilities_candidate.sql; do
+            case "$name" in
+              001_account_hierarchy.sql|002_legacy_single_context_gate.sql|008_iam07d_revoke_first_candidate.sql|003_legacy_ownership.sql|007_staff_roles_pre_release.sql|006_context_creation_audit.sql|009_iam_multiorg_fence_candidate.sql|010_iam07d_cutover_capabilities_candidate.sql) cp "modules/organizations/sql/$name" "$bundle/";;
+              001_crm_foundation.sql|002_crm_tags_notes.sql|003_crm_employees_channels.sql) cp "modules/core-crm/sql/$name" "$bundle/";;
+              001_inbox_foundation.sql) cp "modules/inbox/sql/$name" "$bundle/";;
+              001_whatsapp_accounts.sql) cp "modules/whatsapp/sql/$name" "$bundle/";;
+              *) cp "modules/service-management/sql/$name" "$bundle/";;
+            esac
+          done
+          cp infra/multiorg-staging/greenfield-pilot-seed.sql "$bundle/"
+          (cd "$bundle" && sha256sum runner.sh *.sql > MANIFEST.sha256)
+          # Only this stage-only PG17 container is mutated. The operational
+          # gateway, operational tenant, Control and SQL002 are untouched.
+          result="$(tar -czf - -C "$bundle" . | timeout 420s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-greenfield.XXXXXXXX); chmod 700 \"\$dir\"; trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_GREENFIELD_REBUILD_APPROVAL=CI_APPROVED_UUID_MO_REL04 SYNDES_GREENFIELD_RELEASE_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply stage \"\$dir\"")"
+          printf '%s\n' "$result"
+          printf '%s\n' "$result" | grep -qx 'MO_REL04_UUID_STAGE_NEW_TENANT_FUNNELS_RFC4122_PASS'
+          printf '%s\n' "$result" | grep -qx 'MO_REL04_UUID_OLD_SYNTHETIC_DATABASE_ARCHIVED_LEGACY_GATEWAY_UNTOUCHED'
+      - name: Record stage-safe shadow DB swap, never user content
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          DEPLOY: ${{ steps.deploy.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for state in "$SCOPE" "$TAILNET" "$DEPLOY"; do
+            [[ "$state" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          result=GREENFIELD_UUID_STAGE_BLOCKED
+          if [[ "$DEPLOY" == success ]]; then
+            result=GREENFIELD_UUID_STAGE_ARCHIVE_AND_SWAP_PASS
+          fi
+          body="$(printf 'MO-REL04 RFC4122 funnel IDs fixed in stage isolated PostgreSQL17. main=%s Actions=https://github.com/%s/actions/runs/%s scope=%s Tailnet=%s shadow database and archive=%s result=%s. Old synthetic database archived; 8 RFC4122 funnels, 16 stages, unchanged new Control mapping. WhatsApp gateway/legacy tenant and SQL002 untouched. No Keycloak identity, FGA grants, Core enablement. PRODUCTION_GATE=BLOCKED.' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$DEPLOY" "$result")"
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-greenfield-funnel-uuid-production:
+    name: MO-REL04 production new-tenant RFC4122 funnel UUID rebuild
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-FUNNEL-UUID-REBUILD-APPROVED') }}
+    needs: [gate, devserver01-greenfield-funnel-uuid-stage]
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify exact main SHA and immutable stage-only scope
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-greenfield-funnel-uuid-rebuild.sh
+          bash -n scripts/ci/multiorg-greenfield-pg17.sh
+      - name: Join approved Tailnet using GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Build valid RFC4122 funnel IDs in production shadow DB, preserve existing legacy
+        id: deploy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "$DEVSERVER_PEER" >/dev/null
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "$bundle"' EXIT
+          chmod 700 "$bundle"
+          cp scripts/deploy/devserver01-greenfield-funnel-uuid-rebuild.sh "$bundle/runner.sh"
+          for name in 001_account_hierarchy.sql 002_legacy_single_context_gate.sql 008_iam07d_revoke_first_candidate.sql 001_crm_foundation.sql 002_crm_tags_notes.sql 003_crm_employees_channels.sql 001_inbox_foundation.sql 001_whatsapp_accounts.sql 003_legacy_ownership.sql 001_service_funnels.sql 007_staff_roles_pre_release.sql 002_service_team_transfer.sql 003_service_conversation_inspector.sql 006_context_creation_audit.sql 009_iam_multiorg_fence_candidate.sql 010_iam07d_cutover_capabilities_candidate.sql; do
+            case "$name" in
+              001_account_hierarchy.sql|002_legacy_single_context_gate.sql|008_iam07d_revoke_first_candidate.sql|003_legacy_ownership.sql|007_staff_roles_pre_release.sql|006_context_creation_audit.sql|009_iam_multiorg_fence_candidate.sql|010_iam07d_cutover_capabilities_candidate.sql) cp "modules/organizations/sql/$name" "$bundle/";;
+              001_crm_foundation.sql|002_crm_tags_notes.sql|003_crm_employees_channels.sql) cp "modules/core-crm/sql/$name" "$bundle/";;
+              001_inbox_foundation.sql) cp "modules/inbox/sql/$name" "$bundle/";;
+              001_whatsapp_accounts.sql) cp "modules/whatsapp/sql/$name" "$bundle/";;
+              *) cp "modules/service-management/sql/$name" "$bundle/";;
+            esac
+          done
+          cp infra/multiorg-staging/greenfield-pilot-seed.sql "$bundle/"
+          (cd "$bundle" && sha256sum runner.sh *.sql > MANIFEST.sha256)
+          # Only a NEW database in operational PG is created. Existing customer
+          # tenant, WhatsApp gateway, SQL002 and Core processes are untouched.
+          result="$(tar -czf - -C "$bundle" . | timeout 420s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-greenfield.XXXXXXXX); chmod 700 \"\$dir\"; trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_GREENFIELD_REBUILD_APPROVAL=CI_APPROVED_UUID_MO_REL04 SYNDES_GREENFIELD_RELEASE_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply production \"\$dir\"")"
+          printf '%s\n' "$result"
+          printf '%s\n' "$result" | grep -qx 'MO_REL04_UUID_PRODUCTION_NEW_TENANT_FUNNELS_RFC4122_PASS'
+          printf '%s\n' "$result" | grep -qx 'MO_REL04_UUID_OLD_SYNTHETIC_DATABASE_ARCHIVED_LEGACY_GATEWAY_UNTOUCHED'
+      - name: Record stage-safe shadow DB swap, never user content
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          DEPLOY: ${{ steps.deploy.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for state in "$SCOPE" "$TAILNET" "$DEPLOY"; do
+            [[ "$state" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          result=GREENFIELD_UUID_PRODUCTION_BLOCKED
+          if [[ "$DEPLOY" == success ]]; then
+            result=GREENFIELD_UUID_PRODUCTION_ARCHIVE_AND_SWAP_PASS
+          fi
+          body="$(printf 'MO-REL04 RFC4122 funnel IDs fixed in production separate NEW tenant PostgreSQL17. main=%s Actions=https://github.com/%s/actions/runs/%s scope=%s Tailnet=%s shadow database and archive=%s result=%s. Old synthetic database archived; 8 RFC4122 funnels, 16 stages, unchanged new Control mapping. WhatsApp gateway/legacy tenant and SQL002 untouched. No Keycloak identity, FGA grants, Core enablement. PRODUCTION_GATE=BLOCKED.' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$DEPLOY" "$result")"
+          gh issue comment 211 --repo "$GITHUB_REPOSITORY" --body "$body"
