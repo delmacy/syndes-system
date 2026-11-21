@@ -1,0 +1,48 @@
+services:
+  core-host:
+    image: ${STAGE_CORE_IMAGE:?exact staging image required}
+    restart: unless-stopped
+    user: '10001:10001'
+    read_only: true
+    tmpfs: [/tmp:rw,noexec,nosuid,size=16m]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [staging_internal]
+    mem_limit: 512m
+    environment:
+      NODE_EXTRA_CA_CERTS: /run/secrets/stage-ca.crt
+      SYNDES_DEPLOYMENT_ENV: staging
+      SYNDES_MULTI_ORG_ENABLED: 'true'
+      SYNDES_SERVICE_STAGING_OPT_IN: 'true'
+      SYNDES_CRM_MODULE_GATE: enforce
+      SYNDES_INBOX_MODULE_GATE: enforce
+      CORE_PORT: '8082'
+      CORE_KEYCLOAK_ISSUER: https://identity-stage:8443/realms/syndes-pilot
+      CORE_KEYCLOAK_AUDIENCE: syndes-core
+      CORE_KEYCLOAK_JWKS_URL: https://identity-stage:8443/realms/syndes-pilot/protocol/openid-connect/certs
+      CORE_IAM_TENANT_OIDC_CLIENT_ID: syndes-pilot-staging-login
+      CORE_IAM_ORG_READER_CLIENT_ID: syndes-stage-org-reader
+      CORE_IAM_ORG_READER_SECRET_FILE: /run/secrets/org-reader-secret
+      CORE_OPENBAO_URL: https://openbao-stage:8200
+      CORE_BAO_ROLE_ID_FILE: /run/secrets/bao-core-role-id
+      CORE_BAO_SECRET_ID_FILE: /run/secrets/bao-core-secret-id
+      CORE_TENANT_ROLE_ID_FILE: /run/secrets/bao-tenant-role-id
+      CORE_TENANT_SECRET_ID_FILE: /run/secrets/bao-tenant-secret-id
+      CORE_OPENFGA_URL: http://openfga:8080
+      CORE_OPENFGA_STORE_ID: ${STAGE_FGA_STORE_ID:?verified stage store required}
+      CORE_IAM07D_FINE_FGA_STORE_ID: ${STAGE_FGA_STORE_ID:?verified stage store required}
+      WHATSAPP_DISPATCH_ENABLED: 'true'
+    volumes:
+      - /home/delmacy/.local/share/syndes-multiorg-staging/runtime/tls/server.crt:/run/secrets/stage-ca.crt:ro
+      - /home/delmacy/.local/share/syndes-multiorg-staging/secrets/bao-core-role-id:/run/secrets/bao-core-role-id:ro
+      - /home/delmacy/.local/share/syndes-multiorg-staging/secrets/bao-core-secret-id:/run/secrets/bao-core-secret-id:ro
+      - /home/delmacy/.local/share/syndes-multiorg-staging/secrets/bao-tenant-role-id:/run/secrets/bao-tenant-role-id:ro
+      - /home/delmacy/.local/share/syndes-multiorg-staging/secrets/bao-tenant-secret-id:/run/secrets/bao-tenant-secret-id:ro
+      - /home/delmacy/.local/share/syndes-multiorg-staging/secrets/org-reader-secret:/run/secrets/org-reader-secret:ro
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8082/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    labels: {syndes.environment: multi-org-staging, syndes.component: core-host}

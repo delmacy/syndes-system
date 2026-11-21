@@ -7,7 +7,7 @@ import {WhatsAppReplyService} from "./outbound-reply.js";
 @Global()
 @Module({imports:[WhatsAppHttpModule,WhatsAppInboundHttpModule],providers:[WhatsAppDispatchWorker,WhatsAppReplyService,{provide:"SYNDES_WHATSAPP_REPLY",useExisting:WhatsAppReplyService}],exports:["SYNDES_WHATSAPP_REPLY"]})
 class WhatsAppApiModule{}
-const whatsappModule:ModuleDefinition={id:"whatsapp",version:"0.1.0",dependencies:["platform","crm","inbox"]};
+const whatsappModule:ModuleDefinition={id:"whatsapp",schema:"whatsapp",version:"0.1.0",dependencies:["platform","crm","inbox"]};
 export const syndesPlugin=defineSyndesModule({
  definition:whatsappModule,
  apiModule:WhatsAppApiModule,

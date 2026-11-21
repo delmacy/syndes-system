@@ -1,0 +1,28 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {spawnSync} from 'node:child_process';
+test('Core staging release requires verified artifacts, nonroot singleton and application rollback',async()=>{
+ const [script,compose,setup,yaml]=await Promise.all([
+  readFile('scripts/deploy/devserver01-stage-core.sh','utf8'),
+  readFile('infra/multiorg-staging/core-compose.yaml','utf8'),
+  readFile('scripts/deploy/staging-runtime/prepare-core.mjs','utf8'),
+  readFile('.github/workflows/syndes-ci.yml','utf8')]);
+ assert.match(script,/ACTIONS_APPROVED_STAGE_CORE/);
+ assert.match(script,/label=syndes.environment=multi-org-staging/);
+ assert.match(script,/org.opencontainers.image.revision/);
+ assert.match(script,/previous_image/);assert.match(script,/timeout 20s docker exec/);
+ assert.match(compose,/user: '10001:10001'/);assert.match(compose,/read_only: true/);
+ assert.match(compose,/CORE_OPENBAO_URL: https:\/\/openbao-stage/);
+ assert.match(compose,/SYNDES_CRM_MODULE_GATE: enforce/);
+ assert.doesNotMatch(compose,/ports:|privileged:|CORE_CONTROL_DB_URL|CORE_OPENFGA_TOKEN|syndes-data/);
+ assert.match(setup,/Ready replay NEVER recreates a revoked grant/);
+ assert.match(setup,/verified_existing_post_cutover/);
+ assert.match(setup,/REASSIGN OWNED BY/);
+ assert.doesNotMatch(setup,/DROP INDEX|ALTER ROLE.*SUPERUSER|process\.env\.DATABASE_URL/);
+ const job=yaml.slice(yaml.indexOf('  devserver01-stage-core-runtime:'));
+ assert.match(job,/needs: \[gate, devserver01-stage-runtime-foundation\]/);assert.match(job,/MO-REL04-STAGE-CORE-RUNTIME-APPROVED/);
+ assert.match(job,/git ls-remote origin refs\/heads\/main/);
+ for(const [exe,args] of [['bash',['-n','scripts/deploy/devserver01-stage-core.sh']],['node',['--check','scripts/deploy/staging-runtime/prepare-core.mjs']]])
+  assert.equal(spawnSync(exe,args).status,0);
+});

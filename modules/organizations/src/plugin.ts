@@ -2,7 +2,7 @@ import {defineSyndesModule,type ModuleDefinition} from "@syndes/core-kernel";
 import {OrganizationHttpModule} from "./nest.module.js";
 
 export const organizationsModule:ModuleDefinition=Object.freeze({
-  id:"organizations",version:"0.1.0",dependencies:["platform"],
+  id:"organizations",schema:"organizations",version:"0.1.0",dependencies:["platform"],
 });
 export const syndesPlugin=defineSyndesModule({
   definition:organizationsModule,
