@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Real stage-only identity+authorization pilot, run in a fresh network-isolated
 // Node sidecar. No production Keycloak/FGA, no WhatsApp, no browser credentials.
+import {ensurePilotUser} from "./stage-pilot-user.mjs";
 import {readFile} from "node:fs/promises";
 import {createHash,createPublicKey,verify as verifySignature} from "node:crypto";
 
@@ -127,22 +128,10 @@ if(!clients.some(x=>x.clientId===CLIENT)){
 if(clients.filter(x=>x.clientId===CLIENT).length!==1)
  throw Error("PILOT_DUPLICATE_CLIENT");
 phase="users";
-async function user(username,password){
- const lookup=async()=>(await kc(prefix+"/users?username="+encodeURIComponent(username)+"&exact=true","GET",undefined,admin)).json;
- let users=await lookup();
- if(!Array.isArray(users))throw Error("PILOT_USERS_LIST");
- if(users.length===0){
-  await kc(prefix+"/users","POST",{
-   username,enabled:true,email:username+"@example.invalid",
-   emailVerified:true,requiredActions:[],
-   credentials:[{type:"password",value:password,temporary:false}],
-  },admin,[201,204]);
-  users=await lookup();
- }
- if(users.length!==1||users[0].username!==username||users[0].enabled!==true)
-  throw Error("PILOT_USER_CONFLICT");
- return mustUuid(users[0].id);
-}
+const user=(username,password)=>ensurePilotUser({
+ prefix,username,password,
+ request:(path,method="GET",body,statuses=[200])=>kc(path,method,body,admin,statuses),
+});
 const founder=await user("pilot-founder",founderPassword);
 const restricted=await user("pilot-b-only",restrictedPassword);
 if(founder===restricted)throw Error("PILOT_DISTINCT_USERS");

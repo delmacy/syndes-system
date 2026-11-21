@@ -1,3 +1,4 @@
+import {ensurePilotUser} from "../../scripts/deploy/stage-pilot-user.mjs";
 import {runIam06bLab} from "./iam06b-composite-ci.mjs";
 // IAM-03 REAL DISPOSABLE Keycloak 26.8.1 experiment.
 // Imported only from existing Platform Manager CI, on its loopback-only container.
@@ -156,6 +157,39 @@ export async function runIam03Lab({base,adminToken,managerToken}){
   const alice=mustId(users.find(u=>u.username==="iam-alice")?.id,"IAM03_ALICE");
   const bob=mustId(users.find(u=>u.username==="iam-bob")?.id,"IAM03_BOB");
   assert.notEqual(alice,bob);
+
+  // Exercise the actual stage bootstrap helper against Keycloak26. An older
+  // bootstrap left founder profiles incomplete; replay repairs only names.
+  stage="pilot-profile-recovery";
+  await post(prefix+"/users",{
+    username:"pilot-founder",enabled:true,email:"pilot-founder@example.invalid",
+    emailVerified:true,requiredActions:[],
+    credentials:[{type:"password",value:PASSWORD,temporary:false}],
+  });
+  const pilotRequest=(path,method="GET",body,statuses=[200])=>
+    call(path,method,adminToken,body,statuses);
+  for(const username of ["pilot-founder","pilot-b-only"]){
+    const options={request:pilotRequest,prefix,username,password:PASSWORD};
+    const id=await ensurePilotUser(options);
+    // A different supplied password on replay MUST NOT reset credentials.
+    assert.equal(await ensurePilotUser({...options,password:"never-installed"}),id);
+    const response=await call("/realms/"+LAB_REALM+"/protocol/openid-connect/token",
+      "POST",undefined,{grant_type:"password",client_id:uiClient,
+        username,password:PASSWORD},[200],"form");
+    assert.equal(JSON.parse(Buffer.from(response.json.access_token.split(".")[1],
+      "base64url")).sub,id,"PILOT_PROFILE_REAL_SIGNED_SUB");
+    const profile=await get(prefix+"/users/"+id);
+    assert.equal(profile.firstName,"Syndes");
+    assert.equal(profile.lastName,"Pilot");
+    // Required actions and an operator suspension cannot be removed by retry.
+    await call(prefix+"/users/"+id,"PUT",adminToken,
+      {enabled:false,requiredActions:["UPDATE_PASSWORD"]},[204]);
+    await assert.rejects(()=>ensurePilotUser(options),/PILOT_USER_CONFLICT/);
+    const disabled=await get(prefix+"/users/"+id);
+    assert.equal(disabled.enabled,false);
+    assert.ok(disabled.requiredActions.includes("UPDATE_PASSWORD"));
+  }
+  console.log("MO_REL04_KEYCLOAK26_PILOT_PROFILE_CREATE_REPAIR_REPLAY_DENY_PASS");
 
   stage="organizations";
   const orgs={};
