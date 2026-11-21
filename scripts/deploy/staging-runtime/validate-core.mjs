@@ -52,6 +52,10 @@ async function main(){
  const control=new pg.Pool({host:'control-postgres',user:'syndes_staging_core',password:await file('core-db-password'),database:'syndes_staging_control',max:2});
  const provider=new TenantPgProvider({db:control});
  try{
+  phase='singleton-postgres-lease';
+  const lease=(await control.query("SELECT count(*)::int n FROM pg_locks WHERE locktype='advisory' AND granted AND classid=20506 AND objid=20261118 AND objsubid=2 AND database=(SELECT oid FROM pg_database WHERE datname=current_database())")).rows[0];assert(lease.n===1);
+  const contender=await control.connect();try{assert((await contender.query('SELECT pg_try_advisory_lock(20506,20261118) AS acquired')).rows[0].acquired===false)}finally{contender.release()}
+  console.log('STAGE_ACCEPTANCE_REAL_CONTROL_SINGLETON_SESSION_LOCK_SECOND_OWNER_DENY_PASS');
   phase='negative-tenant-fixture';
   const other='22222222-2222-4222-8222-222222222222',otherDb='syndes_tenant_'+other.replaceAll('-',''),otherRole='syndes_t_'+other.replaceAll('-','');
   const operator=new pg.Pool({host:'control-postgres',user:'postgres',password:await file('pg-admin'),database:'syndes_staging_control',max:1});

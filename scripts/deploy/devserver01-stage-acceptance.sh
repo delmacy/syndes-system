@@ -39,6 +39,12 @@ operator(){
  -e CORE_TENANT_SECRET_ID_FILE=/run/stage/bao-tenant-secret-id \
  -e "SOURCE_SHA=$SOURCE_SHA" --entrypoint node "$image" "$1" </dev/null
 }
+# Use a DIFFERENT port: denial cannot be explained by address-in-use.
+if timeout 20s docker exec -e CORE_PORT=8083 "$core" node dist/main.js </dev/null > "$root/runtime/acceptance-second-core.log" 2>&1;then
+ echo STAGE_ACCEPTANCE_BLOCKED_SECOND_CORE_ADMITTED;exit 5
+else
+ code=$?;[[ "$code" == 1 ]] || exit 5
+fi
 result="$(operator /run/bundle/validate-core.mjs)";printf '%s\n' "$result"
 printf '%s\n' "$result" | grep -qx STAGE_CORE_REAL_HTTP_IDP_FGA_SQL_WORKER_SSE_ACCEPTANCE_PASS
 # Real network outage: a valid JWT cannot write while KC or FGA is unavailable.
