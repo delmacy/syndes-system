@@ -73,7 +73,9 @@ async function main(){
    await negativeDb.query("INSERT INTO stage_private_person VALUES($1,'Other tenant synthetic sentinel') ON CONFLICT DO NOTHING",[foreignPerson]);
   }finally{await negativeDb.end()}
   phase='http-matrix';
-  const readTuples=[[A,A1],[A,A2],[B,B1],[B,B2]].map(([org,ws])=>({user:'user:'+bootstrap.founder,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability:'inbox.conversation.read',resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})}));
+  const readScopes=[[A,A1],[A,A2],[B,B1],[B,B2]];
+  const readTuples=readScopes.flatMap(([org,ws])=>['inbox.conversation.claim'].map(capability=>({user:'user:'+bootstrap.founder,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability,resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
+  readTuples.push(...[[A,A1],[B,B1]].map(([org,ws])=>({user:'user:'+bootstrap.founder,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability:'inbox.conversation.create',resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
   const readGrant=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:readTuples}}),signal:AbortSignal.timeout(5000)});assert(readGrant.ok);
 
   await api('inbox/conversations',{statuses:[401]});
