@@ -1946,7 +1946,7 @@ jobs:
       issues: write
     env:
       SOURCE_SHA: ${{ github.sha }}
-      EXPECTED_CORE_SHA: 8f93be3d8d053a4cb538e5ade46790cb5714c36c
+      EXPECTED_CORE_SHA: 1e795f2d7579a021d230b8ba89347db95f744b7b
       DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
       TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
     steps:
