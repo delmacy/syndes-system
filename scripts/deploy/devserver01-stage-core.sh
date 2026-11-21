@@ -30,7 +30,7 @@ mkdir -p -m 700 "$operator_bundle"
 cp "$bundle"/* "$operator_bundle/"
 (cd "$operator_bundle" && sha256sum -c MANIFEST.sha256 --status) || exit 4
 operator(){
- docker run --rm --user 0 --network syndes-multiorg-staging_staging_internal \
+ docker run --rm --user "$(id -u):$(id -g)" --network syndes-multiorg-staging_staging_internal \
  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m --cap-drop ALL --security-opt no-new-privileges \
  --mount "type=bind,src=$operator_bundle,dst=/run/bundle,readonly" \
  --mount "type=bind,src=$root/secrets,dst=/run/stage" \

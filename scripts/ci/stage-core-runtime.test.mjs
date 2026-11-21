@@ -21,7 +21,7 @@ test('Core staging release requires verified artifacts, nonroot singleton and ap
  assert.match(setup,/REASSIGN OWNED BY/);
  assert.doesNotMatch(setup,/DROP INDEX|ALTER ROLE.*SUPERUSER|process\.env\.DATABASE_URL/);
  const job=yaml.slice(yaml.indexOf('  devserver01-stage-core-runtime:'));
- assert.match(job,/needs: \[gate\]/);assert.match(job,/MO-REL04-STAGE-CORE-RUNTIME-APPROVED/);
+ assert.match(job,/needs: \[gate, devserver01-stage-runtime-foundation\]/);assert.match(job,/MO-REL04-STAGE-CORE-RUNTIME-APPROVED/);
  assert.match(job,/git ls-remote origin refs\/heads\/main/);
  for(const [exe,args] of [['bash',['-n','scripts/deploy/devserver01-stage-core.sh']],['node',['--check','scripts/deploy/staging-runtime/prepare-core.mjs']]])
   assert.equal(spawnSync(exe,args).status,0);
