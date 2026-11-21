@@ -90,7 +90,7 @@ if d.get("realm")!="syndes-pilot" or d.get("client")!="syndes-pilot-staging-logi
 if not isinstance(d.get("storeId"),str) or not re.fullmatch(r"[A-Za-z0-9_-]{8,128}",d["storeId"]):
  raise SystemExit(4)
 print(d["founder"],d["restricted"],d["kcA"],d["kcB"],d["storeId"])
-')"
+')
 [[ "$founder" =~ ^[0-9a-f-]{36}$ && "$restricted" =~ ^[0-9a-f-]{36}$
  && "$kc_a" =~ ^[0-9a-f-]{36}$ && "$kc_b" =~ ^[0-9a-f-]{36}$ ]] || exit 5
 state="$(docker exec "$pg" psql -X -At -v ON_ERROR_STOP=1 -U postgres -d syndes_staging_control -c "SELECT state FROM tenant_registry WHERE tenant_id='$tid'")"
