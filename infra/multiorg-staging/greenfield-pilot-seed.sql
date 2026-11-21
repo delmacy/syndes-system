@@ -68,45 +68,9 @@ BEGIN
    (SELECT organization_id,workspace_id,count(*) AS n FROM service.service_funnels
     GROUP BY organization_id,workspace_id) x WHERE x.n<>2)
   OR EXISTS(SELECT 1 FROM service.service_funnels WHERE id::text !~
-    '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}
-  OR EXISTS(SELECT 1 FROM inbox_conversations) THEN
-  RAISE EXCEPTION 'Greenfield pilot scope/funnel inventory incorrect' USING ERRCODE='55000';
- END IF;
- -- This must be rejected by composite Organization+Workspace ownership FK.
- BEGIN
-  INSERT INTO service.service_funnels(
-   tenant_id,organization_id,workspace_id,id,code,name,created_by)
-  VALUES('1f5a8ce9-3f01-48cc-a013-2198d99e7510',
-   'b4f80cc7-4c61-4f8e-8c39-d848dfbe10b2',
-   'cae8c1e2-4a1d-4b69-9e02-0dd15b0d1001',
-   'd0000000-0000-4000-8000-000000000001',
-   'invalido','Vazamento de escopo','system:greenfield-installer');
-  RAISE EXCEPTION 'Scope FK did not reject cross-organization funnel'
-   USING ERRCODE='55000';
- EXCEPTION WHEN foreign_key_violation THEN NULL;
- END;
-END $verify$;
-)
+    '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
   OR EXISTS(SELECT 1 FROM service.service_funnel_stages WHERE id::text !~
-    '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}
-  OR EXISTS(SELECT 1 FROM inbox_conversations) THEN
-  RAISE EXCEPTION 'Greenfield pilot scope/funnel inventory incorrect' USING ERRCODE='55000';
- END IF;
- -- This must be rejected by composite Organization+Workspace ownership FK.
- BEGIN
-  INSERT INTO service.service_funnels(
-   tenant_id,organization_id,workspace_id,id,code,name,created_by)
-  VALUES('1f5a8ce9-3f01-48cc-a013-2198d99e7510',
-   'b4f80cc7-4c61-4f8e-8c39-d848dfbe10b2',
-   'cae8c1e2-4a1d-4b69-9e02-0dd15b0d1001',
-   'd0000000-0000-4000-8000-000000000001',
-   'invalido','Vazamento de escopo','system:greenfield-installer');
-  RAISE EXCEPTION 'Scope FK did not reject cross-organization funnel'
-   USING ERRCODE='55000';
- EXCEPTION WHEN foreign_key_violation THEN NULL;
- END;
-END $verify$;
-)
+    '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
   OR EXISTS(SELECT 1 FROM whatsapp_accounts)
   OR EXISTS(SELECT 1 FROM inbox_conversations) THEN
   RAISE EXCEPTION 'Greenfield pilot scope/funnel inventory incorrect' USING ERRCODE='55000';
