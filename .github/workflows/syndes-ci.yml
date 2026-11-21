@@ -1900,7 +1900,7 @@ jobs:
           bundle="$(mktemp -d)"; trap 'rm -rf "$bundle"' EXIT; chmod 700 "$bundle"
           cp scripts/deploy/devserver01-stage-core.sh "$bundle/runner.sh"
           cp scripts/deploy/staging-runtime/prepare-core.mjs "$bundle/"
-          cp infra/multiorg-staging/{core-compose.yaml} "$bundle/"
+          cp infra/multiorg-staging/core-compose.yaml "$bundle/"
           cp infra/postgres/bootstrap/{tenant-module-ledger.schema,control-module-attestation.schema,control-module-activation.schema} "$bundle/"
           (cd "$bundle" && sha256sum *.sh *.mjs *.yaml *.schema > MANIFEST.sha256)
           result="$(tar -czf - -C "$bundle" . | timeout 540s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-stage-runtime.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_STAGE_CORE_APPROVAL=ACTIONS_APPROVED_STAGE_CORE SOURCE_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply \"\$dir\" syndes/core-host:stage-$SOURCE_SHA")"
