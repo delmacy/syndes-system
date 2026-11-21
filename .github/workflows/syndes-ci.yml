@@ -1798,6 +1798,7 @@ jobs:
       contents: read
       id-token: write
       issues: write
+      packages: write
     env:
       SOURCE_SHA: ${{ github.sha }}
       DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
@@ -1815,19 +1816,35 @@ jobs:
           bash -n scripts/deploy/devserver01-stage-runtime-foundation.sh
           node --check scripts/deploy/staging-runtime/setup.mjs
           node --test scripts/ci/stage-runtime-foundation.test.mjs
-      - name: Build exact source Core image in Actions
-        run: docker build --label "org.opencontainers.image.revision=$SOURCE_SHA" -f apps/core-host/Dockerfile -t "syndes/core-host:stage-$SOURCE_SHA" .
+      - name: Build and publish exact source staging image in GitHub Registry
+        id: image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin >/dev/null
+          trap 'docker logout ghcr.io >/dev/null 2>&1' EXIT
+          image="ghcr.io/$GITHUB_REPOSITORY/core-host:stage-$SOURCE_SHA"
+          docker build --label "org.opencontainers.image.revision=$SOURCE_SHA" -f apps/core-host/Dockerfile -t "$image" .
+          docker push "$image"
+          ref="$(docker image inspect -f '{{index .RepoDigests 0}}' "$image")"
+          [[ "$ref" =~ ^ghcr.io/delmacy/syndes-system/core-host@sha256:[a-f0-9]{64}$ ]]
+          printf 'ref=%s\n' "$ref" >> "$GITHUB_OUTPUT"
       - name: Join trusted Tailnet
         uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
           tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
-      - name: Load exact Core image on DevServer01
+      - name: Pull exact source image on DevServer01 using ephemeral registry credentials
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
         run: |
           set -Eeuo pipefail
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
-          docker save "syndes/core-host:stage-$SOURCE_SHA" | gzip -1 | timeout 600s tailscale ssh "delmacy@$DEVSERVER_PEER" 'gzip -dc | docker load' >/dev/null
+          timeout 30s tailscale ssh "delmacy@$DEVSERVER_PEER" 'test "$(id -un)" = delmacy && test "$(hostname -s)" = DevServer01'
+          printf '%s' "$GH_TOKEN" | timeout 600s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; config=\$(mktemp -d /home/delmacy/.local/share/syndes-multiorg-staging/runtime/registry.XXXXXXXX); trap 'rm -rf \"\$config\"' EXIT; docker --config \"\$config\" login ghcr.io -u '$GITHUB_ACTOR' --password-stdin >/dev/null; docker --config \"\$config\" pull $IMAGE_REF >/dev/null; docker tag $IMAGE_REF syndes/core-host:stage-$SOURCE_SHA"
       - name: Deploy isolated TLS OpenBao SQL login and Keycloak reader
         id: deploy
         run: |
@@ -1862,6 +1879,7 @@ jobs:
       contents: read
       id-token: write
       issues: write
+      packages: write
     env:
       SOURCE_SHA: ${{ github.sha }}
       DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
@@ -1879,19 +1897,18 @@ jobs:
           bash -n scripts/deploy/devserver01-stage-core.sh
           node --check scripts/deploy/staging-runtime/prepare-core.mjs
           node --test scripts/ci/stage-core-runtime.test.mjs
-      - name: Build exact source Core image in Actions
-        run: docker build --label "org.opencontainers.image.revision=$SOURCE_SHA" -f apps/core-host/Dockerfile -t "syndes/core-host:stage-$SOURCE_SHA" .
+      - name: Verify foundation deployed the same source artifact
+        run: test "$SOURCE_SHA" = "${{ github.sha }}"
       - name: Join trusted Tailnet
         uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
           tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
-      - name: Load exact Core image on DevServer01
+      - name: Verify exact Core image already loaded by foundation
         run: |
           set -Eeuo pipefail
-          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
-          docker save "syndes/core-host:stage-$SOURCE_SHA" | gzip -1 | timeout 600s tailscale ssh "delmacy@$DEVSERVER_PEER" 'gzip -dc | docker load' >/dev/null
+          timeout 30s tailscale ssh "delmacy@$DEVSERVER_PEER" "test \"\$(docker image inspect -f '{{index .Config.Labels \"org.opencontainers.image.revision\"}}' syndes/core-host:stage-$SOURCE_SHA)\" = '$SOURCE_SHA'"
       - name: Prepare verified stage modules and deploy actual Core Host
         id: deploy
         run: |
