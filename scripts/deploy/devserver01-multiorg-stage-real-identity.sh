@@ -65,16 +65,14 @@ for name in pilot-founder-password pilot-b-only-password;do
  fi
  [[ -f "$file" && ! -L "$file" && "$(stat -c %a "$file")" == 600 ]] || exit 4
 done
-identity="$(docker run --rm --network syndes-multiorg-staging_staging_internal \
- --read-only --tmpfs /tmp:rw,noexec,nosuid --cap-drop ALL \
- --security-opt no-new-privileges \
- --mount "type=bind,src=$bundle/stage-greenfield-keycloak-fga.mjs,dst=/app/pilot.mjs,readonly" \
- --mount "type=bind,src=$bundle/fga-model.json,dst=/app/fga-model.json,readonly" \
- --mount "type=bind,src=$root/secrets/keycloak-admin,dst=/run/secrets/kc-admin,readonly" \
- --mount "type=bind,src=$root/secrets/pilot-founder-password,dst=/run/secrets/founder-password,readonly" \
- --mount "type=bind,src=$root/secrets/pilot-b-only-password,dst=/run/secrets/restricted-password,readonly" \
+identity="$(tar -czf - -C "$bundle" stage-greenfield-keycloak-fga.mjs fga-model.json \
+  -C "$root/secrets" keycloak-admin pilot-founder-password pilot-b-only-password | \
+ docker run --rm -i --network syndes-multiorg-staging_staging_internal \
+ --read-only --tmpfs /tmp:rw,noexec,nosuid,size=8m,mode=0700 \
+ --cap-drop ALL --security-opt no-new-privileges \
  -e "PILOT_A_FUNNEL_ID=$funnel_a" -e "PILOT_B_FUNNEL_ID=$funnel_b" \
- node:22-alpine node /app/pilot.mjs)" || {
+ --entrypoint /bin/sh node:22-alpine -ec \
+ 'umask 077; mkdir -p -m 0700 /tmp/pilot; tar -xzf - -C /tmp/pilot; exec node /tmp/pilot/stage-greenfield-keycloak-fga.mjs')" || {
  echo 'MO_REAL_IDENTITY_BLOCKED=keycloak_or_fga';exit 5;
 }
 read -r founder restricted kc_a kc_b store_id < <(
