@@ -48,10 +48,10 @@ const kc=(path,method="GET",body,token,statuses=[200])=>
  call(KC,path,method,body,token,statuses);
 const fga=(path,method="GET",body,statuses=[200])=>
  call(FGA,path,method,body,undefined,statuses);
-const adminPassword=(await readFile("/tmp/pilot/keycloak-admin","utf8")).trim();
+const adminServiceSecret=(await readFile("/tmp/pilot/pilot-admin-service-secret","utf8")).trim();
 const founderPassword=(await readFile("/tmp/pilot/pilot-founder-password","utf8")).trim();
 const restrictedPassword=(await readFile("/tmp/pilot/pilot-b-only-password","utf8")).trim();
-for(const password of [adminPassword,founderPassword,restrictedPassword])
+for(const password of [adminServiceSecret,founderPassword,restrictedPassword])
  if(!/^[a-f0-9]{64}$/.test(password))throw Error("PILOT_SECRET_FORMAT");
 async function tokenFor(realm,client,username,password){
  phase="oidc-token";
@@ -69,7 +69,34 @@ async function tokenFor(realm,client,username,password){
  if(typeof result.access_token!=="string")throw Error("PILOT_OIDC_TOKEN_MISSING");
  return result.access_token;
 }
-const admin=await tokenFor("master","admin-cli","syndes-stage-admin",adminPassword);
+async function masterServiceToken(){
+ phase="master-service-token";
+ const data=new URLSearchParams({
+  grant_type:"client_credentials",client_id:"syndes-stage-pilot-recovery",
+  client_secret:adminServiceSecret,
+ });
+ let response;
+ try{response=await fetch(KC+"/realms/master/protocol/openid-connect/token",{
+  method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+  body:data,redirect:"error",cache:"no-store",signal:AbortSignal.timeout(15000),
+ });}catch{throw Error("PILOT_ADMIN_SERVICE_TRANSPORT")}
+ if(response.status!==200){
+  let reason="unknown";
+  try{
+   const fault=await response.json();
+   if(["invalid_client","unauthorized_client","invalid_grant","invalid_request"].includes(fault?.error))
+    reason=fault.error;
+  }catch{}
+  throw Error("PILOT_ADMIN_SERVICE_HTTP_"+response.status+"_"+reason);
+ }
+ let value;
+ try{value=await response.json()}catch{throw Error("PILOT_ADMIN_SERVICE_JSON")}
+ if(typeof value?.access_token!=="string"||
+    value.access_token.split(".").length!==3)
+  throw Error("PILOT_ADMIN_SERVICE_TOKEN");
+ return value.access_token;
+}
+const admin=await masterServiceToken();
 phase="realm";
 let realm=await kc("/admin/realms/"+REALM,"GET",undefined,admin,[200,404]);
 if(realm.status===404){
