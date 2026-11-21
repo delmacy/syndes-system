@@ -11,15 +11,15 @@ bundle="$2"
 [[ -d "$bundle" && ! -L "$bundle" && "$(stat -c %a "$bundle")" == 700 ]] || exit 3
 cd "$bundle"
 sha256sum -c MANIFEST.sha256 --status || { echo 'MO_REAL_IDENTITY_BLOCKED=artifact_digest';exit 4; }
-for file in stage-greenfield-keycloak-fga.mjs fga-model.json greenfield-stage-first-user.sql greenfield-stage-membership.sql; do
+for file in stage-greenfield-keycloak-fga.mjs fga-model.json greenfield-stage-first-user.sql greenfield-stage-membership.sql stage-keycloak-recovery.sh; do
  [[ -f "$file" && ! -L "$file" ]] || exit 4
 done
 root=/home/delmacy/.local/share/syndes-multiorg-staging
 [[ -d "$root/secrets" && ! -L "$root" && ! -L "$root/secrets"
   && "$(stat -c %a "$root")" == 700
   && "$(stat -c %a "$root/secrets")" == 700 ]] || exit 4
-[[ -f "$root/secrets/keycloak-admin" && ! -L "$root/secrets/keycloak-admin"
-  && "$(stat -c %a "$root/secrets/keycloak-admin")" == 600 ]] || exit 4
+# Bootstrap credentials for the existing master user are not reused.
+# An isolated service admin is recovered with Keycloak's supported offline CLI.
 one(){
  local component="$1" cid
  cid="$(docker ps --no-trunc -q \
@@ -65,8 +65,16 @@ for name in pilot-founder-password pilot-b-only-password;do
  fi
  [[ -f "$file" && ! -L "$file" && "$(stat -c %a "$file")" == 600 ]] || exit 4
 done
+# Before stage user provisioning, recover a dedicated automation-only admin
+# service account if absent. This stops/restarts ONLY the isolated stage KC.
+SYNDES_STAGE_KC_ADMIN_RECOVERY=CI_APPROVED_STAGE_PILOT_ADMIN \
+ bash "$bundle/stage-keycloak-recovery.sh" recover
+admin_service_secret="$root/secrets/pilot-admin-service-secret"
+[[ -f "$admin_service_secret" && ! -L "$admin_service_secret"
+ && "$(stat -c %a "$admin_service_secret")" == 600
+ && "$(wc -c < "$admin_service_secret")" == 65 ]] || exit 5
 identity="$(tar -czf - -C "$bundle" stage-greenfield-keycloak-fga.mjs fga-model.json \
-  -C "$root/secrets" keycloak-admin pilot-founder-password pilot-b-only-password | \
+  -C "$root/secrets" pilot-admin-service-secret pilot-founder-password pilot-b-only-password | \
  docker run --rm -i --network syndes-multiorg-staging_staging_internal \
  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=8m,mode=0700 \
  --cap-drop ALL --security-opt no-new-privileges \

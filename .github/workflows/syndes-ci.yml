@@ -1734,6 +1734,7 @@ jobs:
           [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
           [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
           bash -n scripts/deploy/devserver01-multiorg-stage-real-identity.sh
+          bash -n scripts/deploy/devserver01-stage-keycloak-admin-service-recovery.sh
           node --check scripts/deploy/stage-greenfield-keycloak-fga.mjs
           node --test scripts/ci/greenfield-stage-real-identity.test.mjs
       - name: Join trusted Tailnet using GitHub OIDC
@@ -1753,11 +1754,12 @@ jobs:
           trap 'rm -rf "$bundle"' EXIT
           chmod 700 "$bundle"
           cp scripts/deploy/devserver01-multiorg-stage-real-identity.sh "$bundle/runner.sh"
+          cp scripts/deploy/devserver01-stage-keycloak-admin-service-recovery.sh "$bundle/stage-keycloak-recovery.sh"
           cp scripts/deploy/stage-greenfield-keycloak-fga.mjs "$bundle/"
           cp infra/security-access/fga-model-iam07d2-candidate.json "$bundle/fga-model.json"
           cp infra/multiorg-staging/greenfield-stage-first-user.sql "$bundle/"
           cp infra/multiorg-staging/greenfield-stage-membership.sql "$bundle/"
-          (cd "$bundle" && sha256sum runner.sh *.mjs *.json *.sql > MANIFEST.sha256)
+          (cd "$bundle" && sha256sum *.sh *.mjs *.json *.sql > MANIFEST.sha256)
           # No password, JWT, user ID or FGA tuple is placed in GitHub logs.
           result="$(tar -czf - -C "$bundle" . | timeout 540s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-real-identity.XXXXXXXX); chmod 700 \"\$dir\"; trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_STAGE_REAL_IDENTITY_APPROVAL=CI_APPROVED_GREENFIELD_IDP_FGA SYNDES_STAGE_REAL_IDENTITY_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply \"\$dir\"")"
           printf '%s\n' "$result"
