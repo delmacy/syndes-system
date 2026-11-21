@@ -31,7 +31,7 @@ test("initial signup link only for enrolled founder in provisioned tenant",async
  assert.match(runner,/CI_APPROVED_FIRST_SIGNUP/);
  assert.match(runner,/sha256sum --check --status/);
  assert.match(runner,/--single-transaction/);
- assert.match(runner,/PROVISIONED/);
+ assert.match(runner,/state='provisioned'/);
  assert.doesNotMatch(runner,/DROP DATABASE|DROP TABLE|ALTER ROLE.*SUPERUSER|docker compose up|SYNDES_MULTI_ORG_ENABLED/);
  for(const [id,scope] of [
   ["devserver01-first-signup-control-stage","stage"],
