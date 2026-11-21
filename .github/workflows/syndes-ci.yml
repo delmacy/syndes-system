@@ -1942,7 +1942,7 @@ jobs:
     # Re-evaluate after foundation on every approved Core release.
     name: MO-REL04 actual Core Host singleton runtime direct
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'MO-REL04-STAGE-CORE-RUNTIME-APPROVED') }}
-    needs: [gate, devserver01-stage-runtime-foundation]
+    needs: [gate]
     runs-on: ubuntu-latest
     timeout-minutes: 35
     environment: devserver01
@@ -1983,7 +1983,10 @@ jobs:
           set -Eeuo pipefail
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
           timeout 30s tailscale ssh "delmacy@$DEVSERVER_PEER" 'test "$(id -un)" = delmacy && test "$(hostname -s)" = DevServer01'
-          printf '%s' "$GH_TOKEN" | timeout 600s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; config=\$(mktemp -d /home/delmacy/.local/share/syndes-multiorg-staging/runtime/core-registry-direct.XXXXXXXX); trap 'rm -rf \\\"\$config\\\"' EXIT; docker --config \\\"\$config\\\" login ghcr.io -u '$GITHUB_ACTOR' --password-stdin >/dev/null; docker --config \\\"\$config\\\" pull ghcr.io/$GITHUB_REPOSITORY/core-host:stage-$SOURCE_SHA >/dev/null; docker tag ghcr.io/$GITHUB_REPOSITORY/core-host:stage-$SOURCE_SHA syndes/core-host:stage-$SOURCE_SHA"
+          for attempt in $(seq 1 20); do
+            if printf '%s' "$GH_TOKEN" | timeout 45s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; config=\\$(mktemp -d /home/delmacy/.local/share/syndes-multiorg-staging/runtime/core-registry-direct.XXXXXXXX); trap 'rm -rf \\\"\\$config\\\"' EXIT; docker --config \\\"\\$config\\\" login ghcr.io -u '$GITHUB_ACTOR' --password-stdin >/dev/null; docker --config \\\"\\$config\\\" pull ghcr.io/$GITHUB_REPOSITORY/core-host:stage-$SOURCE_SHA >/dev/null; docker tag ghcr.io/$GITHUB_REPOSITORY/core-host:stage-$SOURCE_SHA syndes/core-host:stage-$SOURCE_SHA"; then break; fi
+            [[ "$attempt" != 20 ]] || exit 1; sleep 30
+          done
       - name: Prepare verified stage modules and deploy actual Core Host
         id: deploy
         run: |
