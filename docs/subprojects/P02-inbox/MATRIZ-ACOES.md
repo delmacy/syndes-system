@@ -1,8 +1,8 @@
 # P02 Inbox — Matriz de ações, contratos, permissões e provas
 
-> **Rastreabilidade documental · 16/11/2026 · código `24018b354392196899332af1581170fb3ad7cf24`.** 17 rotas HTTP e 2 consumidores assíncronos identificados na fonte. **Não confundir declaração com roteamento montado, worker ativo, concessão FGA, CI da SHA, homologação ou deploy.** Os 34 PASS são históricos de 12/11 no checkout `b452a03e`.
+> **Rastreabilidade documental · 21/11/2026 · código `5c4efc5d306acc1eaf79ce4d8747e7d0983f528c`.** 18 rotas HTTP e 2 consumidores assíncronos identificados na fonte. **Não confundir declaração com roteamento montado, worker ativo, concessão FGA, CI da SHA, homologação ou deploy.** Os 34 PASS são históricos de 12/11 no checkout `b452a03e`.
 
-## 1. Funções e 19 ações rastreáveis
+## 1. Funções e 20 ações rastreáveis
 
 | Função | Ação / ficha A–J | Tipo | Contrato | Permissão/contexto |
 |---|---|---|---|---|
@@ -17,6 +17,7 @@
 | Mensagens e notas | [Responder à conversa](acoes/p02-message-reply.md) | HTTP | `POST conversations/:id/replies` | `inbox:messages/write` |
 | Mensagens e notas | [Registrar nota interna](acoes/p02-message-note.md) | HTTP | `POST conversations/:id/notes` | `inbox:notes/write` |
 | Operação do atendimento | [Atribuir ou liberar responsável](acoes/p02-assignment-set.md) | HTTP | `PATCH conversations/:id/assignment` | `inbox:assignment/write` |
+| Operação do atendimento | [Assumir conversa multi-org](acoes/p02-conversation-claim.md) | HTTP | `POST conversations/:id/claim` | IAM07D / `inbox.conversation.claim` |
 | Operação do atendimento | [Alternar atendimento humano ou bot](acoes/p02-handoff-set.md) | HTTP | `PATCH conversations/:id/handoff` | `inbox:conversations/write` |
 | Operação do atendimento | [Transferir conversa entre workspaces](acoes/p02-workspace-transfer.md) | HTTP | `PATCH conversations/:id/workspace` | `inbox:assignment/write` |
 | Vínculo CRM | [Vincular conversa à pessoa CRM](acoes/p02-crm-link.md) | HTTP | `PATCH conversations/:id/contact` | `crm:people/read + inbox:conversations/write` |
@@ -26,7 +27,7 @@
 | Canais e eventos | [Consumir evento WhatsApp recebido](acoes/p02-whatsapp-ingest-event.md) | Evento | `whatsapp.message.received.v2` | `service principal / contrato versionado, NÃO HTTP` |
 | Vínculo CRM | [Consumir resolução de pessoa CRM](acoes/p02-crm-resolved-event.md) | Evento | `crm.person.resolved.v1` | `service principal / contrato versionado, NÃO HTTP` |
 
-**Total:** 19 fichas; 17 HTTP; 2 consumidores sem endpoint HTTP. A coluna “contrato” é *relativa* a `/v1/tenants/:tenantId/inbox` quando HTTP.
+**Total:** 20 fichas; 17 HTTP; 2 consumidores sem endpoint HTTP. A coluna “contrato” é *relativa* a `/v1/tenants/:tenantId/inbox` quando HTTP.
 
 ## 2. Funcionalidades, dependências e ownership
 

@@ -31,7 +31,7 @@
 
 ## Contratos públicos, APIs e eventos
 
-[Índice normativo de contratos](../../standards/CONTRATOS-PUBLICOS.md). O [inventário técnico](INVENTARIO-TECNICO.md) registra as 17 rotas declaradas do controller, recursos FGA por operação e os contratos `whatsapp.message.received.v2`, `inbox.participant.observed.v1`, `crm.person.resolved.v1`. Essas declarações não atestam worker/Host ativos.
+[Índice normativo de contratos](../../standards/CONTRATOS-PUBLICOS.md). O [inventário técnico](INVENTARIO-TECNICO.md) registra as 18 rotas declaradas do controller, recursos FGA por operação e os contratos `whatsapp.message.received.v2`, `inbox.participant.observed.v1`, `crm.person.resolved.v1`. Essas declarações não atestam worker/Host ativos.
 
 ## Frontend: aplicações, telas e componentes
 
@@ -58,7 +58,7 @@ Nenhuma tabela pode ser atribuída ao Control por inferência; confirmar owner e
 
 ## Reconciliação de estado e defasagens — 16/11/2026
 
-- [Ficha Mestre](FICHA-MODULO.md) e [matriz](MATRIZ-ACOES.md) representam **17 rotas HTTP + 2 consumers** identificados na SHA `24018b354392`.
+- [Ficha Mestre](FICHA-MODULO.md) e [matriz](MATRIZ-ACOES.md) representam **18 rotas HTTP + 2 consumers** reconciliados em 21/11/2026 na SHA `5c4efc5d`.
 - O README base do pacote descreve uma fundação anterior: os recursos atuais são `inbox:conversations`, `inbox:messages`, `inbox:notes`, `inbox:assignment`, `inbox:simulation` e `inbox:metrics`. Não assumir `inbox:conversations/assign` ou `inbox:messages/reply` como permissões provisionadas.
 - A SQL 001 não contém todas as colunas de WA/organização/workspace usadas pelas queries atuais; [inventário](INVENTARIO-TECNICO.md) aponta a lacuna, sem alegar migrations executadas.
 - O [STATUS](STATUS.md) distingue 34 testes históricos e os bloqueios de Product Gate, sem confundir compilação do portal com validação operacional P02.

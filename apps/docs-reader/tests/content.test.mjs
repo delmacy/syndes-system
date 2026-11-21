@@ -247,7 +247,7 @@ test("P05: matriz de 12 rotas vinculada ao controller sem homologação presumid
 });
 
 
-test("P02: 22 seções, sete funções, 19 fichas A-J e 17 rotas idênticas ao controller",async()=>{
+test("P02: 22 seções, sete funções, 20 fichas A-J e 18 rotas idênticas ao controller",async()=>{
  const {readFileSync,existsSync}=await import("node:fs");
  const {resolve}=await import("node:path");
  const {loadMasterDossier}=await import("../lib/master-dossiers.js");
@@ -258,9 +258,9 @@ test("P02: 22 seções, sete funções, 19 fichas A-J e 17 rotas idênticas ao c
  assert.equal(doc.sections.length,22);
  assert.deepEqual(doc.sections.map(s=>s.number),Array.from({length:22},(_,i)=>String(i).padStart(2,"0")));
  assert.equal(catalog.groups.length,7);
- assert.equal(catalog.actions.length,19);
- assert.equal(new Set(catalog.actions.map(a=>a.id)).size,19);
- assert.equal(catalog.actions.filter(a=>a.verb).length,17);
+ assert.equal(catalog.actions.length,20);
+ assert.equal(new Set(catalog.actions.map(a=>a.id)).size,20);
+ assert.equal(catalog.actions.filter(a=>a.verb).length,18);
  assert.equal(catalog.actions.filter(a=>!a.verb).length,2);
  const controller=readFileSync(resolve(base,"../../../modules/inbox/src/inbox.controller.ts"),"utf8");
  const found=[...controller.matchAll(/@(Get|Post|Patch)\("([^"]+)"\)/g)].map(m=>m[1].toUpperCase()+" "+m[2]).sort();
@@ -280,7 +280,7 @@ test("P02: 22 seções, sete funções, 19 fichas A-J e 17 rotas idênticas ao c
  assert.throws(()=>parseActionDossier("## A. Apenas uma seção"),/A-J/);
  assert.throws(()=>loadInboxAction("p02-../../README"),/Invalid/);
  const refer=readFileSync(resolve(base,"REFERENCIA-TECNICA.md"),"utf8");
- assert.ok(refer.includes("17 rotas"));
+ assert.ok(refer.includes("18 rotas"));
  const status=readFileSync(resolve(base,"STATUS.md"),"utf8");
  assert.ok(status.includes("34 PASS")&&status.includes("não reexecutados"));
 });
@@ -300,7 +300,7 @@ test("P02 reflete contratos HTTP, handlers, recursos FGA e exports do owner",asy
    .map(a=>({verb:a.verb,route:a.route,handler:a.controller}))
    .sort((a,b)=>(a.verb+a.route).localeCompare(b.verb+b.route));
  assert.deepEqual(docs,rows,"Endpoints ou handlers alterados: reconciliar fichas e catálogo");
- assert.equal(rows.length,17);
+ assert.equal(rows.length,18);
  assert.deepEqual(Object.keys(manifest.exports).sort(),[".","./plugin"]);
  const perms=[...plugin.matchAll(/\{resource:"([^"]+)",actions:\[([^\]]+)\]\}/g)].flatMap(m=>
    [...m[2].matchAll(/"([^"]+)"/g)].map(action=>m[1]+"/"+action[1]));
@@ -315,7 +315,7 @@ test("P02 reflete contratos HTTP, handlers, recursos FGA e exports do owner",asy
  }
  const master=read("../../../docs/subprojects/P02-inbox/FICHA-MODULO.md");
  assert.equal([...master.matchAll(/^## ([0-9]{2}) ·/gm)].length,22);
- assert.equal(catalog.actions.length,19);
+ assert.equal(catalog.actions.length,20);
  assert.equal(catalog.actions.filter(a=>!a.verb).length,2);
 });
 
@@ -348,7 +348,9 @@ test("P02 paridade verifica migrations reais e divergência CRM manual vs consum
  assert.match(consumer,/FOR UPDATE/);
  assert.match(consumer,/crm_person_id IS NULL/);
  const readOp=repo.split("async markRead(")[1].split("async linkContact(")[0];
- assert.ok(!readOp.includes("inbox_events"),"read audit added: update parity doc");
+ assert.match(readOp,/INSERT INTO inbox_events/);
+ assert.match(readOp,/SELECT tenant_id,id,\$3,'read' FROM changed/);
+ assert.match(parity,/evento `read`/);
  const favorite=repo.split("async favorite(")[1].split("async markRead(")[0];
  assert.match(favorite,/favorite_changed/);
  assert.ok(!favorite.includes("IS DISTINCT FROM"),"favorite no-op filter changed");

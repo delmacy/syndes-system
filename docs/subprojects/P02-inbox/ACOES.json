@@ -152,9 +152,9 @@
       "controller": "read",
       "method": "InboxService.markRead",
       "permission": "inbox:conversations/write",
-      "data": "inbox_conversations",
+      "data": "inbox_conversations; inbox_events",
       "input": "conversationId UUID",
-      "rules": "Zera unread_count em conversa WhatsApp e publica SSE no controller; repositório NÃO grava inbox_events para read.",
+      "rules": "Zera unread_count e grava evento read no mesmo CTE; em multi-org exige inbox.conversation.mark_read e IAM07D pinned; SSE após resultado.",
       "edges": [
         "conversa simulation",
         "operador sem permissão",
@@ -392,6 +392,25 @@
         "resolução de grupo",
         "tenant/workspace diferente",
         "consumer não ativado"
+      ]
+    },
+    {
+      "id": "p02-conversation-claim",
+      "title": "Assumir conversa multi-org",
+      "group": "atendimento",
+      "verb": "POST",
+      "route": "conversations/:id/claim",
+      "controller": "claim",
+      "method": "InboxHost.claimExact → OperationalIam07dOperations.claim",
+      "permission": "inbox:assignment/write + capability exata inbox.conversation.claim",
+      "data": "inbox_conversations; inbox_events; fence IAM07D",
+      "input": "conversationId UUID e contexto validado",
+      "rules": "Somente multi-org; Keycloak atual, Control ENABLED, FGA exato, ownership SQL e epoch/fence na transação pinned.",
+      "edges": [
+        "modo legado negado",
+        "grant revogado",
+        "conversa de outro escopo",
+        "provider indisponível"
       ]
     }
   ]

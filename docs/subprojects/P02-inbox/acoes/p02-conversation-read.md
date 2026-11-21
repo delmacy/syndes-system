@@ -25,7 +25,7 @@
 
 ## C. Fluxo, variações e exceções
 
-**Implementação exata:** `markRead` atualiza `unread_count=0` em conversa WhatsApp, mas **não insere em `inbox_events`**; o controller emite SSE `changed` após o resultado. Não afirmar auditoria persistida desta leitura.
+**Implementação exata:** `markRead` atualiza `unread_count=0` em conversa WhatsApp, mas **insere evento `read` em `inbox_events` no mesmo CTE**; o controller emite SSE após o resultado. Em multi-org exige capability exata `inbox.conversation.mark_read` e IAM07D pinned. Esta revisão de 21/11/2026 substitui a descrição histórica; não comprova implantação.
 
 [Confronto de código, owners e decisões](../PARIDADE-CODIGO.md).
 
