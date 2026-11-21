@@ -12,7 +12,7 @@ export class SupportDatabaseMismatchError extends Error{
  constructor(){super("Trusted Syndes database mismatch");this.name="SupportDatabaseMismatchError";}
 }
 export const supportModule=Object.freeze({
- id:"support",version:"0.1.0",dependencies:["platform","crm","inbox","whatsapp","organizations"]
+ id:"support",schema:"support",version:"0.1.0",dependencies:["platform","crm","inbox","whatsapp","organizations"]
 });
 const iso=(v:unknown)=>v instanceof Date?v.toISOString():v==null?null:String(v);
 const asCase=(r:Record<string,unknown>)=>({

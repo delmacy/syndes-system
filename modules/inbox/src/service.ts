@@ -6,7 +6,7 @@ import {InboxValidationError} from "./contracts.js";
 import {id,text,optionalExternal,limit,assignee} from "./validation.js";
 
 export const inboxModule:ModuleDefinition=Object.freeze({
- id:"inbox",version:"0.1.0",dependencies:["platform","crm"]
+ id:"inbox",schema:"inbox",version:"0.1.0",dependencies:["platform","crm"]
 });
 /** All repository resolution is inside the authorized kernel handler. */
 export class InboxService {

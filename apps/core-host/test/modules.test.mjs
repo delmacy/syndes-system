@@ -84,3 +84,17 @@ test("Service optional plugin refuses every non-staging or unenforced configurat
   }
  }
 });
+
+test('real installed module descriptors carry the schema required by the enforced Control catalog',async()=>{
+ const {resolveApprovedModules}=await import('@syndes/core-kernel');
+ const plugins=await loadInstalledPlugins();
+ const definitions=plugins.map(p=>p.definition);
+ for(const d of definitions)assert.equal(d.schema,d.id,'Missing explicit schema for '+d.id);
+ const rows=definitions.flatMap(d=>(d.dependencies.filter(x=>x!=='platform').length?
+  d.dependencies.filter(x=>x!=='platform'):[null]).map(dependencyId=>({
+   moduleId:d.id,version:d.version,schema:d.id,dependencyId,
+  })));
+ const actual=resolveApprovedModules([{id:'platform',version:'0.1.0'},...definitions],rows);
+ assert.equal(actual.length,definitions.length);
+ assert.deepEqual(actual.map(x=>x.id).sort(),definitions.map(x=>x.id).sort());
+});

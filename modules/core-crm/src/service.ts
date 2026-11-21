@@ -10,7 +10,7 @@ import { email, id, phone, requiredName, searchQuery, taxId, optionalText } from
 
 /** Domain modules are registered in the host, not in the framework kernel. */
 export const crmModule:ModuleDefinition=Object.freeze({
-  id:"crm",version:"0.1.0",dependencies:["platform"],
+  id:"crm",schema:"crm",version:"0.1.0",dependencies:["platform"],
 });
 
 /**

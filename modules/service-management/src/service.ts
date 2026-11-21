@@ -20,7 +20,7 @@ export type FunnelContext=Readonly<{
  tenantId:string;organizationId:string;workspaceId:string;actor:Actor;
 }>;
 export type FunnelStage=Readonly<{code:string;label:string}>;
-const definition=Object.freeze({id:"service",version:"0.3.0",
+const definition=Object.freeze({id:"service",schema:"service",version:"0.3.0",
  dependencies:["platform","organizations","crm","inbox"]});
 
 function validateContext(ctx:FunnelContext):void{
