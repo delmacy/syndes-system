@@ -14,7 +14,7 @@ test("initial signup link only for enrolled founder in provisioned tenant",async
  assert.match(migration,/Initial founder enrollment missing or ambiguous/);
  assert.match(migration,/i\.keycloak_organization_id,t\.state AS tenant_state/);
  assert.match(migration,/Immutable signup link\/audit replay conflict/);
- assert.match(migration,/v_intent\.state='ready'/);
+ assert.match(migration,/v_intent\.state NOT IN \('reserved','reconcile_required'\)/);
  assert.match(migration,/syndes_signup_link_operator NOLOGIN/);
  assert.match(migration,/SECURITY DEFINER SET search_path=pg_catalog/);
  assert.match(migration,/REVOKE ALL ON FUNCTION public\.platform_signup_bind_initial_keycloak_org/);
