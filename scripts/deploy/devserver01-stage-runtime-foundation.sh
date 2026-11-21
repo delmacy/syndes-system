@@ -66,9 +66,13 @@ fi
 "${compose[@]}" up -d --no-deps --force-recreate identity-stage </dev/null >/dev/null
 # Administrative operator sidecar is ephemeral and never exposed as Core.
 # Host recovery dir is 0700; runtime receives only specific read-only files.
+operator_bundle="$root/runtime/operator-$SOURCE_SHA"
+mkdir -p -m 700 "$operator_bundle"
+cp "$bundle"/* "$operator_bundle/"
+(cd "$operator_bundle" && sha256sum -c MANIFEST.sha256 --status) || exit 4
 result="$(docker run --rm --user 0 --network syndes-multiorg-staging_staging_internal \
  --read-only --tmpfs /tmp:rw,nosuid,noexec,size=32m --cap-drop ALL --security-opt no-new-privileges \
- --mount "type=bind,src=$bundle,dst=/run/bundle,readonly" \
+ --mount "type=bind,src=$operator_bundle,dst=/run/bundle,readonly" \
  --mount "type=bind,src=$root/secrets,dst=/run/stage" \
  --mount "type=bind,src=$root/runtime/tls/server.crt,dst=/run/stage-ca.crt,readonly" \
  -e NODE_EXTRA_CA_CERTS=/run/stage-ca.crt -e SYNDES_STAGE_SETUP=ACTIONS_ISOLATED_STAGE_ONLY \
