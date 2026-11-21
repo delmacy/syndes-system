@@ -2013,7 +2013,7 @@ jobs:
 
   devserver01-stage-acceptance-restore:
     name: MO-REL05 real staging acceptance and encrypted restore
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL05-STAGE-ACCEPTANCE-RESTORE-APPROVED') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'MO-REL05-STAGE-ACCEPTANCE-RESTORE-APPROVED') }}
     needs: [gate]
     runs-on: ubuntu-latest
     timeout-minutes: 40
