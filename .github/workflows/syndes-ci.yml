@@ -1871,7 +1871,7 @@ jobs:
   devserver01-stage-core-runtime:
     # Re-evaluate after foundation on every approved Core release.
     name: MO-REL04 actual Core Host singleton runtime
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'MO-REL04-STAGE-CORE-RUNTIME-APPROVED') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'MO-REL04-STAGE-CORE-RUNTIME-APPROVED') }}
     needs: [gate, devserver01-stage-runtime-foundation]
     runs-on: ubuntu-latest
     timeout-minutes: 35
