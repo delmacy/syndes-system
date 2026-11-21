@@ -112,7 +112,7 @@ control_ok="$(docker exec "$pg" psql -X -At -v ON_ERROR_STOP=1 -U postgres -d sy
  AND (SELECT count(*) FROM platform_signup_intents WHERE tenant_id='$tid' AND founder_id='$founder' AND state='ready')=1
  AND (SELECT count(*) FROM tenant_registry WHERE tenant_id='$tid' AND state='active')=1
  THEN 'PASS' ELSE 'BLOCKED' END")"
-[[ "$control_ok" == PASS ]] || {echo 'MO_REAL_IDENTITY_BLOCKED=control_verification';exit 5;}
+[[ "$control_ok" == PASS ]] || { echo 'MO_REAL_IDENTITY_BLOCKED=control_verification';exit 5; }
 membership="$(docker exec "$pg" psql -X -At -v ON_ERROR_STOP=1 -U postgres -d "$tenant" -c "SELECT
  (SELECT count(*) FROM platform_org_memberships)::text||':'||
  (SELECT count(*) FROM platform_workspace_memberships)::text")"
@@ -144,7 +144,7 @@ if [[ ! -e "$store_file" && ! -L "$store_file" ]];then
  printf '%s\n' "$store_id" > "$tmp"
  chmod 0600 "$tmp"
  mv -n "$tmp" "$store_file"
- [[ ! -e "$tmp" ]] || {rm -f "$tmp";exit 5;}
+ [[ ! -e "$tmp" ]] || { rm -f "$tmp";exit 5; }
 fi
 [[ -f "$store_file" && ! -L "$store_file"
  && "$(stat -c %a "$store_file")" == 600
