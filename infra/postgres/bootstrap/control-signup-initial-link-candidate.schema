@@ -22,18 +22,32 @@ BEGIN
  IF p_request IS NULL OR p_founder IS NULL OR p_keycloak IS NULL
     OR p_realm IS NULL OR p_realm !~ '^[a-z][a-z0-9_-]{1,80}$'
  THEN RAISE EXCEPTION 'Invalid initial Keycloak link' USING ERRCODE='22023'; END IF;
- SELECT i.tenant_id,i.organization_id,i.founder_id,i.state
+ SELECT i.tenant_id,i.organization_id,i.founder_id,i.state,
+   i.keycloak_organization_id,t.state AS tenant_state
  INTO v_intent
  FROM public.platform_signup_intents i
  JOIN public.tenant_registry t ON t.tenant_id=i.tenant_id
  WHERE i.request_id=p_request AND i.founder_id=p_founder
-   AND i.state IN ('reserved','reconcile_required')
-   AND t.state='provisioned'
- FOR UPDATE OF i;
- IF NOT FOUND THEN
-  RAISE EXCEPTION 'Untrusted or already finalized signup intent'
+ FOR UPDATE OF i,t;
+ IF NOT FOUND OR v_intent.state NOT IN ('reserved','reconcile_required','ready')
+   OR (v_intent.state='ready' AND v_intent.tenant_state<>'active')
+   OR (v_intent.state<>'ready' AND v_intent.tenant_state<>'provisioned')
+   OR (v_intent.keycloak_organization_id IS NOT NULL AND
+       v_intent.keycloak_organization_id IS DISTINCT FROM p_keycloak)
+ THEN
+  RAISE EXCEPTION 'Invalid or wrong founder signup intent state'
    USING ERRCODE='23514';
  END IF;
+ -- No first-tenant link without exactly the verified founder enrolled.
+ -- KC Org/alias/member identity is independently checked by trusted installer.
+ IF NOT EXISTS(SELECT 1 FROM public.tenant_memberships m
+   WHERE m.tenant_id=v_intent.tenant_id AND m.principal_id=p_founder::text
+     AND m.state='active')
+   OR EXISTS(SELECT 1 FROM public.tenant_memberships m
+    WHERE m.tenant_id=v_intent.tenant_id
+      AND m.principal_id<>p_founder::text)
+ THEN RAISE EXCEPTION 'Initial founder enrollment missing or ambiguous'
+   USING ERRCODE='23514'; END IF;
 
  -- Exactly the same two lock domains/order used by the normal IAM link
  -- transition, so a concurrent operator cannot forge a duplicate owner.
@@ -45,22 +59,21 @@ BEGIN
  SELECT * INTO v_existing FROM public.platform_keycloak_org_links
   WHERE tenant_id=v_intent.tenant_id AND organization_id=v_intent.organization_id
   FOR UPDATE;
- IF FOUND THEN
-  IF v_existing.realm<>p_realm OR
-     v_existing.keycloak_organization_id<>p_keycloak OR
-     v_existing.state<>'active' OR v_existing.revision<>1 THEN
-   RAISE EXCEPTION 'Immutable signup link conflict' USING ERRCODE='23505';
-  END IF;
- ELSE
-  INSERT INTO public.platform_keycloak_org_links(
-   tenant_id,organization_id,realm,keycloak_organization_id,state,revision)
-  VALUES(v_intent.tenant_id,v_intent.organization_id,
-   p_realm,p_keycloak,'active',1);
- END IF;
-
  SELECT * INTO v_audit FROM public.platform_keycloak_org_link_audit
  WHERE request_id=p_request;
- IF FOUND THEN
+ IF v_existing.tenant_id IS NOT NULL OR v_audit.request_id IS NOT NULL THEN
+  -- Partial state or a pre-existing link from a DIFFERENT request is never
+  -- claimed by this signup. Both exact records must already exist.
+  IF v_existing.tenant_id IS NULL OR v_audit.request_id IS NULL OR
+     v_existing.realm<>p_realm OR
+     v_existing.keycloak_organization_id<>p_keycloak OR
+     v_existing.state<>'active' OR v_existing.revision<>1 OR
+     v_audit.payload_hash<>pg_catalog.md5(pg_catalog.jsonb_build_object(
+      'request',p_request,'tenant',v_intent.tenant_id,
+      'organization',v_intent.organization_id,'realm',p_realm,
+      'keycloak',p_keycloak,'founder',p_founder)::text) THEN
+   RAISE EXCEPTION 'Immutable signup link/audit replay conflict' USING ERRCODE='23505';
+  END IF;
   IF v_audit.tenant_id<>v_intent.tenant_id OR
      v_audit.organization_id<>v_intent.organization_id OR
      v_audit.realm<>p_realm OR
@@ -69,7 +82,16 @@ BEGIN
      v_audit.operation<>'provisioned' THEN
     RAISE EXCEPTION 'Signup link audit conflict' USING ERRCODE='23505';
   END IF;
+  RETURN 1;
  ELSE
+  IF v_intent.state NOT IN ('reserved','reconcile_required') THEN
+    RAISE EXCEPTION 'Initial link cannot be created after finalization'
+      USING ERRCODE='23514';
+  END IF;
+  INSERT INTO public.platform_keycloak_org_links(
+   tenant_id,organization_id,realm,keycloak_organization_id,state,revision)
+  VALUES(v_intent.tenant_id,v_intent.organization_id,
+   p_realm,p_keycloak,'active',1);
   v_hash:=pg_catalog.md5(pg_catalog.jsonb_build_object(
     'request',p_request,'tenant',v_intent.tenant_id,
     'organization',v_intent.organization_id,'realm',p_realm,
