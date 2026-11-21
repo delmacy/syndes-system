@@ -2,16 +2,16 @@
 
 > **Reconciliação de 16/11/2026, revisão de código na SHA `54bbc6c2501a6d2313a68467d13664f828358be3`.** Este documento descreve implementação encontrada no repositório, não comportamento homologado em produção. **O template Ficha Mestre v1.0.0 não foi alterado.**
 >
-> **Fonte de verdade:** módulos donos dos contratos e do SQL, não telas do portal. O catálogo [ACOES.json](ACOES.json) indexa as ações; [MATRIZ](MATRIZ-ACOES.md) mapeia 17 decorators HTTP + dois consumers, e as [19 fichas](MATRIZ-ACOES.md) devem apontar para as mesmas fontes.
+> **Fonte de verdade:** módulos donos dos contratos e do SQL, não telas do portal. O catálogo [ACOES.json](ACOES.json) indexa as ações; [MATRIZ](MATRIZ-ACOES.md) mapeia 18 decorators HTTP + dois consumers, e as [20 fichas](MATRIZ-ACOES.md) devem apontar para as mesmas fontes.
 
 ## 1 · Escala e evidências com estados independentes
 
 | Dimensão | O que está comprovado | O que NÃO foi comprovado |
 |---|---|---|
-| Código | 17 rotas `Get/Post/Patch` no `InboxController`, 2 `handle` de eventos, recursos no plugin | Rotas instaladas e autorizadas em produção |
+| Código | 18 rotas `Get/Post/Patch` no `InboxController`, 2 `handle` de eventos, recursos no plugin | Rotas instaladas e autorizadas em produção |
 | Contrato | `@syndes/core-inbox` e `@syndes/core-inbox/plugin`; parâmetros e recursos lidos na fonte | Um contrato público adicional sem export |
 | Persistência | Três tabelas em P02 SQL 001; extensões em P04 Organizations e P03 WhatsApp | Aplicação e ordem real das migrations num ambiente alvo |
-| Testes históricos | `34 PASS`, checkout `b452a03e`, 12/11, auditoria parcial | PASS de todos os 19 casos na SHA atual |
+| Testes históricos | `34 PASS`, checkout `b452a03e`, 12/11, auditoria parcial | PASS de todos os 20 casos na SHA atual |
 | CI de 16/11 | [Run 43930160944](https://github.com/delmacy/syndes-system/actions/runs/43930160944): job **Regression / inbox** passou; logs indicam **9 PASS, 0 FAIL** em teste de Host + PostgreSQL | Keycloak + OpenFGA reais, webhook/WhatsApp live, dispositivo real ou aceite do proprietário |
 | Portal | [Run 43930160900](https://github.com/delmacy/syndes-system/actions/runs/43930160900): **18 testes de conteúdo, 12 mobile** e deploy passaram | O portal de docs não prova funcionalidade do P02 em runtime |
 
@@ -40,7 +40,7 @@
 | [Vincular pessoa CRM](acoes/p02-crm-link.md) | `PgInboxRepository.linkContact` executa `SET crm_person_id=$3` quando a pessoa existe no escopo; **não exige `crm_person_id IS NULL` ou igualdade com vínculo atual**: [src/postgres.ts](https://github.com/delmacy/syndes-system/blob/54bbc6c2501a6d2313a68467d13664f828358be3/modules/inbox/src/postgres.ts#L151-L169) | **P0: decidir** se vínculo manual pode substituir contato e, se puder, quais autorização, confirmação e auditoria especial são exigidas. Sem mudança de código aprovada |
 | [Receber vínculo por evento CRM](acoes/p02-crm-resolved-event.md) | `InboxCrmPersonResolvedConsumer.handle` usa `FOR UPDATE`, aceita idempotência com mesma Person e rejeita Person divergente, além de exigir `validateLink`: [consumer](https://github.com/delmacy/syndes-system/blob/54bbc6c2501a6d2313a68467d13664f828358be3/modules/inbox/src/crm-link-event-consumer.ts) | Política **mais restritiva** que a API manual; paridade de negócio precisa de decisão explícita |
 | [Atribuir responsável](acoes/p02-assignment-set.md) | **P02-ASSIGN-01 implementado no código:** `PgInboxRepository.assign` exige membership org + workspace ativa `editor/admin` para o destinatário no escopo atual, com `FOR NO KEY UPDATE` da conversa e `FOR SHARE` das memberships na mesma instrução de `UPDATE`; idêntico válido é no-op, inválido 404 genérico, `null` libera. [src/postgres.ts](https://github.com/delmacy/syndes-system/blob/main/modules/inbox/src/postgres.ts) | **A validar em staging:** grants FGA individuais/identidade efetiva do destinatário, correção de atribuições históricas, migrations P04/backfill e política de cargo especializado |
-| [Marcar como lida](acoes/p02-conversation-read.md) | `markRead` zera `unread_count` no WhatsApp e retorna a linha; **não insere em `inbox_events`**: [src/postgres.ts](https://github.com/delmacy/syndes-system/blob/54bbc6c2501a6d2313a68467d13664f828358be3/modules/inbox/src/postgres.ts#L144-L149) | **P1: decidir** se leitura exige trilha/auditoria por política de produto ou se a ausência é intencional |
+| [Marcar como lida](acoes/p02-conversation-read.md) | `markRead` zera `unread_count` e grava evento `read` em `inbox_events` no mesmo CTE; IAM07D pinned em multi-org | Código atual; não implica homologação |
 | [Favorito](acoes/p02-conversation-favorite.md) | `favorite` atualiza e insere `favorite_changed` em `inbox_events`, sem checagem `IS DISTINCT FROM`: [src/postgres.ts](https://github.com/delmacy/syndes-system/blob/54bbc6c2501a6d2313a68467d13664f828358be3/modules/inbox/src/postgres.ts#L131-L142) | Repetição do mesmo valor pode gerar novo evento de auditoria |
 | [Atribuição, status, handoff](acoes/p02-conversation-status.md) | `PgInboxRepository.change` faz `IS DISTINCT FROM`; ação idêntica devolve snapshot sem novo evento, mas controller pode publicar SSE `changed`: [src/postgres.ts](https://github.com/delmacy/syndes-system/blob/54bbc6c2501a6d2313a68467d13664f828358be3/modules/inbox/src/postgres.ts#L106-L129) | Diferenciar *no-op de banco* de *invalidação para a UI*; métricas SSE não equivalem a alterações |
 | [Responder/anotar](acoes/p02-message-reply.md) | `append` só permite outbound/internal se `status <> resolved`, `handoff=human` e `assigned_to=actor.id`; em `simulation`, inbound idempotente ou 409 se payload diverge: [src/postgres.ts](https://github.com/delmacy/syndes-system/blob/54bbc6c2501a6d2313a68467d13664f828358be3/modules/inbox/src/postgres.ts#L170-L224) | Contrato de resposta depende de atribuição, estado e modo; **não** atribuir garantia de entrega WhatsApp |
@@ -76,7 +76,7 @@
 
 ## 6 · Como manter o espelhamento sem burocracia
 
-O teste `apps/docs-reader/tests/content.test.mjs` agora valida **rotas ↔ catálogo ↔ 19 fichas A–J**, **recursos declarados no plugin ↔ catálogo**, **migrations multi-owner ↔ tabelas documentadas** e **diferenças CRM manual/automático**. Se alguma superfície for removida/renomeada sem atualizar a documentação, a CI deve falhar. Isso é controle de **paridade estrutural**, não validação de comportamento por execução da plataforma.
+O teste `apps/docs-reader/tests/content.test.mjs` agora valida **rotas ↔ catálogo ↔ 20 fichas A–J**, **recursos declarados no plugin ↔ catálogo**, **migrations multi-owner ↔ tabelas documentadas** e **diferenças CRM manual/automático**. Se alguma superfície for removida/renomeada sem atualizar a documentação, a CI deve falhar. Isso é controle de **paridade estrutural**, não validação de comportamento por execução da plataforma.
 
 **Na próxima proposta:** escolha `P02 + ação ID + problema observado`. O agente deve consultar esta paridade, a [Ficha Mestre](FICHA-MODULO.md), o [STATUS](STATUS.md) e os testes reais antes de propor código.
 
@@ -100,3 +100,7 @@ O teste `apps/docs-reader/tests/content.test.mjs` agora valida **rotas ↔ catá
 - Resultado de FGA `allowed=false` ou membership Control ausente: `AccessDeniedError` do destinatário vira `null`/HTTP 404 genérico, sem atualização nem evento. Falha do provedor OpenFGA: exceção propagada/503, não permitir por omissão. O `null` para liberar ignora checagem do alvo inexistente.
 - Validação: `modules/inbox/test/inbox.test.mjs`, `apps/core-host/test/inbox-pg-http.integration.mjs` e `modules/inbox/test/fga-assignment-preflight.mjs`, com repositórios e store OpenFGA descartáveis. **Resultados da CI da branch ainda pendentes**.
 - Segurança residual: revogação de membership P04 é sincronizada no SQL, mas a autorização remota FGA não está sob a mesma transação do `UPDATE`; não prometer atomicidade entre sistemas. Testes reais de Keycloak, concessão/revogação operacional, canário e rollback permanecem gates abertos.
+
+## Reconciliação de 21/11/2026
+
+Código `5c4efc5d`: 18 rotas HTTP + 2 consumers, 20 fichas. `POST conversations/:id/claim` usa `InboxHost.claimExact`, somente em multi-org com IAM07D; legado nega. `markRead` grava evento `read` no mesmo CTE. Referências datadas anteriores são históricas. Esta paridade não aprova deploy ou Product Gate.

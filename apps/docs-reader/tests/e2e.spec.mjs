@@ -231,7 +231,7 @@ test("Leitores de Ficha Mestre não criam overflow no mobile",async({page})=>{
 });
 
 
-test("P02 Inbox: Ficha Mestre apresenta 22 seções e acesso às 19 ações",async({page})=>{
+test("P02 Inbox: Ficha Mestre apresenta 22 seções e acesso às 20 ações",async({page})=>{
  await page.goto("/modulos/inbox/");
  await expect(page.locator(".master-header h1")).toContainText("Inbox");
  await expect(page.locator(".master-group-tab")).toHaveCount(5);

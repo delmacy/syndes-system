@@ -1,6 +1,6 @@
 # P02 Inbox — Inventário técnico verificável (código vs ambiente)
 
-> **Snapshot editorial 16/11/2026 · SHA `24018b354392196899332af1581170fb3ad7cf24`.** Verificado no repositório, **não em runtime**. Os testes de 34 PASS citados no STATUS são **históricos (12/11, checkout `b452a03e`)**. O escopo continua rascunho; migrações aplicadas, IAM real, worker/Host e Product Gate não estão comprovados.
+> **Inventário reconciliado em 21/11/2026 · SHA `5c4efc5d306acc1eaf79ce4d8747e7d0983f528c` (links históricos preservados).** Verificado no repositório, **não em runtime**. Os testes de 34 PASS citados no STATUS são **históricos (12/11, checkout `b452a03e`)**. O escopo continua rascunho; migrações aplicadas, IAM real, worker/Host e Product Gate não estão comprovados.
 
 ## 1. Stack, owners e exports
 
@@ -19,7 +19,7 @@
 
 **Classes exportadas pelo pacote** precisam ser lidas em `src/index.ts` ou em `./plugin`; um import relativo de `src/postgres.ts` não vira API pública automaticamente. Export manifest permite `.` e `./plugin` apenas.
 
-## 2. Inventário de 17 endpoints
+## 2. Inventário de 18 endpoints
 
 **Base:** `/v1/tenants/:tenantId/inbox`. Controller [`src/inbox.controller.ts`](https://github.com/delmacy/syndes-system/blob/24018b354392196899332af1581170fb3ad7cf24/modules/inbox/src/inbox.controller.ts). Parâmetro de escopo opcional via headers `x-syndes-organization-id` e `x-syndes-workspace-id`, que são **seletores validados**, não fonte de autoridade.
 
@@ -43,7 +43,7 @@
 | `POST` | `conversations/:id/simulator/inbound` | `InboxController.simulate` | body, externalMessageId estável | [p02-simulation-inbound](acoes/p02-simulation-inbound.md) |
 | `GET` | `events` | `InboxController.eventsStream` | Bearer JWT; escopo confiável | [p02-realtime-events](acoes/p02-realtime-events.md) |
 
-A existência de 17 decorators é o **inventário de código**, não um atestado de que 17 URLs respondem em um ambiente específico. `GET /events` usa stream SSE autenticado, não um endpoint de dados GET ordinário.
+A existência de 18 decorators é o **inventário de código**, não um atestado de que 18 URLs respondem em um ambiente específico. `GET /events` usa stream SSE autenticado, não um endpoint de dados GET ordinário.
 
 ## 3. Serviços, ações e validações
 
@@ -130,3 +130,7 @@ A [paridade de código](PARIDADE-CODIGO.md) apresenta os caminhos exatos de P04 
 | JWT/ENABLED/FGA, tenant A/B, default/multi-org | A04/A08/C01/C03/C04/P02 | negativas reais e logs de execução |
 | UI fila/contatos/resposta/Inspector em navegador | A01/P02/P05 | dados autorizados, funcionalidade mobile e aceite |
 | SSE multi-host | A04/P02 | broker compartilhado ou arquitetura de instância única |
+
+### Incremento multi-org, 21/11/2026
+
+`POST conversations/:id/claim` → `InboxController.claim` → `InboxHost.claimExact` → IAM07D. Exige capability exata, contexto validado e epoch/fence pinned; legado nega. Contagem atual: 18 endpoints.

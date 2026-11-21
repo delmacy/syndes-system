@@ -77,7 +77,7 @@ export default function Home() {
         </div>
       </section>
       <section className="pilot-feature" aria-labelledby="pilot-heading">
-        <div><span className="eyebrow">PILOTO TÉCNICO · P01</span><Heading as="h2" id="pilot-heading">CRM — Relacionamentos</Heading><p>CRM mantém 18 ações; Inbox apresenta 19 ações e sua Ficha Mestre reconciliada; P05 Gestão de Atendimentos conserva a mesma estrutura. Core Platform, Blueprint, WhatsApp e Security conservam sua navegação por ação.</p></div>
+        <div><span className="eyebrow">PILOTO TÉCNICO · P01</span><Heading as="h2" id="pilot-heading">CRM — Relacionamentos</Heading><p>CRM mantém 18 ações; Inbox apresenta 20 ações e sua Ficha Mestre reconciliada; P05 Gestão de Atendimentos conserva a mesma estrutura. Core Platform, Blueprint, WhatsApp e Security conservam sua navegação por ação.</p></div>
         <Link className="primary-link" href="/modulos/crm">Explorar CRM <ArrowRight size={16}/></Link>
       </section>
       <div className="endnote">Alguns itens avançados do Blueprint são mantidos exclusivamente na <a href={BLUEPRINT+"/MAPA-TECNICO-POR-CAMADAS.md"} target="_blank" rel="noopener noreferrer">documentação técnica original</a>. Esta experiência não substitui os registros oficiais nem aprova funcionalidades.</div>

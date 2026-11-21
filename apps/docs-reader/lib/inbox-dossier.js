@@ -5,7 +5,7 @@ const known=/^p02-[a-z0-9-]+$/;
 const get=(path)=>readFileSync(resolve(process.cwd(),"../..",ROOT+path),"utf8");
 export function inboxActionCatalog(){
  const parsed=JSON.parse(get("ACOES.json"));
- if(parsed.actions.length!==19||parsed.groups.length!==7)throw Error("P02 catalog drift");
+ if(parsed.actions.length!==20||parsed.groups.length!==7)throw Error("P02 catalog drift");
  return parsed;
 }
 export function parseActionDossier(raw){

@@ -53,10 +53,10 @@ O projeto Vercel independente `syndes-docs-reader` foi criado (root `apps/docs-r
 - O script `scripts/docs/publish_next_root.py` compõe o artefato somente **após** o build MkDocs e gera `.nojekyll`, preservando `_next`.
 - Esta é uma **exportação estática**, não uma aplicação Node.js em execução no Pages. Funções que precisam de servidor, gravação ou sincronização em tempo real devem usar backend próprio em ambiente autorizado.
 
-## P02 Inbox — Ficha Mestre e 19 ações detalhadas (16/11/2026)
+## P02 Inbox — Ficha Mestre e 20 ações detalhadas (21/11/2026)
 
 - Rota de Ficha Mestre: `/modulos/inbox/`, 22 seções agrupadas em cinco áreas reutilizando `master-dossier-reader.jsx`.
 - Ações por função: `/modulos/inbox/acoes/`, sete grupos, cada grupo mostra apenas suas próprias ações, com busca local.
-- Fichas de ação: `/modulos/inbox/acoes/<actionId>/`, com 10 seções A–J (Markdown `docs/subprojects/P02-inbox/acoes/`). Exportação estática por `generateStaticParams()` para 19 IDs aprovados no catálogo editorial `ACOES.json`.
+- Fichas de ação: `/modulos/inbox/acoes/<actionId>/`, com 10 seções A–J (Markdown `docs/subprojects/P02-inbox/acoes/`). Exportação estática por `generateStaticParams()` para 20 IDs aprovados no catálogo editorial `ACOES.json`.
 - Conteúdo é lido de Markdown/JSON no build Next.js, sem sincronização live nem backend de documentação duplicado.
 - **P02 permanece NÃO HOMOLOGADO:** 17 decorators HTTP + 2 consumers identificados no código, sem ativar worker, migration, grants, deploy ou Product Gate.
