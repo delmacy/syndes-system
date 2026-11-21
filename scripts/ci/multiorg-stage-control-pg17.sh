@@ -33,5 +33,17 @@ for iteration in 1 2; do
 done
 module_tables="$(docker exec "$container" psql -X -At -v ON_ERROR_STOP=1 -U postgres -d syndes_staging_control -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename IN ('module_catalog','module_catalog_versions','module_catalog_dependencies','tenant_module_entitlements','tenant_module_installs','tenant_module_audit')")"
 [[ "$module_tables" == 6 ]] || exit 5
+# UC-SIGNUP-01C: the first tenant cannot become ACTIVE before a matching
+# Keycloak Org link exists. Exercise the dedicated restricted initial-link
+# operator, real PostgreSQL17 constraints, idempotency and finalizer replay.
+for iteration in 1 2; do
+  cat "$root/infra/postgres/bootstrap/control-signup-initial-link-candidate.schema" |
+    docker exec -i "$container" psql --no-psqlrc -X -q -v ON_ERROR_STOP=1 \
+      --single-transaction -U postgres -d syndes_staging_control >/dev/null
+done
+cat "$root/tests/platform/signup-initial-link-pg17.sql" |
+  docker exec -i "$container" psql --no-psqlrc -X -q -v ON_ERROR_STOP=1 \
+    --single-transaction -U postgres -d syndes_staging_control >/dev/null
+echo 'UC_SIGNUP01C_PG17_INITIAL_KEYCLOAK_LINK_PROVISIONED_TO_READY_PASS'
 echo 'MO_REL04_STAGE_CONTROL_CATALOG_PG17_TRANSACTION_REPLAY_PASS'
 echo 'MO_REL04_STAGE_CONTROL_PG17_TRANSACTION_REPLAY_PASS'

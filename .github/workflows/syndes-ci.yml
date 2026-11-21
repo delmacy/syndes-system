@@ -1384,3 +1384,155 @@ jobs:
           fi
           body="$(printf 'MO-REL-08 pre-alpha new tenant database in PRODUCTION: main=%s run=https://github.com/%s/actions/runs/%s scope=%s Tailnet=%s isolated new PG17 tenant=%s result=%s. Existing operational tenant SQL002 and WhatsApp gateway untouched. This creates a real fresh production database only, not Keycloak user, FGA store/grants or Core Host live admission; tenant remains provisioned. PRODUCTION_GATE=BLOCKED.' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$DEPLOY" "$result")"
           gh issue comment 211 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-first-signup-control-stage:
+    name: UC-SIGNUP-01C stage initial Keycloak link operator
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'UC-SIGNUP01C-INITIAL-LINK-INSTALL-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify exact main SHA and immutable stage-only scope
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-first-signup-control.sh
+          bash -n scripts/ci/multiorg-stage-control-pg17.sh
+      - name: Join approved Tailnet using GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Install initial signup Keycloak link in isolated stage Control only
+        id: deploy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "$DEVSERVER_PEER" >/dev/null
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "$bundle"' EXIT
+          chmod 700 "$bundle"
+          cp scripts/deploy/devserver01-first-signup-control.sh "$bundle/runner.sh"
+          for schema in control-iam-org-links.schema control-signup-intents-candidate.schema control-signup-finalize-candidate.schema control-signup-initial-link-candidate.schema; do
+            cp "infra/postgres/bootstrap/$schema" "$bundle/"
+          done
+          (cd "$bundle" && sha256sum runner.sh *.schema > MANIFEST.sha256)
+          # Only this stage-only PG17 container is mutated. The operational
+          # gateway, operational tenant, Control and SQL002 are untouched.
+          result="$(tar -czf - -C "$bundle" . | timeout 420s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-greenfield.XXXXXXXX); chmod 700 \"\$dir\"; trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_SIGNUP_LINK_RELEASE=CI_APPROVED_FIRST_SIGNUP SYNDES_SIGNUP_RELEASE_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply stage \"\$dir\"")"
+          printf '%s\n' "$result"
+          printf '%s\n' "$result" | grep -qx 'UC_SIGNUP01C_STAGE_CONTROL_INITIAL_KC_LINK_OPERATOR_INSTALLED_NO_USER_GRANTS'
+      - name: Record first-user Control schema proof without tokens or identifiers
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          DEPLOY: ${{ steps.deploy.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for state in "$SCOPE" "$TAILNET" "$DEPLOY"; do
+            [[ "$state" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          result=SIGNUP_FIRST_LINK_STAGE_BLOCKED
+          if [[ "$DEPLOY" == success ]]; then
+            result=SIGNUP_FIRST_LINK_STAGE_CONTROL_INSTALLED
+          fi
+          body="$(printf 'UC-SIGNUP-01C stage Control initial Keycloak link function: main=%s run=https://github.com/%s/actions/runs/%s scope=%s Tailnet=%s DDL=%s result=%s. New tenant remains PROVISIONED; no Keycloak membership, OpenFGA grant, tenant database or WhatsApp gateway modified. PRODUCTION_GATE=BLOCKED.' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$DEPLOY" "$result")"
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "$body"
+
+  devserver01-first-signup-control-production:
+    name: UC-SIGNUP-01C operational Control first-user schema
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'UC-SIGNUP01C-INITIAL-LINK-INSTALL-APPROVED') }}
+    needs: [gate, devserver01-first-signup-control-stage]
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify exact main SHA and immutable stage-only scope
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          bash -n scripts/deploy/devserver01-first-signup-control.sh
+          bash -n scripts/ci/multiorg-stage-control-pg17.sh
+      - name: Join approved Tailnet using GitHub OIDC
+        id: tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Install initial signup Keycloak link in operational Control, after stage success
+        id: deploy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tailscale ping --c=2 --until-direct=false --timeout=8s "$DEVSERVER_PEER" >/dev/null
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "$bundle"' EXIT
+          chmod 700 "$bundle"
+          cp scripts/deploy/devserver01-first-signup-control.sh "$bundle/runner.sh"
+          for schema in control-iam-org-links.schema control-signup-intents-candidate.schema control-signup-finalize-candidate.schema control-signup-initial-link-candidate.schema; do
+            cp "infra/postgres/bootstrap/$schema" "$bundle/"
+          done
+          (cd "$bundle" && sha256sum runner.sh *.schema > MANIFEST.sha256)
+          # Only a NEW database in operational PG is created. Existing customer
+          # tenant, WhatsApp gateway, SQL002 and Core processes are untouched.
+          result="$(tar -czf - -C "$bundle" . | timeout 420s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-greenfield.XXXXXXXX); chmod 700 \"\$dir\"; trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_SIGNUP_LINK_RELEASE=CI_APPROVED_FIRST_SIGNUP SYNDES_SIGNUP_RELEASE_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply production \"\$dir\"")"
+          printf '%s\n' "$result"
+          printf '%s\n' "$result" | grep -qx 'UC_SIGNUP01C_PRODUCTION_CONTROL_INITIAL_KC_LINK_OPERATOR_INSTALLED_NO_USER_GRANTS'
+      - name: Record first-user Control schema proof without tokens or identifiers
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.scope.outcome }}
+          TAILNET: ${{ steps.tailnet.outcome }}
+          DEPLOY: ${{ steps.deploy.outcome }}
+        run: |
+          set -Eeuo pipefail
+          for state in "$SCOPE" "$TAILNET" "$DEPLOY"; do
+            [[ "$state" =~ ^(success|failure|skipped|cancelled)$ ]] || exit 2
+          done
+          result=SIGNUP_FIRST_LINK_PRODUCTION_BLOCKED
+          if [[ "$DEPLOY" == success ]]; then
+            result=SIGNUP_FIRST_LINK_PRODUCTION_CONTROL_INSTALLED
+          fi
+          body="$(printf 'UC-SIGNUP-01C operational Control first signup link schemas: main=%s run=https://github.com/%s/actions/runs/%s scope=%s Tailnet=%s DDL=%s result=%s. New tenant remains PROVISIONED; no Keycloak membership, OpenFGA grant, tenant database or WhatsApp gateway modified. PRODUCTION_GATE=BLOCKED.' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$SCOPE" "$TAILNET" "$DEPLOY" "$result")"
+          gh issue comment 211 --repo "$GITHUB_REPOSITORY" --body "$body"
