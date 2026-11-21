@@ -96,6 +96,68 @@ docker run --rm --network syndes-secrets \
     console.log("Core Host AppRole -> OpenBao KV: PASS");
   '
 
+# Staging policies are exercised against the REAL disposable TLS OpenBao.
+# Having a healthy endpoint or a mocked fetch is not proof of ACL separation.
+for entry in core-host tenant-db; do
+  jq -Rs '{policy:.}' < "infra/multiorg-staging/$entry-policy.hcl" |
+    bao_http --fail -X PUT -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+      --data-binary @- "https://openbao:8200/v1/sys/policies/acl/stage-$entry" >/dev/null
+  jq -n --arg policy "stage-$entry" \
+    '{token_policies:[$policy],token_ttl:"5m",token_max_ttl:"5m",token_no_default_policy:true}' |
+    bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+      --data-binary @- "https://openbao:8200/v1/auth/approle/role/stage-$entry" >/dev/null
+  bao_http --fail -H "X-Vault-Token: $root_token" \
+    "https://openbao:8200/v1/auth/approle/role/stage-$entry/role-id" |
+    jq -er '.data.role_id' > "$temp/stage-$entry-role"
+  bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+    --data '{}' "https://openbao:8200/v1/auth/approle/role/stage-$entry/secret-id" |
+    jq -er '.data.secret_id' > "$temp/stage-$entry-secret"
+done
+bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+  --data '{"data":{"control_db_url":"postgresql://syndes_staging_core:synthetic@control-postgres:5432/syndes_staging_control","openfga_token":"synthetic-stage"}}' \
+  https://openbao:8200/v1/kv/data/multi-org-staging/core-host >/dev/null
+bao_http --fail -X POST -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
+  --data '{"data":{"username":"synthetic-tenant","password":"synthetic-stage-only"}}' \
+  https://openbao:8200/v1/kv/data/multi-org-staging/tenants/11111111-1111-4111-8111-111111111111 >/dev/null
+chmod 0600 "$temp"/stage-*
+docker run --rm --network syndes-secrets \
+  -v "$PWD/apps/core-host/dist:/app:ro" -v "$temp:/run/creds:ro" \
+  -v "$cert:/etc/ssl/openbao-ca.crt:ro" -e NODE_EXTRA_CA_CERTS=/etc/ssl/openbao-ca.crt \
+  node:22-bookworm-slim node --input-type=module -e '
+    import assert from "node:assert/strict";
+    import {readFile} from "node:fs/promises";
+    import {loadCoreSecrets} from "/app/secrets.js";
+    const base="https://openbao:8200/v1/";
+    for(const role of ["core-host","tenant-db"]){
+      const roleIdFile="/run/creds/stage-"+role+"-role";
+      const secretIdFile="/run/creds/stage-"+role+"-secret";
+      const response=await fetch(base+"auth/approle/login",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({role_id:(await readFile(roleIdFile,"utf8")).trim(),
+          secret_id:(await readFile(secretIdFile,"utf8")).trim()}),
+      });
+      assert.equal(response.status,200);
+      const {auth:{client_token:token}}=await response.json();
+      const headers={"X-Vault-Token":token,"Content-Type":"application/json"};
+      const own=role==="core-host"?"core-host":"tenants/11111111-1111-4111-8111-111111111111";
+      const other=role==="core-host"?"tenants/11111111-1111-4111-8111-111111111111":"core-host";
+      assert.equal((await fetch(base+"kv/data/multi-org-staging/"+own,{headers})).status,200);
+      for(const path of ["production/core-host","production/tenants/11111111-1111-4111-8111-111111111111",
+                         "multi-org-staging/"+other])
+        assert.equal((await fetch(base+"kv/data/"+path,{headers})).status,403);
+      assert.equal((await fetch(base+"kv/data/multi-org-staging/"+own,{
+        method:"POST",headers,body:JSON.stringify({data:{invalid:true}})})).status,403);
+      assert.equal((await fetch(base+"auth/token/revoke-self",{method:"POST",headers})).status,204);
+      assert.equal((await fetch(base+"kv/data/multi-org-staging/"+own,{headers})).status,403);
+      if(role==="core-host"){
+        const result=await loadCoreSecrets({address:"https://openbao:8200",roleIdFile,secretIdFile,
+          namespace:"multi-org-staging"});
+        assert.equal(result.openfgaToken,"synthetic-stage");
+      }
+    }
+    console.log("MO_REL04_REAL_OPENBAO_STAGE_CORE_TENANT_ACL_PRODUCTION_DENY_PASS");
+  '
+
 # Provisioner is an independent identity, permitted to read only infrastructure
 # credentials. Do not reuse the Core Host AppRole for platform bootstrap.
 jq -Rs '{policy:.}' < infra/security-access/openbao/policies/runtime-delivery.hcl |

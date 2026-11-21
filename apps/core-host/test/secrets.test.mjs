@@ -4,6 +4,7 @@ import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadCoreSecrets, openBaoSourceFromEnv } from "../dist/secrets.js";
+import {secretNamespaceFromEnv,tenantDatabaseHost} from "../dist/secret-namespace.js";
 
 const createSource = async () => {
  const dir = await mkdtemp(join(tmpdir(), "syndes-bao-"));
@@ -70,4 +71,41 @@ test("failed revocation blocks startup, no environment fallback",async()=>{
   }),/revocation failed/);
   assert.equal(openBaoSourceFromEnv({}).roleIdFile,"/run/secrets/core_host_role_id");
  }finally{await rm(dir,{force:true,recursive:true})}
+});
+
+test("staging reads only its namespace, validates Control target, revokes on denial and never retries production",async()=>{
+ const {dir,source}=await createSource();
+ try{
+  for(const target of [
+   "postgresql://syndes_staging_core:synthetic@control-postgres:5432/syndes_staging_control",
+   "postgresql://syndes_staging_core:synthetic@syndes-postgres:5432/syndes_control",
+   "postgresql://postgres:synthetic@control-postgres:5432/syndes_staging_control",
+   "postgresql://syndes_staging_core:synthetic@control-postgres:5432/syndes_staging_control?host=syndes-postgres",
+   null,
+  ]){
+   const calls=[];
+   const pending=loadCoreSecrets({...source,namespace:"multi-org-staging"},async url=>{
+    calls.push(url);
+    if(url.endsWith("/login"))return login();
+    if(url.endsWith("/revoke-self"))return new Response(null,{status:204});
+    assert.ok(url.endsWith("/kv/data/multi-org-staging/core-host"));
+    if(target===null)return new Response(null,{status:403});
+    return new Response(JSON.stringify({data:{data:{control_db_url:target,openfga_token:"synthetic"}}}));
+   });
+   if(target?.includes("@control-postgres:5432/")&&target.includes("syndes_staging_core")&&!target.includes("?"))
+    assert.equal((await pending).controlDbUrl,target);
+   else await assert.rejects(pending);
+   assert.equal(calls.length,3);
+   assert.ok(calls.at(-1).endsWith("/revoke-self"));
+   assert.ok(calls.every(url=>!url.includes("/production/")));
+  }
+  assert.equal(openBaoSourceFromEnv({SYNDES_DEPLOYMENT_ENV:"staging"}).namespace,"multi-org-staging");
+  assert.equal(secretNamespaceFromEnv({}),"production");
+  assert.equal(tenantDatabaseHost("multi-org-staging"),"control-postgres");
+  assert.equal(tenantDatabaseHost("production"),"syndes-postgres");
+  assert.throws(()=>openBaoSourceFromEnv({SYNDES_DEPLOYMENT_ENV:"stagign"}));
+  let requests=0;
+  await assert.rejects(loadCoreSecrets({...source,namespace:"../production"},async()=>{requests++;return login()}));
+  assert.equal(requests,0);
+ }finally{await rm(dir,{recursive:true,force:true})}
 });

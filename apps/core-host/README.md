@@ -46,3 +46,25 @@ An operator-only, inactive candidate is implemented in src/module-installer.ts w
 ## Host configurável por perfil (feature CMP-01 a CMP-09)
 
 O Host já carrega descritores confiáveis via arquivo fixo `config/modules.json`, compõe NestJS no startup e rejeita dependências inválidas. **Ainda não** seleciona perfis por instância nem produz imagem mínima: o Dockerfile inclui os pacotes implementados. A evolução aprovada separa responsabilidades: Kernel = ports/contratos; Host = composition root/adapters; módulos = domínio; infra = release, segredo e isolamento. Nunca permitir plugin arbitrário vindo do cliente, nem confundir seleção no perfil com entitlement do tenant. Para seguir o roteiro, consultar `docs/engineering/ADR-COMPOSICAO-MODULAR-CORE-20261111.md`, o WBS CMP e a issue #104.
+
+## Isolated multi-org staging secret boundary
+
+Set trusted process configuration `SYNDES_DEPLOYMENT_ENV=staging` to read only
+`kv/data/multi-org-staging/core-host` and
+`kv/data/multi-org-staging/tenants/<validated-tenant-uuid>`. There is no retry or
+fallback to production secrets. Missing environment configuration preserves the
+existing production contract; unknown environment names fail closed.
+
+Staging Control credentials must target `control-postgres:5432`, database
+`syndes_staging_control`, login `syndes_staging_core`. Tenant connections use
+that same fixed staging hostname and retain the active Control registry check
+and per-tenant role validation. Neither hostname nor KV prefix is HTTP input.
+Use separate staging OpenBao AppRoles with the minimal policies in
+`infra/multiorg-staging/core-host-policy.hcl` and `tenant-db-policy.hcl`, verified
+TLS and protected bootstrap files. Tokens are revoked after each read,
+including failed reads and invalid database targets.
+
+This code does not provision OpenBao, SQL logins, roles or entitlements, grant
+FGA access, activate multi-org, deploy the Core or approve a release. Those
+operator actions still require the SHA-pinned Actions staging workflow and
+actual integration/restore evidence.

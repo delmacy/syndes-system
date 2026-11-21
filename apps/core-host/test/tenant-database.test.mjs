@@ -43,3 +43,29 @@ test("tenant AppRole verifies role and revokes token, never uses a supplied DSN"
   await assert.rejects(source.password(A,expectedTenantDatabase(B).role_name),/mismatch/);
  }finally{await rm(dir,{recursive:true,force:true})}
 });
+
+test("staging resolver denies unavailable staging credentials without reading production",async()=>{
+ const dir=await mkdtemp(join(tmpdir(),"stage-tenant-cred-"));
+ try{
+  await writeFile(join(dir,"role"),"role-ci");
+  await writeFile(join(dir,"secret"),"secret-ci");
+  for(const available of [true,false]){
+   const urls=[];
+   const source=new TenantCredentialSource("https://openbao:8200",{
+    role:join(dir,"role"),secret:join(dir,"secret"),
+   },async(url)=>{
+    urls.push(String(url));
+    if(String(url).endsWith("/login"))return new Response(JSON.stringify({auth:{client_token:"synthetic"}}));
+    if(String(url).endsWith("/revoke-self"))return new Response(null,{status:204});
+    assert.equal(String(url),"https://openbao:8200/v1/kv/data/multi-org-staging/tenants/"+A);
+    return available?new Response(JSON.stringify({data:{data:{username:expectedTenantDatabase(A).role_name,
+     password:"synthetic-stage-password-only"}}})):new Response(null,{status:403});
+   },"multi-org-staging");
+   if(available)assert.equal(await source.password(A,expectedTenantDatabase(A).role_name),"synthetic-stage-password-only");
+   else await assert.rejects(source.password(A,expectedTenantDatabase(A).role_name));
+   assert.equal(urls.length,3);
+   assert.ok(urls.every(url=>!url.includes("/production/")));
+   assert.ok(urls.at(-1).endsWith("/revoke-self"));
+  }
+ }finally{await rm(dir,{recursive:true,force:true})}
+});

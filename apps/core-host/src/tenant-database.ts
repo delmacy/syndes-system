@@ -3,6 +3,7 @@ import {Inject,Injectable,OnModuleDestroy} from "@nestjs/common";
 import {Pool} from "pg";
 import {PINNED_TENANT_TRANSACTION,type TrustedTenantTransactionProvider,type TenantTransaction,type TenantDatabase} from "@syndes/core-kernel";
 import {tenantUUID} from "./adapters.js";
+import {secretNamespaceFromEnv,validateSecretNamespace,tenantDatabaseHost,type SecretNamespace} from "./secret-namespace.js";
 
 export type ControlQuery=Pick<Pool,"query">;
 export interface CoreApi { readonly db:Pool;readonly kernel:import("@syndes/core-kernel").CoreKernel;
@@ -36,8 +37,10 @@ export class TenantCredentialSource {
       secret:process.env.CORE_TENANT_SECRET_ID_FILE??"/run/secrets/core_tenant_secret_id",
     },
     private readonly send:typeof fetch=fetch,
+    private readonly namespace:SecretNamespace=secretNamespaceFromEnv(),
   ){}
   async password(id:string,expectedUser:string):Promise<string>{
+    const namespace=validateSecretNamespace(this.namespace);
     expectedTenantDatabase(id);
     const u=new URL(this.address);
     if(u.protocol!=="https:"||u.username||u.password||u.search||u.hash||u.pathname!=="/")
@@ -60,7 +63,7 @@ export class TenantCredentialSource {
     const token=(loginBody as {auth?:{client_token?:unknown}})?.auth?.client_token;
     if(typeof token!=="string"||!token)throw new Error("OpenBao token missing");
     try{
-      const response=await req("/v1/kv/data/production/tenants/"+encodeURIComponent(id),{
+      const response=await req("/v1/kv/data/"+namespace+"/tenants/"+encodeURIComponent(id),{
         method:"GET",headers:{"X-Vault-Token":token},
       });
       const result:unknown=await response.json();
@@ -79,6 +82,7 @@ export class TenantCredentialSource {
 
 @Injectable()
 export class TenantPgProvider implements TrustedTenantTransactionProvider,OnModuleDestroy{
+  private readonly namespace=secretNamespaceFromEnv();
   private readonly pools=new Map<string,{pool:Pool;last:number}>();
   private readonly source=new TenantCredentialSource();
   constructor(@Inject("SYNDES_CORE_API") private readonly core:CoreApi){}
@@ -94,7 +98,7 @@ export class TenantPgProvider implements TrustedTenantTransactionProvider,OnModu
     if(!entry){
       const password=await this.source.password(tenantId,mapping.role_name);
       const pool=new Pool({
-        host:"syndes-postgres",port:5432,user:mapping.role_name,
+        host:tenantDatabaseHost(this.namespace),port:5432,user:mapping.role_name,
         password,database:mapping.database_name,max:2,
         connectionTimeoutMillis:3000,idleTimeoutMillis:10000,
       });
