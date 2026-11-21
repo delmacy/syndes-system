@@ -11,7 +11,7 @@ bundle="$2"
 [[ -d "$bundle" && ! -L "$bundle" && "$(stat -c %a "$bundle")" == 700 ]] || exit 3
 cd "$bundle"
 sha256sum -c MANIFEST.sha256 --status || { echo 'MO_REAL_IDENTITY_BLOCKED=artifact_digest';exit 4; }
-for file in stage-greenfield-keycloak-fga.mjs fga-model.json greenfield-stage-first-user.sql greenfield-stage-membership.sql stage-keycloak-recovery.sh; do
+for file in stage-greenfield-keycloak-fga.mjs stage-pilot-user.mjs fga-model.json greenfield-stage-first-user.sql greenfield-stage-membership.sql stage-keycloak-recovery.sh; do
  [[ -f "$file" && ! -L "$file" ]] || exit 4
 done
 root=/home/delmacy/.local/share/syndes-multiorg-staging
@@ -73,7 +73,7 @@ admin_service_secret="$root/secrets/pilot-admin-service-secret"
 [[ -f "$admin_service_secret" && ! -L "$admin_service_secret"
  && "$(stat -c %a "$admin_service_secret")" == 600
  && "$(wc -c < "$admin_service_secret")" == 65 ]] || exit 5
-identity="$(tar -czf - -C "$bundle" stage-greenfield-keycloak-fga.mjs fga-model.json \
+identity="$(tar -czf - -C "$bundle" stage-greenfield-keycloak-fga.mjs stage-pilot-user.mjs fga-model.json \
   -C "$root/secrets" pilot-admin-service-secret pilot-founder-password pilot-b-only-password | \
  docker run --rm -i --network syndes-multiorg-staging_staging_internal \
  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=8m,mode=0700 \

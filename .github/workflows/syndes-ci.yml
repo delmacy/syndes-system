@@ -1755,7 +1755,7 @@ jobs:
           chmod 700 "$bundle"
           cp scripts/deploy/devserver01-multiorg-stage-real-identity.sh "$bundle/runner.sh"
           cp scripts/deploy/devserver01-stage-keycloak-admin-service-recovery.sh "$bundle/stage-keycloak-recovery.sh"
-          cp scripts/deploy/stage-greenfield-keycloak-fga.mjs "$bundle/"
+          cp scripts/deploy/stage-greenfield-keycloak-fga.mjs scripts/deploy/stage-pilot-user.mjs "$bundle/"
           cp infra/security-access/fga-model-iam07d2-candidate.json "$bundle/fga-model.json"
           cp infra/multiorg-staging/greenfield-stage-first-user.sql "$bundle/"
           cp infra/multiorg-staging/greenfield-stage-membership.sql "$bundle/"
