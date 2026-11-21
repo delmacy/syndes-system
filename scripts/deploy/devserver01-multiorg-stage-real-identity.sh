@@ -67,8 +67,16 @@ for name in pilot-founder-password pilot-b-only-password;do
 done
 # Before stage user provisioning, recover a dedicated automation-only admin
 # service account if absent. This stops/restarts ONLY the isolated stage KC.
+initial_state="$(docker exec "$pg" psql -X -At -v ON_ERROR_STOP=1 -U postgres -d syndes_staging_control -c "SELECT state FROM tenant_registry WHERE tenant_id='$tid'")"
+case "$initial_state" in
+ provisioned) identity_mode=provision;;
+ active) identity_mode=verify;;
+ *) echo 'MO_REAL_IDENTITY_BLOCKED=control_state';exit 5;;
+esac
+if [[ "$identity_mode" == provision ]];then
 SYNDES_STAGE_KC_ADMIN_RECOVERY=CI_APPROVED_STAGE_PILOT_ADMIN \
  bash "$bundle/stage-keycloak-recovery.sh" recover
+fi
 admin_service_secret="$root/secrets/pilot-admin-service-secret"
 [[ -f "$admin_service_secret" && ! -L "$admin_service_secret"
  && "$(stat -c %a "$admin_service_secret")" == 600
@@ -79,6 +87,7 @@ identity="$(tar -czf - -C "$bundle" stage-greenfield-keycloak-fga.mjs stage-pilo
  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=8m,mode=0700 \
  --cap-drop ALL --security-opt no-new-privileges \
  -e "PILOT_A_FUNNEL_ID=$funnel_a" -e "PILOT_B_FUNNEL_ID=$funnel_b" \
+ -e "PILOT_IDENTITY_MODE=$identity_mode" \
  --entrypoint /bin/sh node:22-alpine -ec \
  'umask 077; mkdir -p -m 0700 /tmp/pilot; tar -xzf - -C /tmp/pilot; exec node /tmp/pilot/stage-greenfield-keycloak-fga.mjs')" || {
  echo 'MO_REAL_IDENTITY_BLOCKED=keycloak_or_fga';exit 5;
@@ -101,6 +110,7 @@ print(d["founder"],d["restricted"],d["kcA"],d["kcB"],d["storeId"])
  && "$kc_a" =~ ^[0-9a-f-]{36}$ && "$kc_b" =~ ^[0-9a-f-]{36}$ ]] || exit 5
 state="$(docker exec "$pg" psql -X -At -v ON_ERROR_STOP=1 -U postgres -d syndes_staging_control -c "SELECT state FROM tenant_registry WHERE tenant_id='$tid'")"
 if [[ "$state" == provisioned ]];then
+ [[ "$initial_state" == provisioned ]] || exit 5
  docker exec -i "$pg" psql --no-psqlrc -X -q -v ON_ERROR_STOP=1 \
  -v "founder=$founder" -v "restricted=$restricted" -v "kc_a=$kc_a" -v "kc_b=$kc_b" \
  -U postgres -d syndes_staging_control < greenfield-stage-first-user.sql >/dev/null || {
@@ -123,6 +133,9 @@ membership="$(docker exec "$pg" psql -X -At -v ON_ERROR_STOP=1 -U postgres -d "$
  (SELECT count(*) FROM platform_org_memberships)::text||':'||
  (SELECT count(*) FROM platform_workspace_memberships)::text")"
 if [[ "$membership" == 0:0 ]];then
+ [[ "$initial_state" == provisioned ]] || {
+  echo 'MO_REAL_IDENTITY_BLOCKED=ready_membership_missing';exit 5;
+ }
  docker exec -i "$pg" psql --no-psqlrc -X -q -v ON_ERROR_STOP=1 \
  -v "founder=$founder" -v "restricted=$restricted" \
  -U postgres -d "$tenant" < greenfield-stage-membership.sql >/dev/null || {

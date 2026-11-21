@@ -1,5 +1,14 @@
 // Only synthetic users in the isolated pilot realm. Never resets credentials,
 // clears required actions, re-enables users or changes organization membership.
+export function assertPilotIdentityRequest(mode,service,path,method){
+ if(!["provision","verify"].includes(mode))throw Error("PILOT_IDENTITY_MODE");
+ if(mode==="provision")return;
+ if(method==="GET")return;
+ // OpenFGA check uses POST but cannot create models, stores or tuples.
+ if(service==="fga"&&method==="POST"&&/^\/stores\/[A-Za-z0-9_-]{8,128}\/check$/.test(path))return;
+ throw Error("PILOT_READY_IDENTITY_MUTATION_DENIED");
+}
+
 export async function ensurePilotUser({request, prefix, username, password}) {
  if (!/^pilot-(founder|b-only)$/.test(username)) throw Error("PILOT_USER_NAME");
  const lookup=async()=>{

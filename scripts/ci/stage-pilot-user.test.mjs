@@ -1,8 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {ensurePilotUser} from "../deploy/stage-pilot-user.mjs";
+import {ensurePilotUser,assertPilotIdentityRequest} from "../deploy/stage-pilot-user.mjs";
 
 const id="12345678-1234-4234-8234-123456789abc";
+test("ready identity replay checks grants but cannot restore revoked membership or tuples",()=>{
+ for(const [service,path,method] of [
+  ["keycloak","/admin/realms/syndes-pilot/organizations/org/members","POST"],
+  ["keycloak","/admin/realms/syndes-pilot/users/id","PUT"],
+  ["fga","/stores/123456789/write","POST"],
+  ["fga","/stores/123456789/authorization-models","POST"],
+  ["fga","/stores","POST"],
+ ]){
+  assert.throws(()=>assertPilotIdentityRequest("verify",service,path,method),/MUTATION_DENIED/);
+  assert.doesNotThrow(()=>assertPilotIdentityRequest("provision",service,path,method));
+ }
+ assert.doesNotThrow(()=>assertPilotIdentityRequest("verify","fga","/stores/123456789/check","POST"));
+ assert.doesNotThrow(()=>assertPilotIdentityRequest("verify","keycloak","/admin/realms/syndes-pilot/users","GET"));
+ assert.throws(()=>assertPilotIdentityRequest(undefined,"keycloak","/admin/realms/syndes-pilot/users","GET"),/IDENTITY_MODE/);
+});
 function fixture(initial){
  let user=initial&&structuredClone(initial);
  const writes=[];
