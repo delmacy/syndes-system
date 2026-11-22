@@ -26,7 +26,7 @@ async function oauth(client,secret,username){
 async function api(path,{token,org=A,ws=A1,method='GET',body,statuses=[200],tenant=tid}={}){
  const headers={'Content-Type':'application/json','x-syndes-organization-id':org,'x-syndes-workspace-id':ws};
  if(token)headers.Authorization='Bearer '+token;
- const r=await fetch(BASE+'/v1/tenants/'+tenant+'/'+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(14000)});
+ let r;try{r=await fetch(BASE+'/v1/tenants/'+tenant+'/'+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(14000)});}catch(error){phase+='_'+method+'_'+path.replace(/[^a-zA-Z0-9:_/-]/g,'_')+'_FETCH';console.error('STAGE_HTTP_FETCH_ERROR='+String(error));throw error;}
  if(!statuses.includes(r.status)){phase+='_'+method+'_'+path.replace(/[a-f0-9-]{36}/gi,':id').replace(/[^a-zA-Z0-9:_/-]/g,'_')+'_'+r.status;throw Error('HTTP result')}const text=await r.text();let data;
  try{data=JSON.parse(text)}catch{data=text}
  return {status:r.status,data,text};
