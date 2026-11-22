@@ -35,8 +35,13 @@ async function oauth(client,secret,username){
 async function api(path,{token,org=A,ws=A1,method='GET',body,statuses=[200],tenant=tid}={}){
  const headers={'Content-Type':'application/json','x-syndes-organization-id':org,'x-syndes-workspace-id':ws};
  if(token)headers.Authorization='Bearer '+token;
- let r;try{r=await fetch(BASE+'/v1/tenants/'+tenant+'/'+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(14000)});}catch(error){phase+='_'+method+'_'+path.replace(/[^a-zA-Z0-9:_/-]/g,'_')+'_FETCH';console.error('STAGE_HTTP_FETCH_ERROR='+String(error));throw error;}
- if(!statuses.includes(r.status)){console.error('STAGE_HTTP_MISMATCH path='+path+' org='+org+' ws='+ws+' status='+r.status+' expected='+statuses.join(','));phase+='_'+method+'_'+path.replace(/[a-f0-9-]{36}/gi,':id').replace(/[^a-zA-Z0-9:_/-]/g,'_')+'_'+r.status;throw Error('HTTP result')}const text=await r.text();let data;
+ let r;try{for(let attempt=1;attempt<=20;attempt++){
+  r=await fetch(BASE+'/v1/tenants/'+tenant+'/'+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(14000)});
+  if(method!=='GET'||r.status!==503||attempt===20)break;
+  console.error('STAGE_HTTP_PROVIDER_WARMUP path='+path+' attempt='+attempt);
+  await r.body?.cancel();await sleep(2000);
+ }}catch(error){phase+='_'+method+'_'+path.replace(/[^a-zA-Z0-9:_/-]/g,'_')+'_FETCH';console.error('STAGE_HTTP_FETCH_ERROR='+String(error));throw error;}
+ if(!statuses.includes(r.status)){let fault='';try{const body=await r.json();fault=String(body?.code??body?.error??'').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,60)}catch{}console.error('STAGE_HTTP_MISMATCH path='+path+' org='+org+' ws='+ws+' status='+r.status+' code='+fault+' expected='+statuses.join(','));phase+='_'+method+'_'+path.replace(/[a-f0-9-]{36}/gi,':id').replace(/[^a-zA-Z0-9:_/-]/g,'_')+'_'+r.status;throw Error('HTTP result')}const text=await r.text();let data;
  try{data=JSON.parse(text)}catch{data=text}
  return {status:r.status,data,text};
 }
@@ -58,7 +63,7 @@ async function main(){
   const direct=await Promise.all(['master','syndes-pilot'].map(async realm=>{try{return (await fetch('http://keycloak:8080/realms/'+realm,{signal:AbortSignal.timeout(5000)})).status}catch{return 0}}));
   const forwarded=await Promise.all(['master','syndes-pilot'].map(async realm=>{try{return (await fetch('http://keycloak:8080/realms/'+realm,{headers:{Host:'identity-stage:8443','X-Forwarded-Host':'identity-stage:8443','X-Forwarded-Proto':'https','X-Forwarded-Port':'8443'},signal:AbortSignal.timeout(5000)})).status}catch{return 0}}));
   const proxyResponse=await fetch(KC+'/realms/master',{signal:AbortSignal.timeout(5000)});
-  const proxyBody=(await proxyResponse.text()).slice(0,180).replace(/[^a-zA-Z0-9 /:._-]/g,'_');
+  const proxyBody=proxyResponse.ok?'ok':(await proxyResponse.text()).slice(0,180).replace(/[^a-zA-Z0-9 /:._-]/g,'_');
   const fgaResponse=await fetch('http://openfga:8080/realms/master',{signal:AbortSignal.timeout(5000)});
   const fgaBody=(await fgaResponse.text()).slice(0,180).replace(/[^a-zA-Z0-9 /:._-]/g,'_');
   console.error('STAGE_PROXY_ORIGIN_COMPARE fga_status='+fgaResponse.status+' fga_body='+fgaBody);
