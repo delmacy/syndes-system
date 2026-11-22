@@ -23,6 +23,9 @@ test('Core staging release requires verified artifacts, nonroot singleton and ap
  const job=yaml.slice(yaml.indexOf('  devserver01-stage-core-runtime:'));
  assert.match(job,/needs: \[gate, devserver01-stage-runtime-foundation\]/);assert.match(job,/MO-REL04-STAGE-CORE-RUNTIME-APPROVED/);
  assert.match(job,/git ls-remote origin refs\/heads\/main/);
+ // Foundation owns the immutable image. Only its dependent deploy may
+ // run the stage Core mutating script for an approved release.
+ assert.equal((yaml.match(/cp scripts\/deploy\/devserver01-stage-core.sh/g)||[]).length,1);
  for(const [exe,args] of [['bash',['-n','scripts/deploy/devserver01-stage-core.sh']],['node',['--check','scripts/deploy/staging-runtime/prepare-core.mjs']]])
   assert.equal(spawnSync(exe,args).status,0);
 });
