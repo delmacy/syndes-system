@@ -140,6 +140,7 @@ for source in syndes_staging_control syndes_staging_keycloak syndes_staging_open
   fi
   target_connect="$(docker exec "$pg" psql -X -At -U postgres -d postgres -c "SELECT has_database_privilege('$tenant_role','$target','CONNECT')")"
   [[ "$target_connect" == "$source_connect" ]] || exit 5
+  printf 'STAGE_RESTORE_TENANT_CONNECT_MATCH index=%s allowed=%s\n' "$counter" "$target_connect" >&2
  fi
  sources+=("$source");targets+=("$target");archives+=("syndes_stage_archive_${nonce}_$counter")
  if ((counter>0));then printf ',' >> "$map_file";fi
