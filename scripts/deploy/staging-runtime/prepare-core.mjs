@@ -77,6 +77,26 @@ async function main(){
    for(const m of p.migrations){
     if(m.id==='002_legacy_single_context_gate')continue;
     const sql=await readFile(new URL(m.fileUrl),'utf8'),checksum=sha(sql);
+    if(p.definition.id==='whatsapp'&&m.id==='009_whatsapp_history_commands'){
+     // 009 is an independently approved, stage-only schema preparation (MO-REL01).
+     // It is NOT part of the immutable WhatsApp module 0.1.0 installation
+     // receipt, which attests 001..008. Verify the separate attestation and
+     // physical objects instead of silently changing a previously enabled
+     // module's digest or reinstalling it without an upgrade transition.
+     const prepared=(await tenant.query(`SELECT checksum,verification_mode FROM
+      _syndes.stage_bootstrap_receipts WHERE module_id=$1 AND migration_id=$2`,
+      [p.definition.id,m.id])).rows[0];
+     check(prepared?.checksum===checksum&&prepared?.verification_mode==='stage_prepared_before_activation');
+     const already=(await tenant.query('SELECT checksum FROM _syndes.module_migrations WHERE module_id=$1 AND migration_id=$2',
+      [p.definition.id,m.id])).rows[0];
+     if(already)check(already.checksum===checksum);
+     const proof=(await tenant.query(`SELECT
+      to_regclass('public.whatsapp_history_commands') IS NOT NULL AS command_table,
+      to_regclass('public.whatsapp_history_commands_pending') IS NOT NULL AS pending_index,
+      to_regclass('public.whatsapp_history_commands_anchor') IS NOT NULL AS anchor_index`)).rows[0];
+     check(proof.command_table&&proof.pending_index&&proof.anchor_index);
+     continue;
+    }
     if(p.definition.id==='service'){
      // Service was installed by the earlier stage workflow before SQL002
      // removal. Never replay its immutable single-context 002 on multi-org.
