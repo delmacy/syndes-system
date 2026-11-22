@@ -11,6 +11,7 @@ const A='a3f80cc7-4c61-4f8e-8c39-d848dfbe10a1',B='b4f80cc7-4c61-4f8e-8c39-d848df
 const A1='cae8c1e2-4a1d-4b69-9e02-0dd15b0d1001',B1='cbe8c1e2-4a1d-4b69-9e02-0dd15b0d2001';
 const A2='cae8c1e2-4a1d-4b69-9e02-0dd15b0d1002',B2='cbe8c1e2-4a1d-4b69-9e02-0dd15b0d2002';
 const KC='https://identity-stage:8443',BASE='http://core-host:8082';
+const recoveryBaseline='/run/runtime/acceptance-recovery-baseline.json';
 const file=async n=>(await readFile('/run/stage/'+n,'utf8')).trim();
 const assert=(v)=>{if(!v)throw Error('Stage assertion')};
 let phase='safety';const cleanup=[];
@@ -89,6 +90,25 @@ async function main(){
   const readScopes=[[A,A1],[A,A2],[B,B1],[B,B2]];
   const readTuples=readScopes.flatMap(([org,ws])=>['inbox.conversation.claim'].map(capability=>({user:'user:'+actorId,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability,resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
   readTuples.push(...[[A,A1],[B,B1]].map(([org,ws])=>({user:'user:'+actorId,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability:'inbox.conversation.create',resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
+  if(process.env.ACCEPTANCE_RECOVERY==='verify'){
+   phase='restore-before-reseed';
+   const saved=JSON.parse(await readFile(recoveryBaseline,'utf8'));
+   assert(saved.sourceSha===process.env.SOURCE_SHA&&Array.isArray(saved.ids)&&saved.ids.length===4);
+   for(const [index,path] of ['crm/people/','inbox/conversations/'].entries()){
+    const a=saved.ids[index*2],b=saved.ids[index*2+1];
+    assert((await api(path+a,{token:tokenA})).data.id===a);
+    assert((await api(path+b,{token:tokenB,org:B,ws:B1})).data.id===b);
+    await api(path+b,{token:tokenA,statuses:[404]});
+    await api(path+a,{token:tokenB,org:B,ws:B1,statuses:[404]});
+   }
+   const missingGrant={user:'user:'+actorId,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:A,workspaceId:A2,capability:'inbox.conversation.create',resourceName:'syndes:v1:tenant:'+tid+':org:'+A+':workspace:'+A2})};
+   for(const [tuple_key,expected] of [...readTuples.map(tuple=>[tuple,true]),[missingGrant,false]]){
+    const response=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tuple_key,consistency:'HIGHER_CONSISTENCY'}),signal:AbortSignal.timeout(5000)});
+    assert(response.ok&&(await response.json()).allowed===expected);
+   }
+   console.log('STAGE_RECOVERED_RECORD_OWNERSHIP_AND_EXACT_GRANTS_BEFORE_RESEED_PASS');
+   phase='http-matrix';
+  }
   const seedTuples=async(tuples,label)=>{
    // OpenFGA rejects a whole batch when only one tuple already exists.
    // Seed each exact synthetic tuple and prove an idempotent 400 is existing.
@@ -233,6 +253,10 @@ async function main(){
   }finally{await db.query("UPDATE platform_organizations SET status='active' WHERE tenant_id=$1 AND id=$2",[tid,B])}
   console.log('STAGE_ACCEPTANCE_REAL_RUNNING_WHATSAPP_WORKER_DEDUP_SCOPE_ARCHIVE_NO_EXTERNAL_EFFECT_PASS');
   // Persist only an opaque verification report, not JWTs or personal data.
+  if(process.env.ACCEPTANCE_RECOVERY==='capture'){
+   const ids=[pa.id,pb.id,ca.id,cb.id];
+   await writeFile(recoveryBaseline,JSON.stringify({sourceSha:process.env.SOURCE_SHA,ids}),{mode:0o600});
+  }
   await writeFile('/run/runtime/acceptance.json',JSON.stringify({sourceSha:process.env.SOURCE_SHA,passed:true,synthetic:true,at:new Date().toISOString()}),{mode:0o644});
   console.log('STAGE_CORE_REAL_HTTP_IDP_FGA_SQL_WORKER_SSE_ACCEPTANCE_PASS');
  }finally{for(const fn of cleanup.reverse())await fn();await provider.onModuleDestroy();await db.end();await control.end()}

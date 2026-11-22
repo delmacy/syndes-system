@@ -21,6 +21,11 @@ test('stage acceptance refuses unauthenticated invocation and never restores ove
  assert.match(verify,/statuses:\[404\]/);assert.match(verify,/statuses:\[403\]/);
  assert.match(verify,/finally\{await fga/);assert.match(verify,/reconnected/);
  assert.match(verify,/new WhatsAppInboundStore\(provider\)/);
+ const recoveryMarker='STAGE_RECOVERED_RECORD_OWNERSHIP_AND_EXACT_GRANTS_BEFORE_RESEED_PASS';
+ assert.ok(verify.indexOf(recoveryMarker)>0&&verify.indexOf(recoveryMarker)<verify.indexOf('await seedTuples('));
+ assert.match(shell,/ACCEPTANCE_RECOVERY=capture operator/);
+ assert.match(shell,/ACCEPTANCE_RECOVERY=verify operator/);
+ assert.ok(shell.includes(recoveryMarker));
  assert.match(compare,/pairs.length!==5/);assert.match(compare,/jsonb_agg/);
  assert.match(outage,/count\(\)!==before/);assert.match(outage,/\[403,503\]/);
  for(const f of ['validate-core','compare-restore','outage'])assert.equal(spawnSync('node',['--check','scripts/deploy/staging-runtime/'+f+'.mjs']).status,0);

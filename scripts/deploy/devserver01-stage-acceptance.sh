@@ -50,6 +50,7 @@ operator(){
  -e SYNDES_STAGE_ACCEPTANCE=ACTIONS_STAGE_ONLY -e SYNDES_STAGE_RESTORE=ACTIONS_STAGE_ONLY \
  -e SYNDES_STAGE_OUTAGE=ACTIONS_STAGE_ONLY -e "OUTAGE_MODE=${OUTAGE_MODE:-cleanup}" \
  -e "VAULT_SNAPSHOT_MODE=${VAULT_SNAPSHOT_MODE:-backup}" \
+ -e "ACCEPTANCE_RECOVERY=${ACCEPTANCE_RECOVERY:-}" \
  -e SYNDES_DEPLOYMENT_ENV=staging -e CORE_OPENBAO_URL=https://openbao-stage:8200 \
  -e CORE_TENANT_ROLE_ID_FILE=/run/stage/bao-tenant-role-id \
  -e CORE_TENANT_SECRET_ID_FILE=/run/stage/bao-tenant-secret-id \
@@ -61,7 +62,7 @@ if timeout 20s docker exec -e CORE_PORT=8083 "$core" node dist/main.js </dev/nul
 else
  code=$?;[[ "$code" == 1 ]] || exit 5
 fi
-result="$(operator /run/bundle/validate-core.mjs)";printf '%s\n' "$result"
+result="$(ACCEPTANCE_RECOVERY=capture operator /run/bundle/validate-core.mjs)";printf '%s\n' "$result"
 printf '%s\n' "$result" | grep -qx STAGE_CORE_REAL_HTTP_IDP_FGA_SQL_WORKER_SSE_ACCEPTANCE_PASS
 # Real network outage: a valid JWT cannot write while KC or FGA is unavailable.
 OUTAGE_MODE=prepare operator /run/bundle/outage.mjs
@@ -178,9 +179,9 @@ for n in $(seq 1 45);do
  [[ "$n" != 45 ]] || exit 5;sleep 2
 done
 [[ "$(docker inspect -f '{{.Image}}' "$core")" == "$image" ]] || exit 5
-# Same identities and permissions remain valid after restart; acceptance also
-# confirms revocation/cleanup/reconnection against the same real image.
-result="$(operator /run/bundle/validate-core.mjs)";printf '%s\n' "$result"
+# Check restored records and permissions before the second pass reseeds grants.
+result="$(ACCEPTANCE_RECOVERY=verify operator /run/bundle/validate-core.mjs)";printf '%s\n' "$result"
+printf '%s\n' "$result" | grep -qx STAGE_RECOVERED_RECORD_OWNERSHIP_AND_EXACT_GRANTS_BEFORE_RESEED_PASS
 printf '%s\n' "$result" | grep -qx STAGE_CORE_REAL_HTTP_IDP_FGA_SQL_WORKER_SSE_ACCEPTANCE_PASS
 recovery_complete=1
 printf 'STAGE_REAL_RESTORE_RTO_SECONDS=%s\n' "$(( $(date +%s)-started ))"
