@@ -19,9 +19,17 @@ async function eventually(fn,ms=15000){const end=Date.now()+ms;do{if(await fn())
 async function oauth(client,secret,username){
  const body=username?{grant_type:'password',client_id:client,username,password:secret}:
  {grant_type:'client_credentials',client_id:client,client_secret:secret};
- const r=await fetch(KC+'/realms/'+(username?'syndes-pilot':'master')+'/protocol/openid-connect/token',{
-  method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body),redirect:'error',signal:AbortSignal.timeout(8000)});
- assert(r.status===200);return (await r.json()).access_token;
+ for(let attempt=1;attempt<=20;attempt++){
+  let r;
+  try{r=await fetch(KC+'/realms/'+(username?'syndes-pilot':'master')+'/protocol/openid-connect/token',{
+   method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body),redirect:'error',signal:AbortSignal.timeout(8000)});
+  }catch(error){if(attempt===20)throw error;await sleep(2000);continue}
+  if(r.status===200)return (await r.json()).access_token;
+  console.error('STAGE_IDP_TOKEN_STATUS='+r.status+' attempt='+attempt);
+  if(![502,503,504].includes(r.status)||attempt===20)throw Error('Stage IdP token unavailable');
+  await sleep(2000);
+ }
+ throw Error('Stage IdP token unavailable');
 }
 async function api(path,{token,org=A,ws=A1,method='GET',body,statuses=[200],tenant=tid}={}){
  const headers={'Content-Type':'application/json','x-syndes-organization-id':org,'x-syndes-workspace-id':ws};
