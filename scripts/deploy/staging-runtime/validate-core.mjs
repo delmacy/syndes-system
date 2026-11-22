@@ -55,7 +55,10 @@ async function main(){
   const realms=(await restoredRealmDb.query("SELECT count(*) FILTER (WHERE name='master')::int AS master,count(*) FILTER (WHERE name='syndes-pilot')::int AS pilot FROM realm")).rows[0];
   const endpoint=await Promise.all(['master','syndes-pilot'].map(async realm=>{try{return (await fetch(KC+'/realms/'+realm,{signal:AbortSignal.timeout(5000)})).status}catch{return 0}}));
   const direct=await Promise.all(['master','syndes-pilot'].map(async realm=>{try{return (await fetch('http://keycloak:8080/realms/'+realm,{signal:AbortSignal.timeout(5000)})).status}catch{return 0}}));
-  console.error('STAGE_RESTORED_IDP_DIAG master_db='+realms.master+' pilot_db='+realms.pilot+' master_http='+endpoint[0]+' pilot_http='+endpoint[1]+' master_direct='+direct[0]+' pilot_direct='+direct[1]);
+  const forwarded=await Promise.all(['master','syndes-pilot'].map(async realm=>{try{return (await fetch('http://keycloak:8080/realms/'+realm,{headers:{Host:'identity-stage:8443','X-Forwarded-Host':'identity-stage:8443','X-Forwarded-Proto':'https','X-Forwarded-Port':'8443'},signal:AbortSignal.timeout(5000)})).status}catch{return 0}}));
+  const proxyResponse=await fetch(KC+'/realms/master',{signal:AbortSignal.timeout(5000)});
+  const proxyBody=(await proxyResponse.text()).slice(0,180).replace(/[^a-zA-Z0-9 /:._-]/g,'_');
+  console.error('STAGE_RESTORED_IDP_DIAG master_db='+realms.master+' pilot_db='+realms.pilot+' master_http='+endpoint[0]+' pilot_http='+endpoint[1]+' master_direct='+direct[0]+' pilot_direct='+direct[1]+' master_forwarded='+forwarded[0]+' pilot_forwarded='+forwarded[1]+' proxy_body='+proxyBody);
  }finally{await restoredRealmDb.end()}
  const bootstrap=JSON.parse(await file('core-pilot-bootstrap.json'));
  const admin=await oauth('syndes-stage-pilot-recovery',await file('pilot-admin-service-secret'));
