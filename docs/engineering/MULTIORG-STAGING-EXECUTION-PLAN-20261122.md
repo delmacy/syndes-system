@@ -22,3 +22,9 @@ O 403 inicial da Inbox exigia o registro auditável de ownership default em um t
 ## Limite da evidência e próxima etapa
 
 Este aceite usa uma fixture greenfield. **Não comprova o backfill de dados históricos nem o cutover SQL002 em um banco operacional legado.** MO-REL-06 (#210) permanece aberta para fixture histórica, ordem Control/tenant 008–010, meia migração negada e rollback compatível com dados multi-org. Wizard/signup (#189), Product Gate e produção permanecem bloqueados. O resultado de staging E2E/restore não autoriza promover produção nem ativar WhatsApp externo.
+
+## Ensaio adicional de dados históricos e IAM (MO-REL-06)
+
+- Main `dc587d130fc994021d625041020b6c5c821bf7a0`, [Actions 45019251146](https://github.com/delmacy/syndes-system/actions/runs/45019251146): fixture histórica sintética anterior a 003 no PostgreSQL17 do staging; backfill de CRM, Inbox e WhatsApp, negação sem attestations e com SQL002 parcial, cutover e rollback completo do schema transacional.
+- Main `60a96dd9da3d1689cf094169813f08213283f1ce`, [Actions 45019940500](https://github.com/delmacy/syndes-system/actions/runs/45019940500), job `137201125315` success: prova 008+010 com SQL002 presente, 009 negada; 010 negada em estado parcial; 009+010 e replay após cutover, 008 negada, nenhum grant ativado, transação revertida. Marcador `STAGE_HISTORICAL_LEGACY_ROWS_BACKFILL_PARTIAL_DENY_SQL002_IAM008_009_010_CUTOVER_ROLLBACK_PASS`.
+- **Pendente para encerrar #210/G-4:** ensaio operador `psql --single-transaction -v ON_ERROR_STOP=1` sobre clone de banco legado com backup/restauração de histórico, comparação antes/depois e reconciliação Control/Keycloak/FGA; medir RPO/RTO dessa fixture e ensaiar rollback após múltiplas organizações. Os ensaios acima são transacionais com rollback no banco de manutenção, sem cutover durável. `PRODUCTION_GATE=BLOCKED`.
