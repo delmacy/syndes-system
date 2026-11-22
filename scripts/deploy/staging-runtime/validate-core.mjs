@@ -184,9 +184,27 @@ async function main(){
   await eventually(()=>Promise.resolve(sa.events>aCount));await sleep(700);assert(sb.events===bCount&&bCount>=beforeB);
   console.log('STAGE_ACCEPTANCE_REAL_HTTP_CRM_INBOX_KNOWN_IDS_CSV_SCOPE_SSE_PASS');
   phase='service-http';
-  const funnels=(await api('service-management/funnels',{token:tokenA})).data;
-  assert(Array.isArray(funnels)&&funnels.length===2);
-  const funnel=funnels[0];
+  const stageFunnel={code:'stage-pilot-atendimento',name:'Atendimento piloto',
+   stages:[{code:'novo',label:'Novo'},{code:'resolvido',label:'Resolvido'}]};
+  const listFunnels=async options=>(await api('service-management/funnels',options)).data;
+  const funnels=await listFunnels({token:tokenA});
+  const original=funnels.filter(row=>row.code!==stageFunnel.code);
+  assert(original.length===2);
+  await api('service-management/funnels',{token:tokenA,ws:A2,method:'POST',body:stageFunnel,statuses:[403]});
+  await api('service-management/funnels',{token:tokenB,method:'POST',body:stageFunnel,statuses:[403]});
+  const published=funnels.find(row=>row.code===stageFunnel.code);
+  if(!published){
+   await api('service-management/funnels',{token:tokenA,method:'POST',body:stageFunnel,statuses:[201]});
+  }
+  const visible=(await listFunnels({token:tokenA})).filter(row=>row.code===stageFunnel.code);
+  assert(visible.length===1&&visible[0].name===stageFunnel.name);
+  assert(JSON.stringify(visible[0].stages.map(({code,label})=>({code,label})))===JSON.stringify(stageFunnel.stages));
+  for(const options of [{token:tokenA,ws:A2},{token:tokenB,org:B,ws:B1}]){
+   const other=await listFunnels(options);
+   assert(!other.some(row=>row.id===visible[0].id||row.code===stageFunnel.code));
+  }
+  console.log('STAGE_SERVICE_FUNNEL_PUBLISH_AND_SCOPE_DENIAL_PASS');
+  const funnel=original[0];
   const attendance=(await api('service-management/attendances',{token:tokenA,method:'POST',body:{funnelId:funnel.id,idempotencyKey:'stage-'+randomUUID()},statuses:[201]})).data;
   assert(attendance.id);
   await api('service-management/attendances/'+attendance.id,{token:tokenB,org:B,ws:B1,statuses:[404]});

@@ -2063,6 +2063,7 @@ jobs:
             printf '%s\n' "$result" | grep -qx STAGE_FUNCTIONAL_ACCEPTANCE_WITHOUT_RECOVERY_PASS
             printf '%s\n' "$result" | grep -qx STAGE_CRM_CSV_BOTH_ORGS_OWN_ROWS_ONLY_PASS
             printf '%s\n' "$result" | grep -qx STAGE_WHATSAPP_HISTORY_SYNC_MULTI_ORG_DENY_PASS
+            printf '%s\n' "$result" | grep -qx STAGE_SERVICE_FUNNEL_PUBLISH_AND_SCOPE_DENIAL_PASS
           else
             printf '%s\n' "$result" | grep -qx STAGE_ACCEPTANCE_AND_ENCRYPTED_FIVE_DB_RESTORE_SAME_CORE_IMAGE_RECOVERY_PASS
           fi
