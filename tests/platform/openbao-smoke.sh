@@ -99,7 +99,7 @@ docker run --rm --network syndes-secrets \
 # Staging policies are exercised against the REAL disposable TLS OpenBao.
 # Having a healthy endpoint or a mocked fetch is not proof of ACL separation.
 for entry in core-host tenant-db; do
-  jq -Rs '{policy:.}' < "infra/multiorg-staging/$entry-policy.hcl" |
+  jq -Rs '{policy:.}' < "tests/platform/fixtures/openbao/$entry-policy.hcl" |
     bao_http --fail -X PUT -H "X-Vault-Token: $root_token" -H 'Content-Type: application/json' \
       --data-binary @- "https://openbao:8200/v1/sys/policies/acl/stage-$entry" >/dev/null
   jq -n --arg policy "stage-$entry" \

@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import {secretNamespaceFromEnv,validateSecretNamespace,type SecretNamespace} from "./secret-namespace.js";
+import {secretNamespaceFromEnv,stageFileSecretsEnabled,validateSecretNamespace,type SecretNamespace} from "./secret-namespace.js";
 
 /** OpenBao AppRole credentials are file-mounted; no database password or FGA
  * API token is passed by Docker Compose or stored in process.env. */
@@ -50,6 +50,42 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function validatedSecrets(values:Record<string,unknown>,namespace:SecretNamespace):CoreRuntimeSecrets{
+  const loaded=Object.freeze({
+    controlDbUrl: requiredString(values.control_db_url),
+    openfgaToken: requiredString(values.openfga_token),
+  });
+  if(namespace==="multi-org-staging"){
+    let db:URL;
+    try{db=new URL(loaded.controlDbUrl)}
+    catch{throw new Error("Invalid staging Control database boundary")}
+    if(!["postgres:","postgresql:"].includes(db.protocol)||
+       db.hostname!=="control-postgres"||(db.port&&db.port!=="5432")||
+       db.pathname!=="/syndes_staging_control"||
+       db.username!=="syndes_staging_core"||!db.password||db.search||db.hash)
+      throw new Error("Invalid staging Control database boundary");
+  }
+  return loaded;
+}
+
+export async function loadConfiguredCoreSecrets(env:NodeJS.ProcessEnv=process.env):Promise<CoreRuntimeSecrets>{
+  if(!stageFileSecretsEnabled(env))return loadCoreSecrets(openBaoSourceFromEnv(env));
+  return loadStageCoreSecrets();
+}
+
+export async function loadStageCoreSecrets(path="/run/secrets/stage-core.json"):Promise<CoreRuntimeSecrets>{
+  const values=await readStageSecret(path);
+  return validatedSecrets(values,"multi-org-staging");
+}
+
+export async function readStageSecret(path:string):Promise<Record<string,unknown>>{
+  try{
+    const value=record(JSON.parse(await readFile(path,"utf8")) as unknown);
+    if(value.namespace==="multi-org-staging")return value;
+  }catch{ /* Read errors and malformed JSON must not expose credential content. */ }
+  throw new Error("Missing or malformed staging credential file");
+}
+
 export async function loadCoreSecrets(
   source: OpenBaoSource,
   fetcher: typeof fetch = fetch,
@@ -71,18 +107,7 @@ export async function loadCoreSecrets(
       method: "GET", headers: { "X-Vault-Token": token },
     }));
     const values = record(record(response.data).data);
-    loaded = Object.freeze({
-      controlDbUrl: requiredString(values.control_db_url),
-      openfgaToken: requiredString(values.openfga_token),
-    });
-    if(namespace==="multi-org-staging"){
-      const db=new URL(loaded.controlDbUrl);
-      if(!["postgres:","postgresql:"].includes(db.protocol)||
-         db.hostname!=="control-postgres"||(db.port&&db.port!=="5432")||
-         db.pathname!=="/syndes_staging_control"||
-         db.username!=="syndes_staging_core"||!db.password||db.search||db.hash)
-        throw new Error("Invalid staging Control database boundary");
-    }
+    loaded = validatedSecrets(values,namespace);
   } finally {
     // The read-only AppRole token must not remain valid after bootstrap.
     try {

@@ -13,19 +13,3 @@ services:
       - /home/delmacy/.local/share/syndes-multiorg-staging/runtime/tls:/etc/staging-tls:ro
     security_opt: [no-new-privileges:true]
     labels: {syndes.environment: multi-org-staging, syndes.component: identity-stage}
-  openbao-stage:
-    image: openbao/openbao:2.7.0
-    command: [server, -config=/openbao/config/stage.hcl]
-    restart: unless-stopped
-    networks: [staging_internal]
-    volumes:
-      - staging_openbao:/openbao/file
-      - /home/delmacy/.local/share/syndes-multiorg-staging/runtime/openbao.hcl:/openbao/config/stage.hcl:ro
-      - /home/delmacy/.local/share/syndes-multiorg-staging/runtime/tls:/etc/staging-tls:ro
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    mem_limit: 512m
-    labels: {syndes.environment: multi-org-staging, syndes.component: openbao-stage}
-volumes:
-  staging_openbao:
-    labels: {syndes.environment: multi-org-staging}

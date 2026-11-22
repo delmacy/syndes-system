@@ -13,7 +13,7 @@ import {PgModuleCatalog} from "./module-catalog.js";
 import {PgModuleLifecycle} from "./module-lifecycle.js";
 import {PgEffectiveModuleAccess} from "./module-effective-access.js";
 import {crmModuleGateMode,inboxModuleGateMode} from "./module-gate-rollout.js";
-import {loadCoreSecrets,openBaoSourceFromEnv,type CoreRuntimeSecrets} from "./secrets.js";
+import {loadConfiguredCoreSecrets,type CoreRuntimeSecrets} from "./secrets.js";
 import {MultiOrgSingleHostLease} from "./multiorg-single-host-lease.js";
 import {OperationalIam07dOperations,IAM07D_OPS} from "./iam07d-operational-ops.js";
 
@@ -125,7 +125,7 @@ function createHostModule(plugins:readonly SyndesPlugin<Type<unknown>>[]){
   @Global()
   @Module({
     providers:[
-      {provide:RUNTIME_SECRETS,useFactory:async()=>loadCoreSecrets(openBaoSourceFromEnv())},
+      {provide:RUNTIME_SECRETS,useFactory:loadConfiguredCoreSecrets},
       {provide:"SYNDES_MODULE_DEFINITIONS",useValue:definitions},
       {provide:"SYNDES_PLUGINS",useValue:plugins},
       CoreService,

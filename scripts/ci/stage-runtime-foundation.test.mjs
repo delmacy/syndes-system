@@ -24,12 +24,12 @@ test('runtime overlay remains private, stage-only, persistent and scoped to appr
   readFile('scripts/deploy/staging-runtime/setup.mjs','utf8'),
   readFile('.github/workflows/syndes-ci.yml','utf8')]);
  assert.doesNotMatch(overlay,/\bports:|network_mode:|syndes-data|syndes-secrets|privileged:/);
- assert.match(overlay,/openbao\/openbao:2.7.0/);assert.match(overlay,/staging_openbao/);
+ assert.doesNotMatch(overlay,/openbao|staging_openbao/);
  assert.match(script,/label=syndes.environment=multi-org-staging/);
  assert.match(script,/sha256sum -c MANIFEST.sha256 --status/);
  assert.match(script,/pg_dump .* -Fc/);assert.match(script,/-aes-256-cbc -pbkdf2/);
  assert.doesNotMatch(script,/docker compose down|docker system prune|DROP DATABASE|syndes_control\b/);
- assert.match(js,/token_no_default_policy:true/);assert.match(js,/view-organizations/);
+ assert.match(js,/STAGE_RUNTIME_FILE_CREDENTIALS_SCOPED_LOGIN_PASS/);assert.match(js,/view-organizations/);
  assert.doesNotMatch(js,/manage-users|manage-realm|manage-organizations|rejectUnauthorized:false|NODE_TLS_REJECT_UNAUTHORIZED/);
  assert.match(js,/statuses:\[403\]/);assert.match(js,/has_table_privilege/);
  const job=workflow.slice(workflow.indexOf('  devserver01-stage-runtime-foundation:'));

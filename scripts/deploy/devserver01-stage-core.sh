@@ -43,17 +43,32 @@ operator(){
 result="$(operator /run/bundle/prepare-core.mjs)"
 printf '%s\n' "$result"
 printf '%s\n' "$result" | grep -qx STAGE_CORE_OWNER_SQL_LEDGER_MODULE_ENABLED_EXPLICIT_FINE_GRANTS_PASS
+previous_compose="$operator_bundle/previous-core-compose.yaml"
+if [[ -f "$root/runtime/core-compose.yaml" ]];then
+ cp "$root/runtime/core-compose.yaml" "$previous_compose"
+fi
 cp "$bundle/core-compose.yaml" "$root/runtime/core-compose.yaml";chmod 644 "$root/runtime/core-compose.yaml"
 compose=(docker compose --env-file "$root/runtime/core.env" --project-name syndes-multiorg-staging -f "$root/compose.yaml" -f "$root/runtime/runtime-compose.yaml" -f "$root/runtime/core-compose.yaml")
 "${compose[@]}" config --quiet
 previous="$(docker ps -q --filter label=com.docker.compose.project=syndes-multiorg-staging --filter label=syndes.environment=multi-org-staging --filter label=syndes.component=core-host)"
 previous_image=''
 if [[ -n "$previous" ]];then previous_image="$(docker inspect -f '{{.Image}}' "$previous")";fi
-if ! "${compose[@]}" up -d --no-deps --wait --wait-timeout 150 core-host </dev/null >/dev/null;then
- if [[ -n "$previous_image" ]];then
+vault="$(docker ps --no-trunc -q --filter label=com.docker.compose.project=syndes-multiorg-staging --filter label=syndes.environment=multi-org-staging --filter label=syndes.component=openbao-stage)"
+[[ -z "$vault" || "$vault" =~ ^[a-f0-9]{64}$ ]] || exit 4
+vault_paused=false
+rollback(){
+ status=$?
+ if [[ "$vault_paused" == true ]];then docker unpause "$vault" >/dev/null || true;fi
+ if [[ $status != 0 && -n "$previous_image" && -f "$previous_compose" ]];then
+  cp "$previous_compose" "$root/runtime/core-compose.yaml"
   sed -i "s/^STAGE_CORE_IMAGE=.*/STAGE_CORE_IMAGE=$previous_image/" "$root/runtime/core.env"
   "${compose[@]}" up -d --no-deps --wait --wait-timeout 90 core-host </dev/null >/dev/null || true
  fi
+}
+trap rollback EXIT
+if [[ -n "$vault" ]];then docker pause "$vault" >/dev/null;vault_paused=true;fi
+# Core must start with its old credential provider unavailable.
+if ! "${compose[@]}" up -d --no-deps --force-recreate --wait --wait-timeout 150 core-host </dev/null >/dev/null;then
  echo STAGE_CORE_DEPLOY_BLOCKED_READINESS;exit 5
 fi
 cid="$(docker ps --no-trunc -q --filter label=com.docker.compose.project=syndes-multiorg-staging --filter label=syndes.environment=multi-org-staging --filter label=syndes.component=core-host)"
@@ -69,4 +84,10 @@ else
 fi
 # The first instance must still be ready after denying the second.
 docker exec "$cid" node -e "fetch('http://127.0.0.1:8082/readyz').then(r=>{if(!r.ok)process.exit(1)})" </dev/null
+if [[ "$vault_paused" == true ]];then
+ docker unpause "$vault" >/dev/null;vault_paused=false
+ docker stop --time 20 "$vault" >/dev/null
+fi
+trap - EXIT
+echo STAGE_CORE_FILE_CREDENTIALS_START_WITHOUT_OPENBAO_PASS
 echo STAGE_CORE_MAIN_NEST_IMAGE_READY_NONROOT_SINGLETON_PASS
