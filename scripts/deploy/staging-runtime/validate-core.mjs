@@ -1,6 +1,6 @@
 // Real stage HTTP/SQL/IdP/FGA/worker/SSE acceptance, synthetic data only.
 import {readFile,writeFile} from 'node:fs/promises';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import pg from '/workspace/apps/core-host/node_modules/pg/lib/index.js';
 import {TenantPgProvider} from '/workspace/apps/core-host/dist/tenant-database.js';
 import {WhatsAppInboundStore} from '/workspace/modules/whatsapp/dist/inbound-http.js';
@@ -77,6 +77,9 @@ async function main(){
   const readTuples=readScopes.flatMap(([org,ws])=>['inbox.conversation.claim'].map(capability=>({user:'user:'+bootstrap.founder,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability,resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
   readTuples.push(...[[A,A1],[B,B1]].map(([org,ws])=>({user:'user:'+bootstrap.founder,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability:'inbox.conversation.create',resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
   const readGrant=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:readTuples}}),signal:AbortSignal.timeout(5000)});if(!readGrant.ok&&readGrant.status!==400)throw Error('Inbox grant seed failed '+readGrant.status);
+  const coarseObject=resource=> 'resource:'+createHash('sha256').update(tid+'|'+resource).digest('hex');
+  const coarseTuples=[{user:'user:'+bootstrap.founder,relation:'viewer',object:coarseObject('inbox:conversations')},{user:'user:'+bootstrap.founder,relation:'editor',object:coarseObject('inbox:messages')}];
+  const coarseGrant=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:coarseTuples}}),signal:AbortSignal.timeout(5000)});if(!coarseGrant.ok&&coarseGrant.status!==400)throw Error('Coarse grant seed failed '+coarseGrant.status);
 
   await api('inbox/conversations',{statuses:[401]});
   await api('inbox/conversations',{token:'invalid',statuses:[401]});
