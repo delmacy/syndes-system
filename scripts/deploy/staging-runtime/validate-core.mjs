@@ -1,9 +1,8 @@
 // Real stage HTTP/SQL/IdP/FGA/worker/SSE acceptance, synthetic data only.
 import {readFile,writeFile} from 'node:fs/promises';
-import {lookup} from 'node:dns/promises';
 import {randomUUID,createHash} from 'node:crypto';
 import pg from '/workspace/apps/core-host/node_modules/pg/lib/index.js';
-import {TenantPgProvider,TenantCredentialSource} from '/workspace/apps/core-host/dist/tenant-database.js';
+import {TenantPgProvider} from '/workspace/apps/core-host/dist/tenant-database.js';
 import {WhatsAppInboundStore} from '/workspace/modules/whatsapp/dist/inbound-http.js';
 import {WhatsAppOutboundRelay} from '/workspace/modules/whatsapp/dist/outbound-relay.js';
 import {iam07dFineObjectForScope} from '/workspace/apps/core-host/dist/iam07d-fine-fga-policy.js';
@@ -56,20 +55,6 @@ async function stream(token,org,ws){
 }
 async function main(){
  assert(process.env.SYNDES_STAGE_ACCEPTANCE==='ACTIONS_STAGE_ONLY');
- const restoredRealmDb=new pg.Pool({host:'control-postgres',user:'postgres',password:await file('pg-admin'),database:'syndes_staging_keycloak',max:1});
- try{
-  const realms=(await restoredRealmDb.query("SELECT count(*) FILTER (WHERE name='master')::int AS master,count(*) FILTER (WHERE name='syndes-pilot')::int AS pilot FROM realm")).rows[0];
-  const endpoint=await Promise.all(['master','syndes-pilot'].map(async realm=>{try{return (await fetch(KC+'/realms/'+realm,{signal:AbortSignal.timeout(5000)})).status}catch{return 0}}));
-  const direct=await Promise.all(['master','syndes-pilot'].map(async realm=>{try{return (await fetch('http://keycloak:8080/realms/'+realm,{signal:AbortSignal.timeout(5000)})).status}catch{return 0}}));
-  const forwarded=await Promise.all(['master','syndes-pilot'].map(async realm=>{try{return (await fetch('http://keycloak:8080/realms/'+realm,{headers:{Host:'identity-stage:8443','X-Forwarded-Host':'identity-stage:8443','X-Forwarded-Proto':'https','X-Forwarded-Port':'8443'},signal:AbortSignal.timeout(5000)})).status}catch{return 0}}));
-  const proxyResponse=await fetch(KC+'/realms/master',{signal:AbortSignal.timeout(5000)});
-  const proxyBody=proxyResponse.ok?'ok':(await proxyResponse.text()).slice(0,180).replace(/[^a-zA-Z0-9 /:._-]/g,'_');
-  const fgaResponse=await fetch('http://openfga:8080/realms/master',{signal:AbortSignal.timeout(5000)});
-  const fgaBody=(await fgaResponse.text()).slice(0,180).replace(/[^a-zA-Z0-9 /:._-]/g,'_');
-  console.error('STAGE_PROXY_ORIGIN_COMPARE fga_status='+fgaResponse.status+' fga_body='+fgaBody);
-  console.error('STAGE_PROXY_DNS identity='+JSON.stringify(await lookup('identity-stage',{all:true}))+' keycloak='+JSON.stringify(await lookup('keycloak',{all:true}))+' proxy_content_type='+proxyResponse.headers.get('content-type'));
-  console.error('STAGE_RESTORED_IDP_DIAG master_db='+realms.master+' pilot_db='+realms.pilot+' master_http='+endpoint[0]+' pilot_http='+endpoint[1]+' master_direct='+direct[0]+' pilot_direct='+direct[1]+' master_forwarded='+forwarded[0]+' pilot_forwarded='+forwarded[1]+' proxy_body='+proxyBody);
- }finally{await restoredRealmDb.end()}
  const bootstrap=JSON.parse(await file('core-pilot-bootstrap.json'));
  const admin=await oauth('syndes-stage-pilot-recovery',await file('pilot-admin-service-secret'));
  const tokenA=await oauth('syndes-pilot-staging-login',await file('pilot-founder-password'),'pilot-founder');
@@ -104,22 +89,23 @@ async function main(){
   const readScopes=[[A,A1],[A,A2],[B,B1],[B,B2]];
   const readTuples=readScopes.flatMap(([org,ws])=>['inbox.conversation.claim'].map(capability=>({user:'user:'+actorId,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability,resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
   readTuples.push(...[[A,A1],[B,B1]].map(([org,ws])=>({user:'user:'+actorId,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability:'inbox.conversation.create',resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
-  const readGrant=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:readTuples}}),signal:AbortSignal.timeout(5000)});if(!readGrant.ok&&readGrant.status!==400)throw Error('Inbox grant seed failed '+readGrant.status);
+  const seedTuples=async(tuples,label)=>{
+   const response=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:tuples}}),signal:AbortSignal.timeout(5000)});
+   if(response.ok)return;
+   if(response.status!==400)throw Error(label+' grant seed failed '+response.status);
+   // The restore includes previous synthetic grants. A duplicate-write 400
+   // is acceptable only when every exact tuple is currently allowed by FGA.
+   for(const tuple_key of tuples){
+    const check=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tuple_key}),signal:AbortSignal.timeout(5000)});
+    if(check.status!==200||(await check.json()).allowed!==true)throw Error(label+' grant not present');
+   }
+  };
+  await seedTuples(readTuples,'Inbox');
   const coarseObject=resource=> 'resource:'+createHash('sha256').update(tid+'|'+resource).digest('hex');
   const coarseTuples=[{user:'user:'+actorId,relation:'viewer',object:coarseObject('inbox:conversations')},{user:'user:'+actorId,relation:'editor',object:coarseObject('inbox:messages')}];
-  const coarseGrant=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:coarseTuples}}),signal:AbortSignal.timeout(5000)});if(!coarseGrant.ok&&coarseGrant.status!==400)throw Error('Coarse grant seed failed '+coarseGrant.status);
+  await seedTuples(coarseTuples,'Coarse');
   const coarseCheck=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tuple_key:{user:'user:'+actorId,relation:'can_read',object:coarseObject('inbox:conversations')}}),signal:AbortSignal.timeout(5000)});const coarseJson=await coarseCheck.json();if(coarseJson.allowed!==true)throw Error('Coarse grant denied '+JSON.stringify(coarseJson));
 
-  phase='tenant-connect-diagnostic';
-  const role='syndes_t_'+tid.replaceAll('-','');
-  const acl=(await db.query("SELECT has_database_privilege($1,$2,'CONNECT') AS allowed",[role,'syndes_tenant_'+tid.replaceAll('-','')])).rows[0].allowed;
-  let credentials='unknown',connection='unknown';
-  try{
-   const password=await new TenantCredentialSource().password(tid,role);credentials='ok';
-   const probe=new pg.Pool({host:'control-postgres',user:role,password,database:'syndes_tenant_'+tid.replaceAll('-',''),max:1,connectionTimeoutMillis:3000});
-   try{await probe.query('SELECT 1');connection='ok'}finally{await probe.end()}
-  }catch(error){connection=String(error?.code??error?.name??'error').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,40)}
-  console.error('STAGE_TENANT_RESTORE_DIAG acl='+acl+' credentials='+credentials+' connection='+connection);
   await api('inbox/conversations',{statuses:[401]});
   await api('inbox/conversations',{token:'invalid',statuses:[401]});
   await api('inbox/conversations',{token:tokenB,org:A,ws:A1,statuses:[403]});
@@ -127,12 +113,6 @@ async function main(){
   await api('inbox/conversations',{token:tokenA,tenant:'22222222-2222-4222-8222-222222222222',statuses:[403]});
   await api('crm/people/'+foreignPerson,{token:tokenA,tenant:other,statuses:[403]});
   console.log('STAGE_ACCEPTANCE_TWO_DATABASE_TENANTS_SECOND_UNENTITLED_DENY_PASS');
-  phase='inbox-admission-diagnostic';
-  const gateRows=(await control.query("SELECT e.module_id,e.state AS entitlement,i.state AS install,i.target_version,i.installed_version,(i.verification_digest IS NOT NULL AND i.verified_at IS NOT NULL) AS verified FROM tenant_module_entitlements e LEFT JOIN tenant_module_installs i ON i.tenant_id=e.tenant_id AND i.module_id=e.module_id WHERE e.tenant_id=$1 AND e.module_id='inbox'",[tid])).rows;
-  const scopeRows=(await db.query("SELECT o.status AS org_status,w.status AS ws_status,om.state AS org_member,wm.state AS ws_member FROM platform_organizations o JOIN platform_workspaces w ON w.tenant_id=o.tenant_id AND w.organization_id=o.id JOIN platform_org_memberships om ON om.tenant_id=o.tenant_id AND om.organization_id=o.id AND om.principal_id=$2 JOIN platform_workspace_memberships wm ON wm.tenant_id=o.tenant_id AND wm.organization_id=o.id AND wm.workspace_id=w.id AND wm.principal_id=$2 WHERE o.tenant_id=$1 AND o.id=$3 AND w.id=$4",[tid,actorId,A,A1])).rows;
-  console.error('STAGE_INBOX_ADMISSION_DIAG control_count='+gateRows.length+' entitlement='+(gateRows[0]?.entitlement??'missing')+' install='+(gateRows[0]?.install??'missing')+' versions_match='+(gateRows[0]?.target_version===gateRows[0]?.installed_version)+' verified='+(gateRows[0]?.verified===true)+' scope_count='+scopeRows.length+' org_active='+(scopeRows[0]?.org_status==='active')+' ws_active='+(scopeRows[0]?.ws_status==='active')+' org_member_active='+(scopeRows[0]?.org_member==='active')+' ws_member_active='+(scopeRows[0]?.ws_member==='active'));
-  const scopePrerequisites=(await db.query("SELECT (SELECT count(*)::int FROM platform_legacy_backfill_runs a JOIN platform_organizations o ON o.tenant_id=a.tenant_id AND o.id=a.organization_id WHERE a.tenant_id=$1 AND o.is_default) AS default_backfill,(SELECT count(*)::int FROM pg_indexes WHERE schemaname=current_schema() AND indexname IN ('platform_legacy_single_organization','platform_legacy_single_workspace')) AS sql002_indexes",[tid])).rows[0];
-  console.error('STAGE_SCOPE_PREREQUISITES_DIAG default_backfill='+scopePrerequisites.default_backfill+' sql002_indexes='+scopePrerequisites.sql002_indexes);
   phase='greenfield-default-ownership-audit';
   const audit=await db.connect();
   try{
