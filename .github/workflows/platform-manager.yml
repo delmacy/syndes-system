@@ -83,12 +83,12 @@ jobs:
           set -Eeuo pipefail
           dir="$(mktemp -d)"
           trap 'rm -rf "$dir"' EXIT
-          printf 'ci-only-placeholder\\n' > "$dir/master_db_url"
+          printf 'ci-only-placeholder\n' > "$dir/master_db_url"
           chmod 0600 "$dir/master_db_url"
           sudo chown 1000:1000 "$dir/master_db_url"
-          docker run --rm --network none --read-only --cap-drop ALL \\
-            --security-opt no-new-privileges \\
-            --mount "type=bind,src=$dir/master_db_url,dst=/run/secrets/master_db_url,readonly" \\
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --mount "type=bind,src=$dir/master_db_url,dst=/run/secrets/master_db_url,readonly" \
             --entrypoint node syndes/master-admin-api:ci -e '
               const fs=require("node:fs");
               const dir="/run/secrets", p=dir+"/master_db_url";
