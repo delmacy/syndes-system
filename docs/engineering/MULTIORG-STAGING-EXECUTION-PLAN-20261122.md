@@ -1,18 +1,20 @@
-# Plano de execução — aceite multi-org no staging
+# Plano executado — homologação multi-org no staging
 
-Base: `96a20b5e3c4afda0612c5b99ac0589f50c2572c0`. Escopo: projeto Docker isolado `syndes-multiorg-staging` no DevServer01; produção bloqueada.
+Ambiente: projeto Docker isolado `syndes-multiorg-staging` no DevServer01. Somente GitHub Actions fez alterações. `PRODUCTION_GATE=BLOCKED`.
 
-## Diagnóstico do 403 (MO-REL-05)
+## Resultado verificável
 
-A primeira leitura autenticada `GET /v1/tenants/:tenant/inbox/conversations` para fundador/OrgA/A1 devolve 403 (Actions 44970952240). JWT `sub` coincide com o fundador e o check coarse OpenFGA `can_read` autoriza. A causa exata ainda não foi provada. O teste passa a emitir somente resultados booleanos e contagens de membership, resolução de escopo, estado do módulo e decisão de FGA, sem tokens ou dados pessoais. O marcador de diagnóstico só será emitido quando os gates forem avaliados; 403 permanece falha.
+- Fonte de aceitação: `4330a94a8a9c160daa5b11b3ce05b6342bbfd616`; [Actions 44988144506](https://github.com/delmacy/syndes-system/actions/runs/44988144506), job `137103804718` **success**.
+- Core real: fonte `1e795f2d7579a021d230b8ba89347db95f744b7b`, mesma imagem antes e depois do restore `sha256:e4fdd5246ad0cd42bee8ee2b0679ea0104e6f875b20584e7e5a88cad00b5f02a`.
+- `STAGE_CORE_REAL_HTTP_IDP_FGA_SQL_WORKER_SSE_ACCEPTANCE_PASS` ocorreu duas vezes. Matriz executada: dois tenants PostgreSQL, duas Organizations no tenant principal, quatro Workspaces, Keycloak/OIDC, OpenFGA, CRM/Inbox/Service via HTTP, worker WhatsApp sintético, SSE, singleton, revogação concorrente e negativas entre escopos.
+- `STAGE_REAL_PROVIDER_OUTAGE_HTTP_DENY_ZERO_AUDIT_WRITE_PASS` ocorreu duas vezes, para indisponibilidade de provedor sem escrita indevida.
+- Backup criptografado de Control, Keycloak, OpenFGA e dois tenants; restore em cinco bancos novos, comparação de contagens/hashes, ativação com originais arquivados e restore real do OpenBao. `STAGE_RESTORE_FIVE_REAL_DATABASES_ALL_TABLE_COUNTS_HASHES_MULTI_ORG_SQL002_STATE_PASS` e `STAGE_OPENBAO_ACTUAL_RAFT_SNAPSHOT_RESTORE_UNSEAL_PASS`.
+- `STAGE_ACCEPTANCE_AND_ENCRYPTED_FIVE_DB_RESTORE_SAME_CORE_IMAGE_RECOVERY_PASS`; tempo medido de restauração dos bancos: **9 s**; recuperação completa até nova aceitação: **48 s**. Os hashes SHA-256 individuais estão no log do job.
 
-## Sequência e critérios
+## Correções produzidas durante a execução
 
-1. Executar diagnóstico somente por Actions com identidade sintética; registrar gate negador e SHA do run na issue #209.
-2. Corrigir o componente responsável: catálogo/entitlement/instalação Control, membership/escopo tenant, FGA ou configuração do Core. Verificar allow A1 e deny A2/B2 sem grant, outro tenant e identidade B em A.
-3. Rodar PR CI completo e merge somente com sucesso. O workflow de staging deve usar o mesmo Core image SHA verificado; se houver alteração no Core, publicar e fixar a nova imagem.
-4. Executar HTTP/IdP/FGA/SQL/CRM/Inbox/Service/SSE/worker e revogações concorrentes, sem side effects externos. Falha em qualquer asserção bloqueia o aceite.
-5. Fazer backup criptografado, restore de cinco DBs e OpenBao em destinos segregados, comparar dados e repetir aceite na mesma imagem. Medir RTO e registrar hashes/digest.
-6. Remover diagnóstico transitório, executar CI/aceite finais, atualizar este documento, WBS e issues #208/#209/#210 com SHA, run/jobs e marcadores. Somente o marcador `STAGE_ACCEPTANCE_AND_ENCRYPTED_FIVE_DB_RESTORE_SAME_CORE_IMAGE_RECOVERY_PASS` autoriza declarar staging aprovado.
+O 403 inicial da Inbox exigia o registro auditável de ownership default em um tenant **greenfield**. O script só o registra após comprovar que não há dados históricos nas tabelas verificadas e que SQL002 já foi removido nessa fixture. O proxy Nginx tinha IP estático antigo que apontava para OpenFGA após restart; agora resolve Keycloak por DNS interno dinâmico e recebe configuração versionada e verificada por SHA. A restauração de PostgreSQL não copiava o privilégio efetivo de `CONNECT` no objeto DATABASE; o script preserva tanto a concessão do tenant ativo quanto a negação do tenant sintético.
 
-Rollback da aplicação: imagem anterior se /readyz falhar; restauração de dados apenas no staging com originais preservados. `PRODUCTION_GATE=BLOCKED`; SQL002 operacional, wizard e WhatsApp real fora deste aceite.
+## Limite da evidência e próxima etapa
+
+Este aceite usa uma fixture greenfield. **Não comprova o backfill de dados históricos nem o cutover SQL002 em um banco operacional legado.** MO-REL-06 (#210) permanece aberta para fixture histórica, ordem Control/tenant 008–010, meia migração negada e rollback compatível com dados multi-org. Wizard/signup (#189), Product Gate e produção permanecem bloqueados. O resultado de staging E2E/restore não autoriza promover produção nem ativar WhatsApp externo.

@@ -34,9 +34,9 @@ Arquitetura irrenunciável:
 | MO-REL-01 | P0 | 00 | Auditar/corrigir isolamento em workers, ingress, exports, read/search, SSE e history_sync | G-2 + parte G-5 | IN_PROGRESS — WhatsApp #215 e CRM A/B CSV #216 integrados; workers/SSE/E2E ainda pendentes |
 | MO-REL-02 | P0 | 00, 01 | Service opt-in em Host de staging, installer/Control ENABLED, FGA exato, IAM07D Control+tenant e least privilege | G-1/G-2 | IN_PROGRESS — Service opt-in + installer PG17 #217 integrados; Control/FGA/staging reais pendentes |
 | MO-REL-03 | P0 | 00 | Signup backend: tenant+DB iniciais, founder, Org+Workspace, Keycloak+Control+FGA, saga retomável | G-3 | IN_PROGRESS — signup Control #218 e saga/SQL inicial/lock/finalização atômica #219 integrados; composição operacional E2E pendente |
-| MO-REL-04 | P0 | 01, 02, 03 | Ambiente staging reproduzível, CI/CD e segredos/roles somente via Actions, Core singleton validado | G-3/G-5 | IN_PROGRESS — PG17+Keycloak OIDC+OpenFGA HTTP reais no staging aprovados (run 44732103374); Core/Control schema/FGA durável/E2E não comprovados |
-| MO-REL-05 | P0 | 04 | E2E HTTP+DB+IdP+FGA+workers/streams, matriz negativa e concorrência de revogação | G-1/G-2/G-3/G-5 | TODO |
-| MO-REL-06 | P0 | 05 | Backup/restore + cutover SQL002 somente em staging; reconciliação Control/tenant/KC/FGA e rollback real | G-4 | TODO |
+| MO-REL-04 | P0 | 01, 02, 03 | Ambiente staging reproduzível, CI/CD e segredos/roles somente via Actions, Core singleton validado | G-3/G-5 | PROVEN no staging isolado — Core/Control/Keycloak/FGA persistente e deploy por Actions; aceite E2E/restore run 44988144506 |
+| MO-REL-05 | P0 | 04 | E2E HTTP+DB+IdP+FGA+workers/streams, matriz negativa e concorrência de revogação | G-1/G-2/G-3/G-5 | PROVEN na fixture greenfield do staging — run 44988144506; G-1..G-6 globais ainda não aprovados |
+| MO-REL-06 | P0 | 05 | Backup/restore + cutover SQL002 somente em staging; reconciliação Control/tenant/KC/FGA e rollback real | G-4 | PARCIAL — restore de cinco DBs + OpenBao e segunda aceitação em 48 s; fixture histórica e cutover SQL002 pendentes |
 | MO-REL-07 | P1 | 03, 05 | APIs do signup e wizard responsivo integrados (somente funções reais) | Aceite UC-SIGNUP-01 | TODO |
 | MO-REL-08 | P0 | 05, 06, 07 | Release piloto por tenant via GitHub Actions e aprovação explícita do operador | G-6 + Product Gate | BLOCKED |
 
@@ -195,3 +195,7 @@ MO-REL-00 é reconciliação factual, **não** aprovação de segurança multi-o
   mínimo, issuer HTTPS e reader Keycloak restrito, entitlements/ledger/grants
   consistentes, singleton e E2E reais. Restore e piloto continuam pendentes.
   `PRODUCTION_GATE=BLOCKED`; nenhuma aprovação operacional é inferida do CI.
+
+## Atualização de execução — staging greenfield (2026-11-22)
+
+[Actions 44988144506](https://github.com/delmacy/syndes-system/actions/runs/44988144506), main `4330a94a8a9c160daa5b11b3ce05b6342bbfd616`: aceita duas passagens de HTTP real com Keycloak/OpenFGA/Control/tenants/worker/SSE, queda de provedores, cinco backups criptografados e restore em destinos novos, OpenBao snapshot e retorno à mesma imagem Core `sha256:e4fdd5246ad0cd42bee8ee2b0679ea0104e6f875b20584e7e5a88cad00b5f02a`; RTO observado 48 s. Evidência e limites em [plano de execução](MULTIORG-STAGING-EXECUTION-PLAN-20261122.md). SQL002 já estava removido na fixture criada greenfield; não houve backfill histórico nem cutover SQL002 legado. MO-REL-06 segue aberta para essa prova, e `PRODUCTION_GATE=BLOCKED`.
