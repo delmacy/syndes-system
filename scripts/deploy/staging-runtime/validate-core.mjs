@@ -90,12 +90,12 @@ async function main(){
   const readTuples=readScopes.flatMap(([org,ws])=>['inbox.conversation.claim'].map(capability=>({user:'user:'+actorId,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability,resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
   readTuples.push(...[[A,A1],[B,B1]].map(([org,ws])=>({user:'user:'+actorId,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability:'inbox.conversation.create',resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
   const seedTuples=async(tuples,label)=>{
-   const response=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:tuples}}),signal:AbortSignal.timeout(5000)});
-   if(response.ok)return;
-   if(response.status!==400)throw Error(label+' grant seed failed '+response.status);
-   // The restore includes previous synthetic grants. A duplicate-write 400
-   // is acceptable only when every exact tuple is currently allowed by FGA.
+   // OpenFGA rejects a whole batch when only one tuple already exists.
+   // Seed each exact synthetic tuple and prove an idempotent 400 is existing.
    for(const tuple_key of tuples){
+    const response=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:[tuple_key]}}),signal:AbortSignal.timeout(5000)});
+    if(response.ok)continue;
+    if(response.status!==400)throw Error(label+' grant seed failed '+response.status);
     const check=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tuple_key}),signal:AbortSignal.timeout(5000)});
     if(check.status!==200||(await check.json()).allowed!==true)throw Error(label+' grant not present');
    }
