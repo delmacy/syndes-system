@@ -2076,7 +2076,8 @@ jobs:
           [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
           [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
           test -s manager-bundle/web-dist/index.html
-          bash -n scripts/deploy/devserver01-manager-tenant-db-acl.sh
+          bash -n scripts/deploy/devserver01-manager-tenant-db-acl.sh infra/master-admin/homolog-deploy.sh
+          node --check apps/master-admin-api/src/main.mjs
           jq -n --arg git_commit "$SOURCE_SHA" '{git_commit:$git_commit}' > manager-bundle/web-dist/CI_ARTIFACT_MANIFEST.json
           cp scripts/deploy/devserver01-platform-manager.sh manager-bundle/deploy.sh
       - name: Join trusted Tailnet
