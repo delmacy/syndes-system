@@ -54,7 +54,8 @@ async function main(){
  try{
   const realms=(await restoredRealmDb.query("SELECT count(*) FILTER (WHERE name='master')::int AS master,count(*) FILTER (WHERE name='syndes-pilot')::int AS pilot FROM realm")).rows[0];
   const endpoint=await Promise.all(['master','syndes-pilot'].map(async realm=>{try{return (await fetch(KC+'/realms/'+realm,{signal:AbortSignal.timeout(5000)})).status}catch{return 0}}));
-  console.error('STAGE_RESTORED_IDP_DIAG master_db='+realms.master+' pilot_db='+realms.pilot+' master_http='+endpoint[0]+' pilot_http='+endpoint[1]);
+  const direct=await Promise.all(['master','syndes-pilot'].map(async realm=>{try{return (await fetch('http://keycloak:8080/realms/'+realm,{signal:AbortSignal.timeout(5000)})).status}catch{return 0}}));
+  console.error('STAGE_RESTORED_IDP_DIAG master_db='+realms.master+' pilot_db='+realms.pilot+' master_http='+endpoint[0]+' pilot_http='+endpoint[1]+' master_direct='+direct[0]+' pilot_direct='+direct[1]);
  }finally{await restoredRealmDb.end()}
  const bootstrap=JSON.parse(await file('core-pilot-bootstrap.json'));
  const admin=await oauth('syndes-stage-pilot-recovery',await file('pilot-admin-service-secret'));
