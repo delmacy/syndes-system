@@ -110,6 +110,16 @@ async function main(){
   const coarseGrant=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:coarseTuples}}),signal:AbortSignal.timeout(5000)});if(!coarseGrant.ok&&coarseGrant.status!==400)throw Error('Coarse grant seed failed '+coarseGrant.status);
   const coarseCheck=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tuple_key:{user:'user:'+actorId,relation:'can_read',object:coarseObject('inbox:conversations')}}),signal:AbortSignal.timeout(5000)});const coarseJson=await coarseCheck.json();if(coarseJson.allowed!==true)throw Error('Coarse grant denied '+JSON.stringify(coarseJson));
 
+  phase='tenant-connect-diagnostic';
+  const role='syndes_t_'+tid.replaceAll('-','');
+  const acl=(await db.query("SELECT has_database_privilege($1,$2,'CONNECT') AS allowed",[role,'syndes_tenant_'+tid.replaceAll('-','')])).rows[0].allowed;
+  let credentials='unknown',connection='unknown';
+  try{
+   const password=await new TenantCredentialSource().password(tid,role);credentials='ok';
+   const probe=new pg.Pool({host:'control-postgres',user:role,password,database:'syndes_tenant_'+tid.replaceAll('-',''),max:1,connectionTimeoutMillis:3000});
+   try{await probe.query('SELECT 1');connection='ok'}finally{await probe.end()}
+  }catch(error){connection=String(error?.code??error?.name??'error').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,40)}
+  console.error('STAGE_TENANT_RESTORE_DIAG acl='+acl+' credentials='+credentials+' connection='+connection);
   await api('inbox/conversations',{statuses:[401]});
   await api('inbox/conversations',{token:'invalid',statuses:[401]});
   await api('inbox/conversations',{token:tokenB,org:A,ws:A1,statuses:[403]});
@@ -140,16 +150,6 @@ async function main(){
    await audit.query('COMMIT');
   }catch(error){await audit.query('ROLLBACK');throw error}finally{audit.release()}
   console.error('STAGE_GREENFIELD_DEFAULT_OWNERSHIP_AUDIT_PASS');
-  phase='tenant-connect-diagnostic';
-  const role='syndes_t_'+tid.replaceAll('-','');
-  const acl=(await db.query("SELECT has_database_privilege($1,$2,'CONNECT') AS allowed",[role,'syndes_tenant_'+tid.replaceAll('-','')])).rows[0].allowed;
-  let credentials='unknown',connection='unknown';
-  try{
-   const password=await new TenantCredentialSource().password(tid,role);credentials='ok';
-   const probe=new pg.Pool({host:'control-postgres',user:role,password,database:'syndes_tenant_'+tid.replaceAll('-',''),max:1,connectionTimeoutMillis:3000});
-   try{await probe.query('SELECT 1');connection='ok'}finally{await probe.end()}
-  }catch(error){connection=String(error?.code??error?.name??'error').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,40)}
-  console.error('STAGE_TENANT_RESTORE_DIAG acl='+acl+' credentials='+credentials+' connection='+connection);
   phase='http-matrix';
   // Same signed founder subject may read all four workspaces. Membership
   // alone never supplies a fine write grant in A2/B2.
