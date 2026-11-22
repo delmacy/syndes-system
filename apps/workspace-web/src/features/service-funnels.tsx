@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@syndes/front-shared/button";
 import { Input } from "@syndes/front-shared/input";
-import { Textarea } from "@syndes/front-shared/textarea";
+import { Textarea } from "@/components/ui/textarea";
 import { ApiError, type ServiceFunnel, type TenantApi } from "@/lib/api";
 
 export function ServiceFunnels({ api }: { api: TenantApi }) {
