@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Staging only. Creates, restores and removes two exact synthetic scratch DBs.
+# Staging only. Creates, restores and removes three exact synthetic scratch DBs.
 set -Eeuo pipefail
 umask 077
 [[ "$#" == 2 && "$1" == verify ]] || exit 2
@@ -23,13 +23,13 @@ pg="$(one control-postgres)";core="$(one core-host)"
 image="$(docker inspect -f '{{.Image}}' "$core")"
 [[ "$image" =~ ^sha256:[a-f0-9]{64}$ ]] || exit 3
 nonce="$(openssl rand -hex 6)"
-source="syndes_hist_${nonce}_s";target="syndes_hist_${nonce}_t"
-[[ "$source" =~ ^syndes_hist_[a-f0-9]{12}_s$ && "$target" == "${source%?}t" ]] || exit 3
+source="syndes_hist_${nonce}_s";target="syndes_hist_${nonce}_t";rollback="syndes_hist_${nonce}_r"
+[[ "$source" =~ ^syndes_hist_[a-f0-9]{12}_s$ && "$target" == "${source%?}t" && "$rollback" == "${source%?}r" ]] || exit 3
 created=()
 cleanup(){
  local db active owner rc=$?
  for db in "${created[@]}";do
-  [[ "$db" == "$source" || "$db" == "$target" ]] || continue
+  [[ "$db" == "$source" || "$db" == "$target" || "$db" == "$rollback" ]] || continue
   owner="$(docker exec "$pg" psql -X -At -U postgres -d postgres -c "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname='$db'" 2>/dev/null || true)"
   active="$(docker exec "$pg" psql -X -At -U postgres -d postgres -c "SELECT count(*) FROM pg_stat_activity WHERE datname='$db'" 2>/dev/null || true)"
   if [[ "$owner" == postgres && "$active" == 0 ]];then
@@ -54,7 +54,7 @@ operator(){
  --mount "type=bind,src=$bundle,dst=/run/bundle,readonly" \
  --mount "type=bind,src=$root/secrets,dst=/run/stage,readonly" \
  -e SYNDES_HISTORICAL_CLONE=ACTIONS_STAGE_ONLY -e "STAGE_HISTORICAL_SOURCE=$source" \
- -e "STAGE_HISTORICAL_TARGET=$target" --entrypoint node "$image" \
+ -e "STAGE_HISTORICAL_TARGET=$target" -e "STAGE_HISTORICAL_ROLLBACK=$rollback" --entrypoint node "$image" \
  /run/bundle/historical-clone.mjs "$1" </dev/null
 }
 operator seed
@@ -74,5 +74,14 @@ operator compare
  cat "$bundle/sql/organizations/manual/activate_multiple_organizations.sql"
 } | docker exec -i "$pg" psql -X --single-transaction -v ON_ERROR_STOP=1 -U postgres -d "$target" >/dev/null
 operator cutover-check
+operator multi-org-deny
+# Recover pre-cutover state into a fresh database after the restored target
+# already has two organizations. Never apply the legacy uniqueness gate there.
+[[ "$(docker exec "$pg" psql -X -At -U postgres -d postgres -c "SELECT count(*) FROM pg_database WHERE datname='$rollback'")" == 0 ]] || exit 5
+docker exec "$pg" psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres -c "CREATE DATABASE $rollback OWNER postgres" >/dev/null
+created+=("$rollback")
+docker exec "$pg" psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres -c "REVOKE CONNECT ON DATABASE $rollback FROM PUBLIC" >/dev/null
+openssl enc -d -aes-256-cbc -pbkdf2 -pass "file:$root/secrets/backup-key" -in "$backup" | docker exec -i "$pg" pg_restore --exit-on-error -U postgres -d "$rollback" >/dev/null
+operator rollback-check
 printf 'STAGE_HISTORICAL_RESTORE_RTO_SECONDS=%s\n' "$(( $(date +%s)-started ))"
-echo STAGE_HISTORICAL_ENCRYPTED_RESTORE_PSQL_SINGLE_TRANSACTION_CUTOVER_PASS
+echo STAGE_HISTORICAL_ENCRYPTED_RESTORE_MULTI_ORG_COMPATIBLE_ROLLBACK_PASS
