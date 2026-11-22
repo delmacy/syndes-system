@@ -9,9 +9,9 @@ const id2 = "22222222-2222-4222-8222-222222222222";
 const crmId = "33333333-3333-4333-8333-333333333333";
 const token = ["header", Buffer.from(JSON.stringify({ sub: actor })).toString("base64url"), "signature"].join(".");
 
-async function mockWorkspace(page) {
+async function mockWorkspace(page, { historyDenied = false } = {}) {
   let records = [
-    { id, subject: "Pedido inicial", status: "open", handoff: "human", channel: "simulation", assignedTo: actor, crmPersonId: crmId, updatedAt: "2026-11-01T10:00:00Z" },
+    { id, subject: "Pedido inicial", status: "open", handoff: "human", channel: historyDenied ? "whatsapp" : "simulation", assignedTo: actor, crmPersonId: crmId, updatedAt: "2026-11-01T10:00:00Z" },
     { id: id2, subject: "Conversa resolvida", status: "resolved", handoff: "human", channel: "simulation", assignedTo: null, crmPersonId: null, updatedAt: "2026-11-01T09:00:00Z" },
   ];
   const threads = {
@@ -61,6 +61,7 @@ async function mockWorkspace(page) {
     }
     if (!current) return respond({ message: "Not found" }, 404);
     if (pieces.length === 4 && method === "GET") return respond(current);
+    if (historyDenied && pieces[4] === "history" && method === "POST") return respond({ message: "Forbidden" }, 403);
     if (pieces[4] === "messages" && method === "GET") return respond(threads[conversationId] ?? []);
     if (method === "PATCH" && ["status", "handoff", "assignment"].includes(pieces[4])) {
       const body = req.postDataJSON();
@@ -94,6 +95,24 @@ const browser = await chromium.launch({
   args: ["--no-sandbox", "--disable-dev-shm-usage"],
 });
 try {
+  const historyPage = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  try {
+    await mockWorkspace(historyPage, { historyDenied: true });
+    await historyPage.getByRole("button", { name: /Pedido inicial/ }).click();
+    const existingMessage = historyPage.getByText("Olá, preciso de ajuda", { exact: true });
+    await existingMessage.waitFor();
+    const historyButton = historyPage.getByRole("button", { name: "Sincronizar histórico anterior" });
+    const denied = historyPage.waitForResponse(response =>
+      new URL(response.url()).pathname.endsWith("/inbox/conversations/" + id + "/history") &&
+      response.request().method() === "POST");
+    await historyButton.click();
+    assert.equal((await denied).status(), 403);
+    await historyPage.getByText(/Sincronização de histórico indisponível neste workspace/).waitFor();
+    assert.ok(await existingMessage.isVisible());
+    console.log("PASS: denied WhatsApp history sync explains availability and preserves the thread");
+  } finally {
+    await historyPage.close();
+  }
   const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = [];
   desktop.on("pageerror", error => errors.push(error.message));
