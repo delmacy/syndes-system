@@ -61,8 +61,6 @@ if timeout 20s docker exec -e CORE_PORT=8083 "$core" node dist/main.js </dev/nul
 else
  code=$?;[[ "$code" == 1 ]] || exit 5
 fi
-docker exec "$(one identity-stage)" nginx -T 2>&1 | sed -n '/^# configuration file \/etc\/nginx\/conf.d\/default.conf:/,/^}/p' >&2
-printf 'STAGE_PROXY_INITIAL_KEYCLOAK_IP=%s STAGE_PROXY_INITIAL_CONTAINER_IP=%s\n' "$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$kc")" "$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$(one identity-stage)")" >&2
 result="$(operator /run/bundle/validate-core.mjs)";printf '%s\n' "$result"
 printf '%s\n' "$result" | grep -qx STAGE_CORE_REAL_HTTP_IDP_FGA_SQL_WORKER_SSE_ACCEPTANCE_PASS
 # Real network outage: a valid JWT cannot write while KC or FGA is unavailable.
@@ -173,8 +171,6 @@ docker start "$kc" >/dev/null;kc_stopped=0
 docker start "$fga" >/dev/null;fga_stopped=0
 docker restart "$(one identity-stage)" >/dev/null
 # Print the effective stage-only proxy route to diagnose the restored realm 404.
-docker exec "$(one identity-stage)" nginx -T 2>&1 | sed -n '/^# configuration file \/etc\/nginx\/conf.d\/default.conf:/,/^}/p' >&2
-printf 'STAGE_PROXY_EXPECTED_KEYCLOAK_IP=%s STAGE_PROXY_CONTAINER_IP=%s\n' "$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$kc")" "$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$(one identity-stage)")" >&2
 sleep 5
 docker start "$core" >/dev/null;core_stopped=0
 for n in $(seq 1 45);do
