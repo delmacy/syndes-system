@@ -303,3 +303,26 @@ test("already aborted external SSE signal never starts a fetch", async () => {
   globalThis.fetch = async () => assert.fail("an aborted SSE should not be fetched");
   await api.watchInbox(controller.signal, () => assert.fail("no callback"));
 });
+
+test("service funnel publishing uses the selected workspace and never retries a denial", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return options.method === "GET" ? Response.json([]) :
+      Response.json({ message: "Forbidden" }, { status: 403 });
+  };
+  const api = new TenantApi("tenant-a", "token", () => assert.fail("unexpected logout"))
+    .forWorkspace({ organizationId: "org-a", workspaceId: "workspace-a" });
+  assert.deepEqual(await api.serviceFunnels(), []);
+  const input = { code: "atendimento", name: "Atendimento", stages: [
+    { code: "novo", label: "Novo" }, { code: "resolvido", label: "Resolvido" },
+  ] };
+  await assert.rejects(api.publishServiceFunnel(input), { status: 403 });
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].url, "/v1/tenants/tenant-a/service-management/funnels");
+  for (const { options } of calls) {
+    assert.equal(options.headers["x-syndes-organization-id"], "org-a");
+    assert.equal(options.headers["x-syndes-workspace-id"], "workspace-a");
+  }
+  assert.deepEqual(JSON.parse(calls[1].options.body), input);
+});

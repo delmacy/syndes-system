@@ -4,6 +4,7 @@ import { Button } from "@syndes/front-shared/button";
 import { CrmFeature } from "@/features/crm";
 import { Overview } from "@/features/overview";
 import { SecurityInfo } from "@/features/settings";
+import { ServiceFunnels } from "@/features/service-funnels";
 import { WhatsAppAccountsFeature } from "@/features/whatsapp-accounts";
 import { InboxFeature } from "@/features/inbox";
 import type { TenantApi } from "@/lib/api";
@@ -25,7 +26,7 @@ const renderers: Record<View, (props: FeatureContext) => ReactNode> = {
   overview: ({ api, tenantName, navigate }) =>
     <Overview api={api} name={tenantName} onNavigate={navigate} />,
   settings: ({ api, config, scopeKey }) =>
-    config && <><SecurityInfo config={config} />{api && <WhatsAppAccountsFeature key={scopeKey} api={api} />}</>,
+    config && <><SecurityInfo config={config} />{api && <div key={scopeKey}><ServiceFunnels api={api} /><WhatsAppAccountsFeature api={api} /></div>}</>,
   crm: ({ api, scopeKey }) => api && <CrmFeature key={scopeKey} api={api} />,
   inbox: ({ api, scopeKey, actorId, navigate }) => api &&
     <InboxFeature key={scopeKey} api={api} actorId={actorId} onOpenCrm={() => navigate("crm")} />,
