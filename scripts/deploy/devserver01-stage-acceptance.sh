@@ -141,6 +141,9 @@ VAULT_SNAPSHOT_MODE=restore operator /run/bundle/vault-snapshot.mjs
 docker start "$kc" >/dev/null;kc_stopped=0
 docker start "$fga" >/dev/null;fga_stopped=0
 docker restart "$(one identity-stage)" >/dev/null
+# Print the effective stage-only proxy route to diagnose the restored realm 404.
+docker exec "$(one identity-stage)" nginx -T 2>&1 | sed -n '/^# configuration file \/etc\/nginx\/conf.d\/default.conf:/,/^}/p' >&2
+printf 'STAGE_PROXY_EXPECTED_KEYCLOAK_IP=%s STAGE_PROXY_CONTAINER_IP=%s\n' "$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$kc")" "$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$(one identity-stage)")" >&2
 sleep 5
 docker start "$core" >/dev/null;core_stopped=0
 for n in $(seq 1 45);do

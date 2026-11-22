@@ -1,5 +1,6 @@
 // Real stage HTTP/SQL/IdP/FGA/worker/SSE acceptance, synthetic data only.
 import {readFile,writeFile} from 'node:fs/promises';
+import {lookup} from 'node:dns/promises';
 import {randomUUID,createHash} from 'node:crypto';
 import pg from '/workspace/apps/core-host/node_modules/pg/lib/index.js';
 import {TenantPgProvider} from '/workspace/apps/core-host/dist/tenant-database.js';
@@ -58,6 +59,7 @@ async function main(){
   const forwarded=await Promise.all(['master','syndes-pilot'].map(async realm=>{try{return (await fetch('http://keycloak:8080/realms/'+realm,{headers:{Host:'identity-stage:8443','X-Forwarded-Host':'identity-stage:8443','X-Forwarded-Proto':'https','X-Forwarded-Port':'8443'},signal:AbortSignal.timeout(5000)})).status}catch{return 0}}));
   const proxyResponse=await fetch(KC+'/realms/master',{signal:AbortSignal.timeout(5000)});
   const proxyBody=(await proxyResponse.text()).slice(0,180).replace(/[^a-zA-Z0-9 /:._-]/g,'_');
+  console.error('STAGE_PROXY_DNS identity='+JSON.stringify(await lookup('identity-stage',{all:true}))+' keycloak='+JSON.stringify(await lookup('keycloak',{all:true}))+' proxy_content_type='+proxyResponse.headers.get('content-type'));
   console.error('STAGE_RESTORED_IDP_DIAG master_db='+realms.master+' pilot_db='+realms.pilot+' master_http='+endpoint[0]+' pilot_http='+endpoint[1]+' master_direct='+direct[0]+' pilot_direct='+direct[1]+' master_forwarded='+forwarded[0]+' pilot_forwarded='+forwarded[1]+' proxy_body='+proxyBody);
  }finally{await restoredRealmDb.end()}
  const bootstrap=JSON.parse(await file('core-pilot-bootstrap.json'));
