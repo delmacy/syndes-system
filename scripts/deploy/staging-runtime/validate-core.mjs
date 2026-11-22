@@ -212,11 +212,36 @@ async function main(){
   assert(stages.length===2);
   await api('service-management/attendances/'+attendance.id+'/stage',{token:tokenA,method:'PATCH',body:{nextStageId:stages[1].id,expectedVersion:attendance.version},statuses:[200]});
   console.log('STAGE_ACCEPTANCE_REAL_SERVICE_OPEN_STAGE_CROSS_ORG_DENY_PASS');
+  const fga=async body=>{const r=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(5000)});assert(r.ok)};
+  phase='published-service-funnel-http';
+  const publishedFunnel=visible[0];
+  const publishedInput={funnelId:publishedFunnel.id,conversationId:ca.id,idempotencyKey:'stage-new-funnel-'+randomUUID()};
+  await api('service-management/attendances',{token:tokenA,method:'POST',body:publishedInput,statuses:[403]});
+  const serviceResourceName='syndes:v1:tenant:'+tid+':org:'+A+':workspace:'+A1+':funnel:'+publishedFunnel.id;
+  const serviceGrants=['service.attendance.open','service.funnel.operate'].map(capability=>({
+   user:'user:'+actorId,relation:'grantee',
+   object:iam07dFineObjectForScope({tenantId:tid,organizationId:A,workspaceId:A1,capability,resourceName:serviceResourceName}),
+  }));
+  await fga({writes:{tuple_keys:serviceGrants}});
+  try{
+   const managed=(await api('service-management/attendances',{token:tokenA,method:'POST',body:publishedInput,statuses:[201]})).data;
+   assert(managed.funnelId===publishedFunnel.id && managed.stageId===publishedFunnel.stages[0].id);
+   assert(managed.conversationId===ca.id);
+   await api('service-management/attendances/'+managed.id,{token:tokenB,org:B,ws:B1,statuses:[404]});
+   const moved=(await api('service-management/attendances/'+managed.id+'/stage',{token:tokenA,method:'PATCH',
+    body:{nextStageId:publishedFunnel.stages[1].id,expectedVersion:managed.version},statuses:[200]})).data;
+   assert(moved.id===managed.id && moved.stageId===publishedFunnel.stages[1].id && moved.version===managed.version+1);
+  }finally{
+   await fga({deletes:{tuple_keys:serviceGrants}});
+  }
+  await api('service-management/attendances',{token:tokenA,method:'POST',
+   body:{...publishedInput,idempotencyKey:'stage-revoked-funnel-'+randomUUID()},statuses:[403]});
+  console.log('STAGE_SERVICE_PUBLISHED_FUNNEL_LINKED_ATTENDANCE_MOVE_AND_REVOKE_PASS');
+
   phase='revocation';
   const cap='inbox.message.note';const resourceName='syndes:v1:tenant:'+tid+':org:'+A+':workspace:'+A1;
   const object=iam07dFineObjectForScope({tenantId:tid,organizationId:A,workspaceId:A1,capability:cap,resourceName});
   const tuple={user:'user:'+actorId,relation:'grantee',object};
-  const fga=async body=>{const r=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(5000)});assert(r.ok)};
   const count=async()=>Number((await db.query('SELECT count(*) n FROM inbox_messages WHERE tenant_id=$1 AND conversation_id=$2',[tid,ca.id])).rows[0].n);
   const before=await count();await fga({deletes:{tuple_keys:[tuple]}});
   try{await api('inbox/conversations/'+ca.id+'/notes',{token:tokenA,method:'POST',body:{body:'MUST NOT COMMIT'},statuses:[403]});assert(await count()===before)}

@@ -2064,6 +2064,7 @@ jobs:
             printf '%s\n' "$result" | grep -qx STAGE_CRM_CSV_BOTH_ORGS_OWN_ROWS_ONLY_PASS
             printf '%s\n' "$result" | grep -qx STAGE_WHATSAPP_HISTORY_SYNC_MULTI_ORG_DENY_PASS
             printf '%s\n' "$result" | grep -qx STAGE_SERVICE_FUNNEL_PUBLISH_AND_SCOPE_DENIAL_PASS
+            printf '%s\n' "$result" | grep -qx STAGE_SERVICE_PUBLISHED_FUNNEL_LINKED_ATTENDANCE_MOVE_AND_REVOKE_PASS
           else
             printf '%s\n' "$result" | grep -qx STAGE_ACCEPTANCE_AND_ENCRYPTED_FIVE_DB_RESTORE_SAME_CORE_IMAGE_RECOVERY_PASS
           fi
@@ -2117,6 +2118,42 @@ jobs:
           set -Eeuo pipefail
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
           timeout 180s tailscale ssh "delmacy@$DEVSERVER_PEER" 'SYNDES_TENANT_INVENTORY=ACTIONS_READ_ONLY_DEVSERVER01 bash -s' < scripts/ci/devserver01-tenant-topology-inventory.sh
+
+  devserver01-demo-readiness:
+    name: DevServer01 tenant and Manager demo readiness (read-only)
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'DEVSERVER01-DEMO-READINESS-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify read-only inventory contract
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          bash -n scripts/ci/devserver01-demo-readiness.sh
+      - name: Join trusted Tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Inspect Manager demo and operational tenant admission
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          timeout 180s tailscale ssh "delmacy@$DEVSERVER_PEER" 'SYNDES_DEMO_READINESS=ACTIONS_READONLY_DEMOS bash -s' < scripts/ci/devserver01-demo-readiness.sh
 
   devserver01-retire-confirmed-legacy-tenant:
     name: DevServer01 retire confirmed legacy tenant from service
