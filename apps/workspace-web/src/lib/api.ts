@@ -1,3 +1,14 @@
+export type ServiceFunnel = {
+  id: string;
+  code: string;
+  name: string;
+  stages: { id: string; code: string; label: string }[];
+};
+export type ServiceFunnelInput = {
+  code: string;
+  name: string;
+  stages: { code: string; label: string }[];
+};
 export type PlatformOrganization={id:string;display_name:string;is_default:boolean;status:string};
 export type PlatformWorkspace={id:string;organization_id:string;name:string;slug:string;is_default:boolean;status:string};
 export type WorkspaceSelection={organizationId:string;workspaceId:string};
@@ -96,7 +107,13 @@ export class TenantApi {
     return this.request<PlatformWorkspace[]>("platform",
       "/organizations/"+encodeURIComponent(organizationId)+"/workspaces");
   }
-  private async request<T>(module: "crm" | "inbox" | "whatsapp" | "platform", path: string, method = "GET", body?: object): Promise<T> {
+  serviceFunnels() {
+    return this.request<ServiceFunnel[]>("service-management", "/funnels");
+  }
+  publishServiceFunnel(input: ServiceFunnelInput) {
+    return this.request<Omit<ServiceFunnel, "stages">>("service-management", "/funnels", "POST", input);
+  }
+  private async request<T>(module: "crm" | "inbox" | "whatsapp" | "platform" | "service-management", path: string, method = "GET", body?: object): Promise<T> {
     this.assertActive();
     const response = await fetch(
       "/v1/tenants/" + encodeURIComponent(this.tenantId) + "/" + module + path,
