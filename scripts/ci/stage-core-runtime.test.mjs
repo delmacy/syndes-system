@@ -28,8 +28,8 @@ test('Core staging release requires verified artifacts, nonroot singleton and ap
  assert.ok(historyBoundary>0&&historyBoundary<moduleReceipt);
  const independent=setup.slice(historyBoundary,moduleReceipt);
  assert.match(independent,/stage_prepared_before_activation/);
- assert.match(independent,/_syndes\\.stage_bootstrap_receipts/);
- assert.match(independent,/prepared\\?\\.checksum===checksum/);
+ assert.match(independent,/_syndes\.stage_bootstrap_receipts/);
+ assert.match(independent,/prepared\?\.checksum===checksum/);
  assert.match(independent,/whatsapp_history_commands_anchor/);
  assert.match(independent,/continue;/);
  assert.doesNotMatch(independent,/UPDATE tenant_module_installs|DELETE FROM tenant_module_installs/);
