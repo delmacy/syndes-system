@@ -2082,6 +2082,42 @@ jobs:
           body="MO-REL05/06 stage acceptance and actual recovery. Test source=$SOURCE_SHA Core image source=$EXPECTED_CORE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$VERIFY. Real HTTP, signed IdP, exact FGA revocation, SQL fence, SSE, synthetic WhatsApp worker, provider outages, encrypted five-database restore and OpenBao raft restore. Same Core image reruns acceptance after canonical restored database activation; original databases preserved for compensation. No production/customer SQL or real WhatsApp side effect. PRODUCTION_GATE=BLOCKED."
           for issue in 208 209 210; do gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$body"; done
 
+  devserver01-tenant-topology-inventory:
+    name: DevServer01 tenant topology inventory (read-only)
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'DEVSERVER01-READONLY-TENANT-TOPOLOGY-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify read-only inventory contract
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          bash -n scripts/ci/devserver01-tenant-topology-inventory.sh
+      - name: Join trusted Tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Inventory operational and staging tenant topologies
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          timeout 180s tailscale ssh "delmacy@$DEVSERVER_PEER" 'SYNDES_TENANT_INVENTORY=ACTIONS_READ_ONLY_DEVSERVER01 bash -s' < scripts/ci/devserver01-tenant-topology-inventory.sh
+
   devserver01-stage-history-schema:
     name: MO-REL01 prepare WhatsApp history schema in isolated staging
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'MO-REL01-STAGE-HISTORY-SCHEMA-APPROVED') }}
