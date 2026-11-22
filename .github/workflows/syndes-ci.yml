@@ -2118,6 +2118,44 @@ jobs:
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
           timeout 180s tailscale ssh "delmacy@$DEVSERVER_PEER" 'SYNDES_TENANT_INVENTORY=ACTIONS_READ_ONLY_DEVSERVER01 bash -s' < scripts/ci/devserver01-tenant-topology-inventory.sh
 
+  devserver01-retire-confirmed-legacy-tenant:
+    name: DevServer01 retire confirmed legacy tenant from service
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'DEVSERVER01-LEGACY-8D22676BFEDB-RETIREMENT-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify confirmed legacy retirement contract
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          node --test scripts/ci/devserver01-legacy-retirement.test.mjs
+      - name: Join trusted Tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Suspend and fence only the confirmed operational legacy tenant
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          result="$(timeout 100s tailscale ssh "delmacy@$DEVSERVER_PEER" "SYNDES_LEGACY_RETIREMENT_APPROVAL=DEVSERVER01_APPROVED_8d22676bfedb SOURCE_SHA=$SOURCE_SHA bash -s" < scripts/deploy/devserver01-retire-confirmed-legacy-tenant.sh)"
+          printf '%s\n' "$result"
+          printf '%s\n' "$result" | grep -qx DEVSERVER01_CONFIRMED_LEGACY_TENANT_8d22676bfedb_OUT_OF_SERVICE
+
   devserver01-stage-history-schema:
     name: MO-REL01 prepare WhatsApp history schema in isolated staging
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'MO-REL01-STAGE-HISTORY-SCHEMA-APPROVED') }}
