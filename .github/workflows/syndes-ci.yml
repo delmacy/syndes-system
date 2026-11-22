@@ -2053,7 +2053,8 @@ jobs:
           bundle="$(mktemp -d)"; trap 'rm -rf "$bundle"' EXIT; chmod 700 "$bundle"
           cp scripts/deploy/devserver01-stage-acceptance.sh "$bundle/runner.sh"
           cp scripts/deploy/staging-runtime/{validate-core,outage,compare-restore,vault-snapshot}.mjs "$bundle/"
-          (cd "$bundle" && sha256sum *.sh *.mjs > MANIFEST.sha256)
+          cp infra/multiorg-staging/identity.conf "$bundle/"
+          (cd "$bundle" && sha256sum *.sh *.mjs *.conf > MANIFEST.sha256)
           result="$(tar -czf - -C "$bundle" . | timeout 1800s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-stage-acceptance.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_STAGE_ACCEPTANCE_APPROVAL=ACTIONS_APPROVED_STAGE_ACCEPTANCE SOURCE_SHA=$SOURCE_SHA EXPECTED_CORE_SHA=$EXPECTED_CORE_SHA bash \"\$dir/runner.sh\" verify \"\$dir\"")"
           printf '%s\n' "$result"
           printf '%s\n' "$result" | grep -qx STAGE_ACCEPTANCE_AND_ENCRYPTED_FIVE_DB_RESTORE_SAME_CORE_IMAGE_RECOVERY_PASS

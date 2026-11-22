@@ -24,6 +24,22 @@ image="$(docker inspect -f '{{.Image}}' "$core")"
 printf 'STAGE_VERIFIED_CORE_SOURCE=%s\nSTAGE_VERIFIED_CORE_IMAGE=%s\n' "$EXPECTED_CORE_SHA" "$image"
 operator_bundle="$root/runtime/acceptance-$SOURCE_SHA"
 mkdir -p -m 700 "$operator_bundle";cp "$bundle"/* "$operator_bundle/"
+# The proxy bind mount points to this file inode; update its contents in place,
+# then restart Nginx so the validated DNS resolver config is actually loaded.
+[[ -f "$root/runtime/identity.conf" && ! -L "$root/runtime/identity.conf" ]] || exit 3
+[[ -f "$bundle/identity.conf" && ! -L "$bundle/identity.conf" ]] || exit 3
+previous_proxy="$(mktemp "$root/runtime/.identity-previous.XXXXXXXX")"
+cp "$root/runtime/identity.conf" "$previous_proxy"
+cat "$bundle/identity.conf" > "$root/runtime/identity.conf"
+if ! docker exec "$(one identity-stage)" nginx -t >/dev/null 2>&1;then
+ cat "$previous_proxy" > "$root/runtime/identity.conf";rm -f "$previous_proxy";exit 5
+fi
+if ! docker restart "$(one identity-stage)" >/dev/null;then
+ cat "$previous_proxy" > "$root/runtime/identity.conf"
+ docker restart "$(one identity-stage)" >/dev/null 2>&1 || true
+ rm -f "$previous_proxy";exit 5
+fi
+rm -f "$previous_proxy"
 operator(){
  docker run --rm --user "$(id -u):$(id -g)" --network syndes-multiorg-staging_staging_internal \
  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m --cap-drop ALL --security-opt no-new-privileges \
