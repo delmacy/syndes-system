@@ -13,6 +13,8 @@ test('stage acceptance refuses unauthenticated invocation and never restores ove
  assert.match(shell,/EXPECTED_CORE_SHA/);assert.match(shell,/label=syndes.environment=multi-org-staging/);
  assert.match(shell,/CREATE DATABASE \$target OWNER postgres/);
  assert.match(shell,/pg_restore --exit-on-error/);
+ assert.match(shell,/source_connect=.*has_database_privilege/);
+ assert.match(shell,/GRANT CONNECT ON DATABASE .* TO .*tenant_role/);
  assert.doesNotMatch(shell,/pg_restore.*--clean|DROP DATABASE|docker compose down|syndes_control\b/);
  assert.match(shell,/trap recover EXIT/);assert.match(shell,/docker unpause/);
  assert.match(verify,/STAGE_CORE_REAL_HTTP_IDP_FGA_SQL_WORKER_SSE_ACCEPTANCE_PASS/);
