@@ -2115,6 +2115,7 @@ jobs:
           cp modules/inbox/sql/001_inbox_foundation.sql "$bundle/sql/inbox/"
           cp modules/whatsapp/sql/00{1,2,3,4,5,6,7}_*.sql "$bundle/sql/whatsapp/"
           cp modules/organizations/sql/00{1,2,3,4,5,6}_*.sql "$bundle/sql/organizations/"
+          cp modules/organizations/sql/{008_iam07d_revoke_first_candidate,009_iam_multiorg_fence_candidate,010_iam07d_cutover_capabilities_candidate}.sql "$bundle/sql/organizations/"
           mkdir -p "$bundle/sql/organizations/manual"
           cp modules/organizations/sql/manual/activate_multiple_organizations.sql "$bundle/sql/organizations/manual/"
           (cd "$bundle" && find . -type f ! -name MANIFEST.sha256 -print0 | sort -z | xargs -0 sha256sum > MANIFEST.sha256)
