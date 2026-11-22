@@ -33,6 +33,6 @@ result="$(docker run --rm --user "$(id -u):$(id -g)" --network syndes-multiorg-s
  -e SYNDES_STAGE_HISTORICAL=ACTIONS_STAGE_ONLY --entrypoint node "$image" \
  /run/bundle/historical-cutover.mjs </dev/null)"
 printf '%s\n' "$result"
-printf '%s\n' "$result" | grep -qx STAGE_HISTORICAL_LEGACY_ROWS_BACKFILL_PARTIAL_DENY_SQL002_CUTOVER_ROLLBACK_PASS
+printf '%s\n' "$result" | grep -qx STAGE_HISTORICAL_LEGACY_ROWS_BACKFILL_PARTIAL_DENY_SQL002_IAM008_009_010_CUTOVER_ROLLBACK_PASS
 printf 'STAGE_HISTORICAL_CORE_IMAGE=%s\n' "$image"
 echo STAGE_HISTORICAL_STAGING_TRANSACTIONAL_FIXTURE_PASS
