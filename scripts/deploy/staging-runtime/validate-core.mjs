@@ -89,6 +89,11 @@ async function main(){
   await api('inbox/conversations',{token:tokenA,tenant:'22222222-2222-4222-8222-222222222222',statuses:[403]});
   await api('crm/people/'+foreignPerson,{token:tokenA,tenant:other,statuses:[403]});
   console.log('STAGE_ACCEPTANCE_TWO_DATABASE_TENANTS_SECOND_UNENTITLED_DENY_PASS');
+  phase='inbox-admission-diagnostic';
+  const gateRows=(await control.query("SELECT e.module_id,e.state AS entitlement,i.state AS install,i.target_version,i.installed_version,(i.verification_digest IS NOT NULL AND i.verified_at IS NOT NULL) AS verified FROM tenant_module_entitlements e LEFT JOIN tenant_module_installs i ON i.tenant_id=e.tenant_id AND i.module_id=e.module_id WHERE e.tenant_id=$1 AND e.module_id='inbox'",[tid])).rows;
+  const scopeRows=(await db.query("SELECT o.status AS org_status,w.status AS ws_status,om.state AS org_member,wm.state AS ws_member FROM platform_organizations o JOIN platform_workspaces w ON w.tenant_id=o.tenant_id AND w.organization_id=o.id JOIN platform_org_memberships om ON om.tenant_id=o.tenant_id AND om.organization_id=o.id AND om.principal_id=$2 JOIN platform_workspace_memberships wm ON wm.tenant_id=o.tenant_id AND wm.organization_id=o.id AND wm.workspace_id=w.id AND wm.principal_id=$2 WHERE o.tenant_id=$1 AND o.id=$3 AND w.id=$4",[tid,actorId,A,A1])).rows;
+  console.log('STAGE_INBOX_ADMISSION_DIAG control_count='+gateRows.length+' entitlement='+(gateRows[0]?.entitlement??'missing')+' install='+(gateRows[0]?.install??'missing')+' versions_match='+(gateRows[0]?.target_version===gateRows[0]?.installed_version)+' verified='+(gateRows[0]?.verified===true)+' scope_count='+scopeRows.length+' org_active='+(scopeRows[0]?.org_status==='active')+' ws_active='+(scopeRows[0]?.ws_status==='active')+' org_member_active='+(scopeRows[0]?.org_member==='active')+' ws_member_active='+(scopeRows[0]?.ws_member==='active'));
+  phase='http-matrix';
   // Same signed founder subject may read all four workspaces. Membership
   // alone never supplies a fine write grant in A2/B2.
   for(const [org,ws] of [[A,A1],[A,A2],[B,B1],[B,B2]])await api('inbox/conversations',{token:tokenA,org,ws});
