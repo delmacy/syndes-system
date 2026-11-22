@@ -16,7 +16,14 @@ const jwksUrl=required("MASTER_KEYCLOAK_JWKS_URL");
 const origin=required("MASTER_PUBLIC_ORIGIN");
 const secretPath=required("MASTER_CONTROL_DB_URL_FILE");
 if(!secretPath.startsWith("/run/secrets/"))throw Error("Master DB URL must be mounted as a secret");
-const connectionString=readFileSync(secretPath,"utf8").trim();
+let connectionString;
+try{connectionString=readFileSync(secretPath,"utf8").trim();}
+catch(error){
+ // Never print the credential, its contents or a raw stack trace.
+ const code=error?.code==="EACCES"?"EACCES":"READ_FAILED";
+ console.error("MASTER_API_DB_FILE_READ_FAILED="+code);
+ throw error;
+}
 if(!connectionString)throw Error("Empty Master database credentials");
 if(!origin.startsWith("https://")||!new URL(jwksUrl).protocol.startsWith("http"))
  throw Error("Invalid master auth origin or JWKS URL");
