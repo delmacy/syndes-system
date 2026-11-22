@@ -19,7 +19,7 @@ import { WhatsAppAvatar } from "@/features/whatsapp-avatar";
 import { reconcileInboxThread } from "@/features/inbox-thread";
 import { isMine, replyBlockReason } from "@/features/inbox-rules";
 import { clearSentDraft, draftKey, setDraft, type ComposerMode } from "@/features/inbox-drafts";
-import type { Conversation, Message, Person, TenantApi, QueueFilter, WhatsAppGroupInfo } from "@/lib/api";
+import { ApiError, type Conversation, type Message, type Person, type TenantApi, type QueueFilter, type WhatsAppGroupInfo } from "@/lib/api";
 
 type Status = Conversation["status"];
 const FALLBACK_INTERVAL_MS = 10_000;
@@ -477,7 +477,11 @@ export function InboxFeature({ api, actorId, onOpenCrm }: { api: TenantApi; acto
       const result=await api.requestConversationHistory(selected.id);
       toast.info(result.note);
     }catch(error){
-      toast.error(error instanceof Error?error.message:"Não foi possível solicitar o histórico.");
+      if(error instanceof ApiError && error.status===403){
+        toast.error("Sincronização de histórico indisponível neste workspace. As mensagens já recebidas continuam na conversa.");
+      }else{
+        toast.error(error instanceof Error?error.message:"Não foi possível solicitar o histórico.");
+      }
     }finally{setSyncingHistory(false)}
   };
   const newConversation = () => {
