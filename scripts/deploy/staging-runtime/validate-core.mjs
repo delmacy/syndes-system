@@ -46,7 +46,7 @@ async function main(){
  const admin=await oauth('syndes-stage-pilot-recovery',await file('pilot-admin-service-secret'));
  const tokenA=await oauth('syndes-pilot-staging-login',await file('pilot-founder-password'),'pilot-founder');
  const tokenB=await oauth('syndes-pilot-staging-login',await file('pilot-b-only-password'),'pilot-b-only');
- const claims=JSON.parse(Buffer.from(tokenA.split('.')[1],'base64url'));
+ const claims=JSON.parse(Buffer.from(tokenA.split('.')[1],'base64url'));const actorId=claims.sub;assert(actorId===bootstrap.founder);
  assert(claims.iss===KC+'/realms/syndes-pilot'&&[claims.aud].flat().includes('syndes-core'));
  const db=new pg.Pool({host:'control-postgres',user:'postgres',password:await file('pg-admin'),database:'syndes_tenant_'+tid.replaceAll('-',''),max:2});
  const control=new pg.Pool({host:'control-postgres',user:'syndes_staging_core',password:await file('core-db-password'),database:'syndes_staging_control',max:2});
@@ -74,11 +74,11 @@ async function main(){
   }finally{await negativeDb.end()}
   phase='http-matrix';
   const readScopes=[[A,A1],[A,A2],[B,B1],[B,B2]];
-  const readTuples=readScopes.flatMap(([org,ws])=>['inbox.conversation.claim'].map(capability=>({user:'user:'+bootstrap.founder,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability,resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
-  readTuples.push(...[[A,A1],[B,B1]].map(([org,ws])=>({user:'user:'+bootstrap.founder,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability:'inbox.conversation.create',resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
+  const readTuples=readScopes.flatMap(([org,ws])=>['inbox.conversation.claim'].map(capability=>({user:'user:'+actorId,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability,resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
+  readTuples.push(...[[A,A1],[B,B1]].map(([org,ws])=>({user:'user:'+actorId,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability:'inbox.conversation.create',resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
   const readGrant=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:readTuples}}),signal:AbortSignal.timeout(5000)});if(!readGrant.ok&&readGrant.status!==400)throw Error('Inbox grant seed failed '+readGrant.status);
   const coarseObject=resource=> 'resource:'+createHash('sha256').update(tid+'|'+resource).digest('hex');
-  const coarseTuples=[{user:'user:'+bootstrap.founder,relation:'viewer',object:coarseObject('inbox:conversations')},{user:'user:'+bootstrap.founder,relation:'editor',object:coarseObject('inbox:messages')}];
+  const coarseTuples=[{user:'user:'+actorId,relation:'viewer',object:coarseObject('inbox:conversations')},{user:'user:'+actorId,relation:'editor',object:coarseObject('inbox:messages')}];
   const coarseGrant=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:coarseTuples}}),signal:AbortSignal.timeout(5000)});if(!coarseGrant.ok&&coarseGrant.status!==400)throw Error('Coarse grant seed failed '+coarseGrant.status);
 
   await api('inbox/conversations',{statuses:[401]});
@@ -129,7 +129,7 @@ async function main(){
   phase='revocation';
   const cap='inbox.message.note';const resourceName='syndes:v1:tenant:'+tid+':org:'+A+':workspace:'+A1;
   const object=iam07dFineObjectForScope({tenantId:tid,organizationId:A,workspaceId:A1,capability:cap,resourceName});
-  const tuple={user:'user:'+bootstrap.founder,relation:'grantee',object};
+  const tuple={user:'user:'+actorId,relation:'grantee',object};
   const fga=async body=>{const r=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(5000)});assert(r.ok)};
   const count=async()=>Number((await db.query('SELECT count(*) n FROM inbox_messages WHERE tenant_id=$1 AND conversation_id=$2',[tid,ca.id])).rows[0].n);
   const before=await count();await fga({deletes:{tuple_keys:[tuple]}});
@@ -145,25 +145,25 @@ async function main(){
    const r=await fetch(memberUrl,{method:'POST',headers:{Authorization:'Bearer '+admin,'Content-Type':'application/json'},body:JSON.stringify(bootstrap.restricted),signal:AbortSignal.timeout(8000)});assert(r.ok);
   }
   const reconnected=await stream(tokenB,B,B1);assert(!reconnected.closed);reconnected.stop();
-  await db.query("UPDATE platform_iam_capability_fences SET epoch=epoch+1,state='revoked',last_revoke_operation_id=$6 WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id=$4 AND capability=$5",[tid,A,A1,bootstrap.founder,cap,randomUUID()]);
+  await db.query("UPDATE platform_iam_capability_fences SET epoch=epoch+1,state='revoked',last_revoke_operation_id=$6 WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id=$4 AND capability=$5",[tid,A,A1,actorId,cap,randomUUID()]);
   try{await api('inbox/conversations/'+ca.id+'/notes',{token:tokenA,method:'POST',body:{body:'FENCE MUST DENY'},statuses:[403]});assert(await count()===before)}
-  finally{await db.query("UPDATE platform_iam_capability_fences SET epoch=epoch+1,state='active',last_revoke_operation_id=NULL WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id=$4 AND capability=$5",[tid,A,A1,bootstrap.founder,cap])}
+  finally{await db.query("UPDATE platform_iam_capability_fences SET epoch=epoch+1,state='active',last_revoke_operation_id=NULL WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id=$4 AND capability=$5",[tid,A,A1,actorId,cap])}
   phase='concurrent-revoke-first-http';
   const lock=await db.connect();let pending;
   try{
    await lock.query('BEGIN');
-   const locked=await lock.query('SELECT 1 FROM platform_iam_capability_fences WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id=$4 AND capability=$5 FOR UPDATE',[tid,A,A1,bootstrap.founder,cap]);assert(locked.rowCount===1);
+   const locked=await lock.query('SELECT 1 FROM platform_iam_capability_fences WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id=$4 AND capability=$5 FOR UPDATE',[tid,A,A1,actorId,cap]);assert(locked.rowCount===1);
    pending=api('inbox/conversations/'+ca.id+'/notes',{token:tokenA,method:'POST',body:{body:'CONCURRENT REVOKE MUST DENY'},statuses:[403]}).then(value=>({value}),error=>({error}));
    // Observe the actual HTTP transaction waiting on the owner-held epoch row;
    // timing alone is never accepted as proof of concurrent serialization.
    await eventually(async()=>Number((await db.query("SELECT count(*) n FROM pg_stat_activity WHERE datname=current_database() AND usename=$1 AND wait_event_type='Lock' AND query LIKE '%platform_iam_capability_fences%'",['syndes_t_'+tid.replaceAll('-','')])).rows[0].n)>0,8000);
-   await lock.query("UPDATE platform_iam_capability_fences SET epoch=epoch+1,state='revoked',last_revoke_operation_id=$6 WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id=$4 AND capability=$5",[tid,A,A1,bootstrap.founder,cap,randomUUID()]);
+   await lock.query("UPDATE platform_iam_capability_fences SET epoch=epoch+1,state='revoked',last_revoke_operation_id=$6 WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id=$4 AND capability=$5",[tid,A,A1,actorId,cap,randomUUID()]);
    await lock.query('COMMIT');
    const outcome=await pending;if(outcome.error)throw outcome.error;assert(await count()===before);
   }finally{
    await lock.query('ROLLBACK');lock.release();
    if(pending)await pending;
-   await db.query("UPDATE platform_iam_capability_fences SET epoch=epoch+1,state='active',last_revoke_operation_id=NULL WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id=$4 AND capability=$5",[tid,A,A1,bootstrap.founder,cap]);
+   await db.query("UPDATE platform_iam_capability_fences SET epoch=epoch+1,state='active',last_revoke_operation_id=NULL WHERE tenant_id=$1 AND organization_id=$2 AND workspace_id=$3 AND principal_id=$4 AND capability=$5",[tid,A,A1,actorId,cap]);
   }
   console.log('STAGE_ACCEPTANCE_REAL_HTTP_WAITING_TRANSACTION_REVOKE_FIRST_ZERO_WRITE_PASS');
   console.log('STAGE_ACCEPTANCE_FGA_KEYCLOAK_FENCE_REVOKE_SQL_NO_WRITE_SSE_CLOSE_RECONNECT_PASS');
