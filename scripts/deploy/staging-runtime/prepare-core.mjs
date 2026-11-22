@@ -14,6 +14,7 @@ const sha=x=>createHash('sha256').update(x).digest('hex');
 const check=x=>{if(!x)throw Error('Stage invariant')};
 const file=async n=>(await readFile(ROOT+n,'utf8')).trim();
 let phase='safety';
+let checkpoint='start';
 async function fga(path,body){
  const r=await fetch('http://openfga:8080'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,redirect:'error',signal:AbortSignal.timeout(5000)});
  check(r.ok);const t=await r.text();return t?JSON.parse(t):null;
@@ -118,15 +119,19 @@ async function main(){
    await tenant.query('GRANT UPDATE ON '+t+' TO '+tenantRole);
   await tenant.query('REVOKE ALL ON SCHEMA _syndes FROM '+tenantRole);
   phase='control-modules';
-  for(const name of ['control-module-attestation.schema','control-module-activation.schema'])
+  for(const name of ['control-module-attestation.schema','control-module-activation.schema']){
+   checkpoint='schema:'+name.replace('.schema','');
    await control.query(await readFile('/run/bundle/'+name,'utf8'));
+  }
   for(const r of records){
+   checkpoint='catalog:'+r.id;
    await control.query('INSERT INTO module_catalog(module_id,schema_name) VALUES($1,$2) ON CONFLICT DO NOTHING',[r.id,r.schema]);
    await control.query("INSERT INTO module_catalog_versions(module_id,version,approved,approved_at,approved_by) VALUES($1,$2,true,clock_timestamp(),'system:stage-actions') ON CONFLICT DO NOTHING",[r.id,r.version]);
    for(const dep of r.dependencies)await control.query('INSERT INTO module_catalog_dependencies(module_id,version,dependency_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[r.id,r.version,dep]);
   }
   // Dependency order matters for installation attestations and activation.
   for(const id of ['crm','inbox','whatsapp','organizations','service']){
+   checkpoint='install:'+id;
    const r=records.find(x=>x.id===id);
    const old=(await control.query('SELECT * FROM tenant_module_installs WHERE tenant_id=$1 AND module_id=$2',[tid,id])).rows[0];
    if(old){check(old.state==='enabled'&&old.installed_version===r.version&&old.verification_digest===r.receipt);continue}
@@ -167,4 +172,9 @@ async function main(){
   console.log('STAGE_CORE_OWNER_SQL_LEDGER_MODULE_ENABLED_EXPLICIT_FINE_GRANTS_PASS');
  }finally{await tenant.end();await control.end()}
 }
-main().catch(()=>{console.error('STAGE_CORE_PREPARE_BLOCKED='+phase);process.exitCode=1});
+main().catch(error=>{
+ const sqlstate=typeof error?.code==='string'&&/^[0-9A-Z]{5}$/.test(error.code)?error.code:'invariant';
+ // Report only deterministic step and SQLSTATE, never SQL, values or secrets.
+ console.error('STAGE_CORE_PREPARE_BLOCKED='+phase+':'+checkpoint+':'+sqlstate);
+ process.exitCode=1;
+});

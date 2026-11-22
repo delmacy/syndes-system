@@ -30,8 +30,7 @@ CREATE ROLE syndes_core NOLOGIN;
 CREATE DATABASE syndes_control;
 CREATE ROLE syndes_t_11111111111141118111111111111111 LOGIN PASSWORD 'ci-tenant-only';
 CREATE DATABASE syndes_tenant_11111111111141118111111111111111 OWNER syndes_t_11111111111141118111111111111111;
-REVOKE CONNECT ON DATABASE syndes_tenant_11111111111141118111111111111111 FROM PUBLIC;
-GRANT CONNECT ON DATABASE syndes_tenant_11111111111141118111111111111111 TO syndes_t_11111111111141118111111111111111;
+-- Deliberately reproduce the real DevServer01 legacy defect: PUBLIC CONNECT.
 SQL
 
 docker cp infra/postgres/bootstrap/control.schema "$container":/tmp/control.schema
@@ -41,6 +40,22 @@ docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control -
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control -f /tmp/control-admin.schema >/dev/null
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control \
   -c "INSERT INTO platform_operator_access(principal_id,role) VALUES('ci-provision-fixture','owner')" >/dev/null
+# Fail closed for a tenant database not bound to a unique Control registry row.
+if docker exec -i "$container" psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control \
+  < scripts/deploy/sql/manager-tenant-connect-acl.sql >/dev/null 2>&1; then
+  echo "Tenant ACL repair unexpectedly accepted an unregistered database" >&2; exit 1
+fi
+docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control \
+  -c "INSERT INTO tenant_registry(tenant_id,database_name,role_name) VALUES('11111111-1111-4111-8111-111111111111','syndes_tenant_11111111111141118111111111111111','syndes_t_11111111111141118111111111111111')" >/dev/null
+for attempt in 1 2; do
+  docker exec -i "$container" psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control \
+    < scripts/deploy/sql/manager-tenant-connect-acl.sql >/dev/null
+done
+acl="$(docker exec "$container" psql -XqAt -U postgres -d syndes_control \
+  -c "SELECT has_database_privilege('syndes_master_api','syndes_tenant_11111111111141118111111111111111','CONNECT')::int::text || ':' || has_database_privilege('syndes_t_11111111111141118111111111111111','syndes_tenant_11111111111141118111111111111111','CONNECT')::int::text")"
+[ "$acl" = '0:1' ] || { echo "Tenant database ACL postcondition failed" >&2; exit 1; }
+docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control \
+  -c "DELETE FROM tenant_registry WHERE tenant_id='11111111-1111-4111-8111-111111111111'" >/dev/null
 PYTHONDONTWRITEBYTECODE=1 python3 - "$container" "$network" "$fixture" <<'PY'
 from pathlib import Path
 import runpy

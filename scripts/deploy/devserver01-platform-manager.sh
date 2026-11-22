@@ -28,5 +28,6 @@ git -C "$release" fetch --quiet --depth=1 "$repo" "$SOURCE_SHA"
 git -C "$release" checkout --quiet --detach "$SOURCE_SHA"
 [[ "$(git -C "$release" rev-parse HEAD)" == "$SOURCE_SHA" ]] || exit 3
 
+bash "$release/scripts/deploy/devserver01-manager-tenant-db-acl.sh"
 python3 "$release/infra/master-admin/provision-db-file.py" --apply
 SYNDES_MANAGER_WEB_DIST="$dist" bash "$release/infra/master-admin/homolog-deploy.sh" --apply
