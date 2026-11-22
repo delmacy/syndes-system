@@ -101,8 +101,10 @@ test("IAM07D2 fine FGA and tenant outbox are separate, real and fail-closed",()=
  assert.ok(combined.includes("await runIam07d2FineFgaLiveLab({"));
  assert.ok(live.includes("IAM07D2_REAL_KEYCLOAK_SIGNED_JWT_PG17_OPENFGA_EXACT_CAPABILITY_PASS"));
  assert.ok(live.includes("IAM07D2_REAL_TENANT_FIRST_OUTBOX_FGA_RECOVERY_CONTROL_RECONCILE_PASS"));
- assert.ok(pilot.includes("this.verifiedRequests.set(ticket"));
- assert.ok(pilot.includes("await this.admission.resolve(original.bearer,original.requested)"));
+ assert.ok(pilot.includes("this.issueWith(requested,request=>this.admission.resolve(bearer,request))"));
+ assert.ok(pilot.includes("this.revalidate.set(ticket,()=>resolve(request))"));
+ assert.ok(pilot.includes("const live=await refresh()"));
+ assert.ok(pilot.includes('requested.capability!=="inbox.conversation.history_sync"'));
  assert.ok(pilot.includes("platform_iam_revocation_outbox"));
  assert.ok(worker.includes("this.fga.revokeExact"));
  assert.ok(worker.includes("platform_iam_revocation_outbox"));
