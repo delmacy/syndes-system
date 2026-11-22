@@ -6,17 +6,24 @@ import {join} from "node:path";
 import {spawnSync} from "node:child_process";
 const source="scripts/ci/multiorg-staging-readonly.sh";
 const workflow=".github/workflows/syndes-ci.yml";
+const jobBody=(text,name)=>{
+ const start=text.indexOf('  '+name+':');
+ assert.ok(start>0,name+' job is required');
+ const next=text.slice(start+2).search(/^  [a-zA-Z0-9_-]+:\s*$/m);
+ assert.ok(next>0,name+' must have a following job');
+ return text.slice(start,start+2+next);
+};
 
 test("MO-REL-04 staging preflight is manual, SHA-gated and rejects production host",async()=>{
  const text=await readFile(workflow,"utf8");
  assert.match(text,/workflow_dispatch:/);
- assert.match(text,/staging-readonly:/);
- assert.match(text,/github.event_name == 'workflow_dispatch'/);
- assert.match(text,/environment: multi-org-staging/);
- assert.match(text,/STAGING_PEER.*!= 'delmacy-desktoppc\.tayra-delta\.ts\.net'/);
- assert.match(text,/APPROVED_SHA.*SOURCE_SHA/);
- assert.match(text,/git ls-remote origin refs\/heads\/main/);
- assert.doesNotMatch(text,/docker compose up|docker exec|--apply|psql/);
+ const body=jobBody(text,'staging-readonly');
+ assert.match(body,/github.event_name == 'workflow_dispatch'/);
+ assert.match(body,/environment: multi-org-staging/);
+ assert.match(body,/STAGING_PEER.*!= 'delmacy-desktoppc\.tayra-delta\.ts\.net'/);
+ assert.match(body,/APPROVED_SHA.*SOURCE_SHA/);
+ assert.match(body,/git ls-remote origin refs\/heads\/main/);
+ assert.doesNotMatch(body,/docker compose up|docker exec|--apply|psql/);
 });
 test("MO-REL-04 inventories only pre-labeled staging services and fails closed",async()=>{
  const root=await mkdtemp(join(tmpdir(),"syndes-stage-probe-"));
@@ -50,9 +57,7 @@ esac
 
 test("MO-REL-04 authorized DevServer01 preflight is post-gate, read-only, not a deploy",async()=>{
  const text=await readFile(workflow,"utf8");
- const start=text.indexOf("  devserver01-multiorg-staging-readonly:");
- assert.ok(start>0,"DevServer01 staging inventory job is required");
- const body=text.slice(start);
+ const body=jobBody(text,'devserver01-multiorg-staging-readonly');
  assert.match(body,/if:.*github.event_name == 'push'/);
  assert.match(body,/needs: \[gate\]/);
  assert.match(body,/environment: devserver01/);
