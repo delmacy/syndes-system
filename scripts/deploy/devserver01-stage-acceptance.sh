@@ -78,6 +78,7 @@ recover(){
  if [[ "$fga_stopped" == 1 ]];then docker start "$fga" >/dev/null 2>&1 || true;fi
  if [[ "$kc_paused" == 1 ]];then docker unpause "$kc" >/dev/null 2>&1 || true;fi
  if [[ "$fga_paused" == 1 ]];then docker unpause "$fga" >/dev/null 2>&1 || true;fi
+ docker restart "$(one identity-stage)" >/dev/null 2>&1 || true
  if [[ "$core_stopped" == 1 ]];then docker start "$core" >/dev/null 2>&1 || true;fi
 }
 trap recover EXIT
@@ -139,6 +140,7 @@ done
 VAULT_SNAPSHOT_MODE=restore operator /run/bundle/vault-snapshot.mjs
 docker start "$kc" >/dev/null;kc_stopped=0
 docker start "$fga" >/dev/null;fga_stopped=0
+docker restart "$(one identity-stage)" >/dev/null
 sleep 5
 docker start "$core" >/dev/null;core_stopped=0
 for n in $(seq 1 45);do
