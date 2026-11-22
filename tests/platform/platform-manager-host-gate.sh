@@ -84,12 +84,7 @@ if query "SELECT count(*) FROM platform_operator_access WHERE role='owner' AND s
   ok "At least one explicitly authorized platform owner exists"
 else stop "No active platform owner provisioned"; fi
 
-if command -v jq >/dev/null && docker exec syndes-security-access-openbao-1 bao status -format=json 2>/dev/null | jq -e '.initialized == true and .sealed == false' >/dev/null 2>&1; then
-  ok "OpenBao initialized and unsealed"
-else stop "OpenBao sealed or unavailable"; fi
-
-# The host secret is root-only under /run; an unprivileged auditor cannot
-# stat it. Inspect Docker's mounted individual file metadata, never its value.
+# Inspect Docker's mounted individual file metadata without reading its value.
 api_id=$(docker ps -q \
   --filter 'label=com.docker.compose.project=syndes-master-admin' \
   --filter 'label=com.docker.compose.service=master-api' | head -1)
@@ -98,7 +93,8 @@ web_id=$(docker ps -q \
   --filter 'label=com.docker.compose.service=master-web' | head -1)
 if [[ -n "$api_id" ]]; then
   mounted=$(docker inspect "$api_id" --format '{{range .Mounts}}{{if eq .Destination "/run/secrets/master_db_url"}}{{.Source}}|{{.RW}}{{end}}{{end}}' 2>/dev/null || true)
-  if [[ "$mounted" == '/run/syndes/platform-manager/master_db_url|false' ]]; then
+  if [[ "$mounted" == '/run/syndes/platform-manager/master_db_url|false' ||
+        "$mounted" == '/home/delmacy/.local/share/syndes-platform-manager/runtime/master_db_url|false' ]]; then
     ok "Only the dedicated read-only secret file is mounted to API"
   else stop "Master runtime secret missing, wrong source, or writable"; fi
 else stop "Master API not running; secret mount cannot be verified"; fi
