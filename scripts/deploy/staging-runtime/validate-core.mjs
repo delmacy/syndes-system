@@ -95,6 +95,23 @@ async function main(){
   console.error('STAGE_INBOX_ADMISSION_DIAG control_count='+gateRows.length+' entitlement='+(gateRows[0]?.entitlement??'missing')+' install='+(gateRows[0]?.install??'missing')+' versions_match='+(gateRows[0]?.target_version===gateRows[0]?.installed_version)+' verified='+(gateRows[0]?.verified===true)+' scope_count='+scopeRows.length+' org_active='+(scopeRows[0]?.org_status==='active')+' ws_active='+(scopeRows[0]?.ws_status==='active')+' org_member_active='+(scopeRows[0]?.org_member==='active')+' ws_member_active='+(scopeRows[0]?.ws_member==='active'));
   const scopePrerequisites=(await db.query("SELECT (SELECT count(*)::int FROM platform_legacy_backfill_runs a JOIN platform_organizations o ON o.tenant_id=a.tenant_id AND o.id=a.organization_id WHERE a.tenant_id=$1 AND o.is_default) AS default_backfill,(SELECT count(*)::int FROM pg_indexes WHERE schemaname=current_schema() AND indexname IN ('platform_legacy_single_organization','platform_legacy_single_workspace')) AS sql002_indexes",[tid])).rows[0];
   console.error('STAGE_SCOPE_PREREQUISITES_DIAG default_backfill='+scopePrerequisites.default_backfill+' sql002_indexes='+scopePrerequisites.sql002_indexes);
+  phase='greenfield-default-ownership-audit';
+  const audit=await db.connect();
+  try{
+   await audit.query('BEGIN');
+   const defaultScope=(await audit.query("SELECT o.id AS org,w.id AS ws FROM platform_organizations o JOIN platform_workspaces w ON w.tenant_id=o.tenant_id AND w.organization_id=o.id WHERE o.tenant_id=$1 AND o.is_default AND w.is_default AND o.status='active' AND w.status='active' FOR SHARE OF o,w",[tid])).rows;
+   assert(defaultScope.length===1&&defaultScope[0].org===A&&defaultScope[0].ws===A1);
+   const existing=(await audit.query('SELECT count(*)::int n FROM platform_legacy_backfill_runs WHERE tenant_id=$1 AND organization_id=$2',[tid,A])).rows[0].n;
+   if(existing===0){
+    const owners=(await audit.query("SELECT (SELECT count(*)::int FROM crm_people)+(SELECT count(*)::int FROM crm_organizations)+(SELECT count(*)::int FROM crm_tags)+(SELECT count(*)::int FROM inbox_conversations)+(SELECT count(*)::int FROM whatsapp_accounts) AS n")).rows[0];
+    assert(owners.n===0); // Greenfield only: never attest historical data without a real backfill.
+    const indexes=(await audit.query("SELECT count(*)::int n FROM pg_indexes WHERE schemaname=current_schema() AND indexname IN ('platform_legacy_single_organization','platform_legacy_single_workspace')")).rows[0];
+    assert(indexes.n===0); // This fixture was created after the scoped cutover.
+    await audit.query("INSERT INTO platform_legacy_backfill_runs(tenant_id,organization_id,actor_id,counts) VALUES($1,$2,'system:stage-greenfield-actions',$3::jsonb)",[tid,A,JSON.stringify({crm_people:0,crm_organizations:0,crm_tags:0,inbox_conversations:0,whatsapp_accounts:0})]);
+   }
+   await audit.query('COMMIT');
+  }catch(error){await audit.query('ROLLBACK');throw error}finally{audit.release()}
+  console.error('STAGE_GREENFIELD_DEFAULT_OWNERSHIP_AUDIT_PASS');
   phase='http-matrix';
   // Same signed founder subject may read all four workspaces. Membership
   // alone never supplies a fine write grant in A2/B2.
