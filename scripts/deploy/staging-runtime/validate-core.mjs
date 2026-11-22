@@ -148,7 +148,7 @@ async function main(){
    const password=await new TenantCredentialSource().password(tid,role);credentials='ok';
    const probe=new pg.Pool({host:'control-postgres',user:role,password,database:'syndes_tenant_'+tid.replaceAll('-',''),max:1,connectionTimeoutMillis:3000});
    try{await probe.query('SELECT 1');connection='ok'}finally{await probe.end()}
-  }catch(error){connection=String(error?.code??error?.message??'error').replace(/[^a-zA-Z0-9_ -]/g,'_').slice(0,90)}
+  }catch(error){connection=String(error?.code??error?.name??'error').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,40)}
   console.error('STAGE_TENANT_RESTORE_DIAG acl='+acl+' credentials='+credentials+' connection='+connection);
   phase='http-matrix';
   // Same signed founder subject may read all four workspaces. Membership
