@@ -126,6 +126,25 @@ route_owned=false
 rollback_on_error(){
   result=$?
   if [[ "$result" -ne 0 && "$started" == true ]]; then
+    # Classify the failing isolated API without revealing logs, env or DSNs.
+    api_id="$(docker ps -aq --filter label=com.docker.compose.project=syndes-master-admin --filter label=com.docker.compose.service=master-api | head -n 1)"
+    if [[ "$api_id" =~ ^[a-f0-9]{12,64}$ ]]; then
+      state="$(docker inspect -f '{{.State.Status}}' "$api_id" 2>/dev/null || true)"
+      code="$(docker inspect -f '{{.State.ExitCode}}' "$api_id" 2>/dev/null || true)"
+      health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$api_id" 2>/dev/null || true)"
+      [[ "$state" =~ ^[a-z]+$ ]] || state=unknown
+      [[ "$code" =~ ^[0-9]+$ ]] || code=unknown
+      [[ "$health" =~ ^[a-z]+$ ]] || health=unknown
+      echo "MANAGER_API_CONTAINER_STATE=$state EXIT=$code HEALTH=$health" >&2
+      api_log="$(docker logs --tail 80 "$api_id" 2>&1 || true)"
+      marker="$(printf '%s\\n' "$api_log" | grep -Eo 'MASTER_API_STARTUP_FAILED=[A-Z0-9_]+' | tail -n 1 || true)"
+      if [[ -n "$marker" ]]; then echo "$marker" >&2
+      elif [[ "$api_log" == *EACCES* ]]; then echo 'MANAGER_API_STARTUP_FAILED=EACCES' >&2
+      elif [[ "$api_log" == *ENOENT* ]]; then echo 'MANAGER_API_STARTUP_FAILED=ENOENT' >&2
+      elif [[ "$api_log" == *ERR_MODULE_NOT_FOUND* ]]; then echo 'MANAGER_API_STARTUP_FAILED=ERR_MODULE_NOT_FOUND' >&2
+      elif [[ "$api_log" == *"Missing MASTER_"* ]]; then echo 'MANAGER_API_STARTUP_FAILED=MISSING_CONFIGURATION' >&2
+      else echo 'MANAGER_API_STARTUP_FAILED=UNCLASSIFIED' >&2; fi
+    fi
     echo "HOMOLOG DEPLOY FAILED: rolling back only the isolated Manager stack" >&2
     if [[ "$route_owned" == true ]] &&
        tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode active >/dev/null 2>&1; then
