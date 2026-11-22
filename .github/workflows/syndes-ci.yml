@@ -2191,4 +2191,4 @@ jobs:
           VERIFY: ${{ steps.verify.outcome }}
         run: |
           set -Eeuo pipefail
-          gh issue comment 210 --repo "$GITHUB_REPOSITORY" --body "MO-REL06 stage-only synthetic historical clone. Main=$SOURCE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$VERIFY. Encrypted backup, isolated source/target scratch DBs, restore comparison, psql --single-transaction cutover only on target, exact source unchanged, both scratch DBs removed. No production SQL/tenant touched. PRODUCTION_GATE=BLOCKED."
+          gh issue comment 210 --repo "$GITHUB_REPOSITORY" --body "MO-REL06 stage-only synthetic historical clone. Main=$SOURCE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$VERIFY. Encrypted backup, isolated source/target/rollback scratch DBs, restore comparison, psql --single-transaction cutover only on target, second synthetic organization, SQL002 reinstall denied, compatible backup restored in third DB, exact source unchanged, all three scratch DBs removed. No production SQL/tenant touched. PRODUCTION_GATE=BLOCKED."
