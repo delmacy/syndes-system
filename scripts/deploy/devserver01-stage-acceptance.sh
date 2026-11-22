@@ -129,6 +129,16 @@ for source in syndes_staging_control syndes_staging_keycloak syndes_staging_open
  [[ "$owner" =~ ^(postgres|syndes_staging_keycloak|syndes_staging_openfga)$ ]] || exit 4
  docker exec "$pg" psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres -c "ALTER DATABASE $target OWNER TO $owner" >/dev/null
  docker exec "$pg" psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres -c "SELECT format('GRANT %s ON DATABASE %I TO %I;',a.privilege_type,'$target',r.rolname) FROM pg_database d CROSS JOIN LATERAL aclexplode(COALESCE(d.datacl,acldefault('d',d.datdba))) a JOIN pg_roles r ON r.oid=a.grantee WHERE d.datname='$source'" -At | docker exec -i "$pg" psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres >/dev/null
+ # A database-level CONNECT role privilege is not part of pg_dump -Fc.
+ # Preserve only the already-authorized exact tenant role, never PUBLIC.
+ if [[ "$source" =~ ^syndes_tenant_([a-f0-9]{32})$ ]];then
+  tenant_role="syndes_t_${BASH_REMATCH[1]}"
+  source_connect="$(docker exec "$pg" psql -X -At -U postgres -d postgres -c "SELECT has_database_privilege('$tenant_role','$source','CONNECT')")"
+  [[ "$source_connect" == t ]] || exit 5
+  docker exec "$pg" psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres -c "GRANT CONNECT ON DATABASE $target TO $tenant_role" >/dev/null
+  target_connect="$(docker exec "$pg" psql -X -At -U postgres -d postgres -c "SELECT has_database_privilege('$tenant_role','$target','CONNECT')")"
+  [[ "$target_connect" == t ]] || exit 5
+ fi
  sources+=("$source");targets+=("$target");archives+=("syndes_stage_archive_${nonce}_$counter")
  if ((counter>0));then printf ',' >> "$map_file";fi
  printf '{"source":"%s","target":"%s"}' "$source" "$target" >> "$map_file"
