@@ -36,7 +36,9 @@ test("MO-REL-04 one-shot staging installer remains post-gate main-only, not gene
  ]);
  const start=ci.indexOf("  devserver01-multiorg-stage-foundation:");
  assert.ok(start>0);
- const job=ci.slice(start);
+ const next=ci.slice(start+2).search(/^  [a-zA-Z0-9_-]+:\s*$/m);
+ assert.ok(next>0,'foundation job must have a distinct following job');
+ const job=ci.slice(start,start+2+next);
  assert.match(job,/github\.event_name == 'push'/);
  assert.match(job,/contains\(github\.event\.head_commit\.message, 'MO-REL04-DEVSERVER-STAGE-INFRA-APPROVED'\)/);
  assert.match(job,/needs: \[gate\]/);
