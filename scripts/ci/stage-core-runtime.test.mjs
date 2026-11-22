@@ -19,6 +19,12 @@ test('Core staging release requires verified artifacts, nonroot singleton and ap
  assert.match(compose,/SYNDES_CRM_MODULE_GATE: enforce/);
  assert.doesNotMatch(compose,/ports:|privileged:|CORE_CONTROL_DB_URL|CORE_OPENFGA_TOKEN|syndes-data/);
  assert.match(setup,/Ready replay NEVER recreates a revoked grant/);
+ assert.ok(setup.includes("check(typeof decision?.allowed==='boolean')"));
+ assert.ok(setup.includes("if(bootstrap){"));
+ assert.ok(setup.includes("preservedDeniedGrants++"));
+ assert.ok(setup.includes("STAGE_CORE_EXISTING_GRANT_DENIALS_PRESERVED="));
+ assert.ok(!setup.includes("check(!bootstrap); // Ready replay"));
+
  assert.match(setup,/verified_existing_post_cutover/);
  // History command schema 009 was prepared independently by the approved
  // staging migration. It must be verified but cannot silently mutate the

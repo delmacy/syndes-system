@@ -179,14 +179,24 @@ async function main(){
     }
    }
   }
+  let preservedDeniedGrants=0;
   for(const tuple of [...new Map([...coarse,...fine].map(x=>[JSON.stringify(x),x])).values()]){
    const permission=tuple.relation==='grantee'?'can_execute':tuple.relation==='editor'?'can_write':'can_read';
-   const allowed=(await fga('/stores/'+store+'/check',{tuple_key:{...tuple,relation:permission}})).allowed;
-   if(!allowed){
-    check(!bootstrap); // Ready replay NEVER recreates a revoked grant.
+   const decision=await fga('/stores/'+store+'/check',{tuple_key:{...tuple,relation:permission}});
+   // Only an explicit FGA decision may alter bootstrap behavior. A missing
+   // decision or unavailable store is never treated as a permission revocation.
+   check(typeof decision?.allowed==='boolean');
+   if(decision.allowed===false){
+    if(bootstrap){
+     // Ready replay NEVER recreates a revoked grant. Runtime FGA checks retain
+     // the denial; the image can restart without mutating authorization state.
+     preservedDeniedGrants++;
+     continue;
+    }
     await fga('/stores/'+store+'/write',{writes:{tuple_keys:[tuple]}});
    }
   }
+  if(bootstrap)console.log('STAGE_CORE_EXISTING_GRANT_DENIALS_PRESERVED='+preservedDeniedGrants);
   if(!bootstrap)await writeFile(ROOT+'core-pilot-bootstrap.json',JSON.stringify({founder,restricted,store}),{flag:'wx',mode:0o600});
   await writeFile('/run/runtime/core.env','STAGE_CORE_IMAGE='+process.env.STAGE_CORE_IMAGE+'\nSTAGE_FGA_STORE_ID='+store+'\n',{mode:0o644});
   console.log('STAGE_CORE_OWNER_SQL_LEDGER_MODULE_ENABLED_EXPLICIT_FINE_GRANTS_PASS');
