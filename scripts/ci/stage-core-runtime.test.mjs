@@ -20,6 +20,19 @@ test('Core staging release requires verified artifacts, nonroot singleton and ap
  assert.doesNotMatch(compose,/ports:|privileged:|CORE_CONTROL_DB_URL|CORE_OPENFGA_TOKEN|syndes-data/);
  assert.match(setup,/Ready replay NEVER recreates a revoked grant/);
  assert.match(setup,/verified_existing_post_cutover/);
+ // History command schema 009 was prepared independently by the approved
+ // staging migration. It must be verified but cannot silently mutate the
+ // already enabled immutable WhatsApp 0.1.0 module installation receipt.
+ const historyBoundary=setup.indexOf("m.id==='009_whatsapp_history_commands'");
+ const moduleReceipt=setup.indexOf("migrations.push({id:m.id,checksum});");
+ assert.ok(historyBoundary>0&&historyBoundary<moduleReceipt);
+ const independent=setup.slice(historyBoundary,moduleReceipt);
+ assert.match(independent,/stage_prepared_before_activation/);
+ assert.match(independent,/_syndes\\.stage_bootstrap_receipts/);
+ assert.match(independent,/prepared\\?\\.checksum===checksum/);
+ assert.match(independent,/whatsapp_history_commands_anchor/);
+ assert.match(independent,/continue;/);
+ assert.doesNotMatch(independent,/UPDATE tenant_module_installs|DELETE FROM tenant_module_installs/);
  assert.match(setup,/REASSIGN OWNED BY/);
  assert.doesNotMatch(setup,/DROP INDEX|ALTER ROLE.*SUPERUSER|process\.env\.DATABASE_URL/);
  const job=yaml.slice(yaml.indexOf('  devserver01-stage-core-runtime:'));
