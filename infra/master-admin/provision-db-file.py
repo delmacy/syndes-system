@@ -2,6 +2,7 @@
 """Initialize the dedicated Manager login from the DevServer01 Actions account."""
 import argparse
 import fcntl
+import json
 import os
 from pathlib import Path
 import re
@@ -20,26 +21,37 @@ URL_PREFIX = f"postgresql://{ROLE}:"
 URL_SUFFIX = f"@syndes-control-postgres:5432/{CONTROL}?sslmode=disable"
 
 ROLE_CHECK = """
-SELECT rolpassword IS NOT NULL
-FROM pg_authid
-WHERE rolname='syndes_master_api' AND rolcanlogin AND NOT rolinherit
-  AND NOT (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls)
-  AND NOT EXISTS (SELECT FROM pg_auth_members WHERE member=pg_authid.oid)
-  AND EXISTS (SELECT FROM platform_operator_access WHERE role='owner' AND state='active')
-  AND has_database_privilege(oid, 'syndes_control', 'CONNECT')
-  AND NOT EXISTS (
+SELECT json_build_object(
+  'password_set', rolpassword IS NOT NULL,
+  'restricted_role', rolcanlogin
+    AND NOT (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls),
+  'no_role_memberships', NOT EXISTS (SELECT FROM pg_auth_members WHERE member=pg_authid.oid),
+  'active_owner', EXISTS (SELECT FROM platform_operator_access WHERE role='owner' AND state='active'),
+  'control_connect', has_database_privilege(oid, 'syndes_control', 'CONNECT'),
+  'tenant_connect_denied', NOT EXISTS (
     SELECT FROM pg_database AS db
-    WHERE (db.datname LIKE 'syndes_tenant_%' OR db.datname IN ('syndes_openfga','syndes_keycloak'))
+    WHERE db.datname LIKE 'syndes_tenant_%' AND has_database_privilege(pg_authid.oid, db.oid, 'CONNECT')
+  ),
+  'identity_connect_denied', NOT EXISTS (
+    SELECT FROM pg_database AS db
+    WHERE db.datname IN ('syndes_openfga','syndes_keycloak')
       AND has_database_privilege(pg_authid.oid, db.oid, 'CONNECT')
-  )
-  AND NOT has_schema_privilege(oid, 'public', 'CREATE')
-  AND NOT EXISTS (
+  ),
+  'schema_create_denied', NOT has_schema_privilege(oid, 'public', 'CREATE'),
+  'metadata_read_only', NOT EXISTS (
     SELECT FROM unnest(ARRAY['tenant_registry','tenant_memberships',
       'platform_operator_access','platform_tenant_profiles']) AS tab(name)
     WHERE NOT has_table_privilege(pg_authid.oid, tab.name, 'SELECT')
       OR has_table_privilege(pg_authid.oid, tab.name, 'INSERT,UPDATE,DELETE,TRUNCATE')
   )
+)
+FROM pg_authid WHERE rolname='syndes_master_api'
 """
+
+REQUIRED_CHECKS = (
+    "restricted_role", "no_role_memberships", "active_owner", "control_connect",
+    "tenant_connect_denied", "identity_connect_denied", "schema_create_denied", "metadata_read_only",
+)
 
 PSQL = ["psql", "-XqAt", "-v", "ON_ERROR_STOP=1"]
 
@@ -53,10 +65,15 @@ def run(args, *, input_data=None):
 def role_has_password(db):
     result = run(["exec", "-u", "postgres", db, *PSQL, "-w", "-U", "postgres",
                   "-d", CONTROL, "-c", ROLE_CHECK])
-    answer = result.stdout.strip()
-    if result.returncode or answer not in ("t", "f"):
-        raise RuntimeError("Dedicated Manager DB grants or active owner failed verification")
-    return answer == "t"
+    if result.returncode:
+        raise RuntimeError("PostgreSQL could not read the Manager role and grants")
+    if not result.stdout.strip():
+        raise RuntimeError("Dedicated Manager role is absent")
+    checks = json.loads(result.stdout)
+    failed = [name for name in REQUIRED_CHECKS if checks.get(name) is not True]
+    if failed:
+        raise RuntimeError("Manager preflight failed: " + ", ".join(failed))
+    return checks["password_set"] is True
 
 
 def check_private(path, expected_mode):
