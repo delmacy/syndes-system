@@ -1,0 +1,38 @@
+services:
+  whatsapp-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: whatsapp_stage
+      POSTGRES_USER: whatsapp_stage
+    env_file: /home/delmacy/.local/share/syndes-multiorg-staging/secrets/whatsapp-db.env
+    volumes:
+      - whatsapp_stage_data:/var/lib/postgresql/data
+    networks: [whatsapp_data]
+    healthcheck:
+      test: [CMD, pg_isready, -U, whatsapp_stage, -d, whatsapp_stage]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    labels: {syndes.environment: multi-org-staging, syndes.component: whatsapp-db}
+  whatsapp-gateway:
+    image: ${STAGE_WHATSAPP_IMAGE:?verified stage source image required}
+    restart: unless-stopped
+    depends_on:
+      whatsapp-db:
+        condition: service_healthy
+    env_file: /home/delmacy/.local/share/syndes-multiorg-staging/secrets/whatsapp-gateway.env
+    environment:
+      SYNDES_API_URL: http://core-host:8082
+      WHATSAPP_SIDECAR_BIND: 0.0.0.0:19083
+    networks: [staging_internal, whatsapp_data]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp]
+    labels: {syndes.environment: multi-org-staging, syndes.component: whatsapp-gateway}
+volumes:
+  whatsapp_stage_data: {}
+networks:
+  whatsapp_data:
+    internal: true
