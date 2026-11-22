@@ -2081,6 +2081,48 @@ jobs:
           body="MO-REL05/06 stage acceptance and actual recovery. Test source=$SOURCE_SHA Core image source=$EXPECTED_CORE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$VERIFY. Real HTTP, signed IdP, exact FGA revocation, SQL fence, SSE, synthetic WhatsApp worker, provider outages, encrypted five-database restore and OpenBao raft restore. Same Core image reruns acceptance after canonical restored database activation; original databases preserved for compensation. No production/customer SQL or real WhatsApp side effect. PRODUCTION_GATE=BLOCKED."
           for issue in 208 209 210; do gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$body"; done
 
+  devserver01-stage-history-schema:
+    name: MO-REL01 prepare WhatsApp history schema in isolated staging
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'MO-REL01-STAGE-HISTORY-SCHEMA-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify stage-only history migration contract
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          node --test scripts/ci/stage-history-schema.test.mjs
+      - name: Join trusted Tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Prepare tenant-local migration 009 and inspect stage gateway registration
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          bundle="$(mktemp -d)"; trap 'rm -rf "$bundle"' EXIT; chmod 700 "$bundle"
+          cp scripts/deploy/devserver01-stage-history-schema.sh "$bundle/runner.sh"
+          cp modules/whatsapp/sql/009_whatsapp_history_commands.sql "$bundle/"
+          (cd "$bundle" && sha256sum runner.sh *.sql > MANIFEST.sha256)
+          result="$(tar -czf - -C "$bundle" . | timeout 180s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-stage-history-schema.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_STAGE_HISTORY_SCHEMA_APPROVAL=ACTIONS_APPROVED_STAGE_HISTORY_SCHEMA SOURCE_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply \"\$dir\"")"
+          printf '%s\n' "$result"
+          printf '%s\n' "$result" | grep -qx STAGE_WHATSAPP_HISTORY_SCHEMA_PREPARED_RUNTIME_FLAG_PENDING
+
   devserver01-stage-historical-cutover:
     name: MO-REL06 historical rows and SQL002 rollback-only staging drill
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'MO-REL06-HISTORICAL-STAGE-APPROVED') }}
