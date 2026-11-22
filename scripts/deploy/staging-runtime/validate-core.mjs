@@ -26,7 +26,7 @@ async function oauth(client,secret,username){
   }catch(error){if(attempt===20)throw error;await sleep(2000);continue}
   if(r.status===200)return (await r.json()).access_token;
   console.error('STAGE_IDP_TOKEN_STATUS='+r.status+' attempt='+attempt);
-  if(![502,503,504].includes(r.status)||attempt===20)throw Error('Stage IdP token unavailable');
+  if(![404,502,503,504].includes(r.status)||attempt===20)throw Error('Stage IdP token unavailable');
   await sleep(2000);
  }
  throw Error('Stage IdP token unavailable');
