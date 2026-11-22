@@ -161,8 +161,13 @@ async function main(){
   const pb=(await api('crm/people',{token:tokenB,org:B,ws:B1,method:'POST',body:{name:'Stage Beta '+randomUUID()},statuses:[201]})).data;
   assert(pa.id&&pb.id);
   await api('crm/people/'+pb.id,{token:tokenA,statuses:[404]});
-  const csv=await api('crm/exports/csv?kind=people',{token:tokenA});
-  assert(!csv.text.includes(pb.name));
+  await api('crm/people/'+pa.id,{token:tokenB,org:B,ws:B1,statuses:[404]});
+  const csvA=await api('crm/exports/csv?kind=people',{token:tokenA});
+  const csvB=await api('crm/exports/csv?kind=people',{token:tokenB,org:B,ws:B1});
+  assert(csvA.text.includes(pa.name)&&!csvA.text.includes(pb.name));
+  assert(csvB.text.includes(pb.name)&&!csvB.text.includes(pa.name));
+  await api('crm/exports/csv?kind=people',{token:tokenB,org:A,ws:A1,statuses:[403]});
+  console.log('STAGE_CRM_CSV_BOTH_ORGS_OWN_ROWS_ONLY_PASS');
   const sa=await stream(tokenA,A,A1),sb=await stream(tokenB,B,B1);
   const beforeB=sb.events;
   const ca=(await api('inbox/conversations',{token:tokenA,method:'POST',body:{subject:'Stage A '+randomUUID()},statuses:[201]})).data;
@@ -240,7 +245,12 @@ async function main(){
   await eventually(async()=>Number((await db.query("SELECT count(*) n FROM whatsapp_inbound_events WHERE tenant_id=$1 AND account_id=ANY($2::uuid[]) AND processed_at IS NOT NULL",[tid,accounts])).rows[0].n)===2,20000);
   const routes=(await db.query('SELECT c.id,c.platform_organization_id AS org,c.platform_current_workspace_id AS ws FROM whatsapp_conversation_routes r JOIN inbox_conversations c ON c.tenant_id=r.tenant_id AND c.id=r.conversation_id WHERE r.tenant_id=$1 AND r.account_id=ANY($2::uuid[])',[tid,accounts])).rows;
   assert(routes.length===2&&routes.some(x=>x.org===A&&x.ws===A1)&&routes.some(x=>x.org===B&&x.ws===B1));
-  await api('inbox/conversations/'+routes.find(x=>x.org===B).id,{token:tokenA,statuses:[404]});
+  const routeA=routes.find(x=>x.org===A);
+  const routeB=routes.find(x=>x.org===B);
+  await api('inbox/conversations/'+routeB.id,{token:tokenA,statuses:[404]});
+  assert((await api('inbox/conversations/'+routeA.id,{token:tokenA})).data.channel==='whatsapp');
+  await api('inbox/conversations/'+routeA.id+'/history',{token:tokenA,method:'POST',statuses:[403]});
+  console.log('STAGE_WHATSAPP_HISTORY_SYNC_MULTI_ORG_DENY_PASS');
   await db.query("UPDATE platform_organizations SET status='archived' WHERE tenant_id=$1 AND id=$2",[tid,B]);
   try{
    const e={...envelopes[1],message:{...envelopes[1].message,externalMessageId:'archive-'+randomUUID()}};

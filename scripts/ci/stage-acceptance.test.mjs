@@ -6,6 +6,8 @@ test('stage acceptance refuses unauthenticated invocation and never restores ove
  const script='scripts/deploy/devserver01-stage-acceptance.sh';
  const denied=spawnSync('bash',[script,'verify','/tmp/nonexistent'],{env:{...process.env,SYNDES_STAGE_ACCEPTANCE_APPROVAL:''},encoding:'utf8'});
  assert.equal(denied.status,2);assert.equal(denied.stdout,'');
+ const functionalDenied=spawnSync('bash',[script,'functional','/tmp/nonexistent'],{env:{...process.env,SYNDES_STAGE_ACCEPTANCE_APPROVAL:''},encoding:'utf8'});
+ assert.equal(functionalDenied.status,2);assert.equal(functionalDenied.stdout,'');
  const [shell,verify,compare,outage]=await Promise.all([
   readFile(script,'utf8'),readFile('scripts/deploy/staging-runtime/validate-core.mjs','utf8'),
   readFile('scripts/deploy/staging-runtime/compare-restore.mjs','utf8'),
@@ -26,6 +28,9 @@ test('stage acceptance refuses unauthenticated invocation and never restores ove
  assert.match(shell,/ACCEPTANCE_RECOVERY=capture operator/);
  assert.match(shell,/ACCEPTANCE_RECOVERY=verify operator/);
  assert.ok(shell.includes(recoveryMarker));
+ assert.match(shell,/if \[\[ "\$mode" == functional \]\];then[\s\S]*?STAGE_FUNCTIONAL_ACCEPTANCE_WITHOUT_RECOVERY_PASS\s+exit 0\s+fi\s+# Use a DIFFERENT port/);
+ assert.match(verify,/STAGE_CRM_CSV_BOTH_ORGS_OWN_ROWS_ONLY_PASS/);
+ assert.match(verify,/routeA\.id\+'\/history'.*statuses:\[403\]/);
  assert.match(compare,/pairs.length!==5/);assert.match(compare,/jsonb_agg/);
  assert.match(outage,/count\(\)!==before/);assert.match(outage,/\[403,503\]/);
  for(const f of ['validate-core','compare-restore','outage'])assert.equal(spawnSync('node',['--check','scripts/deploy/staging-runtime/'+f+'.mjs']).status,0);
