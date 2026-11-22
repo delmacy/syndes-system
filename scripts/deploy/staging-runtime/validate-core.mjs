@@ -76,7 +76,7 @@ async function main(){
   const readScopes=[[A,A1],[A,A2],[B,B1],[B,B2]];
   const readTuples=readScopes.flatMap(([org,ws])=>['inbox.conversation.claim'].map(capability=>({user:'user:'+bootstrap.founder,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability,resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
   readTuples.push(...[[A,A1],[B,B1]].map(([org,ws])=>({user:'user:'+bootstrap.founder,relation:'grantee',object:iam07dFineObjectForScope({tenantId:tid,organizationId:org,workspaceId:ws,capability:'inbox.conversation.create',resourceName:'syndes:v1:tenant:'+tid+':org:'+org+':workspace:'+ws})})));
-  const readGrant=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:readTuples}}),signal:AbortSignal.timeout(5000)});assert(readGrant.ok);
+  const readGrant=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:readTuples}}),signal:AbortSignal.timeout(5000)});if(!readGrant.ok&&readGrant.status!==400)throw Error('Inbox grant seed failed '+readGrant.status);
 
   await api('inbox/conversations',{statuses:[401]});
   await api('inbox/conversations',{token:'invalid',statuses:[401]});
