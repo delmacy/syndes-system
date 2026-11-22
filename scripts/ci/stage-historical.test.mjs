@@ -20,6 +20,8 @@ test('historical stage drill is authorized and rollback-only',async()=>{
  assert.match(fixture,/SELECT to_regnamespace/);
  assert.match(fixture,/platform_backfill_legacy_ownership/);
  assert.match(fixture,/activate_multiple_organizations.sql/);
+ for(const release of ['008_iam07d_revoke_first_candidate','009_iam_multiorg_fence_candidate','010_iam07d_cutover_capabilities_candidate'])
+  assert.match(fixture,new RegExp(release));
  assert.equal(spawnSync('bash',['-n',script]).status,0);
  assert.equal(spawnSync('node',['--check','scripts/deploy/staging-runtime/historical-cutover.mjs']).status,0);
 });
