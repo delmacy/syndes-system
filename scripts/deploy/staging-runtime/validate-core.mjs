@@ -3,7 +3,7 @@ import {readFile,writeFile} from 'node:fs/promises';
 import {lookup} from 'node:dns/promises';
 import {randomUUID,createHash} from 'node:crypto';
 import pg from '/workspace/apps/core-host/node_modules/pg/lib/index.js';
-import {TenantPgProvider} from '/workspace/apps/core-host/dist/tenant-database.js';
+import {TenantPgProvider,TenantCredentialSource} from '/workspace/apps/core-host/dist/tenant-database.js';
 import {WhatsAppInboundStore} from '/workspace/modules/whatsapp/dist/inbound-http.js';
 import {WhatsAppOutboundRelay} from '/workspace/modules/whatsapp/dist/outbound-relay.js';
 import {iam07dFineObjectForScope} from '/workspace/apps/core-host/dist/iam07d-fine-fga-policy.js';
@@ -140,6 +140,16 @@ async function main(){
    await audit.query('COMMIT');
   }catch(error){await audit.query('ROLLBACK');throw error}finally{audit.release()}
   console.error('STAGE_GREENFIELD_DEFAULT_OWNERSHIP_AUDIT_PASS');
+  phase='tenant-connect-diagnostic';
+  const role='syndes_t_'+tid.replaceAll('-','');
+  const acl=(await db.query("SELECT has_database_privilege($1,$2,'CONNECT') AS allowed",[role,'syndes_tenant_'+tid.replaceAll('-','')])).rows[0].allowed;
+  let credentials='unknown',connection='unknown';
+  try{
+   const password=await new TenantCredentialSource().password(tid,role);credentials='ok';
+   const probe=new pg.Pool({host:'control-postgres',user:role,password,database:'syndes_tenant_'+tid.replaceAll('-',''),max:1,connectionTimeoutMillis:3000});
+   try{await probe.query('SELECT 1');connection='ok'}finally{await probe.end()}
+  }catch(error){connection=String(error?.code??error?.message??'error').replace(/[^a-zA-Z0-9_ -]/g,'_').slice(0,90)}
+  console.error('STAGE_TENANT_RESTORE_DIAG acl='+acl+' credentials='+credentials+' connection='+connection);
   phase='http-matrix';
   // Same signed founder subject may read all four workspaces. Membership
   // alone never supplies a fine write grant in A2/B2.
