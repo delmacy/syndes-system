@@ -14,7 +14,7 @@ pg="$(docker ps -q --filter label=com.docker.compose.project=syndes-postgres --f
 psql_server(){
  local database="$1"
  shift
- docker exec -i -e 'PGOPTIONS=-c statement_timeout=15000 -c lock_timeout=3000' "$pg" \
+ docker exec -e 'PGOPTIONS=-c statement_timeout=15000 -c lock_timeout=3000' "$pg" \
   psql -XAt -v ON_ERROR_STOP=1 -U postgres -d "$database" "$@"
 }
 phase=postgres-version
