@@ -49,22 +49,19 @@ O Host já carrega descritores confiáveis via arquivo fixo `config/modules.json
 
 ## Isolated multi-org staging secret boundary
 
-Set trusted process configuration `SYNDES_DEPLOYMENT_ENV=staging` to read only
-`kv/data/multi-org-staging/core-host` and
-`kv/data/multi-org-staging/tenants/<validated-tenant-uuid>`. There is no retry or
-fallback to production secrets. Missing environment configuration preserves the
-existing production contract; unknown environment names fail closed.
+The DevServer01 staging Compose uses `SYNDES_DEPLOYMENT_ENV=staging` and
+`CORE_SECRET_PROVIDER=files`. GitHub Actions prepares protected host
+credentials and mounts `/run/secrets/stage-core.json` and
+`/run/secrets/stage-tenants/<validated-tenant-uuid>.json` read-only for the
+Core. Each file declares the `multi-org-staging` namespace. A missing file
+or invalid target fails closed.
 
 Staging Control credentials must target `control-postgres:5432`, database
 `syndes_staging_control`, login `syndes_staging_core`. Tenant connections use
-that same fixed staging hostname and retain the active Control registry check
-and per-tenant role validation. Neither hostname nor KV prefix is HTTP input.
-Use separate staging OpenBao AppRoles with the minimal policies in
-`infra/multiorg-staging/core-host-policy.hcl` and `tenant-db-policy.hcl`, verified
-TLS and protected bootstrap files. Tokens are revoked after each read,
-including failed reads and invalid database targets.
+the same fixed staging hostname, the active Control registry and the
+expected role for the requested tenant UUID.
 
-This code does not provision OpenBao, SQL logins, roles or entitlements, grant
-FGA access, activate multi-org, deploy the Core or approve a release. Those
-operator actions still require the SHA-pinned Actions staging workflow and
-actual integration/restore evidence.
+The operational deployment uses the OpenBao source and its existing scoped
+AppRoles. Explicit OpenBao staging remains covered by disposable TLS tests
+with the fixtures under `tests/platform/fixtures/openbao/`. The runtime
+provider and database host come from trusted process configuration.
