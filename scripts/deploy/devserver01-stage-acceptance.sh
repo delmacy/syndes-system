@@ -134,10 +134,13 @@ for source in syndes_staging_control syndes_staging_keycloak syndes_staging_open
  if [[ "$source" =~ ^syndes_tenant_([a-f0-9]{32})$ ]];then
   tenant_role="syndes_t_${BASH_REMATCH[1]}"
   source_connect="$(docker exec "$pg" psql -X -At -U postgres -d postgres -c "SELECT has_database_privilege('$tenant_role','$source','CONNECT')")"
-  [[ "$source_connect" == t ]] || exit 5
-  docker exec "$pg" psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres -c "GRANT CONNECT ON DATABASE $target TO $tenant_role" >/dev/null
+  [[ "$source_connect" == t || "$source_connect" == f ]] || exit 5
+  if [[ "$source_connect" == t ]];then
+   docker exec "$pg" psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres -c "GRANT CONNECT ON DATABASE $target TO $tenant_role" >/dev/null
+  fi
   target_connect="$(docker exec "$pg" psql -X -At -U postgres -d postgres -c "SELECT has_database_privilege('$tenant_role','$target','CONNECT')")"
-  [[ "$target_connect" == t ]] || exit 5
+  [[ "$target_connect" == "$source_connect" ]] || exit 5
+  printf 'STAGE_RESTORE_TENANT_CONNECT_MATCH index=%s allowed=%s\n' "$counter" "$target_connect" >&2
  fi
  sources+=("$source");targets+=("$target");archives+=("syndes_stage_archive_${nonce}_$counter")
  if ((counter>0));then printf ',' >> "$map_file";fi
