@@ -20,6 +20,7 @@ one(){
 pg="$(one control-postgres)";core="$(one core-host)";kc="$(one keycloak)";fga="$(one openfga)"
 [[ "$(docker inspect -f '{{.Config.Image}}' "$pg")" == postgres:17-alpine ]] || exit 3
 [[ "$(docker inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$core")" == "$EXPECTED_CORE_SHA" ]] || exit 3
+[[ -z "$(docker ps -q --filter label=com.docker.compose.project=syndes-multiorg-staging --filter label=syndes.component=openbao-stage)" ]] || exit 3
 image="$(docker inspect -f '{{.Image}}' "$core")"
 [[ "$image" =~ ^sha256:[a-f0-9]{64}$ ]] || exit 3
 printf 'STAGE_VERIFIED_CORE_SOURCE=%s\nSTAGE_VERIFIED_CORE_IMAGE=%s\n' "$EXPECTED_CORE_SHA" "$image"
@@ -52,11 +53,9 @@ operator(){
  -e NODE_EXTRA_CA_CERTS=/run/runtime/tls/server.crt \
  -e SYNDES_STAGE_ACCEPTANCE=ACTIONS_STAGE_ONLY -e SYNDES_STAGE_RESTORE=ACTIONS_STAGE_ONLY \
  -e SYNDES_STAGE_OUTAGE=ACTIONS_STAGE_ONLY -e "OUTAGE_MODE=${OUTAGE_MODE:-cleanup}" \
- -e "VAULT_SNAPSHOT_MODE=${VAULT_SNAPSHOT_MODE:-backup}" \
  -e "ACCEPTANCE_RECOVERY=${ACCEPTANCE_RECOVERY:-}" \
- -e SYNDES_DEPLOYMENT_ENV=staging -e CORE_OPENBAO_URL=https://openbao-stage:8200 \
- -e CORE_TENANT_ROLE_ID_FILE=/run/stage/bao-tenant-role-id \
- -e CORE_TENANT_SECRET_ID_FILE=/run/stage/bao-tenant-secret-id \
+ --mount "type=bind,src=$root/secrets/stage-tenants,dst=/run/secrets/stage-tenants,readonly" \
+ -e SYNDES_DEPLOYMENT_ENV=staging -e CORE_SECRET_PROVIDER=files \
  -e "SOURCE_SHA=$SOURCE_SHA" --entrypoint node "$image" "$1" </dev/null
 }
 if [[ "$mode" == functional ]];then
@@ -109,10 +108,6 @@ recover(){
 }
 trap recover EXIT
 docker stop "$core" >/dev/null;core_stopped=1
-VAULT_SNAPSHOT_MODE=backup operator /run/bundle/vault-snapshot.mjs
-cp "$root/runtime/bao.snapshot.enc" "$root/backups/acceptance-$SOURCE_SHA-bao.snapshot.enc"
-chmod 600 "$root/backups/acceptance-$SOURCE_SHA-bao.snapshot.enc"
-printf 'STAGE_ENCRYPTED_OPENBAO_SHA256=%s\n' "$(cat "$root/runtime/bao.snapshot.sha256")"
 docker pause "$kc" >/dev/null;kc_paused=1
 docker pause "$fga" >/dev/null;fga_paused=1
 started="$(date +%s)"
@@ -176,7 +171,6 @@ for ((i=0;i<${#sources[@]};i++));do
  fi
  swapped+=("$i")
 done
-VAULT_SNAPSHOT_MODE=restore operator /run/bundle/vault-snapshot.mjs
 docker start "$kc" >/dev/null;kc_stopped=0
 docker start "$fga" >/dev/null;fga_stopped=0
 docker restart "$(one identity-stage)" >/dev/null

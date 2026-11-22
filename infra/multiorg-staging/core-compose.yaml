@@ -23,21 +23,15 @@ services:
       CORE_IAM_TENANT_OIDC_CLIENT_ID: syndes-pilot-staging-login
       CORE_IAM_ORG_READER_CLIENT_ID: syndes-stage-org-reader
       CORE_IAM_ORG_READER_SECRET_FILE: /run/secrets/org-reader-secret
-      CORE_OPENBAO_URL: https://openbao-stage:8200
-      CORE_BAO_ROLE_ID_FILE: /run/secrets/bao-core-role-id
-      CORE_BAO_SECRET_ID_FILE: /run/secrets/bao-core-secret-id
-      CORE_TENANT_ROLE_ID_FILE: /run/secrets/bao-tenant-role-id
-      CORE_TENANT_SECRET_ID_FILE: /run/secrets/bao-tenant-secret-id
+      CORE_SECRET_PROVIDER: files
       CORE_OPENFGA_URL: http://openfga:8080
       CORE_OPENFGA_STORE_ID: ${STAGE_FGA_STORE_ID:?verified stage store required}
       CORE_IAM07D_FINE_FGA_STORE_ID: ${STAGE_FGA_STORE_ID:?verified stage store required}
       WHATSAPP_DISPATCH_ENABLED: 'true'
     volumes:
       - /home/delmacy/.local/share/syndes-multiorg-staging/runtime/tls/server.crt:/run/secrets/stage-ca.crt:ro
-      - /home/delmacy/.local/share/syndes-multiorg-staging/secrets/bao-core-role-id:/run/secrets/bao-core-role-id:ro
-      - /home/delmacy/.local/share/syndes-multiorg-staging/secrets/bao-core-secret-id:/run/secrets/bao-core-secret-id:ro
-      - /home/delmacy/.local/share/syndes-multiorg-staging/secrets/bao-tenant-role-id:/run/secrets/bao-tenant-role-id:ro
-      - /home/delmacy/.local/share/syndes-multiorg-staging/secrets/bao-tenant-secret-id:/run/secrets/bao-tenant-secret-id:ro
+      - /home/delmacy/.local/share/syndes-multiorg-staging/secrets/stage-core.json:/run/secrets/stage-core.json:ro
+      - /home/delmacy/.local/share/syndes-multiorg-staging/secrets/stage-tenants:/run/secrets/stage-tenants:ro
       - /home/delmacy/.local/share/syndes-multiorg-staging/secrets/org-reader-secret:/run/secrets/org-reader-secret:ro
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:8082/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]

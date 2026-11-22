@@ -44,11 +44,11 @@ if [[ ! -e "$root/runtime/tls/server.key" && ! -e "$root/runtime/tls/server.crt"
  openssl req -x509 -newkey rsa:3072 -sha256 -nodes -days 365 \
   -keyout "$root/runtime/tls/server.key" -out "$root/runtime/tls/server.crt" \
   -subj '/CN=syndes-isolated-staging' \
-  -addext 'subjectAltName=DNS:identity-stage,DNS:openbao-stage,DNS:localhost' >/dev/null 2>&1
+  -addext 'subjectAltName=DNS:identity-stage,DNS:localhost' >/dev/null 2>&1
  chmod 444 "$root/runtime/tls/server.key" "$root/runtime/tls/server.crt"
 fi
 [[ -s "$root/runtime/tls/server.key" && -s "$root/runtime/tls/server.crt" ]] || exit 4
-for spec in runtime-compose.yaml identity.conf openbao.hcl;do
+for spec in runtime-compose.yaml identity.conf;do
  [[ -f "$bundle/$spec" && ! -L "$bundle/$spec" ]] || exit 4
  if [[ -e "$root/runtime/$spec" && "$(sha256sum "$root/runtime/$spec" | cut -d' ' -f1)" != "$(sha256sum "$bundle/$spec" | cut -d' ' -f1)" ]];then
   cp "$root/runtime/$spec" "$root/runtime/$spec.previous-$SOURCE_SHA"
@@ -58,7 +58,6 @@ for spec in runtime-compose.yaml identity.conf openbao.hcl;do
 done
 compose=(docker compose --project-name "$project" -f "$root/compose.yaml" -f "$root/runtime/runtime-compose.yaml")
 "${compose[@]}" config --quiet
-"${compose[@]}" up -d --no-deps openbao-stage </dev/null >/dev/null
 # Recreate only isolated Keycloak if its pinned HTTPS hostname isn't applied.
 if ! docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$kc" | grep -qx 'KC_HOSTNAME=https://identity-stage:8443';then
  "${compose[@]}" up -d --no-deps --force-recreate keycloak </dev/null >/dev/null
@@ -78,6 +77,6 @@ result="$(docker run --rm --user "$(id -u):$(id -g)" --network syndes-multiorg-s
  -e NODE_EXTRA_CA_CERTS=/run/stage-ca.crt -e SYNDES_STAGE_SETUP=ACTIONS_ISOLATED_STAGE_ONLY \
  -e "SOURCE_SHA=$SOURCE_SHA" --entrypoint node "$image" /run/bundle/setup.mjs </dev/null)"
 printf '%s\n' "$result"
-for marker in STAGE_RUNTIME_KEYCLOAK_HTTPS_ISSUER_JWKS_PASS STAGE_RUNTIME_RESTRICTED_KEYCLOAK_READER_READ_ALLOW_WRITE_DENY_PASS STAGE_RUNTIME_CORE_SQL_LOGIN_LEAST_PRIVILEGE_PASS STAGE_RUNTIME_OPENBAO_TLS_APPROLE_OWN_READ_PRODUCTION_CROSS_ROLE_DENY_REVOKE_PASS STAGE_RUNTIME_FOUNDATION_COMPLETE_NOT_CORE_HTTP;do
+for marker in STAGE_RUNTIME_KEYCLOAK_HTTPS_ISSUER_JWKS_PASS STAGE_RUNTIME_RESTRICTED_KEYCLOAK_READER_READ_ALLOW_WRITE_DENY_PASS STAGE_RUNTIME_CORE_SQL_LOGIN_LEAST_PRIVILEGE_PASS STAGE_RUNTIME_FILE_CREDENTIALS_SCOPED_LOGIN_PASS STAGE_RUNTIME_FOUNDATION_COMPLETE_NOT_CORE_HTTP;do
  printf '%s\n' "$result" | grep -qx "$marker"
 done

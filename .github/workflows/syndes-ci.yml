@@ -1845,7 +1845,7 @@ jobs:
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
           timeout 30s tailscale ssh "delmacy@$DEVSERVER_PEER" 'test "$(id -un)" = delmacy && test "$(hostname -s)" = DevServer01'
           printf '%s' "$GH_TOKEN" | timeout 600s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; config=\$(mktemp -d /home/delmacy/.local/share/syndes-multiorg-staging/runtime/registry.XXXXXXXX); trap 'rm -rf \"\$config\"' EXIT; docker --config \"\$config\" login ghcr.io -u '$GITHUB_ACTOR' --password-stdin >/dev/null; docker --config \"\$config\" pull $IMAGE_REF >/dev/null; docker tag $IMAGE_REF syndes/core-host:stage-$SOURCE_SHA"
-      - name: Deploy isolated TLS OpenBao SQL login and Keycloak reader
+      - name: Deploy isolated file credentials, SQL login and Keycloak reader
         id: deploy
         run: |
           set -Eeuo pipefail
@@ -1853,8 +1853,8 @@ jobs:
           bundle="$(mktemp -d)"; trap 'rm -rf "$bundle"' EXIT; chmod 700 "$bundle"
           cp scripts/deploy/devserver01-stage-runtime-foundation.sh "$bundle/runner.sh"
           cp scripts/deploy/staging-runtime/setup.mjs "$bundle/"
-          cp infra/multiorg-staging/{runtime-compose.yaml,identity.conf,openbao.hcl,core-host-policy.hcl,tenant-db-policy.hcl} "$bundle/"
-          (cd "$bundle" && sha256sum *.sh *.mjs *.yaml *.conf *.hcl > MANIFEST.sha256)
+          cp infra/multiorg-staging/{runtime-compose.yaml,identity.conf} "$bundle/"
+          (cd "$bundle" && sha256sum *.sh *.mjs *.yaml *.conf > MANIFEST.sha256)
           result="$(tar -czf - -C "$bundle" . | timeout 540s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-stage-runtime.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_STAGE_RUNTIME_APPROVAL=ACTIONS_APPROVED_STAGE_RUNTIME SOURCE_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply \"\$dir\" syndes/core-host:stage-$SOURCE_SHA")"
           printf '%s\n' "$result"
           printf '%s\n' "$result" | grep -qx STAGE_RUNTIME_FOUNDATION_COMPLETE_NOT_CORE_HTTP
@@ -1866,7 +1866,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           [[ "$DEPLOY" =~ ^(success|failure|skipped|cancelled)$ ]]
-          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "MO-REL04 stage runtime foundation. Main=$SOURCE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$DEPLOY. TLS issuer, restricted KC reader, minimal SQL login and isolated OpenBao AppRoles. No operational/customer SQL or Core HTTP deployment claimed. PRODUCTION_GATE=BLOCKED."
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "MO-REL04 stage runtime foundation. Main=$SOURCE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$DEPLOY. TLS issuer, restricted KC reader, minimal SQL login and isolated file credentials. No operational/customer SQL or Core HTTP deployment claimed. PRODUCTION_GATE=BLOCKED."
 
   devserver01-stage-core-runtime:
     # Re-evaluate after foundation on every approved Core release.
@@ -1928,6 +1928,7 @@ jobs:
           result="$(tar -czf - -C "$bundle" . | timeout 540s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-stage-runtime.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_STAGE_CORE_APPROVAL=ACTIONS_APPROVED_STAGE_CORE SOURCE_SHA=$SOURCE_SHA bash \"\$dir/runner.sh\" apply \"\$dir\" syndes/core-host:stage-$SOURCE_SHA")"
           printf '%s\n' "$result"
           printf '%s\n' "$result" | grep -qx STAGE_CORE_MAIN_NEST_IMAGE_READY_NONROOT_SINGLETON_PASS
+          printf '%s\n' "$result" | grep -qx STAGE_CORE_FILE_CREDENTIALS_START_WITHOUT_OPENBAO_PASS
       - name: Record exact Core runtime result
         if: always()
         env:
@@ -1936,12 +1937,12 @@ jobs:
         run: |
           set -Eeuo pipefail
           [[ "$DEPLOY" =~ ^(success|failure|skipped|cancelled)$ ]]
-          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "MO-REL04 Core staging runtime. Main=$SOURCE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$DEPLOY. Actual source-pinned Nest Core, enforced modules, explicit grants, non-root runtime and singleton admission. No production or customer SQL touched. PRODUCTION_GATE=BLOCKED."
+          gh issue comment 208 --repo "$GITHUB_REPOSITORY" --body "MO-REL04 Core staging runtime. Main=$SOURCE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$DEPLOY. Actual source-pinned Nest Core, enforced modules, explicit grants, non-root runtime, singleton admission and startup without OpenBao. No production or customer SQL touched. PRODUCTION_GATE=BLOCKED."
 
   devserver01-stage-acceptance-restore:
     name: MO-REL05 real staging acceptance and encrypted restore
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (contains(github.event.head_commit.message, 'MO-REL05-STAGE-ACCEPTANCE-RESTORE-APPROVED') || contains(github.event.head_commit.message, 'MO-REL01-STAGE-FUNCTIONAL-APPROVED')) }}
-    needs: [gate]
+    needs: [gate, devserver01-stage-core-runtime]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     environment: devserver01
@@ -1952,7 +1953,7 @@ jobs:
     env:
       ACCEPTANCE_MODE: ${{ contains(github.event.head_commit.message, 'MO-REL05-STAGE-ACCEPTANCE-RESTORE-APPROVED') && 'verify' || 'functional' }}
       SOURCE_SHA: ${{ github.sha }}
-      EXPECTED_CORE_SHA: 1e795f2d7579a021d230b8ba89347db95f744b7b
+      EXPECTED_CORE_SHA: ${{ github.sha }}
       DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
       TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
     steps:
@@ -1981,7 +1982,7 @@ jobs:
           [[ "$ACCEPTANCE_MODE" == functional || "$ACCEPTANCE_MODE" == verify ]]
           bundle="$(mktemp -d)"; trap 'rm -rf "$bundle"' EXIT; chmod 700 "$bundle"
           cp scripts/deploy/devserver01-stage-acceptance.sh "$bundle/runner.sh"
-          cp scripts/deploy/staging-runtime/{validate-core,outage,compare-restore,vault-snapshot}.mjs "$bundle/"
+          cp scripts/deploy/staging-runtime/{validate-core,outage,compare-restore}.mjs "$bundle/"
           cp infra/multiorg-staging/identity.conf "$bundle/"
           (cd "$bundle" && sha256sum *.sh *.mjs *.conf > MANIFEST.sha256)
           result="$(tar -czf - -C "$bundle" . | timeout 1800s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-stage-acceptance.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_STAGE_ACCEPTANCE_APPROVAL=ACTIONS_APPROVED_STAGE_ACCEPTANCE SOURCE_SHA=$SOURCE_SHA EXPECTED_CORE_SHA=$EXPECTED_CORE_SHA bash \"\$dir/runner.sh\" $ACCEPTANCE_MODE \"\$dir\"")"
@@ -2007,7 +2008,7 @@ jobs:
             gh issue comment 193 --repo "$GITHUB_REPOSITORY" --body "MO-REL01 functional staging. Source=$SOURCE_SHA Core image source=$EXPECTED_CORE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$VERIFY. No backup or restore. PRODUCTION_GATE=BLOCKED."
             exit 0
           fi
-          body="MO-REL05/06 stage acceptance and actual recovery. Test source=$SOURCE_SHA Core image source=$EXPECTED_CORE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$VERIFY. Real HTTP, signed IdP, exact FGA revocation, SQL fence, SSE, synthetic WhatsApp worker, provider outages, encrypted five-database restore and OpenBao raft restore. Same Core image reruns acceptance after canonical restored database activation; original databases preserved for compensation. No production/customer SQL or real WhatsApp side effect. PRODUCTION_GATE=BLOCKED."
+          body="MO-REL05/06 stage acceptance and actual recovery. Test source=$SOURCE_SHA Core image source=$EXPECTED_CORE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$VERIFY. Real HTTP, signed IdP, exact FGA revocation, SQL fence, SSE, synthetic WhatsApp worker, provider outages, encrypted five-database restore using the existing isolated file credentials. Same Core image reruns acceptance after canonical restored database activation; original databases preserved for compensation. No production/customer SQL or real WhatsApp side effect. PRODUCTION_GATE=BLOCKED."
           for issue in 208 209 210; do gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$body"; done
 
   devserver01-tenant-topology-inventory:

@@ -13,7 +13,9 @@ test('Core staging release requires verified artifacts, nonroot singleton and ap
  assert.match(script,/org.opencontainers.image.revision/);
  assert.match(script,/previous_image/);assert.match(script,/timeout 20s docker exec/);
  assert.match(compose,/user: '10001:10001'/);assert.match(compose,/read_only: true/);
- assert.match(compose,/CORE_OPENBAO_URL: https:\/\/openbao-stage/);
+ assert.match(compose,/CORE_SECRET_PROVIDER: files/);
+ assert.doesNotMatch(compose,/CORE_OPENBAO_URL|bao-tenant-role-id/);
+ assert.match(script,/STAGE_CORE_FILE_CREDENTIALS_START_WITHOUT_OPENBAO_PASS/);
  assert.match(compose,/SYNDES_CRM_MODULE_GATE: enforce/);
  assert.doesNotMatch(compose,/ports:|privileged:|CORE_CONTROL_DB_URL|CORE_OPENFGA_TOKEN|syndes-data/);
  assert.match(setup,/Ready replay NEVER recreates a revoked grant/);
