@@ -2,7 +2,8 @@
 # Real acceptance and recovery of stage only. Never modifies a source DB on restore.
 set -Eeuo pipefail
 umask 077
-[[ "$#" == 2 && "$1" == verify ]] || exit 2
+[[ "$#" == 2 && ( "$1" == verify || "$1" == functional ) ]] || exit 2
+mode="$1"
 [[ "${SYNDES_STAGE_ACCEPTANCE_APPROVAL:-}" == ACTIONS_APPROVED_STAGE_ACCEPTANCE ]] || exit 2
 [[ "${SOURCE_SHA:-}" =~ ^[a-f0-9]{40}$ && "${EXPECTED_CORE_SHA:-}" =~ ^[a-f0-9]{40}$ ]] || exit 2
 [[ "$(id -un)" == delmacy && "$(hostname -s)" == DevServer01 ]] || exit 2
@@ -24,6 +25,7 @@ image="$(docker inspect -f '{{.Image}}' "$core")"
 printf 'STAGE_VERIFIED_CORE_SOURCE=%s\nSTAGE_VERIFIED_CORE_IMAGE=%s\n' "$EXPECTED_CORE_SHA" "$image"
 operator_bundle="$root/runtime/acceptance-$SOURCE_SHA"
 mkdir -p -m 700 "$operator_bundle";cp "$bundle"/* "$operator_bundle/"
+if [[ "$mode" == verify ]];then
 # The proxy bind mount points to this file inode; update its contents in place,
 # then restart Nginx so the validated DNS resolver config is actually loaded.
 [[ -f "$root/runtime/identity.conf" && ! -L "$root/runtime/identity.conf" ]] || exit 3
@@ -40,6 +42,7 @@ if ! docker restart "$(one identity-stage)" >/dev/null;then
  rm -f "$previous_proxy";exit 5
 fi
 rm -f "$previous_proxy"
+fi
 operator(){
  docker run --rm --user "$(id -u):$(id -g)" --network syndes-multiorg-staging_staging_internal \
  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m --cap-drop ALL --security-opt no-new-privileges \
@@ -56,6 +59,12 @@ operator(){
  -e CORE_TENANT_SECRET_ID_FILE=/run/stage/bao-tenant-secret-id \
  -e "SOURCE_SHA=$SOURCE_SHA" --entrypoint node "$image" "$1" </dev/null
 }
+if [[ "$mode" == functional ]];then
+ result="$(operator /run/bundle/validate-core.mjs)";printf '%s\n' "$result"
+ printf '%s\n' "$result" | grep -qx STAGE_CORE_REAL_HTTP_IDP_FGA_SQL_WORKER_SSE_ACCEPTANCE_PASS
+ echo STAGE_FUNCTIONAL_ACCEPTANCE_WITHOUT_RECOVERY_PASS
+ exit 0
+fi
 # Use a DIFFERENT port: denial cannot be explained by address-in-use.
 if timeout 20s docker exec -e CORE_PORT=8083 "$core" node dist/main.js </dev/null > "$root/runtime/acceptance-second-core.log" 2>&1;then
  echo STAGE_ACCEPTANCE_BLOCKED_SECOND_CORE_ADMITTED;exit 5
