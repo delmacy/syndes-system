@@ -2068,3 +2068,64 @@ jobs:
           [[ "$VERIFY" =~ ^(success|failure|skipped|cancelled)$ ]]
           body="MO-REL05/06 stage acceptance and actual recovery. Test source=$SOURCE_SHA Core image source=$EXPECTED_CORE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$VERIFY. Real HTTP, signed IdP, exact FGA revocation, SQL fence, SSE, synthetic WhatsApp worker, provider outages, encrypted five-database restore and OpenBao raft restore. Same Core image reruns acceptance after canonical restored database activation; original databases preserved for compensation. No production/customer SQL or real WhatsApp side effect. PRODUCTION_GATE=BLOCKED."
           for issue in 208 209 210; do gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$body"; done
+
+  devserver01-stage-historical-cutover:
+    name: MO-REL06 historical rows and SQL002 rollback-only staging drill
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'MO-REL06-HISTORICAL-STAGE-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      EXPECTED_CORE_SHA: 1e795f2d7579a021d230b8ba89347db95f744b7b
+      DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify exact stage-only source and historical script contract
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEVSERVER_PEER" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          node --test scripts/ci/stage-historical.test.mjs
+      - name: Join trusted Tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Execute rollback-only historical schema in staging PostgreSQL17
+        id: verify
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          bundle="$(mktemp -d)"; trap 'rm -rf "$bundle"' EXIT; chmod 700 "$bundle"
+          cp scripts/deploy/devserver01-stage-historical.sh "$bundle/runner.sh"
+          cp scripts/deploy/staging-runtime/historical-cutover.mjs "$bundle/"
+          for domain in core-crm inbox whatsapp organizations; do mkdir -p "$bundle/sql/$domain"; done
+          cp modules/core-crm/sql/{001_crm_foundation,002_crm_tags_notes,003_crm_employees_channels}.sql "$bundle/sql/core-crm/"
+          cp modules/inbox/sql/001_inbox_foundation.sql "$bundle/sql/inbox/"
+          cp modules/whatsapp/sql/00{1,2,3,4,5,6,7}_*.sql "$bundle/sql/whatsapp/"
+          cp modules/organizations/sql/00{1,2,3,4,5,6}_*.sql "$bundle/sql/organizations/"
+          mkdir -p "$bundle/sql/organizations/manual"
+          cp modules/organizations/sql/manual/activate_multiple_organizations.sql "$bundle/sql/organizations/manual/"
+          (cd "$bundle" && find . -type f ! -name MANIFEST.sha256 -print0 | sort -z | xargs -0 sha256sum > MANIFEST.sha256)
+          result="$(tar -czf - -C "$bundle" . | timeout 900s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-stage-historical.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_STAGE_HISTORICAL_APPROVAL=ACTIONS_APPROVED_STAGE_HISTORICAL SOURCE_SHA=$SOURCE_SHA EXPECTED_CORE_SHA=$EXPECTED_CORE_SHA bash \"\$dir/runner.sh\" verify \"\$dir\"")"
+          printf '%s\n' "$result"
+          printf '%s\n' "$result" | grep -qx STAGE_HISTORICAL_STAGING_TRANSACTIONAL_FIXTURE_PASS
+      - name: Record exact historical staging result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFY: ${{ steps.verify.outcome }}
+        run: |
+          set -Eeuo pipefail
+          gh issue comment 210 --repo "$GITHUB_REPOSITORY" --body "MO-REL06 historical rollback-only staging fixture. Main=$SOURCE_SHA Actions=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID result=$VERIFY. Historical CRM/Inbox/WhatsApp rows, backfill, partial-gate deny, SQL002 cutover and full transaction rollback; no operational tenant SQL changed. PRODUCTION_GATE=BLOCKED."
