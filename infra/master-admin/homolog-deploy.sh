@@ -126,21 +126,21 @@ export MASTER_BIND_PORT=18085
 # the approved Actions release; they execute SELECT only.
 report_probe(){
   local scope="$1" output="$2" marker
-  marker="$(printf '%s\\n' "$output" | grep -Eo 'MANAGER_DB_PROBE=(PASS|BLOCKED:[a-z-]+:[A-Z0-9_]+:[a-z]+)' | tail -n 1 || true)"
+  marker="$(printf '%s\n' "$output" | grep -Eo 'MANAGER_DB_PROBE=(PASS|BLOCKED:[a-z-]+:[A-Z0-9_]+:[a-z]+)' | tail -n 1 || true)"
   echo "MANAGER_${scope}_NETWORK_${marker:-PROBE=UNCLASSIFIED}"
   [[ "$marker" == MANAGER_DB_PROBE=PASS ]]
 }
-if single_probe="$(docker run --rm --network syndes-master-data \\
-  --user 1000:1000 --read-only --cap-drop ALL --security-opt no-new-privileges \\
-  --mount "type=bind,src=$runtime/master_db_url,dst=/run/secrets/master_db_url,readonly" \\
-  -e MASTER_CONTROL_DB_URL_FILE=/run/secrets/master_db_url \\
+if single_probe="$(docker run --rm --network syndes-master-data \
+  --user 1000:1000 --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --mount "type=bind,src=$runtime/master_db_url,dst=/run/secrets/master_db_url,readonly" \
+  -e MASTER_CONTROL_DB_URL_FILE=/run/secrets/master_db_url \
   --entrypoint node syndes/master-admin-api:local src/diagnostic-db.mjs 2>&1)"; then
   report_probe SINGLE "$single_probe" || fail "Single network Manager SQL probe returned no success marker"
 else
   report_probe SINGLE "$single_probe" || true
   fail "Single-network Manager SQL probe failed; no Manager containers started"
 fi
-if multi_probe="$(docker compose -f infra/master-admin/compose.yaml \\
+if multi_probe="$(docker compose -f infra/master-admin/compose.yaml \
   run -T --rm --no-deps --entrypoint node master-api src/diagnostic-db.mjs 2>&1)"; then
   report_probe MULTIHOMED "$multi_probe" || fail "Multihomed Manager SQL probe returned no success marker"
 else
