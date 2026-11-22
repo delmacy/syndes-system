@@ -2159,7 +2159,7 @@ jobs:
   devserver01-purge-confirmed-legacy-database:
     name: DevServer01 purge confirmed legacy tenant database
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'DEVSERVER01-LEGACY-8D22676BFEDB-PURGE-APPROVED') }}
-    needs: [gate]
+    needs: [gate, devserver01-retire-confirmed-legacy-tenant]
     runs-on: ubuntu-latest
     timeout-minutes: 12
     environment: devserver01
