@@ -3,12 +3,14 @@
 # Never touch other Tailscale routes, Core Host, Workspace, databases or secrets.
 set -Eeuo pipefail
 cd "$(dirname "$0")/../.."
+runtime=/run/syndes/platform-manager
 case "$(pwd -P)" in
   /home/delmacy/syndes-platform-manager-homolog|/home/delmacy/syndes-platform-manager-release) ;;
+  /home/delmacy/.local/share/syndes-platform-manager/release)
+    runtime=/home/delmacy/.local/share/syndes-platform-manager/runtime ;;
   *) echo "BLOCKED: wrong checkout, dedicated Manager release only" >&2; exit 2 ;;
 esac
 [[ "$EUID" == 0 ]] || { echo "BLOCKED: root operator required" >&2; exit 2; }
-runtime=/run/syndes/platform-manager
 [[ -s "$runtime/deployed-head" ]] || {
   echo "BLOCKED: no successful Manager deploy marker; refusing blind shutdown" >&2; exit 2;
 }

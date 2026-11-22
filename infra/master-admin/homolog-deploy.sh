@@ -11,8 +11,14 @@ mode="${1:---preflight}"
 }
 fail(){ echo "BLOCKED: $*" >&2; exit 2; }
 say(){ echo "GATE: $*"; }
+actions_release=false
 case "$repo" in
   /home/delmacy/syndes-platform-manager-homolog|/home/delmacy/syndes-platform-manager-release) ;;
+  /home/delmacy/.local/share/syndes-platform-manager/release)
+    [[ "${SYNDES_MANAGER_DEPLOY_APPROVAL:-}" == ACTIONS_APPROVED_MANAGER_FILE_DEPLOY &&
+      "$EUID" == 1000 && "$(hostname -s)" == DevServer01 ]] || fail "Actions release requires the DevServer01 deployment account"
+    actions_release=true
+    ;;
   *) fail "Run only in an explicitly approved DevServer01 Manager release checkout" ;;
 esac
 command -v docker >/dev/null || fail "Docker unavailable"
@@ -33,24 +39,24 @@ owner_sql="SELECT count(*) FROM platform_operator_access WHERE role='owner' AND 
 dbcheck(){ docker exec -u postgres syndes-postgres-postgres-1 psql -w -X -v ON_ERROR_STOP=1 -U postgres -d syndes_control -tAc "$1" 2>/dev/null; }
 [[ "$(dbcheck "$role_sql")" == 1 ]] || fail "Runtime DB password not provisioned"
 [[ "$(dbcheck "$owner_sql")" =~ ^[1-9][0-9]*$ ]] || fail "No explicitly approved platform owner"
-[[ "$(docker exec syndes-security-access-openbao-1 bao status -format=json 2>/dev/null | jq -r '.initialized and ( .sealed | not )')" == true ]] ||
-  fail "OpenBao is sealed or unavailable"
-
 runtime=/run/syndes/platform-manager
-if [[ $EUID -ne 0 ]]; then
-  fail "Apply/preflight require root operator to inspect root-only tmpfs secrets"
+dist="$repo/artifacts/web-dist"
+if [[ "$actions_release" == true ]]; then
+  runtime=/home/delmacy/.local/share/syndes-platform-manager/runtime
+  dist="${SYNDES_MANAGER_WEB_DIST:?Actions must provide the validated frontend artifact}"
+else
+  [[ "$EUID" == 0 ]] || fail "Legacy runtime requires the root operator"
+  [[ "$(findmnt -T /run -no FSTYPE)" == tmpfs ]] || fail "Legacy runtime must reside on /run tmpfs"
 fi
-[[ "$(findmnt -T /run -no FSTYPE)" == tmpfs ]] ||
-  fail "Runtime secrets must reside on /run tmpfs"
-[[ -f "$runtime/master_db_url" ]] || fail "OpenBao-rendered Control DB secret missing"
-[[ "$(stat -c %a "$runtime")" == 700 ]] || fail "Runtime secret directory permissions invalid"
+[[ -f "$runtime/master_db_url" && ! -L "$runtime/master_db_url" ]] || fail "Dedicated Control DB secret missing"
+[[ ! -L "$runtime" && "$(stat -c %a "$runtime")" == 700 ]] || fail "Runtime secret directory permissions invalid"
 [[ "$(stat -c %a "$runtime/master_db_url")" == 600 ]] || fail "DB secret file mode invalid"
 [[ "$(stat -c %u "$runtime/master_db_url")" == 1000 ]] || fail "DB secret must be readable only by Node's UID"
 [[ "$(grep -c '@syndes-control-postgres:5432/syndes_control?' "$runtime/master_db_url")" == 1 ]] ||
   fail "DB credential targets wrong database"
 
-manifest="$repo/artifacts/web-dist/CI_ARTIFACT_MANIFEST.json"
-[[ -f "$manifest" && -f "$repo/artifacts/web-dist/index.html" ]] ||
+manifest="$dist/CI_ARTIFACT_MANIFEST.json"
+[[ -f "$manifest" && -f "$dist/index.html" ]] ||
   fail "Missing CI-built static frontend artifact"
 source_sha=$(jq -er '.git_commit' "$manifest") || fail "Artifact provenance unavailable"
 head=$(git -c safe.directory="$repo" -C "$repo" rev-parse HEAD)
@@ -74,6 +80,15 @@ issuer=$(curl --fail --silent --show-error --max-time 5 \
   http://127.0.0.1:18080/realms/syndes/.well-known/openid-configuration | jq -er '.issuer')
 [[ "$issuer" == "https://$dns:9444/realms/syndes" ]] ||
   fail "Keycloak issuer does not match approved Tailnet host"
+if [[ "$actions_release" == true ]]; then
+  login_status=$(curl --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' --get \
+    --data-urlencode client_id=syndes-master-admin --data-urlencode "redirect_uri=$origin/" \
+    --data-urlencode response_type=code --data-urlencode scope=openid \
+    --data-urlencode code_challenge_method=S256 \
+    --data-urlencode code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM \
+    http://127.0.0.1:18080/realms/syndes/protocol/openid-connect/auth)
+  [[ "$login_status" == 200 ]] || fail "Keycloak did not accept the dedicated 9447 Manager login request"
+fi
 if ! tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode free >/dev/null; then
   fail "Port 9447 already assigned or Tailscale configuration unreadable; do not overwrite"
 fi
@@ -100,7 +115,7 @@ chmod 0600 "$runtime/master.env"
 printf '{"issuer":"%s","clientId":"syndes-master-admin"}\n' "$issuer" > "$runtime/master-runtime.json"
 chmod 0644 "$runtime/master-runtime.json"
 docker build --pull=false -f apps/master-admin-api/Dockerfile -t syndes/master-admin-api:local "$repo" >/dev/null
-docker build --pull=false --build-context web-dist=artifacts/web-dist \
+docker build --pull=false --build-context "web-dist=$dist" \
   -f apps/master-admin-web/Dockerfile.runtime -t syndes/master-admin-web:local "$repo" >/dev/null
 export MASTER_API_ENV_FILE="$runtime/master.env"
 export MASTER_DB_URL_FILE="$runtime/master_db_url"
@@ -128,7 +143,7 @@ for n in $(seq 1 30); do
 done
 # Save the current Serve configuration for an operator recovery review.
 # Never reset or overwrite the existing 8443, 9443 or 9444 handlers.
-tailscale serve get-config "$runtime/tailscale-before-manager.json"
+tailscale serve status --json > "$runtime/tailscale-before-manager.json"
 chmod 0600 "$runtime/tailscale-before-manager.json"
 # Never replace another operator's HTTPS route; recheck immediately before binding.
 tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode free >/dev/null ||
@@ -138,6 +153,14 @@ tailscale serve --bg --https=9447 http://127.0.0.1:18085
 route_owned=true
 tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode active >/dev/null ||
   fail "Tailnet Serve route does not point to the dedicated Manager frontend"
+if [[ "$actions_release" == true ]]; then
+  curl --silent --show-error --fail --max-time 15 "$origin/" >/dev/null ||
+    fail "Manager frontend not reachable through private HTTPS"
+  anonymous_status=$(curl --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' \
+    "$origin/v1/platform/admin/tenants")
+  [[ "$anonymous_status" == 401 ]] || fail "Tenant catalog must deny anonymous requests"
+  say "Private Manager frontend reachable and anonymous tenant catalog request denied"
+fi
 printf '%s\n' "$head" > "$runtime/deployed-head"
 chmod 0600 "$runtime/deployed-head"
 started=false

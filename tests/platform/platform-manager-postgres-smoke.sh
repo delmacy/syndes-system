@@ -4,10 +4,17 @@
 set -Eeuo pipefail
 cd "$(dirname "$0")/../.."
 container="syndes-platform-manager-pg-${GITHUB_RUN_ID:-local}-$$"
-cleanup(){ docker rm -f "$container" >/dev/null 2>&1 || true; }
+network="$container-data"
+fixture="$(mktemp -d)"
+cleanup(){
+  docker rm -f "$container" >/dev/null 2>&1 || true
+  docker network rm "$network" >/dev/null 2>&1 || true
+  rm -rf "$fixture"
+}
 trap cleanup EXIT
 
-docker run --rm -d --name "$container" \
+docker network create --internal "$network" >/dev/null
+docker run --rm -d --name "$container" --network "$network" --network-alias syndes-control-postgres \
   -e POSTGRES_PASSWORD="ci-postgres-only" postgres:17-alpine >/dev/null
 
 for attempt in $(seq 1 30); do
@@ -32,6 +39,29 @@ docker cp infra/postgres/bootstrap/control-admin.schema "$container":/tmp/contro
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control -f /tmp/control.schema >/dev/null
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control -f /tmp/control-admin.schema >/dev/null
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control -f /tmp/control-admin.schema >/dev/null
+docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control \
+  -c "INSERT INTO platform_operator_access(principal_id,role) VALUES('ci-provision-fixture','owner')" >/dev/null
+PYTHONDONTWRITEBYTECODE=1 python3 - "$container" "$network" "$fixture" <<'PY'
+from pathlib import Path
+import runpy
+import sys
+
+db, network, fixture = sys.argv[1:]
+runtime = Path(fixture) / "runtime"
+provision = runpy.run_path("infra/master-admin/provision-db-file.py")["provision"]
+provision(runtime, db, network)
+credential = (runtime / "master_db_url").read_bytes()
+provision(runtime, db, network)
+assert (runtime / "master_db_url").read_bytes() == credential
+try:
+    provision(Path(fixture) / "unknown", db, network)
+except RuntimeError as exc:
+    assert str(exc) == "Manager role already has a password from a different bootstrap"
+else:
+    raise AssertionError("Existing login was unexpectedly replaced")
+PY
+docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d syndes_control \
+  -c "DELETE FROM platform_operator_access WHERE principal_id='ci-provision-fixture'" >/dev/null
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
   -c "ALTER ROLE syndes_master_api PASSWORD 'ci-master-only'" >/dev/null
 
