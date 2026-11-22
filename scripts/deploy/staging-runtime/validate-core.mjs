@@ -80,6 +80,7 @@ async function main(){
   const coarseObject=resource=> 'resource:'+createHash('sha256').update(tid+'|'+resource).digest('hex');
   const coarseTuples=[{user:'user:'+actorId,relation:'viewer',object:coarseObject('inbox:conversations')},{user:'user:'+actorId,relation:'editor',object:coarseObject('inbox:messages')}];
   const coarseGrant=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes:{tuple_keys:coarseTuples}}),signal:AbortSignal.timeout(5000)});if(!coarseGrant.ok&&coarseGrant.status!==400)throw Error('Coarse grant seed failed '+coarseGrant.status);
+  const coarseCheck=await fetch('http://openfga:8080/stores/'+bootstrap.store+'/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tuple_key:{user:'user:'+actorId,relation:'can_read',object:coarseObject('inbox:conversations')}}),signal:AbortSignal.timeout(5000)});const coarseJson=await coarseCheck.json();if(coarseJson.allowed!==true)throw Error('Coarse grant denied '+JSON.stringify(coarseJson));
 
   await api('inbox/conversations',{statuses:[401]});
   await api('inbox/conversations',{token:'invalid',statuses:[401]});
