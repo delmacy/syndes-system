@@ -191,4 +191,4 @@ async function main(){
   console.log('STAGE_CORE_REAL_HTTP_IDP_FGA_SQL_WORKER_SSE_ACCEPTANCE_PASS');
  }finally{for(const fn of cleanup.reverse())await fn();await provider.onModuleDestroy();await db.end();await control.end()}
 }
-main().catch(()=>{console.error('STAGE_ACCEPTANCE_BLOCKED='+phase);process.exitCode=1});
+main().catch(error=>{console.error('STAGE_ACCEPTANCE_ERROR='+String(error?.stack||error));console.error('STAGE_ACCEPTANCE_BLOCKED='+phase);process.exitCode=1});
