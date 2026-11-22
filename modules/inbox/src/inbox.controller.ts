@@ -19,7 +19,7 @@ type PinnedInboxCapability=
  "inbox.conversation.status"|"inbox.conversation.handoff"|
  "inbox.conversation.favorite"|"inbox.conversation.mark_read"|
  "inbox.conversation.link_contact"|"inbox.message.reply"|
- "inbox.message.note"|"inbox.message.simulate";
+ "inbox.message.note"|"inbox.message.simulate"|"inbox.conversation.history_sync";
 @Injectable()
 export class InboxHost{
  readonly inbox:InboxService;
@@ -36,6 +36,7 @@ export class InboxHost{
    enqueue(ctx:InboxContext,conversationId:string,body:unknown):Promise<unknown|null>;
    enqueuePinned(ctx:InboxContext,conversationId:string,body:unknown,
     tx:TenantTransaction):Promise<Message|null>;
+   enqueueHistoryPinned(ctx:InboxContext,conversationId:string,tx:TenantTransaction):Promise<{requested:boolean;note:string}>;
    requestHistory(ctx:InboxContext,conversationId:string):Promise<{requested:boolean;note:string}>;
    decorate(ctx:InboxContext,messages:readonly {id:string;direction:string}[]):Promise<readonly unknown[]>;
    decorateConversations(ctx:InboxContext,conversations:readonly {id:string;channel:string}[]):Promise<readonly unknown[]>;
@@ -88,6 +89,24 @@ export class InboxHost{
   return this.core.kernel.execute({actor:ctx.actor,tenantId:ctx.tenantId,
      action:"read",resource:"whatsapp:accounts"},
     ()=>this.whatsappReply!.requestHistory(ctx,conversationId));
+ }
+ async queueHistory(ctx:InboxContext,bearer:string|undefined,conversationId:string){
+  if(process.env.SYNDES_MULTI_ORG_HISTORY_SYNC!=="true"||!this.whatsappReply?.enqueueHistoryPinned||
+     !this.exact?.executeMutation||!bearer||!ctx.organizationId||!ctx.workspaceId||
+     ctx.scopeWriteAllowed!==true)throw new AccessDeniedError();
+  const key=id(conversationId,"conversation");
+  await this.core.kernel.executeModule({actor:ctx.actor,tenantId:ctx.tenantId,
+   moduleId:"whatsapp",action:"read",resource:"whatsapp:accounts"},async()=>{});
+  const scope={tenantId:ctx.tenantId,organizationId:ctx.organizationId,workspaceId:ctx.workspaceId};
+  const queue=this.whatsappReply;
+  return this.exact.executeMutation(bearer,scope,"inbox.conversation.history_sync",undefined,async(tx,actor)=>{
+   if(actor.id!==ctx.actor.id||actor.kind!==ctx.actor.kind||tx.tenantId!==ctx.tenantId)
+    throw new AccessDeniedError();
+   const repo=new PgInboxRepository(tx,scope);
+   const conversation=await repo.get(ctx.tenantId,key);
+   if(!conversation||conversation.channel!=="whatsapp")throw new HttpException("WhatsApp conversation unavailable",404);
+   return queue.enqueueHistoryPinned(ctx,key,tx);
+  });
  }
  async reply(ctx:InboxContext,conversationId:string,body:unknown){
   if(ctx.scopeWriteAllowed===false)throw new AccessDeniedError();
@@ -424,6 +443,8 @@ export class InboxController{
  @Post("conversations/:id/history")
  requestHistory(@Param("tenantId")t:string,@Headers("authorization")h:string|undefined,@SelectedScope()selection:RequestedOperationalScope|undefined,
    @Param("id")key:string){
+   if(process.env.SYNDES_MULTI_ORG_ENABLED==="true"&&process.env.SYNDES_MULTI_ORG_HISTORY_SYNC==="true")
+    return this.run(t,h,c=>this.host.queueHistory(c,h,key),selection);
    return this.legacyWrite(t,h,c=>this.host.history(c,key),selection);
  }
  @Post("conversations/:id/replies")

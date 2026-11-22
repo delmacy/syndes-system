@@ -91,3 +91,31 @@ test("multi-org Inbox claim and transfer call only exact IAM07D port; legacy rep
   else process.env.SYNDES_MULTI_ORG_ENABLED=old;
  }
 });
+
+test("history pilot exclusively calls the scoped command path when explicitly enabled", async () => {
+ const oldMultiOrg=process.env.SYNDES_MULTI_ORG_ENABLED;
+ const oldHistory=process.env.SYNDES_MULTI_ORG_HISTORY_SYNC;
+ process.env.SYNDES_MULTI_ORG_ENABLED="true";
+ process.env.SYNDES_MULTI_ORG_HISTORY_SYNC="true";
+ const ctx={tenantId:T,organizationId:O,workspaceId:W,actor:{kind:"user",id:target}};
+ const result={requested:true,note:"queued"};
+ const api=new InboxController({
+  run:async (tenant,auth,handler,selected)=>{
+   assert.equal(tenant,T);assert.equal(auth,bearer);assert.deepEqual(selected,scope);
+   return handler(ctx);
+  },
+  queueHistory:async (context,auth,id)=>{
+   assert.equal(context,ctx);assert.equal(auth,bearer);assert.equal(id,C);
+   return result;
+  },
+  history:()=>assert.fail("legacy direct gateway path"),
+ });
+ try{
+  assert.deepEqual(await api.requestHistory(T,bearer,scope,C),result);
+ }finally{
+  if(oldMultiOrg===undefined)delete process.env.SYNDES_MULTI_ORG_ENABLED;
+  else process.env.SYNDES_MULTI_ORG_ENABLED=oldMultiOrg;
+  if(oldHistory===undefined)delete process.env.SYNDES_MULTI_ORG_HISTORY_SYNC;
+  else process.env.SYNDES_MULTI_ORG_HISTORY_SYNC=oldHistory;
+ }
+});
