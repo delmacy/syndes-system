@@ -2183,7 +2183,7 @@ jobs:
           (cd "$bundle" && find . -type f ! -name MANIFEST.sha256 -print0 | sort -z | xargs -0 sha256sum > MANIFEST.sha256)
           result="$(tar -czf - -C "$bundle" . | timeout 1200s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-stage-historical-clone.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_STAGE_HISTORICAL_CLONE_APPROVAL=ACTIONS_APPROVED_HISTORICAL_CLONE SOURCE_SHA=$SOURCE_SHA EXPECTED_CORE_SHA=$EXPECTED_CORE_SHA bash \"\$dir/runner.sh\" verify \"\$dir\"")"
           printf '%s\n' "$result"
-          printf '%s\n' "$result" | grep -qx STAGE_HISTORICAL_ENCRYPTED_RESTORE_PSQL_SINGLE_TRANSACTION_CUTOVER_PASS
+          printf '%s\n' "$result" | grep -qx STAGE_HISTORICAL_ENCRYPTED_RESTORE_MULTI_ORG_COMPATIBLE_ROLLBACK_PASS
       - name: Record observed clone result without production promotion
         if: always()
         env:
