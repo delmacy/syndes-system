@@ -7,7 +7,7 @@
  * Service funnel advance. Other legacy writes must fail closed in multi-org.
  */
 import {Inject,Injectable} from "@nestjs/common";
-import {AccessDeniedError,type Actor,type TenantTransaction,
+import {AccessDeniedError,type Actor,type CoreKernel,type TenantTransaction,
  type TrustedTenantTransactionProvider} from "@syndes/core-kernel";
 import type {Pool} from "pg";
 type PinnedServicePort=Readonly<{
@@ -33,7 +33,7 @@ import type {CoreRuntimeSecrets} from "./secrets.js";
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const required=(name:string)=>{const x=process.env[name];if(!x?.trim())throw Error("Missing "+name);return x};
 export const IAM07D_OPS="SYNDES_IAM07D_OPS";
-type Host=Readonly<{db:Pool;verifier:ActorVerifier;moduleStates:PgModuleLifecycle}>;
+type Host=Readonly<{db:Pool;verifier:ActorVerifier;moduleStates:PgModuleLifecycle;kernel:CoreKernel}>;
 type Selected=Readonly<{tenantId:string;organizationId:string;workspaceId:string}>;
 function request(scope:Selected,capability:RequestedIamPilotContext["capability"],
  funnelId?:string):RequestedIamPilotContext{
@@ -48,7 +48,7 @@ function request(scope:Selected,capability:RequestedIamPilotContext["capability"
 export class OperationalIam07dOperations{
  private readonly gate?:Iam07dRevokeFirstPilot;
  private readonly inbox?:Iam07dInboxBusinessPilot;
- constructor(@Inject("SYNDES_CORE_API")core:Host,
+ constructor(@Inject("SYNDES_CORE_API")private readonly core:Host,
   @Inject("SYNDES_TENANT_DB")tenants:TrustedTenantTransactionProvider,
   @Inject("SYNDES_CORE_RUNTIME_SECRETS")secrets:CoreRuntimeSecrets){
   if(process.env.SYNDES_MULTI_ORG_ENABLED!=="true")return;
@@ -109,6 +109,16 @@ export class OperationalIam07dOperations{
    throw new AccessDeniedError();
   const ticket=await this.gate.issue(bearer,request(scope,capability,funnelId));
   return this.gate.execute(ticket,(tx,verified)=>effect(tx,verified.actor));
+ }
+ /** Worker-only. Authorize the persisted principal at the original tenant fence epoch. */
+ async executeHistoryCommand<T>(scope:Selected,principalId:string,epoch:string,
+  effect:(tx:TenantTransaction)=>Promise<T>):Promise<T>{
+  if(!this.gate||process.env.SYNDES_MULTI_ORG_HISTORY_SYNC!=="true")throw new AccessDeniedError();
+  const ticket=await this.gate.issueHistoryCommand(principalId,request(scope,"inbox.conversation.history_sync"));
+  if(String(ticket.epoch)!==epoch)throw new AccessDeniedError();
+  await this.core.kernel.executeModule({actor:ticket.actor,tenantId:scope.tenantId,
+   moduleId:"whatsapp",action:"read",resource:"whatsapp:accounts"},async()=>{});
+  return this.gate.execute(ticket,effect);
  }
  async claim(bearer:string,scope:Selected,conversationId:string){
   if(!this.inbox)throw new AccessDeniedError();

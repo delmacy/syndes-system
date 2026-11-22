@@ -1,7 +1,7 @@
 import {createHash,randomUUID} from "node:crypto";
 import {Inject,Injectable} from "@nestjs/common";
 import {WhatsAppGatewayClient} from "./gateway-client.js";
-import {PINNED_TENANT_TRANSACTION,
+import {AccessDeniedError,PINNED_TENANT_TRANSACTION,
  type TrustedTenantDatabaseProvider,type TenantDatabase,type TenantTransaction} from "@syndes/core-kernel";
 import {whatsappScopedQuery,validScope,type WhatsAppScope} from "./scope.js";
 
@@ -98,14 +98,11 @@ export class WhatsAppReplyQueue{
    contactNameSyncStatus:known.get(c.id)?.savedName?"submitted" as const:null
   }:c);
  }
- /** A trusted Inbox reader can request <=50 older messages from their
-  * own phone for one known, account-scoped conversation. A reply arrives
-  * asynchronously as an ON_DEMAND history chunk; never as bot input. */
- async requestHistory(ctx:Context,conversationId:string):Promise<{requested:boolean;note:string}>{
+ /** Read the verified account and oldest known message for this conversation. */
+ async historyReference(ctx:Context,conversationId:string,db:TenantDatabase,lockRoute=false){
   const {scope}=resolveScope(ctx);
-  if(!UUID.test(ctx.tenantId)||!UUID.test(conversationId))throw Error("Invalid history context");
-  const db=await this.pools.resolve(ctx.tenantId);
-  if(db.tenantId!==ctx.tenantId)throw Error("Tenant database mismatch");
+  if(!UUID.test(ctx.tenantId)||!UUID.test(conversationId)||db.tenantId!==ctx.tenantId)
+   throw new WhatsAppRouteError();
   const result=await whatsappScopedQuery(db,scope,`SELECT r.account_id::text,r.recipient_external_id,
     COALESCE(e.payload->'message'->>'chatExternalId',
       e.payload->'message'->>'senderExternalId') AS history_chat_id,
@@ -118,24 +115,59 @@ export class WhatsAppReplyQueue{
    JOIN whatsapp_inbound_events e ON e.tenant_id=r.tenant_id AND e.account_id=r.account_id
    WHERE r.tenant_id=$1::uuid AND r.conversation_id=$2::uuid
       AND c.channel='whatsapp' AND a.service_enabled=true
+      /*WSCOPE:AND EXISTS (SELECT 1 FROM platform_workspaces w
+       JOIN platform_organizations o ON o.tenant_id=w.tenant_id AND o.id=w.organization_id
+       WHERE w.tenant_id=c.tenant_id AND w.id=@@WS@@ AND w.organization_id=@@ORG@@
+        AND w.status='active' AND o.status='active')*/
       /*WSCOPE:AND c.platform_organization_id=@@ORG@@ AND c.platform_current_workspace_id=@@WS@@ AND a.platform_organization_id=@@ORG@@*/
-      AND e.event_type='whatsapp.message.received' AND e.processed_at IS NOT NULL
+      AND e.event_type='whatsapp.message.received' AND e.processed_at IS NOT NULL AND e.failed_at IS NULL
       AND (COALESCE(e.payload->'message'->>'chatExternalId',
         e.payload->'message'->>'senderExternalId')=r.recipient_external_id
-       OR (r.phone_e164 IS NOT NULL
+       OR ($3::boolean AND r.phone_e164 IS NOT NULL
            AND e.payload->'message'->>'senderPhone'=r.phone_e164
            AND COALESCE(e.payload->'message'->>'isGroup','false')='false'))
-   ORDER BY (e.payload->'message'->>'occurredAt')::timestamptz ASC,e.id ASC LIMIT 1`,
-   [ctx.tenantId,conversationId]);
+   ORDER BY (e.payload->'message'->>'occurredAt')::timestamptz ASC,e.id ASC LIMIT 1 ${lockRoute?"FOR SHARE OF c,r,a":""}`,
+   [ctx.tenantId,conversationId,!lockRoute]);
   const row=result.rows[0];
-  if(!row)return {requested:false,note:"Histórico anterior indisponível: não existe mensagem de referência nesta conversa."};
-  const msgID=String(row.message_id??""),timestamp=String(row.occurred_at??"");
-  if(!msgID||!Number.isFinite(Date.parse(timestamp)))return {requested:false,note:"Mensagem de referência inválida."};
-  await new WhatsAppGatewayClient().requestHistory(ctx.tenantId,String(row.account_id),{
-   chatExternalId:String(row.history_chat_id),messageId:msgID,
-   timestamp,fromMe:row.from_me===true,count:50
-  });
+  if(!row)return null;
+  const messageId=String(row.message_id??""),timestamp=String(row.occurred_at??"");
+  if(!messageId||!Number.isFinite(Date.parse(timestamp)))return null;
+  return {accountId:String(row.account_id),chatExternalId:String(row.history_chat_id),
+   messageId,timestamp,fromMe:row.from_me===true,count:50};
+ }
+ async requestHistory(ctx:Context,conversationId:string):Promise<{requested:boolean;note:string}>{
+  if(process.env.SYNDES_MULTI_ORG_ENABLED==="true")throw new AccessDeniedError();
+  const reference=await this.historyReference(ctx,conversationId,await this.pools.resolve(ctx.tenantId));
+  if(!reference)return {requested:false,note:"Histórico anterior indisponível: não existe mensagem de referência nesta conversa."};
+  const {accountId,...request}=reference;
+  await new WhatsAppGatewayClient().requestHistory(ctx.tenantId,accountId,request);
   return {requested:true,note:"Solicitação enviada ao telefone. O WhatsApp pode disponibilizar até 50 mensagens anteriores."};
+ }
+ async enqueueHistoryPinned(ctx:Context,conversationId:string,tx:TenantTransaction):Promise<{requested:boolean;note:string}>{
+  const {scope}=resolveScope(ctx);
+  if(!scope||ctx.scopeWriteAllowed!==true||tx.tenantId!==ctx.tenantId||
+     tx[PINNED_TENANT_TRANSACTION]!==true)throw new AccessDeniedError();
+  const reference=await this.historyReference(ctx,conversationId,tx,true);
+  if(!reference)return {requested:false,note:"Histórico anterior indisponível: não existe mensagem de referência nesta conversa."};
+  const result=await tx.query(`
+   WITH queued AS (
+    INSERT INTO whatsapp_history_commands
+     (id,tenant_id,organization_id,workspace_id,conversation_id,account_id,principal_id,epoch,anchor_message_id)
+    SELECT $5::uuid,f.tenant_id,f.organization_id,f.workspace_id,$6::uuid,$7::uuid,f.principal_id,f.epoch,$8
+    FROM platform_iam_capability_fences f
+    WHERE f.tenant_id=$1::uuid AND f.organization_id=$2::uuid AND f.workspace_id=$3::uuid
+      AND f.principal_id=$4 AND f.capability='inbox.conversation.history_sync' AND f.state='active'
+    ON CONFLICT (tenant_id,conversation_id,account_id,anchor_message_id)
+     WHERE state <> 'cancelled' DO NOTHING
+    RETURNING tenant_id,conversation_id,principal_id
+   )
+   INSERT INTO inbox_events (tenant_id,conversation_id,actor_id,action)
+   SELECT tenant_id,conversation_id,principal_id,'history_sync_queued' FROM queued RETURNING id
+  `,[ctx.tenantId,scope.organizationId,scope.workspaceId,ctx.actor.id,randomUUID(),
+   conversationId,reference.accountId,reference.messageId]);
+  return result.rows.length===1
+   ?{requested:true,note:"Solicitação registrada. O WhatsApp pode disponibilizar até 50 mensagens anteriores."}
+   :{requested:false,note:"Já existe uma solicitação para esta mensagem de referência."};
  }
  /** Decorates only messages already selected by an authorized Inbox read.
   * Missing outbox rows expose old local-only replies instead of implying delivery. */

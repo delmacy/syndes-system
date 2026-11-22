@@ -17,6 +17,7 @@ export const syndesPlugin=defineSyndesModule({
   {id:"005_whatsapp_history",fileUrl:new URL("../sql/005_whatsapp_history.sql",import.meta.url).href},
   {id:"006_whatsapp_contact_names",fileUrl:new URL("../sql/006_whatsapp_contact_names.sql",import.meta.url).href},
   {id:"007_whatsapp_delivery_receipts",fileUrl:new URL("../sql/007_whatsapp_delivery_receipts.sql",import.meta.url).href},
-  {id:"008_whatsapp_projection_owner",fileUrl:new URL("../sql/008_whatsapp_projection_owner.sql",import.meta.url).href}],
+  {id:"008_whatsapp_projection_owner",fileUrl:new URL("../sql/008_whatsapp_projection_owner.sql",import.meta.url).href},
+  {id:"009_whatsapp_history_commands",fileUrl:new URL("../sql/009_whatsapp_history_commands.sql",import.meta.url).href}],
  assets:[]
 });

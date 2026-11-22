@@ -112,6 +112,17 @@ export class OrganizationContextAdmissionPilot {
 
   async resolve(bearer:string|undefined,requested:RequestedIamPilotContext)
     :Promise<ResolvedIamPilotContext>{
+    return this.resolveActor(requested,()=>this.deps.verifier.verifyClient(bearer,this.deps.clientId));
+  }
+
+  /** Only a trusted worker reading a previously authorized durable command may use this. */
+  resolveHistoryCommand(principalId:string,requested:RequestedIamPilotContext){
+    if(requested.capability!=="inbox.conversation.history_sync")throw new AccessDeniedError();
+    return this.resolveActor(requested,async()=>({kind:"user",id:principalId}));
+  }
+
+  private async resolveActor(requested:RequestedIamPilotContext,verify:()=>Promise<Actor>)
+    :Promise<ResolvedIamPilotContext>{
     // Every failure is an access denial. Never log the bearer, sub, Keycloak
     // response body, membership rows, SQL credentials, or admin tokens.
     try{
@@ -124,9 +135,8 @@ export class OrganizationContextAdmissionPilot {
       if(definition.kind==="funnel"?!UUID.test(funnelId??""):funnelId!==undefined)
         throw new AccessDeniedError();
 
-      // Verify signed OIDC identity before ANY source of customer data.
-      // The verifier must enforce the fixed issuer, audience and client azp.
-      const actor=await this.deps.verifier.verifyClient(bearer,this.deps.clientId);
+      // Resolve the authenticated or previously admitted principal before accessing customer data.
+      const actor=await verify();
       if(actor.kind!=="user"||!UUID.test(actor.id))throw new AccessDeniedError();
       if(await this.deps.tenancy.canAccessTenant({actor,tenantId})!==true)
         throw new AccessDeniedError();

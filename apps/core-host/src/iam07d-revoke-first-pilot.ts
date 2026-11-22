@@ -67,10 +67,8 @@ export type SpecificIam07dPolicy=Readonly<{
 export class Iam07dRevokeFirstPilot{
  private readonly issued=new WeakSet<object>();
  private readonly verifiedContexts=new WeakMap<object,ResolvedIamPilotContext>();
- private readonly verifiedRequests=new WeakMap<object,Readonly<{
-  bearer:string;requested:RequestedIamPilotContext;
- }>>();
- constructor(private readonly admission:Pick<OrganizationContextAdmissionPilot,"resolve">,
+ private readonly revalidate=new WeakMap<object,()=>Promise<ResolvedIamPilotContext>>();
+ constructor(private readonly admission:Pick<OrganizationContextAdmissionPilot,"resolve"> & Partial<Pick<OrganizationContextAdmissionPilot,"resolveHistoryCommand">>,
    private readonly specific:SpecificIam07dPolicy,
    private readonly tenants:TrustedTenantTransactionProvider,
    private readonly control:ControlStore){
@@ -80,14 +78,24 @@ export class Iam07dRevokeFirstPilot{
    throw new TypeError("IAM07D invalid trusted dependencies");
  }
  async issue(bearer:string,requested:RequestedIamPilotContext):Promise<Iam07dTicket>{
+  if(typeof bearer!=="string"||!bearer.startsWith("Bearer "))throw new AccessDeniedError();
+  return this.issueWith(requested,request=>this.admission.resolve(bearer,request));
+ }
+ async issueHistoryCommand(principalId:string,requested:RequestedIamPilotContext):Promise<Iam07dTicket>{
+  if(requested.capability!=="inbox.conversation.history_sync"||!UUID.test(principalId)||
+     !this.admission.resolveHistoryCommand)throw new AccessDeniedError();
+  return this.issueWith(requested,request=>this.admission.resolveHistoryCommand!(principalId,request));
+ }
+ private async issueWith(requested:RequestedIamPilotContext,
+  resolve:(request:RequestedIamPilotContext)=>Promise<ResolvedIamPilotContext>):Promise<Iam07dTicket>{
   try{
    if(!requested||!valid(requested.capability)||
       ![requested.tenantId,requested.organizationId,requested.workspaceId]
        .every(x=>typeof x==="string"&&UUID.test(x))||
-      (iam07dScopeKind(requested.capability)==="funnel")!==UUID.test(requested.funnelId??"")||
-      typeof bearer!=="string"||!bearer.startsWith("Bearer "))
+      (iam07dScopeKind(requested.capability)==="funnel")!==UUID.test(requested.funnelId??""))
     throw new AccessDeniedError();
-   const context=await this.admission.resolve(bearer,requested);
+   const request=Object.freeze({...requested});
+   const context=await resolve(request);
    if(context.actor.kind!=="user"||!UUID.test(context.actor.id)||
       context.tenantId!==requested.tenantId||
       context.organizationId!==requested.organizationId||
@@ -117,9 +125,7 @@ export class Iam07dRevokeFirstPilot{
    });
    this.issued.add(ticket);
    this.verifiedContexts.set(ticket,Object.freeze({...context}));
-   this.verifiedRequests.set(ticket,Object.freeze({
-    bearer,requested:Object.freeze({...requested}),
-   }));
+   this.revalidate.set(ticket,()=>resolve(request));
    return ticket;
   }catch{throw new AccessDeniedError();}
  }
@@ -132,15 +138,15 @@ export class Iam07dRevokeFirstPilot{
    throw new AccessDeniedError();
   try{
    const context=this.verifiedContexts.get(ticket);
-   const original=this.verifiedRequests.get(ticket);
-   if(!context||!original||context.actor.id!==ticket.actor.id||
+   const refresh=this.revalidate.get(ticket);
+   if(!context||!refresh||context.actor.id!==ticket.actor.id||
       context.capability!==ticket.capability)
     throw new AccessDeniedError();
-   // Reverify the SAME signed bearer, live Keycloak Org membership,
+   // Revalidate the original identity, live Keycloak Org membership,
    // module entitlement, Control link and selected SQL context. This catches
    // direct external revocations when they precede the new check. Only a
    // trusted tenant-first fence can serialize the subsequent SQL commit.
-   const live=await this.admission.resolve(original.bearer,original.requested);
+   const live=await refresh();
    if(live.actor.id!==ticket.actor.id||live.capability!==ticket.capability||
       live.resourceName!==context.resourceName||
       await this.specific.canPerform(live,ticket.capability)!==true)
