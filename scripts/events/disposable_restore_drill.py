@@ -321,8 +321,12 @@ def restore_drill() -> dict:
              "-e", "POSTGRES_PASSWORD=" + password, IMAGE], timeout=60)
         password = ""
         stage = "container_ready"
+        # The entrypoint temporary postmaster accepts Unix sockets before
+        # the final TCP listener starts. Require loopback TCP readiness so
+        # CREATE DATABASE cannot race with the temporary server shutdown.
+        # The container still has --network none and exposes no host port.
         for _ in range(40):
-            status = subprocess.run(pg.command("pg_isready", "-q", "-d", "postgres"),
+            status = subprocess.run(pg.command("pg_isready", "-q", "-h", "127.0.0.1", "-d", "postgres"),
                                     capture_output=True, timeout=5, check=False)
             if status.returncode == 0:
                 break
