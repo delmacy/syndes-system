@@ -184,14 +184,24 @@ rollback_on_error(){
       [[ "$code" =~ ^[0-9]+$ ]] || code=unknown
       [[ "$health" =~ ^[a-z]+$ ]] || health=unknown
       echo "MANAGER_API_CONTAINER_STATE=$state EXIT=$code HEALTH=$health" >&2
-      api_log="$(docker logs --tail 80 "$api_id" 2>&1 || true)"
-      marker="$(printf '%s\\n' "$api_log" | grep -Eo 'MASTER_API_STARTUP_FAILED=[A-Z0-9_]+' | tail -n 1 || true)"
-      if [[ -n "$marker" ]]; then echo "$marker" >&2
-      elif [[ "$api_log" == *EACCES* ]]; then echo 'MANAGER_API_STARTUP_FAILED=EACCES' >&2
-      elif [[ "$api_log" == *ENOENT* ]]; then echo 'MANAGER_API_STARTUP_FAILED=ENOENT' >&2
-      elif [[ "$api_log" == *ERR_MODULE_NOT_FOUND* ]]; then echo 'MANAGER_API_STARTUP_FAILED=ERR_MODULE_NOT_FOUND' >&2
-      elif [[ "$api_log" == *"Missing MASTER_"* ]]; then echo 'MANAGER_API_STARTUP_FAILED=MISSING_CONFIGURATION' >&2
-      else echo 'MANAGER_API_STARTUP_FAILED=UNCLASSIFIED' >&2; fi
+      if [[ "$health" != healthy ]]; then
+        api_log="$(docker logs --tail 80 "$api_id" 2>&1 || true)"
+        marker="$(printf '%s\\n' "$api_log" | grep -Eo 'MASTER_API_STARTUP_FAILED=[A-Z0-9_]+' | tail -n 1 || true)"
+        if [[ -n "$marker" ]]; then echo "$marker" >&2
+        elif [[ "$api_log" == *EACCES* ]]; then echo 'MANAGER_API_STARTUP_FAILED=EACCES' >&2
+        elif [[ "$api_log" == *ENOENT* ]]; then echo 'MANAGER_API_STARTUP_FAILED=ENOENT' >&2
+        elif [[ "$api_log" == *ERR_MODULE_NOT_FOUND* ]]; then echo 'MANAGER_API_STARTUP_FAILED=ERR_MODULE_NOT_FOUND' >&2
+        elif [[ "$api_log" == *"Missing MASTER_"* ]]; then echo 'MANAGER_API_STARTUP_FAILED=MISSING_CONFIGURATION' >&2
+        else echo 'MANAGER_API_STARTUP_FAILED=UNCLASSIFIED' >&2; fi
+      fi
+    fi
+    web_id="$(docker compose -f infra/master-admin/compose.yaml ps -aq master-web)"
+    if [[ "$web_id" =~ ^[a-f0-9]{12,64}$ ]]; then
+      state="$(docker inspect -f '{{.State.Status}}' "$web_id" 2>/dev/null || true)"
+      health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$web_id" 2>/dev/null || true)"
+      [[ "$state" =~ ^[a-z]+$ ]] || state=unknown
+      [[ "$health" =~ ^[a-z]+$ ]] || health=unknown
+      echo "MANAGER_WEB_CONTAINER_STATE=$state HEALTH=$health" >&2
     fi
     echo "HOMOLOG DEPLOY FAILED: rolling back only the isolated Manager stack" >&2
     if [[ "$route_owned" == true ]] &&
@@ -202,12 +212,23 @@ rollback_on_error(){
   fi
 }
 trap rollback_on_error EXIT
-docker compose -f infra/master-admin/compose.yaml up -d --no-build
-for n in $(seq 1 30); do
-  if curl --silent --fail --max-time 2 http://127.0.0.1:18085/ >/dev/null; then break; fi
-  if [[ $n == 30 ]]; then fail "Isolated frontend did not become healthy; inspect only Manager stack"; fi
-  sleep 2
-done
+docker compose -f infra/master-admin/compose.yaml up -d --no-build --wait --wait-timeout 90 ||
+  fail "Manager containers did not become healthy"
+web_id="$(docker compose -f infra/master-admin/compose.yaml ps -q master-web)"
+[[ "$web_id" =~ ^[a-f0-9]{12,64}$ ]] || fail "Expected one healthy Manager frontend"
+docker inspect -f '{{json (index .NetworkSettings.Ports "8080/tcp")}}' "$web_id" |
+  jq -e '. == [{"HostIp":"127.0.0.1","HostPort":"18085"}]' >/dev/null ||
+  fail "Manager frontend port is not published exclusively to host loopback"
+local_origin=http://127.0.0.1:18085
+curl --noproxy '*' --fail --silent --show-error --max-time 5 "$local_origin/" >/dev/null ||
+  fail "Manager frontend is healthy but unreachable on host loopback"
+curl --noproxy '*' --fail --silent --show-error --max-time 5 "$local_origin/master-runtime.json" |
+  jq -e --arg issuer "$issuer" '.issuer == $issuer and .clientId == "syndes-master-admin"' >/dev/null ||
+  fail "Manager runtime OIDC configuration is not served on host loopback"
+proxy_status="$(curl --noproxy '*' --silent --show-error --max-time 5 --output /dev/null --write-out '%{http_code}' \
+  "$local_origin/v1/platform/admin/tenants")"
+[[ "$proxy_status" == 401 ]] || fail "Manager proxy did not deny anonymous tenant catalog access"
+say "Manager frontend healthy, loopback HTTP, OIDC configuration and API proxy verified"
 # Save the current Serve configuration for an operator recovery review.
 # Never reset or overwrite the existing 8443, 9443 or 9444 handlers.
 tailscale serve status --json > "$runtime/tailscale-before-manager.json"

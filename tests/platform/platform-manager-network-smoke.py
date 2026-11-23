@@ -54,12 +54,14 @@ with tempfile.TemporaryDirectory(prefix="syndes-manager-net-ci-") as temp:
     def attached(doc, service):
         return set(doc["services"][service]["networks"])
     assert attached(manager, "master-api") == {"master-private", "syndes-master-data", "syndes-master-identity"}
-    assert attached(manager, "master-web") == {"master-private"}
+    assert attached(manager, "master-web") == {"master-private", "master-ingress"}
     assert "syndes-master-data" in attached(pg, "postgres")
     assert "syndes-master-identity" in attached(security, "keycloak")
     assert {"syndes-master-data", "syndes-master-identity"}.isdisjoint(attached(core, "core-host"))
     assert {"syndes-master-data", "syndes-master-identity"}.isdisjoint(attached(security, "openfga"))
     assert manager["networks"]["master-private"]["internal"] is True
+    assert manager["networks"]["master-ingress"]["driver"] == "bridge"
+    assert not manager["networks"]["master-ingress"].get("internal")
     for name in ("syndes-master-data", "syndes-master-identity"):
         assert manager["networks"][name]["external"] is True
     assert not manager["services"]["master-api"].get("ports"), "API may not publish host ports"
@@ -71,13 +73,17 @@ with tempfile.TemporaryDirectory(prefix="syndes-manager-net-ci-") as temp:
 # Prove Docker's bridge policy with independent throwaway networks and test containers.
 # This validates the engine on the CI runner, not the final production firewall.
 prefix = "ci-pm-net-" + uuid.uuid4().hex[:12]
-master_net, identity_net, core_net = (prefix + suffix for suffix in ("-data", "-identity", "-core"))
+master_net, identity_net, core_net, ingress_net = (
+    prefix + suffix for suffix in ("-data", "-identity", "-core", "-ingress")
+)
 target = prefix + "-tenant-core"
 networks = []
 try:
     for net in (master_net, identity_net, core_net):
         run("docker", "network", "create", "--internal", net)
         networks.append(net)
+    run("docker", "network", "create", ingress_net)
+    networks.append(ingress_net)
     run("docker", "pull", "nginx:1.29-alpine", timeout=120)
     run("docker", "pull", "curlimages/curl:8.12.1", timeout=120)
     run("docker", "run", "-d", "--rm", "--name", target, "--network", core_net,
@@ -97,7 +103,7 @@ try:
     else:
         raise AssertionError("Positive network test failed; nginx fixture not ready")
 
-    for isolated in (master_net, identity_net):
+    for isolated in (master_net, identity_net, ingress_net):
         assert not reach(isolated), "Admin-only network reached the tenant Core IP"
     print("Docker network separation: PASS (positive core route and denied admin-to-core IP routes)")
 finally:
