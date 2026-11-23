@@ -2096,8 +2096,8 @@ jobs:
           tar -czf - -C manager-bundle . | timeout 900s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-manager.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_MANAGER_DEPLOY_APPROVAL=ACTIONS_APPROVED_MANAGER_FILE_DEPLOY SOURCE_SHA=$SOURCE_SHA MANAGER_RELEASE_MODE=$MANAGER_RELEASE_MODE bash \"\$dir/deploy.sh\" \"\$dir/web-dist\""
 
   devserver01-demo-readiness:
-    name: DevServer01 tenant and Manager demo readiness (read-only)
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'DEVSERVER01-DEMO-READINESS-APPROVED') }}
+    name: DevServer01 tenant and Manager demo readiness
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (contains(github.event.head_commit.message, 'DEVSERVER01-DEMO-READINESS-APPROVED') || contains(github.event.head_commit.message, 'DEVSERVER01-MANAGER-DEMO-PASSWORD-RESET-APPROVED')) }}
     needs: [gate]
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -2130,6 +2130,15 @@ jobs:
           set -Eeuo pipefail
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
           timeout 180s tailscale ssh "delmacy@$DEVSERVER_PEER" 'SYNDES_DEMO_READINESS=ACTIONS_READONLY_DEMOS bash -s' < scripts/ci/devserver01-demo-readiness.sh
+
+      - name: Reset the approved demo account with private host delivery
+        if: ${{ contains(github.event.head_commit.message, 'DEVSERVER01-MANAGER-DEMO-PASSWORD-RESET-APPROVED') }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          python3 -m py_compile scripts/identity/{reset-manager-demo-password,provision-homolog-keycloak}.py
+          tar -czf - -C scripts/identity reset-manager-demo-password.py provision-homolog-keycloak.py |
+            timeout 90s tailscale ssh "delmacy@$DEVSERVER_PEER" 'set -Eeuo pipefail; umask 077; dir=$(mktemp -d /tmp/syndes-manager-reset.XXXXXXXX); trap "rm -rf \"$dir\"" EXIT; tar -xzf - -C "$dir"; SYNDES_MANAGER_DEMO_RESET=ACTIONS_APPROVED_DEMO_PASSWORD_RESET python3 "$dir/reset-manager-demo-password.py"'
 
   devserver01-retire-confirmed-legacy-tenant:
     name: DevServer01 retire confirmed legacy tenant from service
