@@ -2181,7 +2181,7 @@ jobs:
           install -m 0644 infra/postgres/bootstrap/control.schema infra/operational-file-rehearsal/{compose.yaml,verify.mjs} "$bundle/"
           install -m 0600 scripts/deploy/devserver01-rehearse-file-credentials.py "$bundle/rehearse.py"
           tar -czf - -C "$bundle" . | timeout 720s tailscale ssh "$remote" \
-            "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-rehearsal-bundle.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_REHEARSE_OPERATIONAL_FILES=ACTIONS_APPROVED_OPERATIONAL_REHEARSAL SOURCE_SHA=$SOURCE_SHA python3 \"\$dir/rehearse.py\" \"\$dir\" '$image'"
+            "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-rehearsal-bundle.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzpf - -C \"\$dir\"; SYNDES_REHEARSE_OPERATIONAL_FILES=ACTIONS_APPROVED_OPERATIONAL_REHEARSAL SOURCE_SHA=$SOURCE_SHA python3 \"\$dir/rehearse.py\" \"\$dir\" '$image'"
 
   devserver01-demo-readiness:
     name: DevServer01 tenant and Manager demo readiness
