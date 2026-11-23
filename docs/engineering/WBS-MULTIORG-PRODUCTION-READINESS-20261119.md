@@ -245,3 +245,13 @@ existente. Os resultados permitem ordenar a migração. Para liberar o corte
 do OpenBao operacional, validar a inicialização de cada consumidor com sua
 nova origem, os acessos SQL restritos e a reversão na composição vigente.
 `PRODUCTION_GATE=BLOCKED`.
+
+O [inventário operacional](https://github.com/delmacy/syndes-system/actions/runs/45100326036/job/137449455341)
+observou o cofre operacional selado e o de staging parado. Os Core de base e
+roteado ainda recebem mounts do cofre. PostgreSQL, Keycloak e OpenFGA consomem
+seis arquivos em `/run/syndes/runtime`. O inventário também detectou seis
+contêineres adicionais com sinais de dependência a identificar. A
+[leitura da topologia](https://github.com/delmacy/syndes-system/actions/runs/45099926276/job/137449361784)
+mostrou o piloto operacional provisionado com duas organizações e quatro
+workspaces e o registro legado em suspensão. A preparação de cópias
+persistentes verifica os logins antes de publicar arquivos privados.

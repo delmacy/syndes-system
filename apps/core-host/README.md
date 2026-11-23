@@ -61,7 +61,16 @@ Staging Control credentials must target `control-postgres:5432`, database
 the same fixed staging hostname, the active Control registry and the
 expected role for the requested tenant UUID.
 
-The operational deployment uses the OpenBao source and its existing scoped
-AppRoles. Explicit OpenBao staging remains covered by disposable TLS tests
-with the fixtures under `tests/platform/fixtures/openbao/`. The runtime
-provider and database host come from trusted process configuration.
+The operational file provider requires explicit
+`SYNDES_DEPLOYMENT_ENV=production` and `CORE_SECRET_PROVIDER=files`.
+It reads `/run/secrets/operational-core.json` and
+`/run/secrets/operational-tenants/<validated-tenant-uuid>.json`, each with
+namespace `production`. Control connects as `syndes_core` to
+`syndes-postgres:5432/syndes_control`. The tenant lookup uses the
+operational database host, the active Control registry and the expected
+tenant-specific SQL role.
+
+The existing operational deployment uses the OpenBao source. The
+deployment configuration selects the credential provider. OpenBao
+staging compatibility remains covered by disposable TLS tests with the
+fixtures under `tests/platform/fixtures/openbao/`.

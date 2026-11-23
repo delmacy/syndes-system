@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {mkdtemp,writeFile,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {expectedTenantDatabase,resolveRegistry,StageTenantCredentialSource,TenantCredentialSource} from "../dist/tenant-database.js";
+import {expectedTenantDatabase,resolveRegistry,FileTenantCredentialSource,TenantCredentialSource} from "../dist/tenant-database.js";
 
 const A="4ab44379-d557-4df6-a2be-d44e121a8077";
 const B="d21930aa-f4f6-40c0-bb1a-e71d7bb92caa";
@@ -73,12 +73,14 @@ test("staging resolver denies unavailable staging credentials without reading pr
 test("stage credentials select only the file and role for the trusted tenant UUID",async t=>{
  const dir=await mkdtemp(join(tmpdir(),"syndes-stage-tenant-credential-"));
  t.after(()=>rm(dir,{recursive:true,force:true}));
- const source=new StageTenantCredentialSource(dir);
+ const source=new FileTenantCredentialSource("multi-org-staging",dir);
  const roleA=expectedTenantDatabase(A).role_name;
  const roleB=expectedTenantDatabase(B).role_name;
  const payload={namespace:"multi-org-staging",username:roleA,password:"a".repeat(64)};
  await writeFile(join(dir,A+".json"),JSON.stringify(payload));
  assert.equal(await source.password(A,roleA),payload.password);
+ const operational=new FileTenantCredentialSource("production",dir);
+ await assert.rejects(operational.password(A,roleA),/Missing or malformed operational/);
  await assert.rejects(source.password("../postgres",roleA),/Invalid tenant identifier/);
  await assert.rejects(source.password(A,roleB),/Tenant credential mismatch/);
  await assert.rejects(source.password(B,roleB),/Missing or malformed staging/);

@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import {secretNamespaceFromEnv,stageFileSecretsEnabled,validateSecretNamespace,type SecretNamespace} from "./secret-namespace.js";
+import {fileSecretNamespace,secretNamespaceFromEnv,tenantDatabaseHost,validateSecretNamespace,type SecretNamespace} from "./secret-namespace.js";
 
 /** OpenBao AppRole credentials are file-mounted; no database password or FGA
  * API token is passed by Docker Compose or stored in process.env. */
@@ -14,9 +14,9 @@ export type OpenBaoSource = Readonly<{
   namespace?: SecretNamespace;
 }>;
 
-function requiredString(value: unknown): string {
+function requiredString(value: unknown, source="OpenBao secret"): string {
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error("Missing or malformed OpenBao secret");
+    throw new Error("Missing or malformed "+source);
   }
   return value;
 }
@@ -50,40 +50,50 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function validatedSecrets(values:Record<string,unknown>,namespace:SecretNamespace):CoreRuntimeSecrets{
+function validatedSecrets(values:Record<string,unknown>,namespace:SecretNamespace,fromFile=false):CoreRuntimeSecrets{
+  const source=fromFile?"Core credential":"OpenBao secret";
   const loaded=Object.freeze({
-    controlDbUrl: requiredString(values.control_db_url),
-    openfgaToken: requiredString(values.openfga_token),
+    controlDbUrl: requiredString(values.control_db_url,source),
+    openfgaToken: requiredString(values.openfga_token,source),
   });
-  if(namespace==="multi-org-staging"){
+  if(fromFile||namespace==="multi-org-staging"){
+    const staging=namespace==="multi-org-staging";
+    const database=staging?"/syndes_staging_control":"/syndes_control";
+    const deployment=staging?"staging":"operational";
+    const role=staging?"syndes_staging_core":"syndes_core";
     let db:URL;
     try{db=new URL(loaded.controlDbUrl)}
-    catch{throw new Error("Invalid staging Control database boundary")}
+    catch{throw new Error("Invalid "+deployment+" Control database boundary")}
     if(!["postgres:","postgresql:"].includes(db.protocol)||
-       db.hostname!=="control-postgres"||(db.port&&db.port!=="5432")||
-       db.pathname!=="/syndes_staging_control"||
-       db.username!=="syndes_staging_core"||!db.password||db.search||db.hash)
-      throw new Error("Invalid staging Control database boundary");
+       db.hostname!==tenantDatabaseHost(namespace)||(db.port&&db.port!=="5432")||
+       db.pathname!==database||db.username!==role||!db.password||db.hash||
+       (db.search!==""&&(staging||db.search!=="?sslmode=disable")))
+      throw new Error("Invalid "+deployment+" Control database boundary");
   }
   return loaded;
 }
 
 export async function loadConfiguredCoreSecrets(env:NodeJS.ProcessEnv=process.env):Promise<CoreRuntimeSecrets>{
-  if(!stageFileSecretsEnabled(env))return loadCoreSecrets(openBaoSourceFromEnv(env));
-  return loadStageCoreSecrets();
+  const namespace=fileSecretNamespace(env);
+  if(namespace===undefined)return loadCoreSecrets(openBaoSourceFromEnv(env));
+  return loadFileCoreSecrets(namespace);
 }
 
-export async function loadStageCoreSecrets(path="/run/secrets/stage-core.json"):Promise<CoreRuntimeSecrets>{
-  const values=await readStageSecret(path);
-  return validatedSecrets(values,"multi-org-staging");
+export async function loadFileCoreSecrets(
+  namespace:SecretNamespace,
+  path=namespace==="production"?"/run/secrets/operational-core.json":"/run/secrets/stage-core.json",
+):Promise<CoreRuntimeSecrets>{
+  const values=await readCredentialFile(path,namespace);
+  return validatedSecrets(values,namespace,true);
 }
 
-export async function readStageSecret(path:string):Promise<Record<string,unknown>>{
+export async function readCredentialFile(path:string,namespace:SecretNamespace):Promise<Record<string,unknown>>{
+  if(namespace!=="production"&&namespace!=="multi-org-staging")throw new Error("Invalid file credential namespace");
   try{
     const value=record(JSON.parse(await readFile(path,"utf8")) as unknown);
-    if(value.namespace==="multi-org-staging")return value;
+    if(value.namespace===namespace)return value;
   }catch{ /* Read errors and malformed JSON must not expose credential content. */ }
-  throw new Error("Missing or malformed staging credential file");
+  throw new Error("Missing or malformed "+(namespace==="production"?"operational":"staging")+" credential file");
 }
 
 export async function loadCoreSecrets(

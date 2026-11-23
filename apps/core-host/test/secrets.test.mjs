@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadCoreSecrets, loadConfiguredCoreSecrets, loadStageCoreSecrets, openBaoSourceFromEnv } from "../dist/secrets.js";
+import { loadCoreSecrets, loadConfiguredCoreSecrets, loadFileCoreSecrets, openBaoSourceFromEnv } from "../dist/secrets.js";
 import {secretNamespaceFromEnv,tenantDatabaseHost} from "../dist/secret-namespace.js";
 
 const createSource = async () => {
@@ -110,7 +110,7 @@ test("staging reads only its namespace, validates Control target, revokes on den
  }finally{await rm(dir,{recursive:true,force:true})}
 });
 
-test("file credentials are stage-only and check the Control database boundary",async t=>{
+test("staging file credentials require an explicit provider and check the Control boundary",async t=>{
  const dir=await mkdtemp(join(tmpdir(),"syndes-stage-credential-"));
  t.after(()=>rm(dir,{recursive:true,force:true}));
  const path=join(dir,"runtime.json");
@@ -120,13 +120,38 @@ test("file credentials are stage-only and check the Control database boundary",a
   openfga_token:"stage-fixture",
  };
  await assert.rejects(loadConfiguredCoreSecrets({CORE_SECRET_PROVIDER:"files"}),/Invalid credential provider/);
- await assert.rejects(loadStageCoreSecrets(path),/Missing or malformed staging/);
+ await assert.rejects(loadFileCoreSecrets("multi-org-staging",path),/Missing or malformed staging/);
  await writeFile(path,JSON.stringify(values));
- assert.deepEqual(await loadStageCoreSecrets(path),{
+ assert.deepEqual(await loadFileCoreSecrets("multi-org-staging",path),{
   controlDbUrl:values.control_db_url,openfgaToken:values.openfga_token,
  });
  await writeFile(path,JSON.stringify({...values,namespace:"production"}));
- await assert.rejects(loadStageCoreSecrets(path),/Missing or malformed staging/);
+ await assert.rejects(loadFileCoreSecrets("multi-org-staging",path),/Missing or malformed staging/);
  await writeFile(path,JSON.stringify({...values,control_db_url:"postgres://bad:fixture@syndes-postgres/syndes_control"}));
- await assert.rejects(loadStageCoreSecrets(path),/Invalid staging Control database boundary/);
+ await assert.rejects(loadFileCoreSecrets("multi-org-staging",path),/Invalid staging Control database boundary/);
+});
+
+test("operational file credentials admit only the dedicated Control login",async t=>{
+ const dir=await mkdtemp(join(tmpdir(),"syndes-operational-credential-"));
+ t.after(()=>rm(dir,{recursive:true,force:true}));
+ const path=join(dir,"runtime.json");
+ const values={
+  namespace:"production",
+  control_db_url:"postgresql://syndes_core:fixture@syndes-postgres:5432/syndes_control?sslmode=disable",
+  openfga_token:"operational-fixture",
+ };
+ await writeFile(path,JSON.stringify(values));
+ assert.deepEqual(await loadFileCoreSecrets("production",path),{
+  controlDbUrl:values.control_db_url,openfgaToken:values.openfga_token,
+ });
+ await assert.rejects(loadFileCoreSecrets("multi-org-staging",path),/Missing or malformed staging/);
+ for(const control_db_url of [
+  values.control_db_url.replace("syndes_core:","postgres:"),
+  values.control_db_url.replace("syndes-postgres:","other-db:"),
+  values.control_db_url.replace("/syndes_control?","/syndes_tenant_fixture?"),
+  values.control_db_url+"&host=other-db",
+ ]){
+  await writeFile(path,JSON.stringify({...values,control_db_url}));
+  await assert.rejects(loadFileCoreSecrets("production",path),/Invalid operational Control database boundary/);
+ }
 });

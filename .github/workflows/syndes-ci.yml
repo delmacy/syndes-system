@@ -2095,6 +2095,43 @@ jobs:
           [[ "$MANAGER_RELEASE_MODE" == deploy || "$MANAGER_RELEASE_MODE" == refresh-web ]]
           tar -czf - -C manager-bundle . | timeout 900s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-manager.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_MANAGER_DEPLOY_APPROVAL=ACTIONS_APPROVED_MANAGER_FILE_DEPLOY SOURCE_SHA=$SOURCE_SHA MANAGER_RELEASE_MODE=$MANAGER_RELEASE_MODE bash \"\$dir/deploy.sh\" \"\$dir/web-dist\""
 
+  devserver01-prepare-operational-file-credentials:
+    name: Prepare and verify operational files without a service restart
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'DEVSERVER01-PREPARE-OPERATIONAL-FILES-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify exact source and server selection
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEPLOY_HOST" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          python3 -m py_compile scripts/deploy/devserver01-prepare-file-credentials.py
+      - name: Join trusted Tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Validate current SQL and OpenFGA logins and prepare persistent files
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          timeout 180s tailscale ssh "delmacy@$DEPLOY_HOST" 'SYNDES_PREPARE_OPERATIONAL_FILES=ACTIONS_APPROVED_OPERATIONAL_FILES python3 -' < scripts/deploy/devserver01-prepare-file-credentials.py
+
   devserver01-demo-readiness:
     name: DevServer01 tenant and Manager demo readiness
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (contains(github.event.head_commit.message, 'DEVSERVER01-DEMO-READINESS-APPROVED') || contains(github.event.head_commit.message, 'DEVSERVER01-MANAGER-DEMO-PASSWORD-RESET-APPROVED')) }}
