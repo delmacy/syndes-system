@@ -36,3 +36,21 @@ Este aceite usa uma fixture greenfield. **Não comprova o backfill de dados hist
 A [PR #308](https://github.com/delmacy/syndes-system/pull/308), main `4036dc69b2742f597a8a2a50559b14307ebee4f5`, foi executada no [job 137223648493](https://github.com/delmacy/syndes-system/actions/runs/45027223052/job/137223648493) após o Syndes CI Gate. O marcador `STAGE_RECOVERED_RECORD_OWNERSHIP_AND_EXACT_GRANTS_BEFORE_RESEED_PASS` confirma que o mesmo Core leu por HTTP os mesmos quatro registros sintéticos CRM/Inbox criados antes do backup. A e B leram seus próprios registros e receberam 404 para registros da outra organização. Antes de resemear as tuples, o OpenFGA restaurado retornou seis grants exatos esperados e confirmou a ausência do grant de criação no workspace A2.
 
 A segunda passagem completa, incluindo revogação, concluiu no mesmo digest de Core. O restore dos bancos levou 9 s e o intervalo registrado pelo ensaio até nova aceitação foi 48 s. Falta o ensaio composto com dados legados vinculados às autoridades de staging e a medição de RPO operacional. #210/G-4 continuam parciais. `PRODUCTION_GATE=BLOCKED`.
+
+## Staging com credenciais em arquivos
+
+O [run 45085061964](https://github.com/delmacy/syndes-system/actions/runs/45085061964)
+implantou a imagem Core `sha256:ce32339b7fa721503ec228c5b041041f883ed41828cbd8b14563980112beb5a9`,
+fonte `fa0e0e7b24c0edbe7335ea66b7119efd0bd8e3c5`. O
+[job 137402986183](https://github.com/delmacy/syndes-system/actions/runs/45085061964/job/137402986183)
+comprovou a inicialização do Core sem OpenBao, com credenciais de Control
+e tenant montadas somente para leitura.
+
+O [job 137403178970](https://github.com/delmacy/syndes-system/actions/runs/45085061964/job/137403178970)
+passou o aceite funcional com o OpenBao de staging parado. A fixture
+demonstrou duas organizações e quatro workspaces no tenant principal,
+negação a um segundo banco tenant sem grants, CRM e Inbox via HTTP e
+SSE, funis publicados, movimentação de atendimento e revogação.
+O worker WhatsApp usou dados sintéticos. A sincronização de histórico
+multi-org continuou negada. A evidência vale para o staging isolado.
+`PRODUCTION_GATE=BLOCKED`.
