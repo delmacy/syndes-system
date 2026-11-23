@@ -2183,6 +2183,51 @@ jobs:
           tar -czf - -C "$bundle" . | timeout 720s tailscale ssh "$remote" \
             "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-rehearsal-bundle.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzpf - -C \"\$dir\"; SYNDES_REHEARSE_OPERATIONAL_FILES=ACTIONS_APPROVED_OPERATIONAL_REHEARSAL SOURCE_SHA=$SOURCE_SHA python3 \"\$dir/rehearse.py\" \"\$dir\" '$image'"
 
+  devserver01-cleanup-syndes:
+    name: Remove the approved Syndes stacks and preserve the WhatsApp store
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'DEVSERVER01-SYNDES-CLEANUP-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify exact approved source and server selection
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEPLOY_HOST" == 'delmacy-desktoppc.tayra-delta.ts.net' && "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          python3 -m py_compile scripts/ci/devserver01-syndes-cleanup-plan.py scripts/deploy/devserver01-cleanup-syndes.py
+          python3 -m py_compile scripts/deploy/devserver01-retain-whatsapp-postgres.py
+          python3 -m json.tool scripts/deploy/devserver01-cleanup-syndes.json >/dev/null
+      - name: Join trusted Tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Match the reviewed allowlist, remove resources and verify retained services
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "$bundle"' EXIT
+          install -m 0600 scripts/ci/devserver01-syndes-cleanup-plan.py "$bundle/inventory.py"
+          install -m 0600 scripts/deploy/devserver01-cleanup-syndes.py "$bundle/cleanup.py"
+          install -m 0600 scripts/deploy/devserver01-retain-whatsapp-postgres.py "$bundle/postgres-files.py"
+          install -m 0600 scripts/deploy/devserver01-cleanup-syndes.json "$bundle/approved.json"
+          tar -czf - -C "$bundle" . | timeout 570s tailscale ssh "delmacy@$DEPLOY_HOST" \
+            'set -Eeuo pipefail; umask 077; dir=$(mktemp -d /tmp/syndes-cleanup.XXXXXXXX); trap '\''rm -rf "$dir"'\'' EXIT; tar -xzf - -C "$dir"; export SYNDES_CLEANUP_APPROVAL=ACTIONS_APPROVED_SYNDES_CLEANUP; python3 "$dir/cleanup.py" --plan; python3 "$dir/cleanup.py" --apply'
+
   devserver01-demo-readiness:
     name: DevServer01 tenant and Manager demo readiness
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (contains(github.event.head_commit.message, 'DEVSERVER01-DEMO-READINESS-APPROVED') || contains(github.event.head_commit.message, 'DEVSERVER01-MANAGER-DEMO-PASSWORD-RESET-APPROVED')) }}
