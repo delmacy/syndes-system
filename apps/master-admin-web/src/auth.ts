@@ -20,7 +20,7 @@ export async function login(cfg:MasterConfig):Promise<void>{
  sessionStorage.setItem(pending,JSON.stringify({verifier,state,at:Date.now()}));
  const url=new URL(cfg.issuer+"/protocol/openid-connect/auth");
  url.search=new URLSearchParams({
-  client_id:cfg.clientId,response_type:"code",scope:"openid",
+  client_id:cfg.clientId,response_type:"code",scope:"openid",prompt:"select_account",
   redirect_uri:redirect(),state,code_challenge:b64url(hash),code_challenge_method:"S256"
  }).toString();
  window.location.assign(url.toString());

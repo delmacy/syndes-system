@@ -32,8 +32,9 @@ try{
  try{browser=await chromium.launch({headless:true});}
  catch{browser=await chromium.launch({headless:true,channel:"chrome"});}
  const calls=[];
- async function fixtureContext({deny=false}={}){
+ async function fixtureContext({denyFirstLogin=false}={}){
   const ctx=await browser.newContext();
+  const states=[];
   await ctx.route("**/master-runtime.json",route=>route.fulfill({
    status:200,contentType:"application/json",body:JSON.stringify({issuer,clientId:"syndes-master-admin"})
   }));
@@ -43,6 +44,9 @@ try{
     const state=u.searchParams.get("state");
     assert.ok(state,"PKCE state must exist");
     assert.equal(u.searchParams.get("code_challenge_method"),"S256");
+    assert.equal(u.searchParams.get("prompt"),"select_account","Manual login must allow choosing a different Keycloak account");
+    assert.ok(!states.includes(state),"Retry must generate a fresh state");
+    states.push(state);
     await route.fulfill({status:302,headers:{location:address+"/?code=fixture-code&state="+encodeURIComponent(state)}});
    }else if(u.pathname.endsWith("/token")){
     assert.match(route.request().postData()??"",/code_verifier=/);
@@ -55,7 +59,7 @@ try{
    assert.equal(route.request().headers().authorization,"Bearer fixture-only-token");
    calls.push(u.pathname+u.search);
    let body,status=200;
-   if(path.endsWith("/me")){if(deny){status=403;body={error:"Platform operator required"}}
+   if(path.endsWith("/me")){if(denyFirstLogin&&states.length===1){status=403;body={error:"Platform operator required"}}
     else body={role:"viewer",capabilities:{viewTenants:true,manageTenants:false,viewCustomerData:false}};}
    else if(path.endsWith("/summary"))body={total:1,active:1,provisioned:0,suspended:0,memberships:3};
    else if(path.endsWith("/tenants")) {
@@ -96,14 +100,19 @@ try{
  assert.equal(await page.getByText("Empresa Alfa [FIXTURE]").count(),0);
  await context.close();
 
- const denied=await fixtureContext({deny:true});
+ const denied=await fixtureContext({denyFirstLogin:true});
  const unauthorized=await denied.newPage();
  await unauthorized.goto(address);
  await unauthorized.getByRole("button",{name:/Entrar com Keycloak/}).click();
  await unauthorized.getByRole("alert").waitFor({timeout:10000});
+ assert.match(await unauthorized.getByRole("alert").textContent(),/Entre com uma conta autorizada/);
  assert.equal(await unauthorized.getByRole("navigation").count(),0,"Denied user cannot see console");
+ await unauthorized.getByRole("button",{name:/Entrar com Keycloak/}).click();
+ await unauthorized.getByRole("heading",{name:"Visão geral da plataforma"}).waitFor({timeout:10000});
+ await unauthorized.getByRole("navigation").getByRole("button",{name:"Clientes"}).click();
+ await unauthorized.getByText("Empresa Alfa [FIXTURE]").waitFor();
  await denied.close();
- console.log("Browser E2E: PKCE, overview, filtering, fresh details, logout and forbidden operator — PASS (FIXTURES)");
+ console.log("Browser E2E: PKCE, denied account with fresh login retry, catalog, filtering and logout — PASS (FIXTURES)");
 }finally{
  await browser?.close().catch(()=>{});
  preview.kill();

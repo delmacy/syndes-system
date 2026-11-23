@@ -6,7 +6,7 @@ set -Eeuo pipefail
 cd "$(dirname "$0")/../.."
 repo="$(pwd -P)"
 mode="${1:---preflight}"
-[[ "$mode" == --preflight || "$mode" == --apply ]] || {
+[[ "$mode" == --preflight || "$mode" == --apply || "$mode" == --refresh-web ]] || {
   echo "Usage: homolog-deploy.sh --preflight|--apply" >&2; exit 2;
 }
 fail(){ echo "BLOCKED: $*" >&2; exit 2; }
@@ -21,6 +21,7 @@ case "$repo" in
     ;;
   *) fail "Run only in an explicitly approved DevServer01 Manager release checkout" ;;
 esac
+[[ "$mode" != --refresh-web || "$actions_release" == true ]] || fail "Frontend refresh requires an Actions release"
 command -v docker >/dev/null || fail "Docker unavailable"
 command -v jq >/dev/null || fail "jq unavailable"
 command -v tailscale >/dev/null || fail "Tailscale unavailable"
@@ -89,11 +90,21 @@ if [[ "$actions_release" == true ]]; then
     http://127.0.0.1:18080/realms/syndes/protocol/openid-connect/auth)
   [[ "$login_status" == 200 ]] || fail "Keycloak did not accept the dedicated 9447 Manager login request"
 fi
-if ! tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode free >/dev/null; then
-  fail "Port 9447 already assigned or Tailscale configuration unreadable; do not overwrite"
-fi
-if docker ps -q --filter 'label=com.docker.compose.project=syndes-master-admin' | grep -q .; then
-  fail "Manager Compose already running; use the dedicated gate, not redeployment"
+if [[ "$mode" == --refresh-web ]]; then
+  tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode active >/dev/null ||
+    fail "Manager Tailnet route does not match the running frontend"
+  [[ -f "$runtime/deployed-head" && ! -L "$runtime/deployed-head" ]] ||
+    fail "A successful Manager release is required before refreshing its frontend"
+  deployed="$(cat "$runtime/deployed-head")"
+  [[ "$deployed" =~ ^[a-f0-9]{40}$ ]] || fail "Invalid deployed Manager SHA"
+  git -c safe.directory="$repo" diff --quiet "$deployed" "$head" -- apps/master-admin-api infra/master-admin/compose.yaml ||
+    fail "Frontend refresh requires the deployed API and network configuration"
+else
+  tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode free >/dev/null ||
+    fail "Port 9447 already assigned or Tailscale configuration unreadable"
+  if docker ps -q --filter 'label=com.docker.compose.project=syndes-master-admin' | grep -q .; then
+    fail "Manager Compose already running; use the dedicated frontend refresh"
+  fi
 fi
 
 say "All predeployment checks passed; source and approved CI artifact intact"
@@ -101,9 +112,82 @@ if [[ "$mode" == --preflight ]]; then
   echo "PREFLIGHT PASS: no changes made"
   exit 0
 fi
-# Never write a DB password, token or AppRole to env, log or Git.
 umask 077
-cat > "$runtime/master.env" <<EOF
+export MASTER_API_ENV_FILE="$runtime/master.env"
+export MASTER_DB_URL_FILE="$runtime/master_db_url"
+export MASTER_RUNTIME_JSON="$runtime/master-runtime.json"
+export MASTER_BIND_PORT=18085
+compose=(docker compose -f infra/master-admin/compose.yaml)
+build_web(){
+  docker build --pull=false --build-context "web-dist=$dist" \
+    -f apps/master-admin-web/Dockerfile.runtime -t syndes/master-admin-web:local "$repo" >/dev/null
+}
+record_release(){
+  local marker
+  marker="$(mktemp "$runtime/.deployed-head.XXXXXXXX")"
+  printf '%s\n' "$head" > "$marker"
+  mv -f "$marker" "$runtime/deployed-head"
+}
+verify_web(){
+  local id local_origin=http://127.0.0.1:18085 proxy_status
+  id="$("${compose[@]}" ps -q master-web)"
+  [[ "$id" =~ ^[a-f0-9]{12,64}$ ]] || fail "Expected one healthy Manager frontend"
+  docker inspect -f '{{json (index .NetworkSettings.Ports "8080/tcp")}}' "$id" |
+    jq -e '. == [{"HostIp":"127.0.0.1","HostPort":"18085"}]' >/dev/null ||
+    fail "Manager frontend port is not published exclusively to host loopback"
+  curl --noproxy '*' --fail --silent --show-error --max-time 5 "$local_origin/" >/dev/null ||
+    fail "Manager frontend is healthy but unreachable on host loopback"
+  curl --noproxy '*' --fail --silent --show-error --max-time 5 "$local_origin/master-runtime.json" |
+    jq -e --arg issuer "$issuer" '.issuer == $issuer and .clientId == "syndes-master-admin"' >/dev/null ||
+    fail "Manager runtime OIDC configuration is not served on host loopback"
+  proxy_status="$(curl --noproxy '*' --silent --show-error --max-time 5 --output /dev/null --write-out '%{http_code}' \
+    "$local_origin/v1/platform/admin/tenants")"
+  [[ "$proxy_status" == 401 ]] || fail "Manager proxy did not deny anonymous tenant catalog access"
+  say "Manager frontend healthy, loopback HTTP, OIDC configuration and API proxy verified"
+}
+verify_tailnet_http(){
+  local anonymous_status
+  curl --noproxy '*' --silent --show-error --fail --max-time 15 "$origin/" >/dev/null ||
+    fail "Manager frontend not reachable through private HTTPS"
+  anonymous_status=$(curl --noproxy '*' --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' \
+    "$origin/v1/platform/admin/tenants")
+  [[ "$anonymous_status" == 401 ]] || fail "Tenant catalog must deny anonymous requests"
+  say "Private Manager frontend reachable and anonymous tenant catalog request denied"
+}
+if [[ "$mode" == --refresh-web ]]; then
+  api_id="$("${compose[@]}" ps -q master-api)"
+  web_id="$("${compose[@]}" ps -q master-web)"
+  [[ "$api_id" =~ ^[a-f0-9]{12,64}$ && "$web_id" =~ ^[a-f0-9]{12,64}$ ]] ||
+    fail "Expected the running Manager API and frontend"
+  [[ "$(docker inspect -f '{{.State.Health.Status}}' "$api_id")" == healthy ]] ||
+    fail "Manager API is unhealthy before frontend refresh"
+  previous_web_image="$(docker inspect -f '{{.Image}}' "$web_id")"
+  [[ "$previous_web_image" =~ ^sha256:[a-f0-9]{64}$ ]] || fail "Previous frontend image unavailable"
+  build_web
+  refresh_web(){
+    "${compose[@]}" up -d --no-deps --no-build --force-recreate --wait --wait-timeout 60 master-web
+  }
+  rollback_web(){
+    local status=$?
+    if [[ $status -ne 0 ]]; then
+      docker tag "$previous_web_image" syndes/master-admin-web:local && refresh_web ||
+        echo "BLOCKED: previous Manager frontend image could not be restored" >&2
+    fi
+  }
+  trap rollback_web EXIT
+  refresh_web
+  [[ "$("${compose[@]}" ps -q master-api)" == "$api_id" ]] ||
+    fail "Manager API container changed during frontend refresh"
+  verify_web
+  verify_tailnet_http
+  record_release
+  trap - EXIT
+  echo MANAGER_WEB_REFRESH_COMPLETE
+  exit 0
+fi
+
+# Materialize non-secret OIDC configuration for the first deploy.
+cat > "$MASTER_API_ENV_FILE" <<EOF
 MASTER_KEYCLOAK_ISSUER=$issuer
 MASTER_KEYCLOAK_AUDIENCE=syndes-master-api
 MASTER_KEYCLOAK_CLIENT_ID=syndes-master-admin
@@ -111,16 +195,11 @@ MASTER_KEYCLOAK_JWKS_URL=http://keycloak:8080/realms/syndes/protocol/openid-conn
 MASTER_PUBLIC_ORIGIN=$origin
 MASTER_CONTROL_DB_URL_FILE=/run/secrets/master_db_url
 EOF
-chmod 0600 "$runtime/master.env"
-printf '{"issuer":"%s","clientId":"syndes-master-admin"}\n' "$issuer" > "$runtime/master-runtime.json"
-chmod 0644 "$runtime/master-runtime.json"
+chmod 0600 "$MASTER_API_ENV_FILE"
+printf '{"issuer":"%s","clientId":"syndes-master-admin"}\n' "$issuer" > "$MASTER_RUNTIME_JSON"
+chmod 0644 "$MASTER_RUNTIME_JSON"
 docker build --pull=false -f apps/master-admin-api/Dockerfile -t syndes/master-admin-api:local "$repo" >/dev/null
-docker build --pull=false --build-context "web-dist=$dist" \
-  -f apps/master-admin-web/Dockerfile.runtime -t syndes/master-admin-web:local "$repo" >/dev/null
-export MASTER_API_ENV_FILE="$runtime/master.env"
-export MASTER_DB_URL_FILE="$runtime/master_db_url"
-export MASTER_RUNTIME_JSON="$runtime/master-runtime.json"
-export MASTER_BIND_PORT=18085
+build_web
 # Classify the exact connection boundary with NO application startup, secrets
 # in environment, or tenant database touch. Both probes are disposable, under
 # the approved Actions release; they execute SELECT only.
@@ -214,21 +293,7 @@ rollback_on_error(){
 trap rollback_on_error EXIT
 docker compose -f infra/master-admin/compose.yaml up -d --no-build --wait --wait-timeout 90 ||
   fail "Manager containers did not become healthy"
-web_id="$(docker compose -f infra/master-admin/compose.yaml ps -q master-web)"
-[[ "$web_id" =~ ^[a-f0-9]{12,64}$ ]] || fail "Expected one healthy Manager frontend"
-docker inspect -f '{{json (index .NetworkSettings.Ports "8080/tcp")}}' "$web_id" |
-  jq -e '. == [{"HostIp":"127.0.0.1","HostPort":"18085"}]' >/dev/null ||
-  fail "Manager frontend port is not published exclusively to host loopback"
-local_origin=http://127.0.0.1:18085
-curl --noproxy '*' --fail --silent --show-error --max-time 5 "$local_origin/" >/dev/null ||
-  fail "Manager frontend is healthy but unreachable on host loopback"
-curl --noproxy '*' --fail --silent --show-error --max-time 5 "$local_origin/master-runtime.json" |
-  jq -e --arg issuer "$issuer" '.issuer == $issuer and .clientId == "syndes-master-admin"' >/dev/null ||
-  fail "Manager runtime OIDC configuration is not served on host loopback"
-proxy_status="$(curl --noproxy '*' --silent --show-error --max-time 5 --output /dev/null --write-out '%{http_code}' \
-  "$local_origin/v1/platform/admin/tenants")"
-[[ "$proxy_status" == 401 ]] || fail "Manager proxy did not deny anonymous tenant catalog access"
-say "Manager frontend healthy, loopback HTTP, OIDC configuration and API proxy verified"
+verify_web
 # Save the current Serve configuration for an operator recovery review.
 # Never reset or overwrite the existing 8443, 9443 or 9444 handlers.
 tailscale serve status --json > "$runtime/tailscale-before-manager.json"
@@ -241,15 +306,7 @@ tailscale serve --bg --https=9447 http://127.0.0.1:18085
 route_owned=true
 tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode active >/dev/null ||
   fail "Tailnet Serve route does not point to the dedicated Manager frontend"
-if [[ "$actions_release" == true ]]; then
-  curl --noproxy '*' --silent --show-error --fail --max-time 15 "$origin/" >/dev/null ||
-    fail "Manager frontend not reachable through private HTTPS"
-  anonymous_status=$(curl --noproxy '*' --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' \
-    "$origin/v1/platform/admin/tenants")
-  [[ "$anonymous_status" == 401 ]] || fail "Tenant catalog must deny anonymous requests"
-  say "Private Manager frontend reachable and anonymous tenant catalog request denied"
-fi
-printf '%s\n' "$head" > "$runtime/deployed-head"
-chmod 0600 "$runtime/deployed-head"
+if [[ "$actions_release" == true ]]; then verify_tailnet_http; fi
+record_release
 started=false
 echo "HOMOLOG_DEPLOY_COMPLETE: private Tailnet only; run read-only host gate and real login tests"

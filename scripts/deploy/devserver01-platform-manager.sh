@@ -5,6 +5,8 @@ umask 077
 [[ "${SYNDES_MANAGER_DEPLOY_APPROVAL:-}" == ACTIONS_APPROVED_MANAGER_FILE_DEPLOY ]] || exit 2
 [[ "$(id -un)" == delmacy && "$(id -u)" == 1000 && "$(hostname -s)" == DevServer01 ]] || exit 2
 [[ "${SOURCE_SHA:-}" =~ ^[a-f0-9]{40}$ ]] || exit 2
+mode="${MANAGER_RELEASE_MODE:-deploy}"
+[[ "$mode" == deploy || "$mode" == refresh-web ]] || exit 2
 dist="$(realpath "${1:?missing CI bundle}")"
 [[ -f "$dist/index.html" && "$(jq -er .git_commit "$dist/CI_ARTIFACT_MANIFEST.json")" == "$SOURCE_SHA" ]] || exit 3
 
@@ -28,6 +30,10 @@ git -C "$release" fetch --quiet --depth=1 "$repo" "$SOURCE_SHA"
 git -C "$release" checkout --quiet --detach "$SOURCE_SHA"
 [[ "$(git -C "$release" rev-parse HEAD)" == "$SOURCE_SHA" ]] || exit 3
 
-bash "$release/scripts/deploy/devserver01-manager-tenant-db-acl.sh"
-python3 "$release/infra/master-admin/provision-db-file.py" --apply
-SYNDES_MANAGER_WEB_DIST="$dist" bash "$release/infra/master-admin/homolog-deploy.sh" --apply
+if [[ "$mode" == refresh-web ]]; then
+  SYNDES_MANAGER_WEB_DIST="$dist" bash "$release/infra/master-admin/homolog-deploy.sh" --refresh-web
+else
+  bash "$release/scripts/deploy/devserver01-manager-tenant-db-acl.sh"
+  python3 "$release/infra/master-admin/provision-db-file.py" --apply
+  SYNDES_MANAGER_WEB_DIST="$dist" bash "$release/infra/master-admin/homolog-deploy.sh" --apply
+fi

@@ -50,3 +50,10 @@ probe --fail "$base/" >/dev/null
 probe --fail "$base/master-runtime.json" | cmp - "$MASTER_RUNTIME_JSON"
 [[ "$(probe --output /dev/null --write-out '%{http_code}' "$base/v1/platform/admin/tenants")" == 401 ]]
 echo MANAGER_WEB_LOOPBACK_RUNTIME_JSON_AND_PROXY_PASS
+api_id="$("${compose[@]}" ps -q master-api)"
+"${compose[@]}" up -d --no-deps --no-build --force-recreate --wait --wait-timeout 60 master-web
+[[ "$("${compose[@]}" ps -q master-api)" == "$api_id" ]]
+[[ "$("${compose[@]}" ps -q master-web)" != "$id" ]]
+probe --fail "$base/master-runtime.json" | cmp - "$MASTER_RUNTIME_JSON"
+[[ "$(probe --output /dev/null --write-out '%{http_code}' "$base/v1/platform/admin/tenants")" == 401 ]]
+echo MANAGER_WEB_REFRESH_PRESERVES_API_AND_LOOPBACK_PASS

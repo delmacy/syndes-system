@@ -2049,7 +2049,7 @@ jobs:
 
   devserver01-manager-file-deploy:
     name: DevServer01 Platform Manager with file credentials
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'DEVSERVER01-MANAGER-FILE-DEPLOY-APPROVED') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (contains(github.event.head_commit.message, 'DEVSERVER01-MANAGER-FILE-DEPLOY-APPROVED') || contains(github.event.head_commit.message, 'DEVSERVER01-MANAGER-WEB-REFRESH-APPROVED')) }}
     needs: [gate]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -2058,6 +2058,7 @@ jobs:
       contents: read
       id-token: write
     env:
+      MANAGER_RELEASE_MODE: ${{ contains(github.event.head_commit.message, 'DEVSERVER01-MANAGER-WEB-REFRESH-APPROVED') && 'refresh-web' || 'deploy' }}
       SOURCE_SHA: ${{ github.sha }}
       DEVSERVER_PEER: ${{ vars.SYNDES_DEV_SSH_HOST }}
       TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
@@ -2091,7 +2092,8 @@ jobs:
         run: |
           set -Eeuo pipefail
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
-          tar -czf - -C manager-bundle . | timeout 900s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-manager.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_MANAGER_DEPLOY_APPROVAL=ACTIONS_APPROVED_MANAGER_FILE_DEPLOY SOURCE_SHA=$SOURCE_SHA bash \"\$dir/deploy.sh\" \"\$dir/web-dist\""
+          [[ "$MANAGER_RELEASE_MODE" == deploy || "$MANAGER_RELEASE_MODE" == refresh-web ]]
+          tar -czf - -C manager-bundle . | timeout 900s tailscale ssh "delmacy@$DEVSERVER_PEER" "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-manager.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_MANAGER_DEPLOY_APPROVAL=ACTIONS_APPROVED_MANAGER_FILE_DEPLOY SOURCE_SHA=$SOURCE_SHA MANAGER_RELEASE_MODE=$MANAGER_RELEASE_MODE bash \"\$dir/deploy.sh\" \"\$dir/web-dist\""
 
   devserver01-demo-readiness:
     name: DevServer01 tenant and Manager demo readiness (read-only)
