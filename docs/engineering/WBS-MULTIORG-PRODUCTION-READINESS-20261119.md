@@ -191,9 +191,10 @@ MO-REL-00 é reconciliação factual, **não** aprovação de segurança multi-o
   ou tuple deve falhar antes da chamada externa. Não restaurar grants humanos
   revogados por um simples replay. Estado parcialmente ativo requer
   reconciliação explícita; não preencher memberships SQL silenciosamente.
-- Core de staging ainda depende de OpenBao segregado/TLS/AppRoles, login SQL
-  mínimo, issuer HTTPS e reader Keycloak restrito, entitlements/ledger/grants
-  consistentes, singleton e E2E reais. Restore e piloto continuam pendentes.
+- Nesta etapa, a composição de staging usava OpenBao segregado com TLS e
+  AppRoles. Também exigia login SQL mínimo, issuer HTTPS, reader Keycloak
+  restrito, entitlements, ledger, grants e singleton. O aceite do runtime está
+  registrado nas atualizações seguintes.
   `PRODUCTION_GATE=BLOCKED`; nenhuma aprovação operacional é inferida do CI.
 
 ## Atualização de execução — staging greenfield (2026-11-22)
@@ -211,3 +212,13 @@ MO-REL-00 é reconciliação factual, **não** aprovação de segurança multi-o
 - MO-REL-01 staging funcional: [PR #310](https://github.com/delmacy/syndes-system/pull/310), main `c03b992c402bdce66e813299027fd5b0b7c2977c`, [Actions 45048956186, job 137290714044](https://github.com/delmacy/syndes-system/actions/runs/45048956186/job/137290714044), success após Syndes CI Gate. `STAGE_CRM_CSV_BOTH_ORGS_OWN_ROWS_ONLY_PASS` comprovou inclusão do registro próprio, exclusão cruzada A/B e 403 ao solicitar escopo alheio. `STAGE_WHATSAPP_HISTORY_SYNC_MULTI_ORG_DENY_PASS` comprovou 403 numa conversa WhatsApp criada pelo worker de staging. `STAGE_FUNCTIONAL_ACCEPTANCE_WITHOUT_RECOVERY_PASS` completou a matriz funcional com a imagem Core existente, sem backup ou restore. Sincronização permanece indisponível em multi-org. Os demais cenários abertos de MO-REL-01 e o recovery legado da #210 permanecem pendentes. `PRODUCTION_GATE=BLOCKED`.
 
 - MO-REL-01 history sync: o candidato opt-in usa `SYNDES_MULTI_ORG_HISTORY_SYNC=true`, fila tenant-local da migration WhatsApp 009 e capability `inbox.conversation.history_sync`. A Inbox registra um comando por referência e uma auditoria na mesma transação IAM07D. O worker revalida o principal, a época original, o escopo e a conta antes de marcar a tentativa. Tentativas interrompidas ou com resposta incerta permanecem sem reenvio automático. A ativação no DevServer01 requer migration e attestation da versão instalada, gateway privado com conta de teste pareada e grant/fence explícitos no escopo da conta piloto. O perfil de staging atual mantém o 403 até essas condições serem demonstradas. `PRODUCTION_GATE=BLOCKED`.
+
+## Staging multi-org com credenciais em arquivos
+
+A fonte `fa0e0e7b24c0edbe7335ea66b7119efd0bd8e3c5`
+inicializou o Core sem OpenBao no [job 137402986183](https://github.com/delmacy/syndes-system/actions/runs/45085061964/job/137402986183).
+O [aceite funcional](https://github.com/delmacy/syndes-system/actions/runs/45085061964/job/137403178970)
+passou com o OpenBao de staging parado. A matriz e os limites da fixture
+estão no [plano de execução](MULTIORG-STAGING-EXECUTION-PLAN-20261122.md).
+A retirada operacional do OpenBao, o fluxo do piloto e o Product Gate
+continuam pendentes. `PRODUCTION_GATE=BLOCKED`.

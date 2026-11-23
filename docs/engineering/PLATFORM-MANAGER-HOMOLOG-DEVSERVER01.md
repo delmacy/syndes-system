@@ -110,3 +110,26 @@ Os scripts `homolog-deploy.sh` e `homolog-stop.sh` aceitam **somente** dois chec
 **Procedimento seguro:** usar `git fetch` e um worktree `--detach` no caminho fixo de release, exigir SHA atual e `git status` rastreado limpo, copiar apenas o bundle **real** `platform-manager-web-dist` da CI aprovada, guardar manifesto local privado com SHA de origem e comparar o código fonte do frontend com o commit do bundle. Não executar Vite/Oxc no DevServer01 (SIGILL em CPU antiga); produzir a imagem Nginx com `Dockerfile.runtime` a partir do contexto BuildKit `web-dist`. Nenhuma mudança de Tailscale/Compose ocorre nessa preparação.
 
 **Deploy condicionado:** OpenBao e SQL devem estar provisionados pelo operador. Depois de `sudo bash infra/master-admin/homolog-deploy.sh --preflight` ter PASS no novo release checkout, `--apply` deve ser executado conscientemente na mesma cópia, seguido do host gate e teste de login real em navegador. Não considerar os testes estáticos como autorização para liberar o aplicativo.
+
+## Release pelo Actions com credencial em arquivo
+
+A [PR #330](https://github.com/delmacy/syndes-system/pull/330) acrescentou
+uma bridge de entrada exclusiva para o frontend publicar o loopback
+`127.0.0.1:18085`. A API usa as bridges internas. O teste Compose
+reproduziu a publicação ausente com o frontend conectado somente à rede
+interna e validou o binding, o JSON OIDC e o proxy após a correção.
+
+No SHA `0b14e02817ba12ac1ae8c45b95da2c7814576935`, o
+[job 137435038016](https://github.com/delmacy/syndes-system/actions/runs/45095384888/job/137435038016)
+confirmou o login do papel SQL exclusivo, a negação aos bancos tenant, a saúde
+dos dois contêineres, HTTP no loopback, configuração OIDC e 401 da API via
+proxy. O Tailscale recusou o comando Serve com `Access denied: serve config denied`.
+O rollback removeu apenas a stack isolada do Manager.
+
+Após a configuração do operador Linux do Tailscale, a
+[segunda tentativa do mesmo SHA](https://github.com/delmacy/syndes-system/actions/runs/45095384888/job/137435796894)
+passou. O Actions validou HTTPS privado em
+`https://delmacy-desktoppc.tayra-delta.ts.net:9447/` e 401 na consulta
+anônima ao catálogo. O Manager está implantado com a credencial em arquivo.
+O aceite do usuário demo com sessão Keycloak e catálogo real está pendente.
+`PRODUCTION_GATE=BLOCKED`.
