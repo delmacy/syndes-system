@@ -231,11 +231,11 @@ A cadeia de evidências está no [runbook do Manager](PLATFORM-MANAGER-HOMOLOG-D
 
 | Consumidor | Credencial e finalidade | Origem atual no código | Entrega prevista | Evidência |
 | --- | --- | --- | --- | --- |
-| Core operacional | DSN do Control e token OpenFGA | AppRole Core e KV `production/core-host` | Arquivo separado, com host e role do Control validados | Arquivos já provados em staging. Inventário operacional em execução |
-| Core operacional | Senha SQL usada por cada tenant | AppRole de tenants e KV `production/tenants/<uuid>` | Um arquivo por UUID e role, consultado após resolver o registro ativo do Control | Testes de isolamento em staging. Origem e permissões operacionais a conferir |
-| PostgreSQL | Senhas de bootstrap do administrador e das roles da infraestrutura | Quatro arquivos do renderizador em `/run/syndes/runtime` | Fontes protegidas e persistentes, com os mounts individuais do Compose | Confirmar os mounts em uso e validar recriação com o volume atual |
-| Keycloak | Conexão SQL e credencial de bootstrap | `keycloak.conf` gerado em `/run/syndes/runtime` | Arquivo exclusivo e persistente, montado somente leitura | Confirmar o mount e validar descoberta OIDC, JWKS e login depois do corte |
-| OpenFGA e migração de schema | Conexão SQL e credencial de API | `openfga.yaml` gerado em `/run/syndes/runtime` | Arquivo exclusivo e persistente, montado somente leitura | Confirmar o mount e validar prontidão, store e negação após revogação |
+| Core operacional | DSN do Control e token OpenFGA | AppRole Core e KV `production/core-host` | Arquivo separado, com host e role do Control validados | Cópia persistente preparada após validar SQL e OpenFGA. Inicialização do Core operacional com essa cópia pendente |
+| Core operacional | Senha SQL usada por cada tenant | AppRole de tenants e KV `production/tenants/<uuid>` | Um arquivo por UUID e role, consultado após resolver o registro ativo do Control | Login SQL e cópia do piloto confirmados. Piloto ainda `provisioned` |
+| PostgreSQL | Senhas de bootstrap do administrador e das roles da infraestrutura | Quatro arquivos do renderizador em `/run/syndes/runtime` | Fontes protegidas e persistentes, com os mounts individuais do Compose | Quatro logins verificados e cópias preparadas. Recriação com o volume atual pendente |
+| Keycloak | Conexão SQL e credencial de bootstrap | `keycloak.conf` gerado em `/run/syndes/runtime` | Arquivo exclusivo e persistente, montado somente leitura | Configuração copiada e login SQL validado. Descoberta OIDC, JWKS e login após recriação pendentes |
+| OpenFGA e migração de schema | Conexão SQL e credencial de API | `openfga.yaml` gerado em `/run/syndes/runtime` | Arquivo exclusivo e persistente, montado somente leitura | Configuração copiada, SQL e leitura autenticada do store validados e anônimo negado. Recriação e revogação após o corte pendentes |
 | Platform Manager | Papel SQL exclusivo de leitura do Control | Arquivo privado no DevServer01 | Arquivo já implantado | HTTPS privado, 401 anônimo, login Keycloak e catálogo confirmados |
 | WhatsApp | Sessão e credenciais do gateway | Configuração própria do gateway e dados persistentes | Preservar sessão e fontes atuais. Verificar eventual dependência herdada do Core | O inventário identifica vínculos Docker. Pareamento real permanece etapa distinta |
 
@@ -246,12 +246,23 @@ do OpenBao operacional, validar a inicialização de cada consumidor com sua
 nova origem, os acessos SQL restritos e a reversão na composição vigente.
 `PRODUCTION_GATE=BLOCKED`.
 
-O [inventário operacional](https://github.com/delmacy/syndes-system/actions/runs/45100326036/job/137449455341)
-observou o cofre operacional selado e o de staging parado. Os Core de base e
-roteado ainda recebem mounts do cofre. PostgreSQL, Keycloak e OpenFGA consomem
-seis arquivos em `/run/syndes/runtime`. O inventário também detectou seis
-contêineres adicionais com sinais de dependência a identificar. A
-[leitura da topologia](https://github.com/delmacy/syndes-system/actions/runs/45099926276/job/137449361784)
-mostrou o piloto operacional provisionado com duas organizações e quatro
-workspaces e o registro legado em suspensão. A preparação de cópias
-persistentes verifica os logins antes de publicar arquivos privados.
+O [job de preparação](https://github.com/delmacy/syndes-system/actions/runs/45102261553/job/137456404309)
+passou no SHA `d0460d58b245e259bbc99f61ccb1157c843c29ea`. Verificou cinco
+logins SQL em modo leitura, leu o store do OpenFGA com autenticação, confirmou
+a negação anônima e gravou as cópias persistentes em diretório `0700`, com
+arquivos `0600`. Os serviços continuaram usando os mounts existentes.
+
+O mesmo job observou o OpenBao operacional selado e o de staging parado.
+Os Core de base e roteado ainda recebem mounts do cofre. PostgreSQL, Keycloak
+e OpenFGA montam seis arquivos de `/run/syndes/runtime`. Entre os seis
+contêineres adicionais com sinais de dependência, todos estavam parados,
+incluindo um canário de Inbox e cinco contêineres sem labels do Compose.
+A [leitura da topologia](https://github.com/delmacy/syndes-system/actions/runs/45099926276/job/137449361784)
+mostrou um piloto operacional `provisioned` com duas organizações e quatro
+workspaces e o registro legado em suspensão.
+
+O [CD do Core](https://github.com/delmacy/syndes-system/actions/runs/45102566478)
+executou o preflight de leitura e pulou o deploy. Para a migração operacional,
+ainda é preciso validar leitura dos arquivos pelos usuários dos serviços,
+recriação e reversão com os volumes existentes e a autenticação e o isolamento
+após a troca dos mounts. `PRODUCTION_GATE=BLOCKED`.
