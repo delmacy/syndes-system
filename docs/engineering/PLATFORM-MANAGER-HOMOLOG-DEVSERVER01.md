@@ -131,5 +131,10 @@ Após a configuração do operador Linux do Tailscale, a
 passou. O Actions validou HTTPS privado em
 `https://delmacy-desktoppc.tayra-delta.ts.net:9447/` e 401 na consulta
 anônima ao catálogo. O Manager está implantado com a credencial em arquivo.
-O aceite do usuário demo com sessão Keycloak e catálogo real está pendente.
+O owner confirmou no navegador o login e a exibição de **Clientes** depois
+da [atualização do frontend](https://github.com/delmacy/syndes-system/actions/runs/45097700907/job/137442222549),
+fonte `a745ab812688f5d26a691daf516d9bfd21ed436f`, e da
+[redefinição temporária da senha demo](https://github.com/delmacy/syndes-system/actions/runs/45098456184/job/137444650713),
+fonte `5bb4f89acab8f7ccfca76a1afc485528bd1e0b65`.
+O aceite cobre a sessão Keycloak e o catálogo real em leitura.
 `PRODUCTION_GATE=BLOCKED`.

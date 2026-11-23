@@ -222,3 +222,26 @@ passou com o OpenBao de staging parado. A matriz e os limites da fixture
 estão no [plano de execução](MULTIORG-STAGING-EXECUTION-PLAN-20261122.md).
 A retirada operacional do OpenBao, o fluxo do piloto e o Product Gate
 continuam pendentes. `PRODUCTION_GATE=BLOCKED`.
+
+## Transição das credenciais operacionais no DevServer01
+
+O owner confirmou login Keycloak e catálogo de clientes no Manager privado.
+A API exclusiva usa um arquivo dedicado para acessar apenas o Control.
+A cadeia de evidências está no [runbook do Manager](PLATFORM-MANAGER-HOMOLOG-DEVSERVER01.md).
+
+| Consumidor | Credencial e finalidade | Origem atual no código | Entrega prevista | Evidência |
+| --- | --- | --- | --- | --- |
+| Core operacional | DSN do Control e token OpenFGA | AppRole Core e KV `production/core-host` | Arquivo separado, com host e role do Control validados | Arquivos já provados em staging. Inventário operacional em execução |
+| Core operacional | Senha SQL usada por cada tenant | AppRole de tenants e KV `production/tenants/<uuid>` | Um arquivo por UUID e role, consultado após resolver o registro ativo do Control | Testes de isolamento em staging. Origem e permissões operacionais a conferir |
+| PostgreSQL | Senhas de bootstrap do administrador e das roles da infraestrutura | Quatro arquivos do renderizador em `/run/syndes/runtime` | Fontes protegidas e persistentes, com os mounts individuais do Compose | Confirmar os mounts em uso e validar recriação com o volume atual |
+| Keycloak | Conexão SQL e credencial de bootstrap | `keycloak.conf` gerado em `/run/syndes/runtime` | Arquivo exclusivo e persistente, montado somente leitura | Confirmar o mount e validar descoberta OIDC, JWKS e login depois do corte |
+| OpenFGA e migração de schema | Conexão SQL e credencial de API | `openfga.yaml` gerado em `/run/syndes/runtime` | Arquivo exclusivo e persistente, montado somente leitura | Confirmar o mount e validar prontidão, store e negação após revogação |
+| Platform Manager | Papel SQL exclusivo de leitura do Control | Arquivo privado no DevServer01 | Arquivo já implantado | HTTPS privado, 401 anônimo, login Keycloak e catálogo confirmados |
+| WhatsApp | Sessão e credenciais do gateway | Configuração própria do gateway e dados persistentes | Preservar sessão e fontes atuais. Verificar eventual dependência herdada do Core | O inventário identifica vínculos Docker. Pareamento real permanece etapa distinta |
+
+O [inventário do DevServer01](../../scripts/ci/devserver01-openbao-inventory.py)
+inspeciona mounts, redes, nomes das variáveis e estado do cofre pelo CD
+existente. Os resultados permitem ordenar a migração. Para liberar o corte
+do OpenBao operacional, validar a inicialização de cada consumidor com sua
+nova origem, os acessos SQL restritos e a reversão na composição vigente.
+`PRODUCTION_GATE=BLOCKED`.
