@@ -1,0 +1,91 @@
+# Disposable project only. All service names and data volumes are project-scoped.
+services:
+  postgres:
+    image: ${REHEARSAL_PG_IMAGE:?}
+    pull_policy: never
+    mem_limit: 512m
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_admin_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ${REHEARSAL_ASSETS:?}/00-init.sh:/docker-entrypoint-initdb.d/00-init.sh:ro
+      - ${REHEARSAL_ASSETS:?}/control.schema:/opt/syndes/control.schema:ro
+      - ${REHEARSAL_FILES:?}/pg_admin_password:/run/secrets/pg_admin_password:ro
+      - ${REHEARSAL_FILES:?}/pg_core_password:/run/secrets/pg_core_password:ro
+      - ${REHEARSAL_FILES:?}/pg_keycloak_password:/run/secrets/pg_keycloak_password:ro
+      - ${REHEARSAL_FILES:?}/pg_openfga_password:/run/secrets/pg_openfga_password:ro
+    networks:
+      private:
+        aliases: [syndes-postgres]
+    healthcheck:
+      # TCP confirms the final server is running, rather than the bootstrap socket.
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, postgres]
+      interval: 3s
+      timeout: 2s
+      retries: 45
+
+  keycloak:
+    image: ${REHEARSAL_KC_IMAGE:?}
+    pull_policy: never
+    command: [--config-file=/run/secrets/keycloak.conf, start, --http-enabled=true]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://syndes-postgres:5432/syndes_keycloak
+      KC_DB_USERNAME: syndes_keycloak
+      KC_HOSTNAME: http://keycloak:8080
+      KC_DB_POOL_MAX_SIZE: "5"
+      JAVA_OPTS_KC_HEAP: "-XX:MaxRAMPercentage=55"
+    mem_limit: 1g
+    volumes:
+      - ${REHEARSAL_FILES:?}/keycloak.conf:/run/secrets/keycloak.conf:ro
+    networks: [private]
+
+  openfga-migrate:
+    image: ${REHEARSAL_FGA_IMAGE:?}
+    pull_policy: never
+    command: [migrate]
+    mem_limit: 256m
+    volumes:
+      - ${REHEARSAL_FILES:?}/openfga.yaml:/etc/openfga/config.yaml:ro
+    networks: [private]
+
+  openfga:
+    image: ${REHEARSAL_FGA_IMAGE:?}
+    pull_policy: never
+    command: [run]
+    mem_limit: 256m
+    volumes:
+      - ${REHEARSAL_FILES:?}/openfga.yaml:/etc/openfga/config.yaml:ro
+    networks: [private]
+
+  core:
+    image: ${REHEARSAL_CORE_IMAGE:?}
+    pull_policy: never
+    mem_limit: 512m
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+    environment:
+      CORE_SECRET_PROVIDER: files
+      SYNDES_DEPLOYMENT_ENV: production
+      SYNDES_MULTI_ORG_ENABLED: "false"
+      WHATSAPP_DISPATCH_ENABLED: "false"
+      CORE_KEYCLOAK_ISSUER: http://keycloak:8080/realms/master
+      CORE_KEYCLOAK_AUDIENCE: syndes-core
+      CORE_KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/master/protocol/openid-connect/certs
+      CORE_OPENFGA_URL: http://openfga:8080
+      CORE_OPENFGA_STORE_ID: ${REHEARSAL_FGA_STORE:-fixture}
+    volumes:
+      - ${REHEARSAL_FILES:?}/operational-core.json:/run/secrets/operational-core.json:ro
+      - ${REHEARSAL_FILES:?}/operational-tenants:/run/secrets/operational-tenants:ro
+      - ${REHEARSAL_ASSETS:?}/verify.mjs:/opt/rehearsal/verify.mjs:ro
+    networks: [private]
+
+networks:
+  private:
+    internal: true
+
+volumes:
+  pgdata:
