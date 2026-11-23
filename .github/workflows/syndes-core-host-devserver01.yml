@@ -99,7 +99,7 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
           python3 -m py_compile scripts/ci/devserver01-openbao-inventory.py
-          timeout 90s tailscale ssh "delmacy@$DEPLOY_HOST" 'python3 -' < scripts/ci/devserver01-openbao-inventory.py
+          timeout 90s tailscale ssh "delmacy@$DEPLOY_HOST" 'python3 - --cutover' < scripts/ci/devserver01-openbao-inventory.py
 
   deploy:
     # Release requires all of: repository switch, approved *exact* SHA, and

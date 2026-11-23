@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Inventory credential delivery from Docker metadata and OpenBao seal status."""
+import hashlib
 import json
 import os
+from pathlib import Path
 import pwd
 import re
 import subprocess
@@ -81,6 +83,45 @@ def seal_status(containers, name):
     return "sealed" if response.get("sealed") is True else "unsealed"
 
 
+def cutover_metadata():
+    """Identify the deployed manifests and image versions for a scoped cutover."""
+    targets = {key: SERVICES[key] for key in (
+        "CORE_ROUTED", "CORE_BASE", "POSTGRES", "KEYCLOAK", "OPENFGA", "OPENFGA_MIGRATE",
+    )} | {"OPENBAO": VAULT, "GATEWAY": "syndes-whatsapp-whatsapp-gateway-1"}
+    selection = ('{{json .Config.Image}}\t{{json .Image}}\t{{json .HostConfig.RestartPolicy.Name}}\t'
+                 '{{json (index .Config.Labels "com.docker.compose.project.config_files")}}\t'
+                 '{{json (index .Config.Labels "com.docker.compose.project.working_dir")}}\t'
+                 '{{json (index .Config.Labels "com.docker.compose.project.environment_file")}}\t'
+                 '{{json .Mounts}}\t{{json .HostConfig.PortBindings}}\t'
+                 '{{range $name, $endpoint := .NetworkSettings.Networks}}{{$name}} {{end}}')
+    result = docker("inspect", "--format", selection, *targets.values())
+    if result.returncode:
+        raise RuntimeError("Unable to locate cutover runtime metadata")
+    lines = result.stdout.splitlines()
+    if len(lines) != len(targets):
+        raise RuntimeError("Unexpected cutover runtime inventory")
+    for label, line in zip(targets, lines):
+        image, ident, restart, paths, working, environment, mounts, ports, networks = line.split("\t")
+        image, ident, restart, paths, working, environment, mounts, ports = map(
+            json.loads, (image, ident, restart, paths, working, environment, mounts, ports),
+        )
+        if not re.fullmatch(r"[a-zA-Z0-9_./:@-]+", image) or not re.fullmatch(r"sha256:[a-f0-9]{64}", ident):
+            raise RuntimeError("Unexpected image metadata")
+        print(f"OPENBAO_CUTOVER_{label} image={image} id={ident} restart={restart} "
+              f"ports={int(bool(ports))} networks={','.join(networks.split())}")
+        for field, value in (("COMPOSE", paths), ("WORKDIR", working), ("ENVFILE", environment)):
+            for item in filter(None, value.split(",")):
+                if not re.fullmatch(r"/(?:home/delmacy|srv/syndes-lab)/[a-zA-Z0-9_./-]+", item):
+                    continue
+                print(f"OPENBAO_CUTOVER_{label}_{field}={item}")
+                if field == "COMPOSE" and Path(item).is_file() and os.access(item, os.R_OK):
+                    digest = hashlib.sha256(Path(item).read_bytes()).hexdigest()
+                    print(f"OPENBAO_CUTOVER_{label}_COMPOSE_SHA256={digest}")
+        for mount in mounts or []:
+            if mount.get("Type") == "volume" and re.fullmatch(r"[a-zA-Z0-9_.-]+", mount.get("Name", "")):
+                print(f"OPENBAO_CUTOVER_{label}_VOLUME={mount['Name']}")
+
+
 def main():
     if os.uname().nodename.split(".")[0] != "DevServer01" or pwd.getpwuid(os.getuid()).pw_name != "delmacy":
         raise RuntimeError("Unexpected DevServer01 inventory identity")
@@ -108,6 +149,8 @@ def main():
             print(f"OPENBAO_INVENTORY_OTHER={identity} status={entry['status']}")
     print("OPENBAO_INVENTORY_OPERATIONAL_SEAL=" + seal_status(containers, VAULT))
     print("OPENBAO_INVENTORY_STAGING_SEAL=" + seal_status(containers, STAGING_VAULT))
+    if sys.argv[1:] == ["--cutover"]:
+        cutover_metadata()
     print("DEVSERVER01_OPENBAO_METADATA_INVENTORY_PASS")
 
 
