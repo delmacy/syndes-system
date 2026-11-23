@@ -261,8 +261,20 @@ A [leitura da topologia](https://github.com/delmacy/syndes-system/actions/runs/4
 mostrou um piloto operacional `provisioned` com duas organizações e quatro
 workspaces e o registro legado em suspensão.
 
-O [CD do Core](https://github.com/delmacy/syndes-system/actions/runs/45102566478)
-executou o preflight de leitura e pulou o deploy. Para a migração operacional,
-ainda é preciso validar leitura dos arquivos pelos usuários dos serviços,
-recriação e reversão com os volumes existentes e a autenticação e o isolamento
-após a troca dos mounts. `PRODUCTION_GATE=BLOCKED`.
+O [ensaio de mounts](https://github.com/delmacy/syndes-system/actions/runs/45166005027/job/137664919359)
+passou no SHA `24b012250a0d98704030d938897354c8f81ac20b`. O job conferiu as
+permissões e a consistência dos arquivos operacionais em leitura. Em um projeto
+Docker privado no DevServer01, usou credenciais sintéticas, as imagens de
+PostgreSQL, Keycloak e OpenFGA em uso no host e a imagem Core construída nesse
+SHA. Recriou os quatro serviços a partir de uma segunda origem dos mounts e
+preservou o banco e o store OpenFGA da fixture. `/readyz`, JWKS, acesso
+autenticado ao store, recusa anônima e isolamento entre os dois bancos tenant
+passaram antes e depois da troca. Um arquivo inválido impediu a inicialização do
+Core e a volta ao mount inicial restaurou o serviço no ensaio.
+`OPERATIONAL_REHEARSAL_RECREATE_AND_CORE_MOUNT_REVERSAL_PASS`.
+
+O [CD do Core](https://github.com/delmacy/syndes-system/actions/runs/45167224607)
+executou o preflight de leitura e pulou o deploy. A troca dos mounts e a validação
+de autenticação e isolamento nos serviços em uso continuam pendentes. A reversão
+operacional precisa de um caminho que funcione com o OpenBao selado: a imagem
+anterior do Core consulta o cofre ao iniciar. `PRODUCTION_GATE=BLOCKED`.
