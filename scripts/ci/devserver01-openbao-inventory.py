@@ -3,6 +3,7 @@
 import json
 import os
 import pwd
+import re
 import subprocess
 import sys
 
@@ -26,7 +27,9 @@ VAULT_MOUNTS = {
 INSPECT = (
     '{{json .Name}}\t{{json .State.Status}}\t{{json .Mounts}}\t'
     '{{json .HostConfig.VolumesFrom}}\t{{range $name, $endpoint := .NetworkSettings.Networks}}{{$name}} {{end}}\t'
-    '{{range .Config.Env}}{{index (split . "=") 0}} {{end}}'
+    '{{range .Config.Env}}{{index (split . "=") 0}} {{end}}\t'
+    '{{json (index .Config.Labels "com.docker.compose.project")}}\t'
+    '{{json (index .Config.Labels "com.docker.compose.service")}}'
 )
 
 
@@ -43,10 +46,11 @@ def inventory():
         raise RuntimeError("Docker inspect inventory unavailable")
     containers = {}
     for line in result.stdout.splitlines():
-        name, status, mounts, inherited, networks, env_keys = line.split("\t")
+        name, status, mounts, inherited, networks, env_keys, project, service = line.split("\t")
         mounts = json.loads(mounts) or []
         containers[json.loads(name).lstrip("/")] = {
             "status": json.loads(status),
+            "compose_service": "/".join(json.loads(x) for x in (project, service)),
             "volumes_from": bool(json.loads(inherited)),
             "vault_runtime": any(m.get("Destination") in VAULT_MOUNTS
                                  or m.get("Source", "").startswith("/run/syndes/approle/")
@@ -89,13 +93,19 @@ def main():
         state = details["status"]
         if state not in ("created", "running", "paused", "restarting", "exited", "dead"):
             state = "unknown"
-        flags = " ".join(f"{key}={int(value)}" for key, value in details.items() if key != "status")
+        flags = " ".join(f"{key}={int(value)}" for key, value in details.items() if key not in ("status", "compose_service"))
         print(f"OPENBAO_INVENTORY_{label}={state} {flags}")
     unknown = [data for name, data in containers.items()
                if name not in {*SERVICES.values(), VAULT, STAGING_VAULT}]
     print("OPENBAO_INVENTORY_OTHER_VAULT_NETWORK_PEERS=" + str(sum(x["vault_network"] for x in unknown)))
     print("OPENBAO_INVENTORY_OTHER_CREDENTIAL_CONSUMERS=" +
           str(sum(bool(x["vault_runtime"] or x["vault_url_key"] or x["volatile_files"]) for x in unknown)))
+    for entry in unknown:
+        if entry["vault_runtime"] or entry["vault_url_key"] or entry["volatile_files"] or entry["vault_network"]:
+            identity = entry["compose_service"]
+            if not re.fullmatch(r"[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+", identity):
+                identity = "unlabeled"
+            print(f"OPENBAO_INVENTORY_OTHER={identity} status={entry['status']}")
     print("OPENBAO_INVENTORY_OPERATIONAL_SEAL=" + seal_status(containers, VAULT))
     print("OPENBAO_INVENTORY_STAGING_SEAL=" + seal_status(containers, STAGING_VAULT))
     print("DEVSERVER01_OPENBAO_METADATA_INVENTORY_PASS")
