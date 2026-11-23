@@ -101,6 +101,19 @@ jobs:
           python3 -m py_compile scripts/ci/devserver01-openbao-inventory.py
           timeout 90s tailscale ssh "delmacy@$DEPLOY_HOST" 'python3 - --cutover' < scripts/ci/devserver01-openbao-inventory.py
 
+      - name: Plan removal of the Syndes stacks and locate the preserved WhatsApp store
+        if: ${{ contains(github.event.workflow_run.head_commit.message, 'DEVSERVER01-INVENTORY-SYNDES-CLEANUP') }}
+        env:
+          DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$DEPLOY_HOST" == 'delmacy-desktoppc.tayra-delta.ts.net' ]]
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          python3 -m py_compile scripts/ci/devserver01-syndes-cleanup-plan.py
+          timeout 100s tailscale ssh "delmacy@$DEPLOY_HOST" 'python3 -' < scripts/ci/devserver01-syndes-cleanup-plan.py
+
   deploy:
     # Release requires all of: repository switch, approved *exact* SHA, and
     # operator-attested backup/restore. A future main push cannot auto-promote.

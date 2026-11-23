@@ -114,8 +114,11 @@ def cutover_metadata():
                 if not re.fullmatch(r"/(?:home/delmacy|srv/syndes-lab)/[a-zA-Z0-9_./-]+", item):
                     continue
                 print(f"OPENBAO_CUTOVER_{label}_{field}={item}")
-                if field == "COMPOSE" and Path(item).is_file() and os.access(item, os.R_OK):
-                    digest = hashlib.sha256(Path(item).read_bytes()).hexdigest()
+                if field == "COMPOSE":
+                    try:
+                        digest = hashlib.sha256(Path(item).read_bytes()).hexdigest()
+                    except OSError:
+                        digest = "unavailable"
                     print(f"OPENBAO_CUTOVER_{label}_COMPOSE_SHA256={digest}")
         for mount in mounts or []:
             if mount.get("Type") == "volume" and re.fullmatch(r"[a-zA-Z0-9_.-]+", mount.get("Name", "")):
