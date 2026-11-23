@@ -242,9 +242,9 @@ route_owned=true
 tailscale serve status --json 2>/dev/null | python3 "$repo/infra/master-admin/check-tailnet-route.py" --mode active >/dev/null ||
   fail "Tailnet Serve route does not point to the dedicated Manager frontend"
 if [[ "$actions_release" == true ]]; then
-  curl --silent --show-error --fail --max-time 15 "$origin/" >/dev/null ||
+  curl --noproxy '*' --silent --show-error --fail --max-time 15 "$origin/" >/dev/null ||
     fail "Manager frontend not reachable through private HTTPS"
-  anonymous_status=$(curl --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' \
+  anonymous_status=$(curl --noproxy '*' --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' \
     "$origin/v1/platform/admin/tenants")
   [[ "$anonymous_status" == 401 ]] || fail "Tenant catalog must deny anonymous requests"
   say "Private Manager frontend reachable and anonymous tenant catalog request denied"

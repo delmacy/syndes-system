@@ -93,7 +93,7 @@ try:
 
     def reach(net, *, timeout=18):
         return run("docker", "run", "--rm", "--network", net, "curlimages/curl:8.12.1",
-                   "--silent", "--fail", "--max-time", "2", "http://" + ip + "/",
+                   "--noproxy", "*", "--silent", "--fail", "--max-time", "2", "http://" + ip + "/",
                    check=False, timeout=timeout).returncode == 0
 
     for _ in range(12):
