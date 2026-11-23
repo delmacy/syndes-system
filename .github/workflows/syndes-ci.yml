@@ -2133,6 +2133,56 @@ jobs:
           timeout 90s tailscale ssh "delmacy@$DEPLOY_HOST" 'python3 -' < scripts/ci/devserver01-openbao-inventory.py
           timeout 180s tailscale ssh "delmacy@$DEPLOY_HOST" 'SYNDES_PREPARE_OPERATIONAL_FILES=ACTIONS_APPROVED_OPERATIONAL_FILES python3 -' < scripts/deploy/devserver01-prepare-file-credentials.py
 
+  devserver01-rehearse-operational-file-credentials:
+    name: Rehearse credential mounts with isolated services and data
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'DEVSERVER01-REHEARSE-OPERATIONAL-FILES-APPROVED') }}
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: devserver01
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DEPLOY_HOST: ${{ vars.SYNDES_DEV_SSH_HOST }}
+      TAILSCALE_TAG: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Build exact Core Host image for the disposable project
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          [[ "$DEPLOY_HOST" == 'delmacy-desktoppc.tayra-delta.ts.net' && "$TAILSCALE_TAG" == 'tag:syndes-ci' ]]
+          python3 -m py_compile scripts/deploy/devserver01-rehearse-file-credentials.py
+          node --check infra/operational-file-rehearsal/verify.mjs
+          docker build --label "org.opencontainers.image.revision=$SOURCE_SHA" \
+            -f apps/core-host/Dockerfile -t "syndes/core-host:rehearsal-$SOURCE_SHA" .
+      - name: Join trusted Tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.SYNDES_TAILSCALE_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.SYNDES_TAILSCALE_OIDC_AUDIENCE }}
+          tags: ${{ vars.SYNDES_DEV_TAILSCALE_TAG }}
+      - name: Verify disposable project startup, replacement mounts and reversal
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          remote="delmacy@$DEPLOY_HOST"
+          image="syndes/core-host:rehearsal-$SOURCE_SHA"
+          timeout 45s tailscale ssh "$remote" 'bash -s -- preflight' < scripts/deploy/devserver01-core-host.sh
+          docker save "$image" | gzip -1 | timeout 600s tailscale ssh "$remote" 'gzip -dc | docker load >/dev/null'
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "$bundle"' EXIT
+          install -m 0755 infra/postgres/bootstrap/00-init.sh "$bundle/"
+          install -m 0644 infra/postgres/bootstrap/control.schema infra/operational-file-rehearsal/{compose.yaml,verify.mjs} "$bundle/"
+          install -m 0600 scripts/deploy/devserver01-rehearse-file-credentials.py "$bundle/rehearse.py"
+          tar -czf - -C "$bundle" . | timeout 720s tailscale ssh "$remote" \
+            "set -Eeuo pipefail; umask 077; dir=\$(mktemp -d /tmp/syndes-rehearsal-bundle.XXXXXXXX); trap 'rm -rf \"\$dir\"' EXIT; tar -xzf - -C \"\$dir\"; SYNDES_REHEARSE_OPERATIONAL_FILES=ACTIONS_APPROVED_OPERATIONAL_REHEARSAL SOURCE_SHA=$SOURCE_SHA python3 \"\$dir/rehearse.py\" \"\$dir\" '$image'"
+
   devserver01-demo-readiness:
     name: DevServer01 tenant and Manager demo readiness
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (contains(github.event.head_commit.message, 'DEVSERVER01-DEMO-READINESS-APPROVED') || contains(github.event.head_commit.message, 'DEVSERVER01-MANAGER-DEMO-PASSWORD-RESET-APPROVED')) }}
