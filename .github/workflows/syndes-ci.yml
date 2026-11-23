@@ -2129,6 +2129,14 @@ jobs:
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
           timeout 180s tailscale ssh "delmacy@$DEVSERVER_PEER" 'SYNDES_DEMO_READINESS=ACTIONS_READONLY_DEMOS bash -s' < scripts/ci/devserver01-demo-readiness.sh
 
+      - name: Check the real Keycloak form after an invalid synthetic login
+        if: ${{ contains(github.event.head_commit.message, 'DEVSERVER01-MANAGER-LOGIN-RETRY-PROBE-APPROVED') }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          python3 -m py_compile scripts/ci/devserver01-manager-login-retry.py
+          timeout 60s tailscale ssh "delmacy@$DEVSERVER_PEER" 'python3 -' < scripts/ci/devserver01-manager-login-retry.py
+
   devserver01-retire-confirmed-legacy-tenant:
     name: DevServer01 retire confirmed legacy tenant from service
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'DEVSERVER01-LEGACY-8D22676BFEDB-RETIREMENT-APPROVED') }}
