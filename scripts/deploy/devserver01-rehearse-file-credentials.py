@@ -205,12 +205,16 @@ def reject_invalid_core_file(compose):
 
 def rehearsal(args, fixture):
     environment = os.environ | images(args.image, fixture)
-    require(Path(args.assets).is_dir())
-    assets = str(Path(args.assets).resolve())
+    assets = Path(args.assets).resolve()
+    owner_mode(assets, stat.S_ISDIR, 0o700)
+    owner_mode(assets / "00-init.sh", stat.S_ISREG, 0o755)
+    for filename in ("control.schema", "compose.yaml", "verify.mjs"):
+        owner_mode(assets / filename, stat.S_ISREG, 0o644)
+    print("OPERATIONAL_REHEARSAL_ASSET_MODES_PASS", flush=True)
     project = "syndes-credential-rehearsal-" + secrets.token_hex(6)
     command = ["docker", "compose", "--env-file", "/dev/null", "--project-name", project,
-               "--file", assets + "/compose.yaml"]
-    environment["REHEARSAL_ASSETS"] = assets
+               "--file", str(assets / "compose.yaml")]
+    environment["REHEARSAL_ASSETS"] = str(assets)
     with tempfile.TemporaryDirectory(prefix="syndes-credential-rehearsal-") as temporary:
         primary, replacement, invalid = (Path(temporary) / name for name in ("primary", "replacement", "invalid"))
         pilot_password = secrets.token_hex(24)
@@ -220,7 +224,11 @@ def rehearsal(args, fixture):
         render(invalid, files | {"operational-core.json": '{"namespace":"multi-org-staging"}'})
 
         def compose(*options, **kwargs):
-            return run([*command, *options], env=environment, **kwargs)
+            try:
+                return run([*command, *options], env=environment, **kwargs)
+            except (RuntimeError, subprocess.TimeoutExpired):
+                print("OPERATIONAL_REHEARSAL_COMPOSE_FAILED=" + options[0], file=sys.stderr)
+                raise
 
         environment["REHEARSAL_FILES"] = str(primary)
         try:
