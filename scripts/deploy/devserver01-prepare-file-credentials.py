@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Prepare protected copies from existing mounts and verify read-only logins."""
+import io
 import json
 import os
 from pathlib import Path
@@ -8,6 +9,7 @@ import re
 import stat
 import subprocess
 import sys
+import tarfile
 import tempfile
 from urllib.parse import quote, unquote, urlsplit
 
@@ -29,9 +31,9 @@ MOUNTS = {
 }
 
 
-def docker(*args, input_data=None):
+def docker(*args, input_data=None, text_output=True):
     result = subprocess.run(
-        ["docker", *args], input=input_data, capture_output=True, text=True, timeout=35,
+        ["docker", *args], input=input_data, capture_output=True, text=text_output, timeout=35,
     )
     if result.returncode:
         raise RuntimeError("Unable to verify or read an approved runtime dependency")
@@ -39,9 +41,9 @@ def docker(*args, input_data=None):
 
 
 def mounted_file(name, container, destination):
-    inspected = docker("inspect", "-f", "{{.Id}}\n{{json .Mounts}}", container)
-    identity, mounts = inspected.splitlines()
-    if not re.fullmatch(r"[0-9a-f]{64}", identity):
+    inspected = docker("inspect", "-f", "{{.Id}}\n{{.State.Running}}\n{{json .Mounts}}", container)
+    identity, running, mounts = inspected.splitlines()
+    if not re.fullmatch(r"[0-9a-f]{64}", identity) or running != "true":
         raise RuntimeError("Expected an exact runtime container")
     matching = [mount for mount in json.loads(mounts) if mount["Destination"] == destination]
     if len(matching) != 1 or not (
@@ -49,10 +51,20 @@ def mounted_file(name, container, destination):
         and matching[0]["Source"] == "/run/syndes/runtime/" + name
     ):
         raise RuntimeError("Unexpected source mount for " + name)
-    value = docker("exec", "-u", "0", identity, "cat", destination)
-    if not value or len(value) > 65536:
-        raise RuntimeError("Missing or oversized approved runtime file")
-    return value
+    # The OpenFGA image provides no shell or file utilities. Read the mounted
+    # file through Docker without extracting anything onto the host filesystem.
+    try:
+        data = docker("cp", f"{identity}:{destination}", "-", text_output=False)
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:") as archive:
+            entries = archive.getmembers()
+            if len(entries) == 1:
+                member = entries[0]
+                if member.isfile() and member.name == Path(destination).name and 0 < member.size <= 65536:
+                    with archive.extractfile(member) as stream:
+                        return stream.read().decode("utf-8")
+    except (RuntimeError, tarfile.TarError, UnicodeError):
+        pass
+    raise RuntimeError("Unable to read approved mounted file " + name)
 
 
 def private_path(path, mode, is_directory=False):
