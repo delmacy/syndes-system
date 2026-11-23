@@ -1,5 +1,5 @@
 import {useCallback,useEffect,useMemo,useState} from "react";
-import {MasterApi,type Operator,type Overview,type TenantPage} from "./api";
+import {ApiError,MasterApi,type Operator,type Overview,type TenantPage} from "./api";
 import {DemoMasterApi} from "./demo";
 import {clearLogin,finishLogin,login,readConfig,type MasterConfig} from "./auth";
 import type {View} from "./app/view";
@@ -44,6 +44,7 @@ export default function App(){
   api.me(controller.signal).then(result=>{if(active){setOperator(result);setAuthError("")}}).catch(error=>{
    if(active&&!(error instanceof DOMException&&error.name==="AbortError")){
     setOperator(null);setAuthError(error instanceof Error?error.message:"Acesso não autorizado");
+    if(error instanceof ApiError&&(error.status===401||error.status===403))setToken(null);
    }
   });
   return()=>{active=false;controller.abort()};
@@ -68,7 +69,13 @@ export default function App(){
  };
 
  if(!token||!operator)return <LoginScreen booting={booting} config={config} authError={authError}
-  onLogin={cfg=>void login(cfg).catch(error=>setAuthError(String(error)))}/>;
+  onLogin={cfg=>{
+   setAuthError("");setBooting(true);
+   void login(cfg).catch(error=>{
+    setAuthError(error instanceof Error?error.message:"Falha ao iniciar autenticação.");
+    setBooting(false);
+   });
+  }}/>;
  return <>
   <ManagerShell view={view} onViewChange={switchView} onRefresh={()=>setRefresh(r=>r+1)}
    onSignOut={signOut} operator={operator} previewMode={previewMode}

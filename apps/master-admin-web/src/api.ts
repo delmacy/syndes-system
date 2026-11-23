@@ -24,7 +24,7 @@ export class MasterApi{
    cache:"no-store",signal
   });
   if(response.status===401)throw new ApiError("Sua sessão expirou. Entre novamente.",401);
-  if(response.status===403)throw new ApiError("Esta conta não possui acesso à administração da plataforma.",403);
+  if(response.status===403)throw new ApiError("Esta conta não possui acesso à administração da plataforma. Entre com uma conta autorizada.",403);
   if(!response.ok)throw new ApiError("Não foi possível consultar o Control Plane.",response.status);
   return response.json() as Promise<T>;
  }
