@@ -49,8 +49,9 @@ services:
     cap_drop: [ALL]
     networks:
       - master-private
+      - master-ingress
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      test: ["CMD", "wget", "-Y", "off", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
       interval: 20s
       timeout: 4s
       retries: 3
@@ -59,6 +60,10 @@ services:
 networks:
   master-private:
     internal: true
+  # Docker suppresses port publication when all service networks are internal.
+  # Only the frontend joins this bridge; its published port is loopback-only.
+  master-ingress:
+    driver: bridge
   syndes-master-data:
     external: true
   syndes-master-identity:

@@ -117,16 +117,19 @@ if [[ -n "$api_id" && -n "$web_id" ]]; then
   api_nets=$(docker inspect "$api_id" --format '{{range $n, $_ := .NetworkSettings.Networks}}{{$n}} {{end}}' 2>/dev/null || true)
   web_nets=$(docker inspect "$web_id" --format '{{range $n, $_ := .NetworkSettings.Networks}}{{$n}} {{end}}' 2>/dev/null || true)
   private='syndes-master-admin_master-private'
+  ingress='syndes-master-admin_master-ingress'
   if [[ " $api_nets " == *" syndes-master-data "* &&
         " $api_nets " == *" syndes-master-identity "* &&
         " $api_nets " == *" $private "* &&
         "$(wc -w <<<"$api_nets")" -eq 3 &&
-        "$web_nets" == "$private " ]]; then
-    ok "API has exactly dedicated data/identity/private bridges; web only private"
+        " $web_nets" == *" $private "* && " $web_nets" == *" $ingress "* &&
+        "$(wc -w <<<"$web_nets")" -eq 2 ]]; then
+    ok "API has dedicated internal bridges; web has private and ingress bridges"
   else stop "Manager API/web network attachment does not match approved topology"; fi
   if docker exec "$api_id" node -e "fetch('http://127.0.0.1:8085/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" >/dev/null 2>&1 &&
-     docker exec "$web_id" wget -q -O /dev/null http://127.0.0.1:8080/ >/dev/null 2>&1; then
-    ok "Actual API readiness and web HTTP response confirmed"
+     docker exec "$web_id" wget -Y off -q -O /dev/null http://127.0.0.1:8080/ >/dev/null 2>&1 &&
+     curl --noproxy '*' --fail --silent --max-time 5 http://127.0.0.1:18085/ >/dev/null; then
+    ok "Actual API readiness, web HTTP and host loopback response confirmed"
   else stop "API readiness or frontend HTTP probe failed"; fi
 else
   stop "Both dedicated API and web containers must be running"
