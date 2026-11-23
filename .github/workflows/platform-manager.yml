@@ -76,8 +76,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Reproduce restrictive DevServer01 release checkout modes
+        run: |
+          set -Eeuo pipefail
+          find apps/master-admin-api/src -type d -exec chmod 0700 {} +
+          find apps/master-admin-api/src -type f -exec chmod 0600 {} +
+          chmod 0600 apps/master-admin-api/package.json apps/master-admin-api/package-lock.json
       - name: Build independent API image
         run: docker build -f apps/master-admin-api/Dockerfile -t syndes/master-admin-api:ci .
+      - name: Verify both runtime entrypoints readable by nonroot Node
+        run: |
+          set -Eeuo pipefail
+          for source in src/main.mjs src/diagnostic-db.mjs; do
+            docker run --rm --network none --read-only --cap-drop ALL \
+              --security-opt no-new-privileges --entrypoint node \
+              syndes/master-admin-api:ci --check "$source"
+          done
+          echo MANAGER_API_RESTRICTIVE_CHECKOUT_NONROOT_SOURCE_READ=PASS
       - name: Prove 0600 file mount is readable by API nonroot UID
         run: |
           set -Eeuo pipefail
