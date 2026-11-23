@@ -19,8 +19,8 @@ export function tenantDatabaseHost(namespace:SecretNamespace):string{
   "control-postgres":"syndes-postgres";
 }
 
-export function stageFileSecretsEnabled(env:NodeJS.ProcessEnv=process.env):boolean{
- if(env.CORE_SECRET_PROVIDER===undefined||env.CORE_SECRET_PROVIDER==="openbao")return false;
- if(env.CORE_SECRET_PROVIDER==="files"&&secretNamespaceFromEnv(env)==="multi-org-staging")return true;
+export function fileSecretNamespace(env:NodeJS.ProcessEnv=process.env):SecretNamespace|undefined{
+ if(env.CORE_SECRET_PROVIDER===undefined||env.CORE_SECRET_PROVIDER==="openbao")return;
+ if(env.CORE_SECRET_PROVIDER==="files"&&env.SYNDES_DEPLOYMENT_ENV!==undefined)return secretNamespaceFromEnv(env);
  throw new Error("Invalid credential provider for this deployment");
 }

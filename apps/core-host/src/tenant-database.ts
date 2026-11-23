@@ -3,8 +3,8 @@ import {Inject,Injectable,OnModuleDestroy} from "@nestjs/common";
 import {Pool} from "pg";
 import {PINNED_TENANT_TRANSACTION,type TrustedTenantTransactionProvider,type TenantTransaction,type TenantDatabase} from "@syndes/core-kernel";
 import {tenantUUID} from "./adapters.js";
-import {secretNamespaceFromEnv,stageFileSecretsEnabled,validateSecretNamespace,tenantDatabaseHost,type SecretNamespace} from "./secret-namespace.js";
-import {readStageSecret} from "./secrets.js";
+import {fileSecretNamespace,secretNamespaceFromEnv,validateSecretNamespace,tenantDatabaseHost,type SecretNamespace} from "./secret-namespace.js";
+import {readCredentialFile} from "./secrets.js";
 
 export type ControlQuery=Pick<Pool,"query">;
 export interface CoreApi { readonly db:Pool;readonly kernel:import("@syndes/core-kernel").CoreKernel;
@@ -81,12 +81,15 @@ export class TenantCredentialSource {
   }
 }
 
-export class StageTenantCredentialSource {
-  constructor(private readonly directory="/run/secrets/stage-tenants"){}
+export class FileTenantCredentialSource {
+  constructor(
+    private readonly namespace:SecretNamespace,
+    private readonly directory=namespace==="production"?"/run/secrets/operational-tenants":"/run/secrets/stage-tenants",
+  ){}
 
   async password(id:string,expectedUser:string):Promise<string>{
     if(expectedTenantDatabase(id).role_name!==expectedUser)throw new Error("Tenant credential mismatch");
-    const value=await readStageSecret(this.directory+"/"+id.toLowerCase()+".json");
+    const value=await readCredentialFile(this.directory+"/"+id.toLowerCase()+".json",this.namespace);
     if(value.username!==expectedUser||typeof value.password!=="string"||value.password.length<20)
       throw new Error("Tenant credential mismatch");
     return value.password;
@@ -97,7 +100,7 @@ export class StageTenantCredentialSource {
 export class TenantPgProvider implements TrustedTenantTransactionProvider,OnModuleDestroy{
   private readonly namespace=secretNamespaceFromEnv();
   private readonly pools=new Map<string,{pool:Pool;last:number}>();
-  private readonly source=stageFileSecretsEnabled()?new StageTenantCredentialSource():new TenantCredentialSource();
+  private readonly source=fileSecretNamespace()?new FileTenantCredentialSource(this.namespace):new TenantCredentialSource();
   constructor(@Inject("SYNDES_CORE_API") private readonly core:CoreApi){}
   private async poolFor(tenantId:string):Promise<Pool>{
     const mapping=await resolveRegistry(this.core.db,tenantId);
