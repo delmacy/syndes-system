@@ -128,6 +128,22 @@ report_probe(){
   local scope="$1" output="$2" marker
   marker="$(printf '%s\n' "$output" | grep -Eo 'MANAGER_DB_PROBE=(PASS|BLOCKED:[a-z-]+:[A-Z0-9_]+:[a-z]+)' | tail -n 1 || true)"
   echo "MANAGER_${scope}_NETWORK_${marker:-PROBE=UNCLASSIFIED}"
+  if [[ -z "$marker" ]]; then
+    # Docker or Node failed before the one-shot JS probe could emit its marker.
+    # Never log the captured error text (may contain daemon paths or metadata).
+    local class=UNKNOWN
+    case "$output" in
+      *ERR_MODULE_NOT_FOUND*|*"Cannot find module"*) class=NODE_MODULE ;;
+      *"invalid mount config"*|*"mount destination"*) class=MOUNT ;;
+      *"OCI runtime create failed"*|*"OCI runtime exec failed"*) class=OCI_RUNTIME ;;
+      *"permission denied"*|*"Permission denied"*) class=PERMISSION ;;
+      *"network not found"*|*"network is unreachable"*) class=NETWORK ;;
+      *"No such file or directory"*|*"no such file or directory"*) class=MISSING_FILE ;;
+      *"unknown flag"*|*"invalid reference format"*) class=DOCKER_CLI ;;
+      *"SyntaxError"*|*"ReferenceError"*) class=NODE_RUNTIME ;;
+    esac
+    echo "MANAGER_${scope}_DOCKER_FAILURE_CLASS=$class"
+  fi
   [[ "$marker" == MANAGER_DB_PROBE=PASS ]]
 }
 if single_probe="$(docker run --rm --network syndes-master-data \
@@ -137,6 +153,9 @@ if single_probe="$(docker run --rm --network syndes-master-data \
   --entrypoint node syndes/master-admin-api:local src/diagnostic-db.mjs 2>&1)"; then
   report_probe SINGLE "$single_probe" || fail "Single network Manager SQL probe returned no success marker"
 else
+  probe_exit=$?
+  [[ "$probe_exit" =~ ^[0-9]+$ ]] || probe_exit=unknown
+  echo "MANAGER_SINGLE_DOCKER_EXIT=$probe_exit"
   report_probe SINGLE "$single_probe" || true
   fail "Single-network Manager SQL probe failed; no Manager containers started"
 fi
@@ -144,6 +163,9 @@ if multi_probe="$(docker compose -f infra/master-admin/compose.yaml \
   run -T --rm --no-deps --entrypoint node master-api src/diagnostic-db.mjs 2>&1)"; then
   report_probe MULTIHOMED "$multi_probe" || fail "Multihomed Manager SQL probe returned no success marker"
 else
+  probe_exit=$?
+  [[ "$probe_exit" =~ ^[0-9]+$ ]] || probe_exit=unknown
+  echo "MANAGER_MULTIHOMED_DOCKER_EXIT=$probe_exit"
   report_probe MULTIHOMED "$multi_probe" || true
   fail "Multihomed Manager SQL probe failed; no Manager containers started"
 fi
