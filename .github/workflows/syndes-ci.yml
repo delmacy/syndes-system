@@ -2130,6 +2130,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$SOURCE_SHA" ]]
+          timeout 90s tailscale ssh "delmacy@$DEPLOY_HOST" 'python3 -' < scripts/ci/devserver01-openbao-inventory.py
           timeout 180s tailscale ssh "delmacy@$DEPLOY_HOST" 'SYNDES_PREPARE_OPERATIONAL_FILES=ACTIONS_APPROVED_OPERATIONAL_FILES python3 -' < scripts/deploy/devserver01-prepare-file-credentials.py
 
   devserver01-demo-readiness:
