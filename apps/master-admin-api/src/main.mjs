@@ -53,7 +53,9 @@ async function start(){
 start().catch(async error=>{
  // Only machine-readable error codes may reach Actions; never SQL, DSN or secrets.
  const code=typeof error?.code==="string"&&/^[A-Z0-9_]{3,40}$/.test(error.code)?error.code:"INVARIANT";
+ const syscall=["connect","open","read","stat","access","getaddrinfo"].includes(error?.syscall)?error.syscall:"other";
  console.error("MASTER_API_STARTUP_FAILED="+code);
+ console.error("MASTER_API_STARTUP_SYSCALL="+syscall);
  console.error("Master Admin API startup denied; verify Keycloak and isolated control DB credentials");
  await pool.end().catch(()=>{});
  process.exitCode=1;
